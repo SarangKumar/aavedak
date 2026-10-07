@@ -116,7 +116,7 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
               </p>
               <p className="text-muted-foreground text-[11px]">
                 {isOwner
-                  ? "Active resume (download stays private for now)."
+                  ? "An active resume (download stays private for now). Multiple actives are allowed."
                   : "Active resume on Arambh."}
               </p>
             </div>

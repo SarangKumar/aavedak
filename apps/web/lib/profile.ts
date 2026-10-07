@@ -207,12 +207,7 @@ export function updateProfilePublic(userId: string, patch: ProfilePublicPatch): 
   return getProfile(userId)!;
 }
 
-/** Display portfolio: stored URL, else Sarang default when identity matches. */
+/** Display portfolio URL as stored — no placeholder defaults. */
 export function resolvePortfolioUrl(profile: Profile): string | null {
-  if (profile.portfolioUrl) return profile.portfolioUrl;
-  const identity = `${profile.username} ${profile.email ?? ""} ${profile.name ?? ""}`.toLowerCase();
-  if (identity.includes("sarang")) {
-    return "https://sarangkumar.vercel.app";
-  }
-  return null;
+  return profile.portfolioUrl?.trim() || null;
 }

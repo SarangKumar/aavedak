@@ -135,11 +135,7 @@ export async function createResumeFromPdf(opts: {
   const db = getAppDb();
 
   const tx = db.transaction(() => {
-    if (status === "active") {
-      db.prepare(
-        `UPDATE resumes SET status = 'inactive', updated_at = ? WHERE user_id = ? AND status = 'active'`,
-      ).run(now, opts.userId);
-    }
+    // Multiple active resumes allowed (scoring vs JD later).
     db.prepare(
       `INSERT INTO resumes
         (id, user_id, display_name, status, storage_path, original_filename, byte_size, created_at, updated_at)
@@ -189,17 +185,9 @@ export function updateResume(
   }
 
   const db = getAppDb();
-  const tx = db.transaction(() => {
-    if (status === "active") {
-      db.prepare(
-        `UPDATE resumes SET status = 'inactive', updated_at = ? WHERE user_id = ? AND status = 'active' AND id != ?`,
-      ).run(now, userId, resumeId);
-    }
-    db.prepare(
-      `UPDATE resumes SET display_name = ?, status = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
-    ).run(displayName, status, now, resumeId, userId);
-  });
-  tx();
+  db.prepare(
+    `UPDATE resumes SET display_name = ?, status = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+  ).run(displayName, status, now, resumeId, userId);
 
   return getResume(userId, resumeId)!;
 }

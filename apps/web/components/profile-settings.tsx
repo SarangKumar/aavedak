@@ -118,7 +118,8 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
             Profile settings
           </h1>
           <p className="text-muted-foreground max-w-xl text-[13px]">
-            Edit how you appear on Arambh. Resume activate/deactivate reuses your Documents APIs.
+            Edit how you appear on Arambh. Multiple resumes can be active; activate/deactivate
+            reuses Documents APIs.
           </p>
         </div>
         <Link
@@ -164,7 +165,7 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
               value={portfolioUrl}
               onChange={(e) => setPortfolioUrl(e.target.value)}
               className={fieldClass}
-              placeholder="https://sarangkumar.vercel.app"
+              placeholder="https://…"
             />
           </label>
 
