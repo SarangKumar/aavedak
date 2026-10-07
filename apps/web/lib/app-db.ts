@@ -137,6 +137,38 @@ export function getAppDb() {
 
     CREATE INDEX IF NOT EXISTS follow_up_tasks_user_id_idx ON follow_up_tasks (user_id);
     CREATE INDEX IF NOT EXISTS follow_up_tasks_user_status_idx ON follow_up_tasks (user_id, status);
+
+    /* User-scoped jobs for local v1 (multi-source ingestion later). */
+    CREATE TABLE IF NOT EXISTS jobs (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      company TEXT NOT NULL,
+      location TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'manual',
+      url TEXT,
+      description TEXT NOT NULL DEFAULT '',
+      salary TEXT,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS jobs_user_id_idx ON jobs (user_id);
+    CREATE INDEX IF NOT EXISTS jobs_user_source_idx ON jobs (user_id, source);
+
+    /* Pasted JD analysis — user-scoped; does not create global Job records. */
+    CREATE TABLE IF NOT EXISTS job_analyses (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      raw_text TEXT NOT NULL,
+      summary TEXT,
+      job_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS job_analyses_user_id_idx ON job_analyses (user_id);
   `);
   db = instance;
   return instance;

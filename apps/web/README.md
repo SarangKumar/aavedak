@@ -102,6 +102,13 @@ apps/web/
 └── public/brand/icon.png
 ```
 
+## Jobs (local v1)
+
+- `/jobs`: master-detail cards; sources (manual/linkedin/careers/indeed/demo/other); search + source filter.
+- User-scoped `jobs` + `job_analyses` in `.data/app.db`. Demo seed when empty.
+- Detail actions create Applications (`bookmarked` / `preparing` / `applied`) with `job_id` snapshot.
+- Paste JD saves a private analysis stub (no global Job).
+
 ## Referrals (local v1)
 
 - `/referrals`: People + Follow-ups. Contacts are **user-scoped** (private outreach email override). Global Person sync later.
