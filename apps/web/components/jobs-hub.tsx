@@ -389,7 +389,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
           onPointerDown={onResizeStart}
           onPointerMove={onResizeMove}
           onPointerUp={onResizeEnd}
-          className="border-border/40 hidden shrink-0 border-x bg-transparent md:flex"
+          className="hidden shrink-0 md:flex"
         />
 
         <section className="min-w-0 flex-1 p-4 sm:p-5">

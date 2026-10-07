@@ -55,13 +55,13 @@ export type DummyApplication = {
 };
 
 export const DEFAULT_DUMMY_APPLICATION: DummyApplication = {
-  company: "Northwind Labs",
+  company: "Acme Corp",
   role: "Software Engineer",
-  location: "Bangalore",
-  personName: "Priya Sharma",
-  personEmail: "priya.sharma@example.com",
-  userName: "Sarang",
-  fromEmail: "you@gmail.com",
+  location: "Remote",
+  personName: "Jane Smith",
+  personEmail: "jane.smith@example.com",
+  userName: "John Doe",
+  fromEmail: "john.doe@example.com",
 };
 
 export function dummyApplicationToVars(dummy: DummyApplication): Record<string, string> {

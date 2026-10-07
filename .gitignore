@@ -1,43 +1,38 @@
-# deps
-node_modules/
-.pnpm-store/
 
-# next
-apps/web/.next/
-apps/web/out/
-
-# env
-.env
-.env.local
-.env.*.local
-apps/web/.env
-apps/web/.env.local
-!.env.example
-!**/.env.example
-
-# python
-**/.venv/
-**/venv/
 __pycache__/
-*.py[cod]
+!.env.example
+!.vscode/extensions.json
+!**/.env.example
+.DS_Store
+.env
+.env.*.local
+.env.local
+.idea/
 .mypy_cache/
+.pnpm-store/
 .pytest_cache/
 .ruff_cache/
-
-# tooling
 .turbo/
-.DS_Store
-*.log
-coverage/
 .vercel/
-
-# editors
-.idea/
 .vscode/*
-!.vscode/extensions.json
-
-# local Better Auth SQLite (scaffold)
-apps/web/data/
-
+*.log
+*.py[cod]
+*.tsbuildinfo
+**/.venv/
+**/venv/
+# deps
+# editors
+# env
 # local app data (resumes + app.db)
+# local Better Auth SQLite (scaffold)
+# next
+# python
+# tooling
 apps/web/.data/
+apps/web/.env
+apps/web/.env.local
+apps/web/.next/
+apps/web/data/
+apps/web/out/
+coverage/
+node_modules/

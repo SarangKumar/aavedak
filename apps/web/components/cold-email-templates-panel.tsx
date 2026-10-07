@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import {
@@ -34,9 +34,9 @@ export type ColdEmailTemplateDto = {
 type Props = {
   templates: ColdEmailTemplateDto[];
   onTemplatesChange: (next: ColdEmailTemplateDto[]) => void;
-  /** Signed-in email for {{from_email}} in the dummy strip / preview. */
+  /** Ignored — dummy strip always uses example.com placeholders. Kept for call-site compat. */
   fromEmail?: string;
-  /** Display name for {{user_name}}. */
+  /** Ignored — dummy strip always uses example.com placeholders. Kept for call-site compat. */
   userName?: string;
   className?: string;
 };
@@ -67,26 +67,16 @@ const emptyDraft = () => ({
   kind: "outreach" as "outreach" | "cover" | "other",
 });
 
-export function ColdEmailTemplatesPanel({
-  templates,
-  onTemplatesChange,
-  fromEmail,
-  userName,
-  className,
-}: Props) {
+export function ColdEmailTemplatesPanel({ templates, onTemplatesChange, className }: Props) {
   const [draft, setDraft] = useState(emptyDraft);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
 
-  const dummy: DummyApplication = useMemo(
-    () => ({
-      ...DEFAULT_DUMMY_APPLICATION,
-      fromEmail: fromEmail?.trim() || DEFAULT_DUMMY_APPLICATION.fromEmail,
-      userName: userName?.trim() || DEFAULT_DUMMY_APPLICATION.userName,
-    }),
-    [fromEmail, userName],
-  );
+  // Dummy strip always uses example.com placeholders (props kept for call-site compat).
+  const dummy: DummyApplication = DEFAULT_DUMMY_APPLICATION;
 
   const vars = useMemo(() => dummyApplicationToVars(dummy), [dummy]);
   const previewSubject = renderTemplatePreview(draft.subject || "", vars);
@@ -95,6 +85,10 @@ export function ColdEmailTemplatesPanel({
   function startNew() {
     setDraft(emptyDraft());
     setError(null);
+    queueMicrotask(() => {
+      editorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      titleRef.current?.focus();
+    });
   }
 
   function loadTemplate(tpl: ColdEmailTemplateDto) {
@@ -224,27 +218,31 @@ export function ColdEmailTemplatesPanel({
 
       {/* 2) Create/edit | live preview */}
       <div className="grid gap-3 lg:grid-cols-2">
-        <div className="border-border/80 bg-card relative space-y-2 rounded-xl border p-3 shadow-sm">
+        <div
+          ref={editorRef}
+          className="border-border/80 bg-card relative space-y-2 rounded-xl border p-3 shadow-sm"
+        >
           <button
             type="button"
             onClick={() => setInfoOpen(true)}
-            className="group/info bg-foreground text-background absolute right-2.5 top-2.5 z-10 inline-flex size-7 items-center justify-center rounded-full shadow-sm"
+            className="group/info bg-foreground text-background absolute right-2 top-2 z-10 inline-flex size-4 items-center justify-center rounded-full shadow-sm"
             aria-label="Template variable meanings"
             aria-describedby="template-vars-tooltip"
+            title="Variable meanings"
           >
-            <span className="text-[13px] font-bold leading-none" aria-hidden>
+            <span className="text-[10px] font-bold leading-none" aria-hidden>
               i
             </span>
             <span
               id="template-vars-tooltip"
               role="tooltip"
-              className="border-border bg-popover text-popover-foreground pointer-events-none absolute right-0 top-[calc(100%+6px)] z-30 w-56 rounded-md border px-2.5 py-1.5 text-left text-[11px] font-normal leading-snug opacity-0 shadow-md transition-opacity group-hover/info:opacity-100 group-focus-visible/info:opacity-100"
+              className="border-border bg-popover text-popover-foreground pointer-events-none absolute right-0 top-[calc(100%+6px)] z-30 w-52 rounded-md border px-2 py-1.5 text-left text-[11px] font-normal leading-snug opacity-0 shadow-md transition-opacity group-hover/info:opacity-100 group-focus-visible/info:opacity-100"
             >
               Placeholders like {"{{company}}"} fill from the dummy application. Click for the full
               variable list.
             </span>
           </button>
-          <div className="flex items-center justify-between gap-2 pr-8">
+          <div className="flex items-center justify-between gap-2 pr-6">
             <p className="text-foreground text-[12px] font-semibold tracking-tight">
               {draft.id ? "Edit template" : "New template"}
             </p>
@@ -253,15 +251,17 @@ export function ColdEmailTemplatesPanel({
                 type="button"
                 onClick={startNew}
                 className="text-muted-foreground hover:text-foreground text-[11px] hover:underline"
+                title="Clear the editor and start a new blank template"
               >
                 New blank
               </button>
             ) : null}
           </div>
           <input
+            ref={titleRef}
             value={draft.title}
             onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
-            placeholder="Title"
+            placeholder="Title (e.g. Referral ask — Acme)"
             className={field}
           />
           <Select
@@ -342,9 +342,10 @@ export function ColdEmailTemplatesPanel({
           <button
             type="button"
             onClick={startNew}
+            title="Create a new blank cold-email template in the editor above"
             className="border-border text-foreground hover:text-primary inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
           >
-            Add new
+            New blank template
           </button>
         </div>
         {templates.length === 0 ? (

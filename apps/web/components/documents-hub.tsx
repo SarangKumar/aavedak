@@ -17,7 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { downloadCoverLetterDocx, downloadCoverLetterPdf } from "@/lib/cover-letter-download";
+import {
+  downloadCoverLetterDocx,
+  downloadCoverLetterPdf,
+  type CoverLetterFooter,
+} from "@/lib/cover-letter-download";
+import { renderTemplatePreview } from "@/lib/template-preview";
 import { cn } from "@/lib/utils";
 
 type Tab = "resumes" | "cover_letters" | "templates";
@@ -102,6 +107,12 @@ export function DocumentsHub({
   const [clApplicationId, setClApplicationId] = useState<string>(initialApplications[0]?.id ?? "");
   const [clTemplateId, setClTemplateId] = useState<string>("");
   const [editingClId, setEditingClId] = useState<string | null>(null);
+  const [clFooter, setClFooter] = useState<CoverLetterFooter>({
+    portfolio: "",
+    email: "",
+    linkedin: "",
+    github: "",
+  });
 
   const coverTemplates = useMemo(() => templates.filter((t) => t.kind === "cover"), [templates]);
 
@@ -116,18 +127,92 @@ export function DocumentsHub({
     setClBody("");
     setClTemplateId("");
     setClApplicationId(applications[0]?.id ?? "");
+    setClFooter({ portfolio: "", email: "", linkedin: "", github: "" });
   }
 
-  async function downloadCl(cl: CoverLetterDto, format: "pdf" | "docx") {
+  const selectedApp = clApplicationId ? appsById.get(clApplicationId) : undefined;
+
+  const coverVars = useMemo(() => {
+    return {
+      company: selectedApp?.companyName ?? "Acme Corp",
+      role: selectedApp?.role ?? "Software Engineer",
+      location: selectedApp?.location ?? "Remote",
+      user_name: "John Doe",
+      from_email: "john.doe@example.com",
+      person_name: "Jane Smith",
+      person_email: "jane.smith@example.com",
+    };
+  }, [selectedApp]);
+
+  const previewTitle = renderTemplatePreview(clTitle || "", coverVars);
+  const previewBody = renderTemplatePreview(clBody || "", coverVars);
+  const footerLines = [
+    clFooter.email?.trim(),
+    clFooter.portfolio?.trim(),
+    clFooter.linkedin?.trim(),
+    clFooter.github?.trim(),
+  ].filter(Boolean) as string[];
+
+  function applyCoverTemplate(tpl: TemplateDto) {
+    setClTemplateId(tpl.id);
+    setClBody(tpl.body);
+    if (!clTitle.trim()) setClTitle(tpl.title);
+  }
+
+  async function downloadCl(
+    cl: CoverLetterDto,
+    format: "pdf" | "docx",
+    footer?: CoverLetterFooter,
+  ) {
     setError(null);
     setDownloadBusy(`${cl.id}-${format}`);
     try {
-      const company = cl.applicationId ? appsById.get(cl.applicationId)?.companyName : undefined;
+      const app = cl.applicationId ? appsById.get(cl.applicationId) : undefined;
+      const vars = {
+        company: app?.companyName ?? "Acme Corp",
+        role: app?.role ?? "Software Engineer",
+        location: app?.location ?? "Remote",
+        user_name: "John Doe",
+        from_email: "john.doe@example.com",
+        person_name: "Jane Smith",
+        person_email: "jane.smith@example.com",
+      };
+      const rendered = {
+        title: renderTemplatePreview(cl.title, vars),
+        body: renderTemplatePreview(cl.body, vars),
+        companyName: app?.companyName,
+        role: app?.role,
+        footer: footer ?? clFooter,
+      };
       if (format === "pdf") {
-        await downloadCoverLetterPdf({ title: cl.title, body: cl.body, companyName: company });
+        await downloadCoverLetterPdf(rendered);
       } else {
-        await downloadCoverLetterDocx({ title: cl.title, body: cl.body, companyName: company });
+        await downloadCoverLetterDocx(rendered);
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Download failed.");
+    } finally {
+      setDownloadBusy(null);
+    }
+  }
+
+  async function downloadDraft(format: "pdf" | "docx") {
+    if (!clTitle.trim() && !clBody.trim()) {
+      setError("Add a title or body before downloading.");
+      return;
+    }
+    setError(null);
+    setDownloadBusy(`draft-${format}`);
+    try {
+      const rendered = {
+        title: previewTitle || clTitle || "Cover letter",
+        body: previewBody,
+        companyName: selectedApp?.companyName,
+        role: selectedApp?.role,
+        footer: clFooter,
+      };
+      if (format === "pdf") await downloadCoverLetterPdf(rendered);
+      else await downloadCoverLetterDocx(rendered);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Download failed.");
     } finally {
@@ -433,104 +518,211 @@ export function DocumentsHub({
       {tab === "cover_letters" ? (
         <section className="space-y-4">
           <p className="text-muted-foreground text-[12px] leading-relaxed">
-            Cover letters are always company-specific (tied to an application). Optional cover
-            templates seed the body; after save you can download PDF or DOCX.
+            Cover letters are always company-specific. Start from a saved cover template on the
+            left, use {"{{role}}"} / {"{{company}}"} variables, preview the PDF layout live, then
+            download PDF or DOCX.
           </p>
-          <div className="border-border/80 bg-card space-y-2.5 rounded-xl border p-4">
-            <p className="text-foreground text-[12px] font-medium">
-              {editingClId ? "Edit cover letter" : "New cover letter"}
-            </p>
-            <label className="block space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium">
-                Company / application *
-              </span>
-              <Select
-                value={clApplicationId || undefined}
-                onValueChange={(v) => setClApplicationId(v || "")}
-              >
-                <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
-                  <SelectValue placeholder="Select application" />
-                </SelectTrigger>
-                <SelectContent className="z-[280]">
-                  {applications.length === 0 ? (
-                    <SelectItem value="__none" disabled>
-                      No applications yet — add one in Job tracker
-                    </SelectItem>
-                  ) : (
-                    applications.map((app) => (
-                      <SelectItem key={app.id} value={app.id}>
-                        {app.companyName} · {app.role}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="block space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium">
-                Cover template (optional)
-              </span>
-              <Select
-                value={clTemplateId || undefined}
-                onValueChange={(v) => {
-                  const id = v || "";
-                  setClTemplateId(id);
-                  const tpl = coverTemplates.find((t) => t.id === id);
-                  if (tpl) {
-                    setClBody(tpl.body);
-                    if (!clTitle.trim()) setClTitle(tpl.title);
+
+          <div className="grid gap-3 lg:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)]">
+            {/* Side: saved cover templates */}
+            <aside className="border-border/80 bg-card space-y-2 rounded-xl border p-3 shadow-sm">
+              <p className="text-foreground text-[12px] font-semibold tracking-tight">
+                Start from a saved template
+              </p>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                Cover-kind templates only. Click one to seed the editor (create new templates under
+                Cold email templates).
+              </p>
+              {coverTemplates.length === 0 ? (
+                <p className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-2.5 py-6 text-center text-[11px]">
+                  No cover templates yet.
+                </p>
+              ) : (
+                <ul className="max-h-[28rem] space-y-1.5 overflow-y-auto">
+                  {coverTemplates.map((tpl) => {
+                    const selected = clTemplateId === tpl.id;
+                    return (
+                      <li key={tpl.id}>
+                        <button
+                          type="button"
+                          onClick={() => applyCoverTemplate(tpl)}
+                          className={cn(
+                            "w-full rounded-lg border px-2.5 py-2 text-left transition-colors",
+                            selected
+                              ? "border-primary/40 bg-primary/10"
+                              : "border-border/70 bg-background/40 hover:bg-muted/40",
+                          )}
+                        >
+                          <p className="text-foreground truncate text-[12px] font-medium">
+                            {tpl.title}
+                          </p>
+                          <p className="text-muted-foreground line-clamp-2 text-[10px] leading-snug">
+                            {tpl.body || "Empty body"}
+                          </p>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </aside>
+
+            {/* Editor + live PDF preview */}
+            <div className="grid min-w-0 gap-3 xl:grid-cols-2">
+              <div className="border-border/80 bg-card space-y-2.5 rounded-xl border p-4 shadow-sm">
+                <p className="text-foreground text-[12px] font-medium">
+                  {editingClId ? "Edit cover letter" : "New cover letter"}
+                </p>
+                <label className="block space-y-1">
+                  <span className="text-muted-foreground text-[11px] font-medium">
+                    Company / application *
+                  </span>
+                  <Select
+                    value={clApplicationId || undefined}
+                    onValueChange={(v) => setClApplicationId(v || "")}
+                  >
+                    <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
+                      <SelectValue placeholder="Search applications…" />
+                    </SelectTrigger>
+                    <SelectContent
+                      className="z-[280]"
+                      searchable
+                      searchPlaceholder="Search company or role…"
+                    >
+                      {applications.length === 0 ? (
+                        <SelectItem value="__none" disabled>
+                          No applications yet — add one in Job tracker
+                        </SelectItem>
+                      ) : (
+                        applications.map((app) => (
+                          <SelectItem key={app.id} value={app.id}>
+                            {app.companyName} · {app.role}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <input
+                  value={clTitle}
+                  onChange={(e) => setClTitle(e.target.value)}
+                  placeholder="Title — e.g. Cover for {{role}} at {{company}}"
+                  className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
+                />
+                <textarea
+                  value={clBody}
+                  onChange={(e) => setClBody(e.target.value)}
+                  placeholder={
+                    "Dear Hiring Manager,\n\nI am writing to apply for the {{role}} role at {{company}}…"
                   }
-                }}
-              >
-                <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
-                  <SelectValue placeholder="Start from a saved cover template" />
-                </SelectTrigger>
-                <SelectContent className="z-[280]">
-                  {coverTemplates.length === 0 ? (
-                    <SelectItem value="__none" disabled>
-                      No cover templates — create one under Cold email templates (kind: Cover)
-                    </SelectItem>
-                  ) : (
-                    coverTemplates.map((tpl) => (
-                      <SelectItem key={tpl.id} value={tpl.id}>
-                        {tpl.title}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </label>
-            <input
-              value={clTitle}
-              onChange={(e) => setClTitle(e.target.value)}
-              placeholder="Title"
-              className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
-            />
-            <textarea
-              value={clBody}
-              onChange={(e) => setClBody(e.target.value)}
-              placeholder="Body (plain text)"
-              rows={8}
-              className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] leading-relaxed"
-            />
-            <div className="flex gap-2">
-              {editingClId ? (
-                <button
-                  type="button"
-                  onClick={() => resetCoverDraft()}
-                  className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-                >
-                  Cancel
-                </button>
-              ) : null}
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => void saveCoverLetter()}
-                className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
-              >
-                {pending ? "Saving…" : editingClId ? "Update" : "Create"}
-              </button>
+                  rows={9}
+                  className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
+                />
+                <div className="space-y-1.5">
+                  <p className="text-foreground text-[11px] font-semibold tracking-tight">
+                    Footer (optional)
+                  </p>
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    <input
+                      value={clFooter.portfolio ?? ""}
+                      onChange={(e) => setClFooter((f) => ({ ...f, portfolio: e.target.value }))}
+                      placeholder="Portfolio — https://example.com"
+                      className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px]"
+                    />
+                    <input
+                      value={clFooter.email ?? ""}
+                      onChange={(e) => setClFooter((f) => ({ ...f, email: e.target.value }))}
+                      placeholder="Email — jane@example.com"
+                      className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px]"
+                    />
+                    <input
+                      value={clFooter.linkedin ?? ""}
+                      onChange={(e) => setClFooter((f) => ({ ...f, linkedin: e.target.value }))}
+                      placeholder="LinkedIn — https://linkedin.com/in/…"
+                      className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px]"
+                    />
+                    <input
+                      value={clFooter.github ?? ""}
+                      onChange={(e) => setClFooter((f) => ({ ...f, github: e.target.value }))}
+                      placeholder="GitHub — https://github.com/…"
+                      className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px]"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {editingClId ? (
+                    <button
+                      type="button"
+                      onClick={() => resetCoverDraft()}
+                      className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+                    >
+                      Cancel
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => void saveCoverLetter()}
+                    className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg border-0 px-3 text-[12px] font-semibold disabled:opacity-60"
+                  >
+                    {pending ? "Saving…" : editingClId ? "Update" : "Save cover letter"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={downloadBusy === "draft-pdf"}
+                    onClick={() => void downloadDraft("pdf")}
+                    className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
+                  >
+                    {downloadBusy === "draft-pdf" ? "PDF…" : "Download PDF"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={downloadBusy === "draft-docx"}
+                    onClick={() => void downloadDraft("docx")}
+                    className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
+                  >
+                    {downloadBusy === "draft-docx" ? "DOCX…" : "Download DOCX"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-border/80 bg-card flex min-h-[22rem] flex-col rounded-xl border p-3 shadow-sm">
+                <p className="text-foreground text-[12px] font-semibold tracking-tight">
+                  Live PDF preview
+                </p>
+                <p className="text-muted-foreground mb-2 text-[11px]">
+                  Variables resolve from the selected application. Footer appears below the body.
+                </p>
+                <div className="border-border/70 bg-background min-h-0 flex-1 overflow-y-auto rounded-lg border p-5 shadow-inner">
+                  <div className="mx-auto max-w-[36rem] space-y-3">
+                    <p className="text-foreground text-[15px] font-semibold tracking-tight">
+                      {previewTitle || "(untitled cover letter)"}
+                    </p>
+                    {selectedApp ? (
+                      <p className="text-muted-foreground text-[11px]">
+                        Company: {selectedApp.companyName}
+                        {selectedApp.role ? ` · Role: ${selectedApp.role}` : ""}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground text-[11px]">
+                        Pick an application to fill {"{{company}}"} / {"{{role}}"}.
+                      </p>
+                    )}
+                    <pre className="text-foreground/90 whitespace-pre-wrap font-serif text-[13px] leading-relaxed">
+                      {previewBody || "(empty body)"}
+                    </pre>
+                    {footerLines.length > 0 ? (
+                      <div className="border-border/60 mt-4 space-y-0.5 border-t pt-3">
+                        {footerLines.map((line) => (
+                          <p key={line} className="text-muted-foreground text-[11px]">
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

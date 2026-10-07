@@ -510,7 +510,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                           e.preventDefault();
                           startResize(status, e.clientX, colWidths[status] ?? 288);
                         }}
-                        className="absolute bottom-2 right-0 top-2 z-20"
+                        className="absolute inset-y-2 right-0 z-20 translate-x-1/2"
                       />
                       <div className="mb-0 flex shrink-0 items-center justify-between gap-2 px-2.5 pb-2 pt-2.5">
                         <h2 className="text-foreground truncate text-[12px] font-semibold tracking-tight">

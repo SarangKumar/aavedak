@@ -1,5 +1,20 @@
 /** Client-side cover letter downloads (PDF / DOCX). */
 
+export type CoverLetterFooter = {
+  portfolio?: string;
+  email?: string;
+  linkedin?: string;
+  github?: string;
+};
+
+export type CoverLetterDownloadOpts = {
+  title: string;
+  body: string;
+  companyName?: string;
+  role?: string;
+  footer?: CoverLetterFooter;
+};
+
 function safeFilename(title: string, ext: string) {
   const base = title
     .trim()
@@ -21,11 +36,17 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export async function downloadCoverLetterPdf(opts: {
-  title: string;
-  body: string;
-  companyName?: string;
-}): Promise<void> {
+function footerLines(footer?: CoverLetterFooter): string[] {
+  if (!footer) return [];
+  const lines: string[] = [];
+  if (footer.email?.trim()) lines.push(footer.email.trim());
+  if (footer.portfolio?.trim()) lines.push(footer.portfolio.trim());
+  if (footer.linkedin?.trim()) lines.push(footer.linkedin.trim());
+  if (footer.github?.trim()) lines.push(footer.github.trim());
+  return lines;
+}
+
+export async function downloadCoverLetterPdf(opts: CoverLetterDownloadOpts): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const margin = 54;
@@ -39,13 +60,19 @@ export async function downloadCoverLetterPdf(opts: {
   doc.text(titleLines, margin, y);
   y += titleLines.length * 18 + 6;
 
-  if (opts.companyName) {
+  const meta: string[] = [];
+  if (opts.companyName) meta.push(`Company: ${opts.companyName}`);
+  if (opts.role) meta.push(`Role: ${opts.role}`);
+  if (meta.length) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
     doc.setTextColor(90);
-    doc.text(`Company: ${opts.companyName}`, margin, y);
+    for (const line of meta) {
+      doc.text(line, margin, y);
+      y += 16;
+    }
     doc.setTextColor(0);
-    y += 20;
+    y += 4;
   }
 
   doc.setFont("helvetica", "normal");
@@ -62,14 +89,34 @@ export async function downloadCoverLetterPdf(opts: {
     y += lineHeight;
   }
 
+  const foot = footerLines(opts.footer);
+  if (foot.length) {
+    y += 18;
+    if (y + foot.length * 14 > pageHeight - margin) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 16;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(80);
+    for (const line of foot) {
+      if (y + 14 > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(line, margin, y);
+      y += 14;
+    }
+    doc.setTextColor(0);
+  }
+
   doc.save(safeFilename(opts.title, "pdf"));
 }
 
-export async function downloadCoverLetterDocx(opts: {
-  title: string;
-  body: string;
-  companyName?: string;
-}): Promise<void> {
+export async function downloadCoverLetterDocx(opts: CoverLetterDownloadOpts): Promise<void> {
   const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import("docx");
   const paragraphs: InstanceType<typeof Paragraph>[] = [
     new Paragraph({
@@ -84,6 +131,13 @@ export async function downloadCoverLetterDocx(opts: {
       }),
     );
   }
+  if (opts.role) {
+    paragraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: `Role: ${opts.role}`, italics: true, size: 20 })],
+      }),
+    );
+  }
   paragraphs.push(new Paragraph({ children: [] }));
   for (const block of (opts.body || "").split(/\n/)) {
     paragraphs.push(
@@ -93,6 +147,25 @@ export async function downloadCoverLetterDocx(opts: {
       }),
     );
   }
+
+  const foot = footerLines(opts.footer);
+  if (foot.length) {
+    paragraphs.push(new Paragraph({ children: [] }));
+    paragraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: "—", size: 20, color: "888888" })],
+      }),
+    );
+    for (const line of foot) {
+      paragraphs.push(
+        new Paragraph({
+          children: [new TextRun({ text: line, size: 18, color: "555555" })],
+          spacing: { after: 40 },
+        }),
+      );
+    }
+  }
+
   const doc = new Document({
     sections: [{ children: paragraphs }],
   });
