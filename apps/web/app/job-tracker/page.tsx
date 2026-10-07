@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { JobTrackerBoard } from "@/components/job-tracker-board";
 import { requireOnboarded } from "@/lib/app-access";
 import { listApplications, seedDemoAppliedApplications } from "@/lib/applications";
-import { getPreferences } from "@/lib/preferences";
+import { getPreferences, updatePreferences } from "@/lib/preferences";
 
 export const metadata: Metadata = {
   title: "Job tracker",
@@ -15,8 +15,16 @@ export default async function JobTrackerPage() {
   // Idempotent: upserts Sarang's four applied roles by company+role.
   seedDemoAppliedApplications(user.id);
 
-  const preferences = getPreferences(user.id);
-  const applications = listApplications(user.id, preferences.trackerScope);
+  let preferences = getPreferences(user.id);
+  const active = listApplications(user.id, "active");
+  const archived = listApplications(user.id, "archived");
+
+  // Don't leave the user on empty Archived when active pipeline has cards (e.g. after seed).
+  if (preferences.trackerScope === "archived" && archived.length === 0 && active.length > 0) {
+    preferences = updatePreferences(user.id, { trackerScope: "active" });
+  }
+
+  const applications = preferences.trackerScope === "archived" ? archived : active;
 
   return (
     <div className="relative overflow-hidden">

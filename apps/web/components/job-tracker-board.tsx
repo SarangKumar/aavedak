@@ -9,6 +9,7 @@ import {
   type ApplicationStatus,
 } from "@/lib/application-status";
 import { ImportApplicationsDialog } from "@/components/import-applications-dialog";
+import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -407,100 +408,92 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         </div>
       ) : null}
 
-      {createOpen ? (
-        <div className="fixed inset-0 z-[220] flex items-end justify-center bg-black/50 p-3 sm:items-center">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-app-title"
-            className="border-border bg-popover text-popover-foreground w-full max-w-md rounded-2xl border p-4 shadow-xl sm:p-5"
-          >
-            <h2 id="create-app-title" className="avsar-display text-foreground text-lg">
-              New application
-            </h2>
-            <p className="text-muted-foreground mt-1 text-[12px] leading-relaxed">
-              Company, role, and location are required. Job link / id optional — applications can
-              exist without a linked job.
-            </p>
-            <div className="mt-3 space-y-2.5">
-              <Field
-                label="Company name *"
-                value={draft.companyName}
-                onChange={(v) => setDraft((d) => ({ ...d, companyName: v }))}
-              />
-              <Field
-                label="Role *"
-                value={draft.role}
-                onChange={(v) => setDraft((d) => ({ ...d, role: v }))}
-              />
-              <Field
-                label="Location *"
-                value={draft.location}
-                onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
-              />
-              <Field
-                label="CTC / salary"
-                value={draft.salaryCtc}
-                onChange={(v) => setDraft((d) => ({ ...d, salaryCtc: v }))}
-              />
-              <Field
-                label="Job link"
-                value={draft.jobLink}
-                onChange={(v) => setDraft((d) => ({ ...d, jobLink: v }))}
-              />
-              <Field
-                label="Job id"
-                value={draft.jobId}
-                onChange={(v) => setDraft((d) => ({ ...d, jobId: v }))}
-              />
-              {prefs.trackerScope === "active" ? (
-                <label className="block space-y-1">
-                  <span className="text-foreground text-[12px] font-medium">Status</span>
-                  <select
-                    value={draft.status}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        status: e.target.value as ApplicationStatus,
-                      }))
-                    }
-                    className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-2.5 text-[13px]"
-                  >
-                    {DEFAULT_KANBAN_STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {STATUS_LABELS[s]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-            </div>
-            {warning ? (
-              <p className="text-primary mt-3 text-[12px] leading-relaxed">{warning}</p>
-            ) : null}
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setCreateOpen(false);
-                  setWarning(null);
-                }}
-                className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+      <Modal
+        open={createOpen}
+        onClose={() => {
+          setCreateOpen(false);
+          setWarning(null);
+        }}
+        title="New application"
+        description="Company, role, and location are required. Job link / id optional — applications can exist without a linked job."
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setCreateOpen(false);
+                setWarning(null);
+              }}
+              className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => void createApplication(Boolean(warning))}
+              className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
+            >
+              {pending ? "Saving…" : warning ? "Create anyway" : "Create"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-2.5">
+          <Field
+            label="Company name *"
+            value={draft.companyName}
+            onChange={(v) => setDraft((d) => ({ ...d, companyName: v }))}
+          />
+          <Field
+            label="Role *"
+            value={draft.role}
+            onChange={(v) => setDraft((d) => ({ ...d, role: v }))}
+          />
+          <Field
+            label="Location *"
+            value={draft.location}
+            onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
+          />
+          <Field
+            label="CTC / salary"
+            value={draft.salaryCtc}
+            onChange={(v) => setDraft((d) => ({ ...d, salaryCtc: v }))}
+          />
+          <Field
+            label="Job link"
+            value={draft.jobLink}
+            onChange={(v) => setDraft((d) => ({ ...d, jobLink: v }))}
+          />
+          <Field
+            label="Job id"
+            value={draft.jobId}
+            onChange={(v) => setDraft((d) => ({ ...d, jobId: v }))}
+          />
+          {prefs.trackerScope === "active" ? (
+            <label className="block space-y-1">
+              <span className="text-foreground text-[12px] font-medium">Status</span>
+              <select
+                value={draft.status}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    status: e.target.value as ApplicationStatus,
+                  }))
+                }
+                className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-2.5 text-[13px]"
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => void createApplication(Boolean(warning))}
-                className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
-              >
-                {pending ? "Saving…" : warning ? "Create anyway" : "Create"}
-              </button>
-            </div>
-          </div>
+                {DEFAULT_KANBAN_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {warning ? <p className="text-primary text-[12px] leading-relaxed">{warning}</p> : null}
         </div>
-      ) : null}
+      </Modal>
 
       <ImportApplicationsDialog
         open={importOpen}

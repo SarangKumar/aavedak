@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 
+import { Modal } from "@/components/ui/modal";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
 import { cn } from "@/lib/utils";
 
@@ -377,94 +378,60 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
         </section>
       </div>
 
-      {addOpen ? (
-        <Modal title="Add job" onClose={() => setAddOpen(false)}>
-          <div className="space-y-2.5">
-            <Field
-              label="Title *"
-              value={draft.title}
-              onChange={(v) => setDraft((d) => ({ ...d, title: v }))}
-            />
-            <Field
-              label="Company *"
-              value={draft.company}
-              onChange={(v) => setDraft((d) => ({ ...d, company: v }))}
-            />
-            <Field
-              label="Location *"
-              value={draft.location}
-              onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
-            />
-            <label className="block space-y-1">
-              <span className="text-foreground text-[12px] font-medium">Source</span>
-              <select
-                value={draft.source}
-                onChange={(e) => setDraft((d) => ({ ...d, source: e.target.value as JobSource }))}
-                className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-2.5 text-[13px]"
-              >
-                {JOB_SOURCES.filter((s) => s !== "demo").map((s) => (
-                  <option key={s} value={s}>
-                    {SOURCE_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Field
-              label="URL"
-              value={draft.url}
-              onChange={(v) => setDraft((d) => ({ ...d, url: v }))}
-            />
-            <Field
-              label="Salary / CTC"
-              value={draft.salary}
-              onChange={(v) => setDraft((d) => ({ ...d, salary: v }))}
-            />
-            <label className="block space-y-1">
-              <span className="text-foreground text-[12px] font-medium">Description</span>
-              <textarea
-                value={draft.description}
-                onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-                rows={5}
-                className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px]"
-              />
-            </label>
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setAddOpen(false)}
-                className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => void createJob()}
-                className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
-              >
-                {pending ? "Saving…" : "Create"}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      ) : null}
-
-      {pasteOpen ? (
-        <Modal title="Paste JD (private analysis)" onClose={() => setPasteOpen(false)}>
-          <p className="text-muted-foreground mb-2 text-[12px] leading-relaxed">
-            Stores a user-scoped analysis stub. Does not create a global job for other users.
-          </p>
-          <textarea
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            rows={10}
-            placeholder="Paste job description text…"
-            className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px]"
+      <Modal open={addOpen} title="Add job" onClose={() => setAddOpen(false)}>
+        <div className="space-y-2.5">
+          <Field
+            label="Title *"
+            value={draft.title}
+            onChange={(v) => setDraft((d) => ({ ...d, title: v }))}
           />
-          <div className="mt-3 flex justify-end gap-2">
+          <Field
+            label="Company *"
+            value={draft.company}
+            onChange={(v) => setDraft((d) => ({ ...d, company: v }))}
+          />
+          <Field
+            label="Location *"
+            value={draft.location}
+            onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
+          />
+          <label className="block space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Source</span>
+            <select
+              value={draft.source}
+              onChange={(e) => setDraft((d) => ({ ...d, source: e.target.value as JobSource }))}
+              className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-2.5 text-[13px]"
+            >
+              {JOB_SOURCES.filter((s) => s !== "demo").map((s) => (
+                <option key={s} value={s}>
+                  {SOURCE_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Field
+            label="URL"
+            value={draft.url}
+            onChange={(v) => setDraft((d) => ({ ...d, url: v }))}
+          />
+          <Field
+            label="Salary / CTC"
+            value={draft.salary}
+            onChange={(v) => setDraft((d) => ({ ...d, salary: v }))}
+          />
+          <label className="block space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Description</span>
+            <textarea
+              value={draft.description}
+              onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+              rows={5}
+              className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px]"
+            />
+          </label>
+          <div className="flex justify-end gap-2 pt-1">
             <button
               type="button"
-              onClick={() => setPasteOpen(false)}
+              onClick={() => setAddOpen(false)}
               className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
             >
               Cancel
@@ -472,14 +439,46 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
             <button
               type="button"
               disabled={pending}
-              onClick={() => void pasteJd()}
+              onClick={() => void createJob()}
               className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
             >
-              {pending ? "Saving…" : "Save analysis"}
+              {pending ? "Saving…" : "Create"}
             </button>
           </div>
-        </Modal>
-      ) : null}
+        </div>
+      </Modal>
+
+      <Modal
+        open={pasteOpen}
+        title="Paste JD (private analysis)"
+        onClose={() => setPasteOpen(false)}
+        description="Stores a user-scoped analysis stub. Does not create a global job for other users."
+      >
+        <textarea
+          value={pasteText}
+          onChange={(e) => setPasteText(e.target.value)}
+          rows={10}
+          placeholder="Paste job description text…"
+          className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px]"
+        />
+        <div className="mt-3 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setPasteOpen(false)}
+            className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => void pasteJd()}
+            className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
+          >
+            {pending ? "Saving…" : "Save analysis"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -523,38 +522,6 @@ function JobList({
         </li>
       ))}
     </ul>
-  );
-}
-
-function Modal({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-[220] flex items-end justify-center bg-black/50 p-3 sm:items-center">
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="border-border bg-popover text-popover-foreground w-full max-w-md rounded-2xl border p-4 shadow-xl sm:p-5"
-      >
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="avsar-display text-foreground text-lg">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground text-[12px]"
-          >
-            Close
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
   );
 }
 

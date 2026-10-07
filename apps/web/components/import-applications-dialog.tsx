@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 
+import type { ApplicationDto } from "@/components/job-tracker-board";
 import {
   FileUpload,
   FileUploadDropzone,
   FileUploadList,
   type FileUploadFile,
 } from "@/components/ui/file-upload";
+import { Modal } from "@/components/ui/modal";
 import {
   APPLICATION_IMPORT_SAMPLE,
   getApplicationImportHumanReadable,
@@ -15,8 +17,6 @@ import {
   type ApplicationImportError,
 } from "@/lib/application-import";
 import { cn } from "@/lib/utils";
-
-import type { ApplicationDto } from "@/components/job-tracker-board";
 
 type ImportApplicationsDialogProps = {
   open: boolean;
@@ -38,8 +38,6 @@ export function ImportApplicationsDialog({
 
   const humanSchema = useMemo(() => getApplicationImportHumanReadable(), []);
   const sampleJson = useMemo(() => JSON.stringify(APPLICATION_IMPORT_SAMPLE, null, 2), []);
-
-  if (!open) return null;
 
   async function copyText(kind: "schema" | "sample", text: string) {
     try {
@@ -123,108 +121,14 @@ export function ImportApplicationsDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-[220] flex items-end justify-center bg-black/50 p-3 sm:items-center">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="import-apps-title"
-        className="border-border bg-popover text-popover-foreground flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl border shadow-xl"
-      >
-        <div className="border-border/70 shrink-0 border-b px-4 py-3.5 sm:px-5">
-          <h2 id="import-apps-title" className="avsar-display text-foreground text-lg">
-            Import applications
-          </h2>
-          <p className="text-muted-foreground mt-1 text-[12px] leading-relaxed">
-            Upload a JSON file matching the schema below. Invalid files are rejected entirely —
-            nothing is partially imported.
-          </p>
-        </div>
-
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3.5 sm:px-5">
-          <section className="space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-foreground text-[12px] font-semibold">Schema</h3>
-              <button
-                type="button"
-                onClick={() => void copyText("schema", humanSchema)}
-                className="text-muted-foreground hover:text-foreground text-[11px] underline-offset-2 hover:underline"
-              >
-                {copied === "schema" ? "Copied" : "Copy"}
-              </button>
-            </div>
-            <pre className="border-border/80 bg-muted/40 text-muted-foreground max-h-40 overflow-auto whitespace-pre-wrap rounded-xl border p-2.5 font-mono text-[10px] leading-relaxed">
-              {humanSchema}
-            </pre>
-            <p className="text-muted-foreground text-[11px]">
-              Machine-readable:{" "}
-              <a
-                href="/schemas/applications-import.json"
-                className="text-primary hover:underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                /schemas/applications-import.json
-              </a>{" "}
-              ·{" "}
-              <a
-                href="/api/applications/import/schema"
-                className="text-primary hover:underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                /api/applications/import/schema
-              </a>
-            </p>
-          </section>
-
-          <section className="space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-foreground text-[12px] font-semibold">Sample JSON</h3>
-              <button
-                type="button"
-                onClick={() => void copyText("sample", sampleJson)}
-                className="text-muted-foreground hover:text-foreground text-[11px] underline-offset-2 hover:underline"
-              >
-                {copied === "sample" ? "Copied" : "Copy"}
-              </button>
-            </div>
-            <pre className="border-border/80 bg-muted/40 text-muted-foreground max-h-36 overflow-auto rounded-xl border p-2.5 font-mono text-[10px] leading-relaxed">
-              {sampleJson}
-            </pre>
-          </section>
-
-          <section className="space-y-1.5">
-            <h3 className="text-foreground text-[12px] font-semibold">Upload .json</h3>
-            <FileUpload
-              accept="application/json,.json"
-              multiple={false}
-              maxSize={2 * 1024 * 1024}
-              files={files}
-              onFilesChange={(next) => void handleFilesChange(next)}
-              disabled={pending}
-            >
-              <FileUploadDropzone className="min-h-20 rounded-xl text-[13px]">
-                Drop a JSON file here, or click to browse
-              </FileUploadDropzone>
-              <FileUploadList />
-            </FileUpload>
-          </section>
-
-          {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
-          {fieldErrors.length > 0 ? (
-            <ul className="border-destructive/30 bg-destructive/5 text-destructive max-h-32 space-y-1 overflow-auto rounded-xl border p-2.5 text-[11px]">
-              {fieldErrors.map((e, i) => (
-                <li key={`${e.index}-${e.field}-${i}`}>
-                  {e.index < 0 ? "Root" : `Item ${e.index}`}:{" "}
-                  <span className="font-mono">{e.field}</span> — {e.message}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {summary ? <p className="text-primary text-[13px] font-medium">{summary}</p> : null}
-        </div>
-
-        <div className="border-border/70 flex shrink-0 justify-end gap-2 border-t px-4 py-3 sm:px-5">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Import applications"
+      size="lg"
+      description="Upload a JSON file matching the schema below. Invalid files are rejected entirely — nothing is partially imported."
+      footer={
+        <>
           <button
             type="button"
             disabled={pending}
@@ -244,8 +148,92 @@ export function ImportApplicationsDialog({
           >
             {pending ? "Importing…" : "Import"}
           </button>
-        </div>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <section className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-foreground text-[12px] font-semibold">Schema</h3>
+            <button
+              type="button"
+              onClick={() => void copyText("schema", humanSchema)}
+              className="text-muted-foreground hover:text-foreground text-[11px] underline-offset-2 hover:underline"
+            >
+              {copied === "schema" ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <pre className="border-border/80 bg-muted/40 text-muted-foreground max-h-40 overflow-auto whitespace-pre-wrap rounded-xl border p-2.5 font-mono text-[10px] leading-relaxed">
+            {humanSchema}
+          </pre>
+          <p className="text-muted-foreground text-[11px]">
+            Machine-readable:{" "}
+            <a
+              href="/schemas/applications-import.json"
+              className="text-primary hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              /schemas/applications-import.json
+            </a>{" "}
+            ·{" "}
+            <a
+              href="/api/applications/import/schema"
+              className="text-primary hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              /api/applications/import/schema
+            </a>
+          </p>
+        </section>
+
+        <section className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-foreground text-[12px] font-semibold">Sample JSON</h3>
+            <button
+              type="button"
+              onClick={() => void copyText("sample", sampleJson)}
+              className="text-muted-foreground hover:text-foreground text-[11px] underline-offset-2 hover:underline"
+            >
+              {copied === "sample" ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <pre className="border-border/80 bg-muted/40 text-muted-foreground max-h-36 overflow-auto rounded-xl border p-2.5 font-mono text-[10px] leading-relaxed">
+            {sampleJson}
+          </pre>
+        </section>
+
+        <section className="space-y-1.5">
+          <h3 className="text-foreground text-[12px] font-semibold">Upload .json</h3>
+          <FileUpload
+            accept="application/json,.json"
+            multiple={false}
+            maxSize={2 * 1024 * 1024}
+            files={files}
+            onFilesChange={(next) => void handleFilesChange(next)}
+            disabled={pending}
+          >
+            <FileUploadDropzone className="min-h-20 rounded-xl text-[13px]">
+              Drop a JSON file here, or click to browse
+            </FileUploadDropzone>
+            <FileUploadList />
+          </FileUpload>
+        </section>
+
+        {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+        {fieldErrors.length > 0 ? (
+          <ul className="border-destructive/30 bg-destructive/5 text-destructive max-h-32 space-y-1 overflow-auto rounded-xl border p-2.5 text-[11px]">
+            {fieldErrors.map((e, i) => (
+              <li key={`${e.index}-${e.field}-${i}`}>
+                {e.index < 0 ? "Root" : `Item ${e.index}`}:{" "}
+                <span className="font-mono">{e.field}</span> — {e.message}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {summary ? <p className="text-primary text-[13px] font-medium">{summary}</p> : null}
       </div>
-    </div>
+    </Modal>
   );
 }
