@@ -174,10 +174,8 @@ export function archiveJob(userId: string, id: string): JobRecord {
   return updateJob(userId, id, { status: "archived" });
 }
 
-/** Seed a few demo cards once when the user has no jobs yet. */
+/** Seed multi-source demo cards when empty; top up missing sample titles up to 6. */
 export function ensureDemoJobs(userId: string): JobRecord[] {
-  if (countJobs(userId) > 0) return listJobs(userId);
-
   const samples = [
     {
       title: "Senior Frontend Engineer",
@@ -187,7 +185,7 @@ export function ensureDemoJobs(userId: string): JobRecord[] {
       url: "https://example.com/jobs/northwind-frontend",
       salary: "₹35–45 LPA",
       description:
-        "Build dense product UI for a career OS. React, TypeScript, Tailwind. Own design-system collaboration with Vinyaas.",
+        "Build dense product UI for a career OS. React, TypeScript, Tailwind. Own design-system collaboration with Vinyaas.\n\nRequirements:\n• 4+ years React/TypeScript\n• Design-system experience\n• Comfortable with Next.js App Router",
     },
     {
       title: "Full Stack Engineer",
@@ -197,7 +195,7 @@ export function ensureDemoJobs(userId: string): JobRecord[] {
       url: "https://example.com/jobs/cascade-fullstack",
       salary: "₹28–38 LPA",
       description:
-        "Ship Next.js + API services. Experience with SQLite/Postgres and auth flows preferred.",
+        "Ship Next.js + API services. Experience with SQLite/Postgres and auth flows preferred.\n\nNice to have: Better Auth, Drizzle, or similar.",
     },
     {
       title: "Product Engineer",
@@ -209,10 +207,53 @@ export function ensureDemoJobs(userId: string): JobRecord[] {
       description:
         "0→1 features across discovery, applications, and referrals. Strong taste for UX density and micro-interactions.",
     },
+    {
+      title: "Platform Engineer",
+      company: "Herald Systems",
+      location: "Hyderabad · Hybrid",
+      source: "indeed" as const,
+      url: "https://example.com/jobs/herald-platform",
+      salary: "₹32–42 LPA",
+      description:
+        "Own CI/CD, observability, and internal developer tooling. Kubernetes and Terraform experience preferred.",
+    },
+    {
+      title: "Mobile Engineer (React Native)",
+      company: "Lotus Health",
+      location: "Pune · Hybrid",
+      source: "manual" as const,
+      url: null,
+      salary: "₹24–32 LPA",
+      description:
+        "Ship patient-facing React Native apps. Collaboration with design and clinical product teams.",
+    },
+    {
+      title: "Backend Engineer",
+      company: "Orbit Freight",
+      location: "Gurugram · Onsite",
+      source: "other" as const,
+      url: "https://example.com/jobs/orbit-backend",
+      salary: "₹30–40 LPA",
+      description:
+        "APIs for logistics ops. Node/Go, Postgres, event-driven services. On-call rotation shared.",
+    },
   ];
 
-  for (const sample of samples) {
-    createJob(userId, sample);
+  const existing = listJobs(userId);
+  const titles = new Set(existing.map((j) => j.title.toLowerCase()));
+  if (existing.length === 0) {
+    for (const sample of samples) createJob(userId, sample);
+    return listJobs(userId);
+  }
+
+  // Top up missing sample titles once (keeps user-added jobs intact).
+  if (existing.length < 6) {
+    for (const sample of samples) {
+      if (titles.has(sample.title.toLowerCase())) continue;
+      createJob(userId, sample);
+      titles.add(sample.title.toLowerCase());
+      if (countJobs(userId) >= 6) break;
+    }
   }
   return listJobs(userId);
 }

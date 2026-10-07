@@ -14,25 +14,20 @@ export default async function JobsPage() {
   const jobs = ensureDemoJobs(user.id);
 
   return (
-    <div className="relative overflow-hidden">
-      <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-50" aria-hidden />
-      <div className="relative">
-        <JobsHub
-          initialJobs={jobs.map((job) => ({
-            id: job.id,
-            title: job.title,
-            company: job.company,
-            location: job.location,
-            source: job.source,
-            url: job.url,
-            description: job.description,
-            salary: job.salary,
-            status: job.status,
-            createdAt: job.createdAt,
-            updatedAt: job.updatedAt,
-          }))}
-        />
-      </div>
-    </div>
+    <JobsHub
+      initialJobs={jobs.map((job) => ({
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        source: job.source,
+        url: job.url,
+        description: job.description,
+        salary: job.salary,
+        status: job.status,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+      }))}
+    />
   );
 }
