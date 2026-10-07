@@ -9,4 +9,26 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
-export default [...compat.extends("next/core-web-vitals", "next/typescript")];
+/** @type {import("eslint").Linter.Config[]} */
+const config = [
+  {
+    ignores: [
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/.venv/**",
+      "apps/web/next-env.d.ts",
+      "apps/extension/**",
+      "apps/api/**",
+    ],
+  },
+  ...compat.config({
+    extends: ["next/core-web-vitals", "next/typescript"],
+    settings: {
+      next: {
+        rootDir: "apps/web",
+      },
+    },
+  }),
+];
+
+export default config;
