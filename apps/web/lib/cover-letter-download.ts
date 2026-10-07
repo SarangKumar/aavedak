@@ -73,30 +73,58 @@ function footerRowText(footer?: CoverLetterFooter): string {
     .join(" ⋅ ");
 }
 
-export async function downloadCoverLetterPdf(opts: CoverLetterDownloadOpts): Promise<void> {
-  const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+/** Layout metrics for a single A4 cover letter (pt). */
+export type CoverLetterLayout = {
+  exceedsOnePage: boolean;
+  endY: number;
+  pageHeight: number;
+};
+
+type JsPdfDoc = {
+  internal: { pageSize: { getWidth: () => number; getHeight: () => number } };
+  setFont: (name: string, style?: string) => void;
+  setFontSize: (size: number) => void;
+  setTextColor: (...args: number[]) => void;
+  setDrawColor: (...args: number[]) => void;
+  splitTextToSize: (text: string, maxWidth: number) => string[];
+  text: (text: string | string[], x: number, y: number) => void;
+  textWithLink: (text: string, x: number, y: number, opts: { url: string }) => void;
+  getTextWidth: (text: string) => number;
+  line: (x1: number, y1: number, x2: number, y2: number) => void;
+  save: (filename: string) => void;
+};
+
+function layoutCoverLetterOnDoc(doc: JsPdfDoc, opts: CoverLetterDownloadOpts): CoverLetterLayout {
   const margin = 54;
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const maxWidth = pageWidth - margin * 2;
+  const bottom = pageHeight - margin;
   let y = margin;
+  let exceedsOnePage = false;
+
+  const ensure = (need: number) => {
+    if (y + need > bottom) exceedsOnePage = true;
+  };
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
+  doc.setFontSize(13);
   const titleLines = doc.splitTextToSize(opts.title || "Cover letter", maxWidth);
+  ensure(titleLines.length * 16);
   doc.text(titleLines, margin, y);
-  y += titleLines.length * 18 + 6;
+  y += titleLines.length * 16 + 6;
 
   const meta: string[] = [];
   if (opts.companyName) meta.push(`Company: ${opts.companyName}`);
   if (opts.role) meta.push(`Role: ${opts.role}`);
   if (meta.length) {
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(90);
     for (const line of meta) {
+      ensure(14);
       doc.text(line, margin, y);
-      y += 16;
+      y += 14;
     }
     doc.setTextColor(0);
     y += 4;
@@ -105,45 +133,56 @@ export async function downloadCoverLetterPdf(opts: CoverLetterDownloadOpts): Pro
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   const bodyLines = doc.splitTextToSize(opts.body || "", maxWidth);
-  const lineHeight = 15;
-  const pageHeight = doc.internal.pageSize.getHeight();
+  const lineHeight = 14.5;
   for (const line of bodyLines) {
-    if (y + lineHeight > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
-    }
-    doc.text(line, margin, y);
+    ensure(lineHeight);
+    if (!exceedsOnePage) doc.text(line, margin, y);
     y += lineHeight;
   }
 
   const rowItems = coverFooterRowItems(opts.footer);
   if (rowItems.length) {
-    y += 18;
-    if (y + 20 > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
-    }
-    doc.setDrawColor(200);
-    doc.line(margin, y, pageWidth - margin, y);
     y += 16;
+    ensure(22);
+    if (!exceedsOnePage) {
+      doc.setDrawColor(200);
+      doc.line(margin, y, pageWidth - margin, y);
+    }
+    y += 14;
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(80);
+    doc.setFontSize(9);
     let x = margin;
     rowItems.forEach((item, idx) => {
       const sep = idx === 0 ? "" : " ⋅ ";
       if (sep) {
         doc.setTextColor(140);
-        doc.text(sep, x, y);
+        if (!exceedsOnePage) doc.text(sep, x, y);
         x += doc.getTextWidth(sep);
       }
       doc.setTextColor(40, 80, 160);
-      doc.textWithLink(item.label, x, y, { url: item.href });
+      if (!exceedsOnePage) doc.textWithLink(item.label, x, y, { url: item.href });
       x += doc.getTextWidth(item.label);
     });
     doc.setTextColor(0);
   }
 
+  return { exceedsOnePage, endY: y, pageHeight };
+}
+
+/** True when the rendered cover letter would need more than one A4 page. */
+export async function coverLetterExceedsOneA4Page(opts: CoverLetterDownloadOpts): Promise<boolean> {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "pt", format: "a4" }) as unknown as JsPdfDoc;
+  return layoutCoverLetterOnDoc(doc, opts).exceedsOnePage;
+}
+
+export async function downloadCoverLetterPdf(opts: CoverLetterDownloadOpts): Promise<void> {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "pt", format: "a4" }) as unknown as JsPdfDoc;
+  const layout = layoutCoverLetterOnDoc(doc, opts);
+  if (layout.exceedsOnePage) {
+    throw new Error("Cover letter must fit on a single A4 page.");
+  }
   doc.save(safeFilename(opts.title, "pdf"));
 }
 

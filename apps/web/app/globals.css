@@ -149,6 +149,27 @@
     font-weight: 650;
   }
 
+  /* Type hierarchy — keep titles / body / meta / badges consistent */
+  .aavedak-page-title {
+    @apply text-[1.125rem] font-semibold leading-snug tracking-tight sm:text-[1.25rem];
+  }
+
+  .aavedak-section-title {
+    @apply text-[0.875rem] font-semibold leading-snug tracking-tight;
+  }
+
+  .aavedak-body {
+    @apply text-[0.875rem] leading-relaxed;
+  }
+
+  .aavedak-meta {
+    @apply text-[0.75rem] leading-snug;
+  }
+
+  .aavedak-badge-text {
+    @apply text-[0.6875rem] font-medium leading-none;
+  }
+
   .aavedak-chip {
     @apply border-border/80 bg-card/70 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium backdrop-blur-sm;
   }

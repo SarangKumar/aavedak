@@ -10,6 +10,7 @@ import {
   type FileUploadFile,
 } from "@/components/ui/file-upload";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
+import { CoverLetterPdfPreview } from "@/components/cover-letter-pdf-preview";
 import { ShellWidth } from "@/components/shell-width";
 import {
   Select,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import {
   coverFooterRowItems,
+  coverLetterExceedsOneA4Page,
   downloadCoverLetterDocx,
   downloadCoverLetterPdf,
   type CoverLetterFooter,
@@ -155,6 +157,10 @@ export function DocumentsHub({
   const [clFooterInclude, setClFooterInclude] = useState<FooterInclude>(() =>
     defaultFooterInclude(profileEmail, profileLinks),
   );
+  const [clOverflowsPage, setClOverflowsPage] = useState(false);
+  const onClOverflowChange = useCallback((overflows: boolean) => {
+    setClOverflowsPage(overflows);
+  }, []);
 
   const appsById = useMemo(() => {
     const map = new Map(applications.map((a) => [a.id, a]));
@@ -217,6 +223,9 @@ export function DocumentsHub({
         role: app?.role,
         footer: footer ?? clFooter,
       };
+      if (await coverLetterExceedsOneA4Page(rendered)) {
+        throw new Error("Cover letter must fit on a single A4 page.");
+      }
       if (format === "pdf") {
         await downloadCoverLetterPdf(rendered);
       } else {
@@ -232,6 +241,10 @@ export function DocumentsHub({
   async function downloadDraft(format: "pdf" | "docx") {
     if (!clTitle.trim() && !clBody.trim()) {
       setError("Add a title or body before downloading.");
+      return;
+    }
+    if (clOverflowsPage) {
+      setError("Cover letter must fit on a single A4 page before downloading.");
       return;
     }
     setError(null);
@@ -323,6 +336,10 @@ export function DocumentsHub({
     }
     if (!clApplicationId) {
       setError("Pick a company / application — cover letters are always company-specific.");
+      return;
+    }
+    if (clOverflowsPage) {
+      setError("Cover letter must fit on a single A4 page before saving.");
       return;
     }
     setPending(true);
@@ -475,7 +492,7 @@ export function DocumentsHub({
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
+            <h2 className="aavedak-section-title text-foreground">
               Your resumes ({resumes.length})
             </h2>
             {resumes.length === 0 ? (
@@ -551,15 +568,15 @@ export function DocumentsHub({
 
       {tab === "cover_letters" ? (
         <section className="space-y-4">
-          <p className="text-muted-foreground text-[12px] leading-relaxed">
-            Cover letters are always company-specific. New letters start from scratch — pick an
-            application, write with {"{{role}}"} / {"{{company}}"} variables, preview the PDF
-            layout, then download PDF or DOCX.
+          <p className="aavedak-meta text-muted-foreground leading-relaxed">
+            Cover letters are always company-specific and limited to one A4 page. New letters start
+            from scratch — pick an application, write with {"{{role}}"} / {"{{company}}"} variables,
+            preview the PDF layout, then download PDF or DOCX.
           </p>
 
-          <div className="grid min-w-0 gap-3 xl:grid-cols-2">
+          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.18fr)] xl:items-stretch">
             <div className="border-border/80 bg-card space-y-2.5 rounded-lg border p-4 shadow-sm">
-              <p className="text-foreground text-[12px] font-medium">
+              <p className="aavedak-section-title text-foreground">
                 {editingClId ? "Edit cover letter" : "New cover letter"}
               </p>
               <label className="block space-y-1">
@@ -676,7 +693,7 @@ export function DocumentsHub({
                 ) : null}
                 <button
                   type="button"
-                  disabled={pending}
+                  disabled={pending || clOverflowsPage}
                   onClick={() => void saveCoverLetter()}
                   className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg border-0 px-3 text-[12px] font-semibold disabled:opacity-60"
                 >
@@ -684,7 +701,7 @@ export function DocumentsHub({
                 </button>
                 <button
                   type="button"
-                  disabled={downloadBusy === "draft-pdf"}
+                  disabled={downloadBusy === "draft-pdf" || clOverflowsPage}
                   onClick={() => void downloadDraft("pdf")}
                   className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
                 >
@@ -692,7 +709,7 @@ export function DocumentsHub({
                 </button>
                 <button
                   type="button"
-                  disabled={downloadBusy === "draft-docx"}
+                  disabled={downloadBusy === "draft-docx" || clOverflowsPage}
                   onClick={() => void downloadDraft("docx")}
                   className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
                 >
@@ -701,64 +718,21 @@ export function DocumentsHub({
               </div>
             </div>
 
-            <div className="border-border/80 bg-card flex flex-col rounded-lg border p-3 shadow-sm">
-              <p className="text-foreground text-[12px] font-semibold tracking-tight">
-                Live PDF preview
-              </p>
-              <p className="text-muted-foreground mb-2 text-[11px]">
-                Light page preview (PDF-style). Variables resolve from the selected application.
-              </p>
-              <div className="h-[28rem] overflow-y-auto rounded-md bg-[#e8e8e8] p-4 dark:bg-[#2a2a2a]">
-                <div
-                  className="mx-auto min-h-[24rem] max-w-[36rem] rounded-[2px] bg-white px-10 py-12 text-black shadow-[0_8px_30px_rgba(0,0,0,0.18)] ring-1 ring-black/5"
-                  style={{ fontFamily: "Helvetica, Arial, ui-sans-serif, system-ui, sans-serif" }}
-                >
-                  <p className="text-[15px] font-bold tracking-tight text-black">
-                    {previewTitle || "(untitled cover letter)"}
-                  </p>
-                  {selectedApp ? (
-                    <p className="mt-2 text-[11px] text-neutral-500">
-                      Company: {selectedApp.companyName}
-                      {selectedApp.role ? ` · Role: ${selectedApp.role}` : ""}
-                    </p>
-                  ) : (
-                    <p className="mt-2 text-[11px] text-neutral-500">
-                      Pick an application to fill {"{{company}}"} / {"{{role}}"}.
-                    </p>
-                  )}
-                  <pre className="mt-5 whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-neutral-900">
-                    {previewBody || "(empty body)"}
-                  </pre>
-                  {footerRow.length > 0 ? (
-                    <div className="mt-8 border-t border-neutral-200 pt-3">
-                      <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-neutral-600">
-                        {footerRow.map((item, idx) => (
-                          <span key={item.key} className="inline-flex items-center gap-x-1.5">
-                            {idx > 0 ? (
-                              <span className="text-neutral-400" aria-hidden>
-                                ⋅
-                              </span>
-                            ) : null}
-                            <a
-                              href={item.href}
-                              target={item.key === "email" ? undefined : "_blank"}
-                              rel={item.key === "email" ? undefined : "noreferrer"}
-                              className="text-blue-700 underline-offset-2 hover:underline"
-                            >
-                              {item.label}
-                            </a>
-                          </span>
-                        ))}
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+            <div className="border-border/80 bg-card flex min-h-[36rem] flex-col rounded-lg border p-3 shadow-sm xl:min-h-full">
+              <CoverLetterPdfPreview
+                title={previewTitle}
+                body={previewBody}
+                companyName={selectedApp?.companyName}
+                role={selectedApp?.role}
+                footerRow={footerRow}
+                onOverflowChange={onClOverflowChange}
+                className="min-h-[32rem] xl:min-h-0"
+              />
             </div>
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
+            <h2 className="aavedak-section-title text-foreground">
               Your cover letters ({coverLetters.length})
             </h2>
             {coverLetters.length === 0 ? (
