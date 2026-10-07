@@ -121,3 +121,24 @@ export function updateTemplate(
 export function archiveTemplate(userId: string, id: string): TemplateRecord {
   return updateTemplate(userId, id, { status: "archived" });
 }
+
+const DEFAULT_OUTREACH_BODY = `Hi {{person_name}},
+
+I hope you are doing well. I am reaching out about the {{role}} role at {{company}} ({{location}}).
+
+Would you be open to a brief chat or a referral if it seems like a fit?
+
+Thank you,
+{{user_name}}
+`;
+
+/** Ensure at least one outreach template exists for the user (idempotent). */
+export function ensureDefaultOutreachTemplate(userId: string): TemplateRecord {
+  const existing = listTemplates(userId).find((t) => t.kind === "outreach");
+  if (existing) return existing;
+  return createTemplate(userId, {
+    title: "Cold outreach — referral ask",
+    body: DEFAULT_OUTREACH_BODY,
+    kind: "outreach",
+  });
+}

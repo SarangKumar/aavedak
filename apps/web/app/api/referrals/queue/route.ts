@@ -1,0 +1,119 @@
+import { headers } from "next/headers";
+import { NextResponse } from "next/server";
+
+import { auth } from "@/lib/auth";
+import { getApplication } from "@/lib/applications";
+import { createFollowUp } from "@/lib/follow-ups";
+import { getPerson } from "@/lib/people";
+import { ensureProfile } from "@/lib/profile";
+
+function fill(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => vars[key] ?? "");
+}
+
+/**
+ * Queue outreach follow-ups for confirmed recipients (no Gmail send).
+ * Body: { applicationId, personIds, subject, body, dueDate?, confirmed: true }
+ * subject/body may still contain {{person_name}} / {{person_email}} — filled per person.
+ */
+export async function POST(request: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  ensureProfile({
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+  });
+  const userId = session.user.id;
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const applicationId = typeof body.applicationId === "string" ? body.applicationId : "";
+  const personIds = Array.isArray(body.personIds)
+    ? body.personIds.filter((id): id is string => typeof id === "string" && Boolean(id.trim()))
+    : [];
+  const subjectTpl = typeof body.subject === "string" ? body.subject : "";
+  const bodyTpl = typeof body.body === "string" ? body.body : "";
+  const dueDate =
+    typeof body.dueDate === "string" && body.dueDate.trim() ? body.dueDate.trim() : null;
+  const confirmed = body.confirmed === true;
+
+  if (!confirmed) {
+    return NextResponse.json(
+      { error: "Confirm recipients before queueing follow-ups." },
+      { status: 400 },
+    );
+  }
+  if (!applicationId) {
+    return NextResponse.json({ error: "Select an application first." }, { status: 400 });
+  }
+  if (personIds.length === 0) {
+    return NextResponse.json({ error: "Select at least one recipient." }, { status: 400 });
+  }
+
+  const application = getApplication(userId, applicationId);
+  if (!application) {
+    return NextResponse.json({ error: "Application not found." }, { status: 404 });
+  }
+
+  const baseVars = {
+    company: application.companyName,
+    role: application.role,
+    location: application.location,
+    user_name: session.user.name?.split(" ")[0] || session.user.email.split("@")[0] || "",
+  };
+
+  const created = [];
+  for (const personId of personIds) {
+    const person = getPerson(userId, personId);
+    if (!person || person.status === "archived") {
+      return NextResponse.json({ error: `Person not found: ${personId}` }, { status: 400 });
+    }
+    const vars = {
+      ...baseVars,
+      person_name: person.name,
+      person_email: person.email ?? "",
+    };
+    const subject = fill(subjectTpl, vars);
+    const renderedBody = fill(bodyTpl, vars);
+    const title = `Outreach: ${person.name} · ${application.companyName}`;
+    const notes = [
+      subject ? `Subject: ${subject}` : null,
+      `To: ${person.email ?? "(no email)"}`,
+      `From: ${session.user.email}`,
+      "",
+      renderedBody.trim() || "(empty body)",
+    ]
+      .filter((line) => line !== null)
+      .join("\n");
+
+    const followUp = createFollowUp(userId, {
+      title,
+      dueDate,
+      personId: person.id,
+      applicationId: application.id,
+      notes,
+      status: "pending",
+    });
+    created.push({
+      id: followUp.id,
+      title: followUp.title,
+      dueDate: followUp.dueDate,
+      status: followUp.status,
+      personId: followUp.personId,
+      applicationId: followUp.applicationId,
+      notes: followUp.notes,
+      createdAt: followUp.createdAt,
+      updatedAt: followUp.updatedAt,
+    });
+  }
+
+  return NextResponse.json({ followUps: created, count: created.length }, { status: 201 });
+}
