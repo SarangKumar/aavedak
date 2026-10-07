@@ -202,6 +202,13 @@ export function getAppDb() {
     instance.exec(`ALTER TABLE profiles ADD COLUMN image_url TEXT`);
   }
 
+  const templateCols = instance.prepare(`PRAGMA table_info(templates)`).all() as Array<{
+    name: string;
+  }>;
+  if (!templateCols.some((c) => c.name === "subject")) {
+    instance.exec(`ALTER TABLE templates ADD COLUMN subject TEXT NOT NULL DEFAULT ''`);
+  }
+
   db = instance;
   return instance;
 }

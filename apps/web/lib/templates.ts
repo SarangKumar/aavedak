@@ -11,6 +11,8 @@ export type TemplateRecord = {
   id: string;
   userId: string;
   title: string;
+  /** Email subject line with {{placeholders}}; empty means use default. */
+  subject: string;
   body: string;
   kind: TemplateKind;
   status: TemplateStatus;
@@ -24,6 +26,7 @@ function mapRow(row: {
   id: string;
   user_id: string;
   title: string;
+  subject?: string | null;
   body: string;
   kind: TemplateKind;
   status: TemplateStatus;
@@ -34,6 +37,7 @@ function mapRow(row: {
     id: row.id,
     userId: row.user_id,
     title: row.title,
+    subject: typeof row.subject === "string" ? row.subject : "",
     body: row.body,
     kind: row.kind,
     status: row.status,
@@ -75,11 +79,19 @@ export function getTemplate(userId: string, id: string): TemplateRecord | null {
   return row ? mapRow(row) : null;
 }
 
+function optionalSubject(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const t = value.trim();
+  if (t.length > 300) throw new Error("Subject is too long.");
+  return t;
+}
+
 export function createTemplate(
   userId: string,
-  input: { title: string; body?: string; kind?: TemplateKind },
+  input: { title: string; subject?: string; body?: string; kind?: TemplateKind },
 ): TemplateRecord {
   const title = requireTitle(input.title);
+  const subject = optionalSubject(input.subject);
   const body = typeof input.body === "string" ? input.body : "";
   const kind = parseKind(input.kind);
   const id = randomUUID();
@@ -87,22 +99,29 @@ export function createTemplate(
   getAppDb()
     .prepare(
       `INSERT INTO templates
-        (id, user_id, title, body, kind, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
+        (id, user_id, title, subject, body, kind, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
     )
-    .run(id, userId, title, body, kind, now, now);
+    .run(id, userId, title, subject, body, kind, now, now);
   return getTemplate(userId, id)!;
 }
 
 export function updateTemplate(
   userId: string,
   id: string,
-  patch: Partial<{ title: string; body: string; kind: TemplateKind; status: TemplateStatus }>,
+  patch: Partial<{
+    title: string;
+    subject: string;
+    body: string;
+    kind: TemplateKind;
+    status: TemplateStatus;
+  }>,
 ): TemplateRecord {
   const existing = getTemplate(userId, id);
   if (!existing) throw new Error("Template not found.");
 
   const title = patch.title !== undefined ? requireTitle(patch.title) : existing.title;
+  const subject = patch.subject !== undefined ? optionalSubject(patch.subject) : existing.subject;
   const body = patch.body !== undefined ? patch.body : existing.body;
   const kind = patch.kind !== undefined ? parseKind(patch.kind) : existing.kind;
   const status = patch.status ?? existing.status;
@@ -111,10 +130,10 @@ export function updateTemplate(
   const now = new Date().toISOString();
   getAppDb()
     .prepare(
-      `UPDATE templates SET title = ?, body = ?, kind = ?, status = ?, updated_at = ?
+      `UPDATE templates SET title = ?, subject = ?, body = ?, kind = ?, status = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
-    .run(title, body, kind, status, now, id, userId);
+    .run(title, subject, body, kind, status, now, id, userId);
   return getTemplate(userId, id)!;
 }
 
@@ -138,6 +157,7 @@ export function ensureDefaultOutreachTemplate(userId: string): TemplateRecord {
   if (existing) return existing;
   return createTemplate(userId, {
     title: "Cold outreach — referral ask",
+    subject: "Referral ask — {{role}} at {{company}}",
     body: DEFAULT_OUTREACH_BODY,
     kind: "outreach",
   });

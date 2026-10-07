@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 export type ColdEmailTemplateDto = {
   id: string;
   title: string;
+  subject: string;
   body: string;
   kind: "outreach" | "cover" | "other";
   status: "active" | "archived";
@@ -49,6 +50,7 @@ function normalizeTemplate(
   return {
     id: tpl.id,
     title: tpl.title,
+    subject: typeof tpl.subject === "string" ? tpl.subject : (fallback?.subject ?? ""),
     body: tpl.body,
     kind: tpl.kind,
     status: tpl.status,
@@ -99,7 +101,7 @@ export function ColdEmailTemplatesPanel({
     setDraft({
       id: tpl.id,
       title: tpl.title,
-      subject: DEFAULT_TEMPLATE_SUBJECT,
+      subject: tpl.subject?.trim() ? tpl.subject : DEFAULT_TEMPLATE_SUBJECT,
       body: tpl.body,
       kind: tpl.kind,
     });
@@ -120,6 +122,7 @@ export function ColdEmailTemplatesPanel({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: draft.title.trim(),
+            subject: draft.subject,
             body: draft.body,
             kind: draft.kind,
           }),
@@ -130,7 +133,14 @@ export function ColdEmailTemplatesPanel({
           const prev = templates.find((x) => x.id === data.template!.id);
           const updated = normalizeTemplate(data.template, prev);
           onTemplatesChange(templates.map((x) => (x.id === updated.id ? updated : x)));
-          setDraft((d) => ({ ...d, id: updated.id, title: updated.title }));
+          setDraft((d) => ({
+            ...d,
+            id: updated.id,
+            title: updated.title,
+            subject: updated.subject || d.subject,
+            body: updated.body,
+            kind: updated.kind,
+          }));
         }
       } else {
         const res = await fetch("/api/templates", {
@@ -138,6 +148,7 @@ export function ColdEmailTemplatesPanel({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: draft.title.trim(),
+            subject: draft.subject,
             body: draft.body,
             kind: draft.kind,
           }),
@@ -151,6 +162,7 @@ export function ColdEmailTemplatesPanel({
             ...d,
             id: created.id,
             title: created.title,
+            subject: created.subject || d.subject,
             body: created.body,
             kind: created.kind,
           }));
@@ -216,11 +228,11 @@ export function ColdEmailTemplatesPanel({
           <button
             type="button"
             onClick={() => setInfoOpen(true)}
-            className="text-foreground absolute right-2.5 top-2.5 inline-flex size-6 items-center justify-center rounded-full hover:opacity-80"
+            className="text-foreground hover:bg-muted/60 absolute right-2.5 top-2.5 inline-flex size-6 items-center justify-center rounded-md"
             aria-label="Template variable info"
             title="Template variables"
           >
-            <InfoIcon className="size-4" />
+            <InfoIcon className="size-3.5" />
           </button>
           <div className="flex items-center justify-between gap-2 pr-8">
             <p className="text-foreground text-[12px] font-semibold tracking-tight">
@@ -431,8 +443,7 @@ function InfoIcon({ className }: { className?: string }) {
       className={className}
       aria-hidden
     >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 16v-4" />
+      <path d="M12 16v-5" />
       <path d="M12 8h.01" />
     </svg>
   );

@@ -20,6 +20,7 @@ function toDto(row: ReturnType<typeof listTemplates>[number]) {
   return {
     id: row.id,
     title: row.title,
+    subject: row.subject,
     body: row.body,
     kind: row.kind,
     status: row.status,
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
   try {
     const template = createTemplate(user.id, {
       title: String(body.title ?? ""),
+      subject: typeof body.subject === "string" ? body.subject : "",
       body: typeof body.body === "string" ? body.body : "",
       kind: body.kind as TemplateKind | undefined,
     });

@@ -367,14 +367,42 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Segmented
-            value={prefs.trackerView}
-            options={[
-              { value: "kanban", label: "Kanban", shortLabel: "K" },
-              { value: "list", label: "List", shortLabel: "L" },
-            ]}
-            onChange={(v) => void setView(v)}
-          />
+          <div
+            className="border-border bg-card/70 inline-flex items-center gap-0.5 rounded-[10px] border p-0.5"
+            role="group"
+            aria-label="Board view"
+          >
+            <button
+              type="button"
+              title="Kanban"
+              aria-label="Kanban view"
+              aria-pressed={prefs.trackerView === "kanban"}
+              onClick={() => void setView("kanban")}
+              className={cn(
+                "inline-flex size-8 items-center justify-center rounded-[8px] transition-colors",
+                prefs.trackerView === "kanban"
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <KanbanGlyph className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              title="List"
+              aria-label="List view"
+              aria-pressed={prefs.trackerView === "list"}
+              onClick={() => void setView("list")}
+              className={cn(
+                "inline-flex size-8 items-center justify-center rounded-[8px] transition-colors",
+                prefs.trackerView === "list"
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <ListGlyph className="size-3.5" />
+            </button>
+          </div>
           <Segmented
             value={prefs.trackerScope}
             options={[
@@ -387,7 +415,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             <button
               type="button"
               onClick={() => setColumnsOpen((o) => !o)}
-              className="border-border bg-card/70 text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+              className="border-border bg-card/70 text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-[10px] border px-2.5 text-[12px]"
             >
               Columns
             </button>
@@ -400,12 +428,9 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             }}
             title="Import applications"
             aria-label="Import applications"
-            className="border-border bg-card/70 text-muted-foreground hover:text-foreground inline-flex h-8 items-center justify-center rounded-lg border px-2 text-[12px] md:px-2.5"
+            className="border-border bg-card/70 text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-[10px] border"
           >
-            <span className="md:hidden" aria-hidden>
-              ⇩
-            </span>
-            <span className="hidden md:inline">Import</span>
+            <ImportGlyph className="size-3.5" />
           </button>
           <button
             type="button"
@@ -416,12 +441,9 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             }}
             title="New application"
             aria-label="New application"
-            className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center justify-center rounded-lg px-2 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90 md:px-3"
+            className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex size-8 items-center justify-center rounded-[10px] text-[16px] font-semibold leading-none shadow-sm ring-1 hover:opacity-90"
           >
-            <span className="md:hidden" aria-hidden>
-              +
-            </span>
-            <span className="hidden md:inline">New application</span>
+            <span aria-hidden>+</span>
           </button>
         </div>
       </header>
@@ -661,6 +683,64 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         }}
       />
     </ShellWidth>
+  );
+}
+
+function KanbanGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <rect
+        x="1.5"
+        y="2.5"
+        width="5.5"
+        height="11"
+        rx="1.2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <rect
+        x="9"
+        y="2.5"
+        width="5.5"
+        height="11"
+        rx="1.2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+    </svg>
+  );
+}
+
+function ListGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <circle cx="2.75" cy="4" r="1" fill="currentColor" />
+      <path d="M5.5 4h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="2.75" cy="8" r="1" fill="currentColor" />
+      <path d="M5.5 8h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="2.75" cy="12" r="1" fill="currentColor" />
+      <path d="M5.5 12h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ImportGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M8 2.5v7.5M8 10l-2.5-2.5M8 10l2.5-2.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3 11.5v1a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 13 12.5v-1"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 

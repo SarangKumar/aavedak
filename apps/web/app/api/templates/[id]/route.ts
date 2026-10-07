@@ -28,6 +28,7 @@ function toDto(row: NonNullable<ReturnType<typeof getTemplate>>) {
   return {
     id: row.id,
     title: row.title,
+    subject: row.subject,
     body: row.body,
     kind: row.kind,
     status: row.status,
@@ -49,6 +50,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
   try {
     const patch: Parameters<typeof updateTemplate>[2] = {};
     if ("title" in body) patch.title = String(body.title ?? "");
+    if ("subject" in body) patch.subject = String(body.subject ?? "");
     if ("body" in body) patch.body = String(body.body ?? "");
     if ("kind" in body) patch.kind = body.kind as TemplateKind;
     if ("status" in body) {

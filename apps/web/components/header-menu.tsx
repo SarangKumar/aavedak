@@ -138,7 +138,7 @@ export function HeaderMenu({
               style={{
                 position: "fixed",
                 top: coords.top,
-                zIndex: 200,
+                zIndex: 260,
                 ...(coords.left != null ? { left: coords.left } : {}),
                 ...(coords.right != null ? { right: coords.right } : {}),
               }}

@@ -377,12 +377,10 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
 
       <div className="border-border/80 bg-card/50 flex min-h-[30rem] flex-col overflow-hidden rounded-lg border md:flex-row">
         <aside
-          className="border-border/60 flex w-full shrink-0 flex-col border-b md:border-b-0 md:border-r"
+          className="border-border/60 flex w-full shrink-0 flex-col border-b md:w-[var(--jobs-list-width)] md:max-w-[min(100%,560px)] md:border-b-0 md:border-r"
           style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
         >
-          <div className="w-full md:w-[var(--jobs-list-width)] md:max-w-full">
-            <JobList jobs={filtered} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
-          </div>
+          <JobList jobs={filtered} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
         </aside>
 
         <div

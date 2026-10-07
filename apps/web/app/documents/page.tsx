@@ -50,6 +50,7 @@ export default async function DocumentsPage() {
       initialTemplates={templates.map((t) => ({
         id: t.id,
         title: t.title,
+        subject: t.subject,
         body: t.body,
         kind: t.kind,
         status: t.status,

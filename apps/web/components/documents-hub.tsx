@@ -45,6 +45,7 @@ export type CoverLetterDto = {
 export type TemplateDto = {
   id: string;
   title: string;
+  subject: string;
   body: string;
   kind: "outreach" | "cover" | "other";
   status: "active" | "archived";
@@ -274,7 +275,11 @@ export function DocumentsHub({
         </p>
       </header>
 
-      <div className="border-border bg-card/70 inline-flex h-8 items-center rounded-lg border p-0.5">
+      <div
+        className="border-border bg-card/70 relative z-10 inline-flex h-8 items-center rounded-lg border p-0.5"
+        role="tablist"
+        aria-label="Documents sections"
+      >
         {(
           [
             { id: "resumes", label: "Resumes" },

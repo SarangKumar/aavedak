@@ -41,6 +41,7 @@ export type PersonDto = {
 export type TemplateDto = {
   id: string;
   title: string;
+  subject: string;
   body: string;
   kind: "outreach" | "cover" | "other";
   status: "active" | "archived";
@@ -152,8 +153,6 @@ export function ReferralsComposer({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
     initialTemplates.find((t) => t.kind === "outreach")?.id ?? initialTemplates[0]?.id ?? null,
   );
-  const [subject, setSubject] = useState("Referral ask — {{role}} at {{company}}");
-  const [body, setBody] = useState("");
   const [checkedPeople, setCheckedPeople] = useState<Set<string>>(new Set());
   const [confirmed, setConfirmed] = useState(false);
   const [pending, setPending] = useState(false);
@@ -175,11 +174,6 @@ export function ReferralsComposer({
     setColWidths(loadColumnWidths());
   }, []);
 
-  useEffect(() => {
-    const tpl = templates.find((t) => t.id === selectedTemplateId);
-    if (tpl) setBody(tpl.body);
-  }, [selectedTemplateId, templates]);
-
   const selectedApp = useMemo(
     () => applications.find((a) => a.id === selectedAppId) ?? null,
     [applications, selectedAppId],
@@ -196,6 +190,18 @@ export function ReferralsComposer({
     }),
     [selectedApp, userName, userEmail],
   );
+
+  const selectedTemplate = useMemo(
+    () => templates.find((t) => t.id === selectedTemplateId) ?? null,
+    [templates, selectedTemplateId],
+  );
+
+  const subject = selectedTemplate?.subject?.trim()
+    ? selectedTemplate.subject
+    : selectedTemplate
+      ? "Referral ask — {{role}} at {{company}}"
+      : "";
+  const body = selectedTemplate?.body ?? "";
 
   const previewSubject = useMemo(() => renderTemplate(subject, baseVars), [subject, baseVars]);
   const previewBody = useMemo(() => renderTemplate(body, baseVars), [body, baseVars]);
@@ -271,29 +277,6 @@ export function ReferralsComposer({
     setConfirmed(false);
   }
 
-  async function saveTemplateBody() {
-    if (!selectedTemplateId) return;
-    setPending(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/templates/${selectedTemplateId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body }),
-      });
-      const data = (await res.json()) as { template?: TemplateDto; error?: string };
-      if (!res.ok) throw new Error(data.error || "Save failed.");
-      if (data.template) {
-        setTemplates((list) => list.map((t) => (t.id === data.template!.id ? data.template! : t)));
-        setNotice("Template saved.");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed.");
-    } finally {
-      setPending(false);
-    }
-  }
-
   async function queueFollowUps() {
     setError(null);
     setNotice(null);
@@ -303,6 +286,10 @@ export function ReferralsComposer({
     }
     if (checkedPeople.size === 0) {
       setError("Check at least one recipient.");
+      return;
+    }
+    if (!selectedTemplateId || !selectedTemplate) {
+      setError("Select a saved cold-email template first.");
       return;
     }
     if (!confirmed) {
@@ -514,45 +501,34 @@ export function ReferralsComposer({
                   Template options are fixed to your saved templates only. Create one via Manage
                   templates.
                 </p>
-              ) : null}
-              <label className="block space-y-1">
-                <span className="text-muted-foreground text-[11px] font-medium">Subject</span>
-                <input
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px]"
-                />
-              </label>
-              <label className="block space-y-1">
-                <span className="text-muted-foreground text-[11px] font-medium">Body</span>
-                <textarea
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  rows={12}
-                  className="border-border bg-background text-foreground w-full rounded-lg border px-2.5 py-2 font-mono text-[11px] leading-relaxed"
-                />
-              </label>
-              <p className="text-muted-foreground text-[10px] leading-relaxed">
-                Placeholders: {"{{company}}"} {"{{role}}"} {"{{location}}"} {"{{person_name}}"}{" "}
-                {"{{person_email}}"} {"{{user_name}}"}
-              </p>
-              <div className="border-border/60 bg-muted/30 rounded-xl border p-2.5">
-                <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
-                  Preview (app context)
+              ) : (
+                <p className="text-muted-foreground text-[11px] leading-relaxed">
+                  Subject and body come from the selected saved template (read-only here). Edit copy
+                  in Manage templates / Documents.
                 </p>
-                <p className="text-foreground mt-1 text-[12px] font-medium">{previewSubject}</p>
-                <pre className="text-muted-foreground mt-1 max-h-32 overflow-auto whitespace-pre-wrap font-sans text-[11px] leading-relaxed">
-                  {previewBody}
-                </pre>
+              )}
+              <div className="border-border/60 bg-muted/30 space-y-2 rounded-xl border p-2.5">
+                <div>
+                  <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
+                    Subject
+                  </p>
+                  <p className="text-foreground mt-1 text-[12px] font-medium">
+                    {selectedTemplate
+                      ? previewSubject || "(empty subject)"
+                      : "Select a saved template"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
+                    Body preview
+                  </p>
+                  <pre className="text-muted-foreground mt-1 max-h-48 overflow-auto whitespace-pre-wrap font-sans text-[11px] leading-relaxed">
+                    {selectedTemplate
+                      ? previewBody || "(empty body)"
+                      : "Choose a template to preview filled subject and body."}
+                  </pre>
+                </div>
               </div>
-              <button
-                type="button"
-                disabled={pending || !selectedTemplateId}
-                onClick={() => void saveTemplateBody()}
-                className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
-              >
-                Save template body
-              </button>
             </div>
           ) : null}
 
