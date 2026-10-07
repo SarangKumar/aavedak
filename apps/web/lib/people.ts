@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { getAppDb } from "@/lib/app-db";
+import { ensureAppSchema, getSql } from "@/lib/app-db";
 
 export type PersonStatus = "active" | "archived";
 
@@ -20,7 +20,7 @@ export type PersonRecord = {
   updatedAt: string;
 };
 
-function mapRow(row: {
+type Row = {
   id: string;
   user_id: string;
   name: string;
@@ -32,7 +32,9 @@ function mapRow(row: {
   status: PersonStatus;
   created_at: string;
   updated_at: string;
-}): PersonRecord {
+};
+
+function mapRow(row: Row): PersonRecord {
   return {
     id: row.id,
     userId: row.user_id,
@@ -62,23 +64,32 @@ function optional(value: unknown): string | null {
   return t || null;
 }
 
-export function listPeople(userId: string, opts?: { includeArchived?: boolean }): PersonRecord[] {
+export async function listPeople(
+  userId: string,
+  opts?: { includeArchived?: boolean },
+): Promise<PersonRecord[]> {
+  await ensureAppSchema();
   const includeArchived = opts?.includeArchived ?? false;
-  const sql = includeArchived
-    ? `SELECT * FROM people WHERE user_id = ? ORDER BY updated_at DESC`
-    : `SELECT * FROM people WHERE user_id = ? AND status != 'archived' ORDER BY updated_at DESC`;
-  const rows = getAppDb().prepare(sql).all(userId) as Array<Parameters<typeof mapRow>[0]>;
+  const rows = includeArchived
+    ? ((await getSql()`
+        SELECT * FROM people WHERE user_id = ${userId} ORDER BY updated_at DESC
+      `) as Row[])
+    : ((await getSql()`
+        SELECT * FROM people WHERE user_id = ${userId} AND status != 'archived'
+        ORDER BY updated_at DESC
+      `) as Row[]);
   return rows.map(mapRow);
 }
 
-export function getPerson(userId: string, id: string): PersonRecord | null {
-  const row = getAppDb()
-    .prepare(`SELECT * FROM people WHERE id = ? AND user_id = ?`)
-    .get(id, userId) as Parameters<typeof mapRow>[0] | undefined;
-  return row ? mapRow(row) : null;
+export async function getPerson(userId: string, id: string): Promise<PersonRecord | null> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT * FROM people WHERE id = ${id} AND user_id = ${userId}
+  `) as Row[];
+  return rows[0] ? mapRow(rows[0]) : null;
 }
 
-export function createPerson(
+export async function createPerson(
   userId: string,
   input: {
     name: string;
@@ -88,32 +99,30 @@ export function createPerson(
     notes?: string | null;
     applicationId?: string | null;
   },
-): PersonRecord {
+): Promise<PersonRecord> {
+  await ensureAppSchema();
   const name = requireName(input.name);
   const id = randomUUID();
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `INSERT INTO people
-        (id, user_id, name, email, company, role_title, notes, application_id, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+  const email = optional(input.email);
+  const company = optional(input.company);
+  const roleTitle = optional(input.roleTitle);
+  const notes = optional(input.notes);
+  const applicationId = optional(input.applicationId);
+  await getSql()`
+    INSERT INTO people
+      (id, user_id, name, email, company, role_title, notes, application_id, status, created_at, updated_at)
+    VALUES (
+      ${id}, ${userId}, ${name}, ${email}, ${company}, ${roleTitle}, ${notes}, ${applicationId},
+      'active', ${now}, ${now}
     )
-    .run(
-      id,
-      userId,
-      name,
-      optional(input.email),
-      optional(input.company),
-      optional(input.roleTitle),
-      optional(input.notes),
-      optional(input.applicationId),
-      now,
-      now,
-    );
-  return getPerson(userId, id)!;
+  `;
+  const created = await getPerson(userId, id);
+  if (!created) throw new Error("Failed to create person.");
+  return created;
 }
 
-export function updatePerson(
+export async function updatePerson(
   userId: string,
   id: string,
   patch: Partial<{
@@ -125,8 +134,9 @@ export function updatePerson(
     applicationId: string | null;
     status: PersonStatus;
   }>,
-): PersonRecord {
-  const existing = getPerson(userId, id);
+): Promise<PersonRecord> {
+  await ensureAppSchema();
+  const existing = await getPerson(userId, id);
   if (!existing) throw new Error("Person not found.");
 
   const name = patch.name !== undefined ? requireName(patch.name) : existing.name;
@@ -140,16 +150,17 @@ export function updatePerson(
   if (status !== "active" && status !== "archived") throw new Error("Invalid status.");
 
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `UPDATE people SET name = ?, email = ?, company = ?, role_title = ?, notes = ?,
-         application_id = ?, status = ?, updated_at = ?
-       WHERE id = ? AND user_id = ?`,
-    )
-    .run(name, email, company, roleTitle, notes, applicationId, status, now, id, userId);
-  return getPerson(userId, id)!;
+  await getSql()`
+    UPDATE people SET
+      name = ${name}, email = ${email}, company = ${company}, role_title = ${roleTitle},
+      notes = ${notes}, application_id = ${applicationId}, status = ${status}, updated_at = ${now}
+    WHERE id = ${id} AND user_id = ${userId}
+  `;
+  const updated = await getPerson(userId, id);
+  if (!updated) throw new Error("Person not found after update.");
+  return updated;
 }
 
-export function archivePerson(userId: string, id: string): PersonRecord {
+export async function archivePerson(userId: string, id: string): Promise<PersonRecord> {
   return updatePerson(userId, id, { status: "archived" });
 }

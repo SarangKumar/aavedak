@@ -23,8 +23,8 @@ __pycache__/
 # deps
 # editors
 # env
-# local app data (resumes + app.db)
-# local Better Auth SQLite (scaffold)
+# local resume files under .data/ (gitignored)
+# legacy local sqlite paths (unused; kept gitignored)
 # next
 # python
 # tooling
@@ -36,3 +36,4 @@ apps/web/data/
 apps/web/out/
 coverage/
 node_modules/
+.neon

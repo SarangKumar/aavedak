@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function JobsPage() {
   const { user } = await requireOnboarded();
-  const jobs = ensureDemoJobs(user.id);
+  const jobs = await ensureDemoJobs(user.id);
 
   return (
     <JobsHub

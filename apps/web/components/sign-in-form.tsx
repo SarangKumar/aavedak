@@ -6,7 +6,7 @@ import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 type SignInFormProps = {
-  googleConfigured: boolean;
+  neonAuthConfigured: boolean;
 };
 
 function GoogleMark({ className }: { className?: string }) {
@@ -32,7 +32,7 @@ function GoogleMark({ className }: { className?: string }) {
   );
 }
 
-export function SignInForm({ googleConfigured }: SignInFormProps) {
+export function SignInForm({ neonAuthConfigured }: SignInFormProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,52 +51,29 @@ export function SignInForm({ googleConfigured }: SignInFormProps) {
     }
   }
 
-  if (!googleConfigured) {
+  if (!neonAuthConfigured) {
     return (
       <div className="space-y-3 text-left">
-        <h2 className="text-foreground text-sm font-semibold">Google OAuth not configured</h2>
+        <h2 className="text-foreground text-sm font-semibold">Neon Auth not configured</h2>
         <p className="text-muted-foreground text-[13px] leading-relaxed">
-          Add Google Cloud OAuth credentials to{" "}
+          Set{" "}
+          <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
+            NEON_AUTH_BASE_URL
+          </code>{" "}
+          and{" "}
+          <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
+            NEON_AUTH_COOKIE_SECRET
+          </code>{" "}
+          in{" "}
           <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
             apps/web/.env.local
-          </code>{" "}
-          then restart{" "}
+          </code>
+          , then configure Google OAuth in the Neon Console (Google provider). Restart{" "}
           <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">pnpm dev</code>.
         </p>
-        <ol className="text-muted-foreground list-decimal space-y-1.5 pl-4 text-[13px] leading-relaxed">
-          <li>
-            Create an OAuth client (Web application) in{" "}
-            <a
-              className="text-primary underline underline-offset-2"
-              href="https://console.cloud.google.com/apis/credentials"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Google Cloud Console
-            </a>
-            .
-          </li>
-          <li>
-            Authorized redirect URI:{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[10px]">
-              http://localhost:3000/api/auth/callback/google
-            </code>
-          </li>
-          <li>
-            Set{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
-              GOOGLE_CLIENT_ID
-            </code>{" "}
-            and{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
-              GOOGLE_CLIENT_SECRET
-            </code>
-            .
-          </li>
-        </ol>
         <p className="text-muted-foreground text-[11px] leading-relaxed">
-          Also ensure <code className="font-mono">BETTER_AUTH_SECRET</code> (32+ chars) and{" "}
-          <code className="font-mono">BETTER_AUTH_URL=http://localhost:3000</code> are set.
+          Redirect URI shape:{" "}
+          <code className="font-mono text-[10px]">{"{NEON_AUTH_BASE_URL}/callback/google"}</code>
         </p>
       </div>
     );

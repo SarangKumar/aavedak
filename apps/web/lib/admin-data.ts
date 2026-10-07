@@ -2,7 +2,7 @@ import "server-only";
 
 import fs from "node:fs";
 
-import { getAppDb } from "@/lib/app-db";
+import { ensureAppSchema, getSql } from "@/lib/app-db";
 import type { ResumeStatus } from "@/lib/resumes";
 
 export type AdminOverviewCounts = {
@@ -28,33 +28,45 @@ export type AdminResumeRow = {
   updatedAt: string;
 };
 
-function countTable(table: string): number {
-  const row = getAppDb().prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number };
-  return row.n;
+async function countTable(
+  table: "profiles" | "applications" | "resumes" | "people" | "templates",
+): Promise<number> {
+  await ensureAppSchema();
+  const sql = getSql();
+  const rows =
+    table === "profiles"
+      ? await sql`SELECT COUNT(*)::int AS n FROM profiles`
+      : table === "applications"
+        ? await sql`SELECT COUNT(*)::int AS n FROM applications`
+        : table === "resumes"
+          ? await sql`SELECT COUNT(*)::int AS n FROM resumes`
+          : table === "people"
+            ? await sql`SELECT COUNT(*)::int AS n FROM people`
+            : await sql`SELECT COUNT(*)::int AS n FROM templates`;
+  return Number((rows[0] as { n: number }).n) || 0;
 }
 
-export function getAdminOverviewCounts(): AdminOverviewCounts {
+export async function getAdminOverviewCounts(): Promise<AdminOverviewCounts> {
   return {
-    profiles: countTable("profiles"),
-    applications: countTable("applications"),
-    resumes: countTable("resumes"),
-    people: countTable("people"),
-    templates: countTable("templates"),
+    profiles: await countTable("profiles"),
+    applications: await countTable("applications"),
+    resumes: await countTable("resumes"),
+    people: await countTable("people"),
+    templates: await countTable("templates"),
   };
 }
 
-export function listRecentResumesForAdmin(limit = 40): AdminResumeRow[] {
-  const rows = getAppDb()
-    .prepare(
-      `SELECT r.id, r.user_id, r.display_name, r.status, r.storage_path, r.original_filename,
-              r.byte_size, r.created_at, r.updated_at,
-              p.username, p.email AS owner_email, p.name AS owner_name
-       FROM resumes r
-       LEFT JOIN profiles p ON p.user_id = r.user_id
-       ORDER BY r.created_at DESC
-       LIMIT ?`,
-    )
-    .all(limit) as Array<{
+export async function listRecentResumesForAdmin(limit = 40): Promise<AdminResumeRow[]> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT r.id, r.user_id, r.display_name, r.status, r.storage_path, r.original_filename,
+           r.byte_size, r.created_at, r.updated_at,
+           p.username, p.email AS owner_email, p.name AS owner_name
+    FROM resumes r
+    LEFT JOIN profiles p ON p.user_id = r.user_id
+    ORDER BY r.created_at DESC
+    LIMIT ${limit}
+  `) as Array<{
     id: string;
     user_id: string;
     display_name: string;

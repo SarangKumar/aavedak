@@ -1,6 +1,5 @@
 import "server-only";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
@@ -20,9 +19,7 @@ export type AppAccess = {
 };
 
 async function getSessionUser(): Promise<AppSessionUser | null> {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const { data: session } = await auth.getSession();
   if (!session?.user?.email) return null;
   return {
     id: session.user.id,
@@ -36,8 +33,8 @@ async function getSessionUser(): Promise<AppSessionUser | null> {
 export async function requireOnboarded(): Promise<AppAccess> {
   const user = await getSessionUser();
   if (!user) redirect("/sign-in?next=/dashboard");
-  const profile = ensureProfile(user);
-  if (!hasCompletedOnboardingRequirement(user.id)) {
+  const profile = await ensureProfile(user);
+  if (!(await hasCompletedOnboardingRequirement(user.id))) {
     redirect("/onboarding");
   }
   return { user, profile };
@@ -47,12 +44,11 @@ export async function requireOnboarded(): Promise<AppAccess> {
 export async function requireOnboardingSession(): Promise<AppAccess> {
   const user = await getSessionUser();
   if (!user) redirect("/sign-in?next=/onboarding");
-  const profile = ensureProfile(user);
-  if (hasCompletedOnboardingRequirement(user.id)) {
+  const profile = await ensureProfile(user);
+  if (await hasCompletedOnboardingRequirement(user.id)) {
     if (!profile.onboardingComplete) {
-      // Mark complete when requirement already satisfied (e.g. resumed session)
       const { setOnboardingComplete } = await import("@/lib/profile");
-      setOnboardingComplete(user.id, true);
+      await setOnboardingComplete(user.id, true);
     }
     redirect("/dashboard");
   }
@@ -62,6 +58,6 @@ export async function requireOnboardingSession(): Promise<AppAccess> {
 export async function getOptionalAccess(): Promise<AppAccess | null> {
   const user = await getSessionUser();
   if (!user) return null;
-  const profile = ensureProfile(user);
+  const profile = await ensureProfile(user);
   return { user, profile };
 }

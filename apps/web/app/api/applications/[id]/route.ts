@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { applicationToDto, updateApplication } from "@/lib/applications";
@@ -9,9 +8,9 @@ import { ensureProfile } from "@/lib/profile";
 type Ctx = { params: Promise<{ id: string }> };
 
 async function requireUser() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const { data: session } = await auth.getSession();
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -47,7 +46,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
       patch.status = body.status;
     }
 
-    const application = updateApplication(user.id, id, patch);
+    const application = await updateApplication(user.id, id, patch);
     return NextResponse.json({ application: applicationToDto(application) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed.";

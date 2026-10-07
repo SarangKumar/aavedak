@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { getAppDb } from "@/lib/app-db";
+import { ensureAppSchema, getSql } from "@/lib/app-db";
 
 export type JobAnalysisRecord = {
   id: string;
@@ -14,7 +14,7 @@ export type JobAnalysisRecord = {
   updatedAt: string;
 };
 
-function mapRow(row: {
+type Row = {
   id: string;
   user_id: string;
   raw_text: string;
@@ -22,7 +22,9 @@ function mapRow(row: {
   job_id: string | null;
   created_at: string;
   updated_at: string;
-}): JobAnalysisRecord {
+};
+
+function mapRow(row: Row): JobAnalysisRecord {
   return {
     id: row.id,
     userId: row.user_id,
@@ -34,22 +36,23 @@ function mapRow(row: {
   };
 }
 
-export function listJobAnalyses(userId: string): JobAnalysisRecord[] {
-  const rows = getAppDb()
-    .prepare(`SELECT * FROM job_analyses WHERE user_id = ? ORDER BY created_at DESC`)
-    .all(userId) as Array<Parameters<typeof mapRow>[0]>;
+export async function listJobAnalyses(userId: string): Promise<JobAnalysisRecord[]> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT * FROM job_analyses WHERE user_id = ${userId} ORDER BY created_at DESC
+  `) as Row[];
   return rows.map(mapRow);
 }
 
-export function createJobAnalysis(
+export async function createJobAnalysis(
   userId: string,
   input: { rawText: string; summary?: string | null; jobId?: string | null },
-): JobAnalysisRecord {
+): Promise<JobAnalysisRecord> {
+  await ensureAppSchema();
   const rawText = typeof input.rawText === "string" ? input.rawText.trim() : "";
   if (!rawText) throw new Error("Pasted JD text is required.");
   if (rawText.length > 100_000) throw new Error("JD text is too long.");
 
-  // Local stub summary — no global Job creation.
   const summary =
     input.summary?.trim() ||
     `Stub analysis (${rawText.split(/\s+/).length} words). Full JD parsing arrives later.`;
@@ -57,15 +60,13 @@ export function createJobAnalysis(
   const id = randomUUID();
   const now = new Date().toISOString();
   const jobId = input.jobId?.trim() || null;
-  getAppDb()
-    .prepare(
-      `INSERT INTO job_analyses (id, user_id, raw_text, summary, job_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(id, userId, rawText, summary, jobId, now, now);
+  await getSql()`
+    INSERT INTO job_analyses (id, user_id, raw_text, summary, job_id, created_at, updated_at)
+    VALUES (${id}, ${userId}, ${rawText}, ${summary}, ${jobId}, ${now}, ${now})
+  `;
 
-  const row = getAppDb()
-    .prepare(`SELECT * FROM job_analyses WHERE id = ? AND user_id = ?`)
-    .get(id, userId) as Parameters<typeof mapRow>[0];
-  return mapRow(row);
+  const rows = (await getSql()`
+    SELECT * FROM job_analyses WHERE id = ${id} AND user_id = ${userId}
+  `) as Row[];
+  return mapRow(rows[0]);
 }

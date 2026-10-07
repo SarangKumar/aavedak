@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
@@ -8,9 +7,9 @@ import { ensureProfile } from "@/lib/profile";
 type Ctx = { params: Promise<{ id: string }> };
 
 async function requireUser() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const { data: session } = await auth.getSession();
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -18,7 +17,7 @@ async function requireUser() {
   return session.user;
 }
 
-function toDto(row: NonNullable<ReturnType<typeof getJob>>) {
+function toDto(row: NonNullable<Awaited<ReturnType<typeof getJob>>>) {
   return {
     id: row.id,
     title: row.title,
@@ -60,7 +59,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
       }
       patch.status = status;
     }
-    const job = updateJob(user.id, id, patch);
+    const job = await updateJob(user.id, id, patch);
     return NextResponse.json({ job: toDto(job) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed.";
@@ -76,7 +75,7 @@ export async function DELETE(_request: Request, ctx: Ctx) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   try {
-    const job = archiveJob(user.id, id);
+    const job = await archiveJob(user.id, id);
     return NextResponse.json({ job: toDto(job) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Archive failed.";

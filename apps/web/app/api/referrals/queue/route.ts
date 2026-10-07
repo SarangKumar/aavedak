@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
@@ -19,11 +18,11 @@ function fill(template: string, vars: Record<string, string>): string {
  * Cron/process stub: POST /api/referrals/process-queue marks due queued items as sent_stub.
  */
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const { data: session } = await auth.getSession();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -66,7 +65,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Select at least one recipient." }, { status: 400 });
   }
 
-  const application = getApplication(userId, applicationId);
+  const application = await getApplication(userId, applicationId);
   if (!application) {
     return NextResponse.json({ error: "Application not found." }, { status: 404 });
   }
@@ -80,7 +79,7 @@ export async function POST(request: Request) {
 
   const created = [];
   for (const personId of personIds) {
-    const person = getPerson(userId, personId);
+    const person = await getPerson(userId, personId);
     if (!person || person.status === "archived") {
       return NextResponse.json({ error: `Person not found: ${personId}` }, { status: 400 });
     }
@@ -102,7 +101,7 @@ export async function POST(request: Request) {
       .filter((line) => line !== null)
       .join("\n");
 
-    const followUp = createFollowUp(userId, {
+    const followUp = await createFollowUp(userId, {
       title,
       dueDate,
       sendAfter,

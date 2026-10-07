@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
@@ -11,9 +10,9 @@ import {
 import type { ProfileLinks } from "@/lib/profile-links";
 
 async function requireUser() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const { data: session } = await auth.getSession();
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -22,7 +21,7 @@ async function requireUser() {
   return session.user;
 }
 
-function serialize(profile: NonNullable<ReturnType<typeof getProfile>>) {
+function serialize(profile: NonNullable<Awaited<ReturnType<typeof getProfile>>>) {
   return {
     userId: profile.userId,
     username: profile.username,
@@ -43,7 +42,7 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const profile = getProfile(user.id);
+  const profile = await getProfile(user.id);
   if (!profile) {
     return NextResponse.json({ error: "Profile not found." }, { status: 404 });
   }
@@ -64,7 +63,7 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const profile = updateProfilePublic(user.id, {
+    const profile = await updateProfilePublic(user.id, {
       name: body.name,
       bio: body.bio,
       portfolioUrl: body.portfolioUrl,

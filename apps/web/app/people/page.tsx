@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 
 export default async function PeoplePage() {
   const { user } = await requireOnboarded();
-  const people = listPeople(user.id, { includeArchived: true });
-  const applications = listApplications(user.id, "active");
+  const people = await listPeople(user.id, { includeArchived: true });
+  const applications = await listApplications(user.id, "active");
 
   return (
     <div className="relative overflow-hidden">

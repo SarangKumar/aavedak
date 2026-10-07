@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { getAppDb } from "@/lib/app-db";
+import { ensureAppSchema, getSql } from "@/lib/app-db";
 import {
   isApplicationStatus,
   isArchivedStatus,
@@ -36,7 +36,6 @@ export type CreateApplicationInput = {
   status?: ApplicationStatus;
   notes?: string | null;
   appliedAt?: string | null;
-  /** When set, used for created_at / updated_at (seed / import). */
   createdAt?: string | null;
 };
 
@@ -55,18 +54,6 @@ type ApplicationRow = {
   created_at: string;
   updated_at: string;
 };
-
-let schemaReady = false;
-
-function ensureApplicationsSchema() {
-  if (schemaReady) return;
-  const db = getAppDb();
-  const cols = db.prepare(`PRAGMA table_info(applications)`).all() as Array<{ name: string }>;
-  if (!cols.some((c) => c.name === "applied_at")) {
-    db.exec(`ALTER TABLE applications ADD COLUMN applied_at TEXT`);
-  }
-  schemaReady = true;
-}
 
 function mapRow(row: ApplicationRow): ApplicationRecord {
   if (!isApplicationStatus(row.status)) {
@@ -103,70 +90,81 @@ function optionalText(value: unknown): string | null {
   return trimmed || null;
 }
 
-export function listApplications(
+export async function listApplications(
   userId: string,
   scope: "active" | "archived" = "active",
-): ApplicationRecord[] {
-  ensureApplicationsSchema();
-  const sql =
+): Promise<ApplicationRecord[]> {
+  await ensureAppSchema();
+  const sql = getSql();
+  const rows =
     scope === "archived"
-      ? `SELECT * FROM applications WHERE user_id = ? AND status = 'archived' ORDER BY updated_at DESC`
-      : `SELECT * FROM applications WHERE user_id = ? AND status != 'archived' ORDER BY updated_at DESC`;
-  const rows = getAppDb().prepare(sql).all(userId) as ApplicationRow[];
+      ? ((await sql`
+          SELECT * FROM applications
+          WHERE user_id = ${userId} AND status = 'archived'
+          ORDER BY updated_at DESC
+        `) as ApplicationRow[])
+      : ((await sql`
+          SELECT * FROM applications
+          WHERE user_id = ${userId} AND status != 'archived'
+          ORDER BY updated_at DESC
+        `) as ApplicationRow[]);
   return rows.map(mapRow);
 }
 
-export function getApplication(userId: string, id: string): ApplicationRecord | null {
-  ensureApplicationsSchema();
-  const row = getAppDb()
-    .prepare(`SELECT * FROM applications WHERE id = ? AND user_id = ?`)
-    .get(id, userId) as ApplicationRow | undefined;
-  return row ? mapRow(row) : null;
+export async function getApplication(
+  userId: string,
+  id: string,
+): Promise<ApplicationRecord | null> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT * FROM applications WHERE id = ${id} AND user_id = ${userId}
+  `) as ApplicationRow[];
+  return rows[0] ? mapRow(rows[0]) : null;
 }
 
-export function findApplicationByCompanyRole(
+export async function findApplicationByCompanyRole(
   userId: string,
   companyName: string,
   role: string,
-): ApplicationRecord | null {
-  ensureApplicationsSchema();
-  const row = getAppDb()
-    .prepare(
-      `SELECT * FROM applications
-       WHERE user_id = ?
-         AND company_name = ? COLLATE NOCASE
-         AND role = ? COLLATE NOCASE
-       ORDER BY created_at ASC
-       LIMIT 1`,
-    )
-    .get(userId, companyName.trim(), role.trim()) as ApplicationRow | undefined;
-  return row ? mapRow(row) : null;
+): Promise<ApplicationRecord | null> {
+  await ensureAppSchema();
+  const company = companyName.trim();
+  const roleName = role.trim();
+  const rows = (await getSql()`
+    SELECT * FROM applications
+    WHERE user_id = ${userId}
+      AND lower(company_name) = lower(${company})
+      AND lower(role) = lower(${roleName})
+    ORDER BY created_at ASC
+    LIMIT 1
+  `) as ApplicationRow[];
+  return rows[0] ? mapRow(rows[0]) : null;
 }
 
-export function findDuplicateWarnings(
+export async function findDuplicateWarnings(
   userId: string,
   companyName: string,
   role: string,
   excludeId?: string,
-): ApplicationRecord[] {
-  ensureApplicationsSchema();
-  const rows = getAppDb()
-    .prepare(
-      `SELECT * FROM applications
-       WHERE user_id = ?
-         AND company_name = ? COLLATE NOCASE
-         AND role = ? COLLATE NOCASE
-         AND status != 'archived'`,
-    )
-    .all(userId, companyName.trim(), role.trim()) as ApplicationRow[];
+): Promise<ApplicationRecord[]> {
+  await ensureAppSchema();
+  const company = companyName.trim();
+  const roleName = role.trim();
+  const rows = (await getSql()`
+    SELECT * FROM applications
+    WHERE user_id = ${userId}
+      AND lower(company_name) = lower(${company})
+      AND lower(role) = lower(${roleName})
+      AND status != 'archived'
+  `) as ApplicationRow[];
   return rows.map(mapRow).filter((r) => r.id !== excludeId);
 }
 
-export function createApplication(
+export async function createApplication(
   userId: string,
   input: CreateApplicationInput,
-): ApplicationRecord {
-  ensureApplicationsSchema();
+): Promise<ApplicationRecord> {
+  await ensureAppSchema();
   const companyName = requireText(input.companyName, "Company name");
   const role = requireText(input.role, "Role");
   const location = requireText(input.location, "Location");
@@ -186,32 +184,21 @@ export function createApplication(
   const appliedAt = optionalText(input.appliedAt ?? null) || optionalText(input.createdAt ?? null);
 
   const id = randomUUID();
-  getAppDb()
-    .prepare(
-      `INSERT INTO applications
-        (id, user_id, company_name, role, location, salary_ctc, job_link, job_id, status, notes, applied_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  await getSql()`
+    INSERT INTO applications
+      (id, user_id, company_name, role, location, salary_ctc, job_link, job_id, status, notes, applied_at, created_at, updated_at)
+    VALUES (
+      ${id}, ${userId}, ${companyName}, ${role}, ${location}, ${salaryCtc}, ${jobLink}, ${jobId},
+      ${status}, ${notes}, ${appliedAt}, ${createdAt}, ${createdAt}
     )
-    .run(
-      id,
-      userId,
-      companyName,
-      role,
-      location,
-      salaryCtc,
-      jobLink,
-      jobId,
-      status,
-      notes,
-      appliedAt,
-      createdAt,
-      createdAt,
-    );
+  `;
 
-  return getApplication(userId, id)!;
+  const created = await getApplication(userId, id);
+  if (!created) throw new Error("Failed to create application.");
+  return created;
 }
 
-export function updateApplication(
+export async function updateApplication(
   userId: string,
   id: string,
   patch: Partial<{
@@ -225,9 +212,9 @@ export function updateApplication(
     notes: string | null;
     appliedAt: string | null;
   }>,
-): ApplicationRecord {
-  ensureApplicationsSchema();
-  const existing = getApplication(userId, id);
+): Promise<ApplicationRecord> {
+  await ensureAppSchema();
+  const existing = await getApplication(userId, id);
   if (!existing) throw new Error("Application not found.");
 
   const companyName =
@@ -251,76 +238,66 @@ export function updateApplication(
   }
 
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `UPDATE applications SET
-         company_name = ?, role = ?, location = ?, salary_ctc = ?, job_link = ?, job_id = ?,
-         status = ?, notes = ?, applied_at = ?, updated_at = ?
-       WHERE id = ? AND user_id = ?`,
-    )
-    .run(
-      companyName,
-      role,
-      location,
-      salaryCtc,
-      jobLink,
-      jobId,
-      status,
-      notes,
-      appliedAt,
-      now,
-      id,
-      userId,
-    );
+  await getSql()`
+    UPDATE applications SET
+      company_name = ${companyName},
+      role = ${role},
+      location = ${location},
+      salary_ctc = ${salaryCtc},
+      job_link = ${jobLink},
+      job_id = ${jobId},
+      status = ${status},
+      notes = ${notes},
+      applied_at = ${appliedAt},
+      updated_at = ${now}
+    WHERE id = ${id} AND user_id = ${userId}
+  `;
 
-  return getApplication(userId, id)!;
+  const updated = await getApplication(userId, id);
+  if (!updated) throw new Error("Application not found after update.");
+  return updated;
 }
 
-export function setApplicationStatus(
+export async function setApplicationStatus(
   userId: string,
   id: string,
   status: ApplicationStatus,
-): ApplicationRecord {
+): Promise<ApplicationRecord> {
   if (!isApplicationStatus(status)) throw new Error("Invalid status.");
   return updateApplication(userId, id, { status });
 }
 
-export function hasApplicationOnDay(
+export async function hasApplicationOnDay(
   userId: string,
   companyName: string,
   role: string,
   appliedAt: string | null | undefined,
-): boolean {
-  ensureApplicationsSchema();
+): Promise<boolean> {
+  await ensureAppSchema();
+  const company = companyName.trim();
+  const roleName = role.trim();
   const day = appliedAt?.slice(0, 10);
   if (!day) {
-    const row = getAppDb()
-      .prepare(
-        `SELECT id FROM applications
-         WHERE user_id = ?
-           AND company_name = ? COLLATE NOCASE
-           AND role = ? COLLATE NOCASE
-         LIMIT 1`,
-      )
-      .get(userId, companyName.trim(), role.trim());
-    return Boolean(row);
+    const rows = await getSql()`
+      SELECT id FROM applications
+      WHERE user_id = ${userId}
+        AND lower(company_name) = lower(${company})
+        AND lower(role) = lower(${roleName})
+      LIMIT 1
+    `;
+    return rows.length > 0;
   }
-  const row = getAppDb()
-    .prepare(
-      `SELECT id FROM applications
-       WHERE user_id = ?
-         AND company_name = ? COLLATE NOCASE
-         AND role = ? COLLATE NOCASE
-         AND (
-           substr(COALESCE(applied_at, created_at), 1, 10) = ?
-         )
-       LIMIT 1`,
-    )
-    .get(userId, companyName.trim(), role.trim(), day);
-  return Boolean(row);
+  const rows = await getSql()`
+    SELECT id FROM applications
+    WHERE user_id = ${userId}
+      AND lower(company_name) = lower(${company})
+      AND lower(role) = lower(${roleName})
+      AND substr(COALESCE(applied_at, created_at), 1, 10) = ${day}
+    LIMIT 1
+  `;
+  return rows.length > 0;
 }
 
-/** Sarang's already-applied roles — upsert by company+role (skip if present). */
 export const SARANG_DEMO_APPLIED = [
   {
     companyName: "JioSaavn",
@@ -352,22 +329,22 @@ export const SARANG_DEMO_APPLIED = [
   },
 ] as const;
 
-export function seedDemoAppliedApplications(userId: string): {
+export async function seedDemoAppliedApplications(userId: string): Promise<{
   inserted: ApplicationRecord[];
   skipped: Array<{ companyName: string; role: string }>;
-} {
-  ensureApplicationsSchema();
+}> {
+  await ensureAppSchema();
   const inserted: ApplicationRecord[] = [];
   const skipped: Array<{ companyName: string; role: string }> = [];
 
   for (const item of SARANG_DEMO_APPLIED) {
-    const existing = findApplicationByCompanyRole(userId, item.companyName, item.role);
+    const existing = await findApplicationByCompanyRole(userId, item.companyName, item.role);
     if (existing) {
       skipped.push({ companyName: item.companyName, role: item.role });
       continue;
     }
     inserted.push(
-      createApplication(userId, {
+      await createApplication(userId, {
         companyName: item.companyName,
         role: item.role,
         location: item.location,
@@ -381,26 +358,26 @@ export function seedDemoAppliedApplications(userId: string): {
   return { inserted, skipped };
 }
 
-export function importApplications(
+export async function importApplications(
   userId: string,
   items: ApplicationImportItem[],
-): {
+): Promise<{
   inserted: ApplicationRecord[];
   skippedDuplicates: Array<{ companyName: string; role: string }>;
-} {
-  ensureApplicationsSchema();
+}> {
+  await ensureAppSchema();
   const inserted: ApplicationRecord[] = [];
   const skippedDuplicates: Array<{ companyName: string; role: string }> = [];
 
   for (const item of items) {
-    const existing = findApplicationByCompanyRole(userId, item.company_name, item.role);
+    const existing = await findApplicationByCompanyRole(userId, item.company_name, item.role);
     if (existing) {
       skippedDuplicates.push({ companyName: item.company_name, role: item.role });
       continue;
     }
     const dateIso = item.applied_at ?? item.created_at ?? null;
     inserted.push(
-      createApplication(userId, {
+      await createApplication(userId, {
         companyName: item.company_name,
         role: item.role,
         location: item.location,

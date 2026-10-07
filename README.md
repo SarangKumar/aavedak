@@ -118,8 +118,8 @@ Better Auth + **Google only**. Local SQLite at `apps/web/data/local.db` (gitigno
 
 1. Create a Google OAuth Web client; redirect URI:
    `http://localhost:3000/api/auth/callback/google`
-2. Fill `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in `apps/web/.env.local`
-   (`BETTER_AUTH_SECRET` + `BETTER_AUTH_URL` required; scaffold generates a secret if empty).
+2. Set Neon `DATABASE_URL`, `NEON_AUTH_BASE_URL`, and `NEON_AUTH_COOKIE_SECRET` in `apps/web/.env.local`.
+   Configure Google OAuth in the Neon Console (provider credentials live there).
 3. `pnpm --filter web dev` → `/sign-in`
 
 Without Google keys the app still builds; `/sign-in` shows setup help. Details: `apps/web/README.md`.

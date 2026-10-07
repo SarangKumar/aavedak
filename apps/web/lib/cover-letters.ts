@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { getAppDb } from "@/lib/app-db";
+import { ensureAppSchema, getSql } from "@/lib/app-db";
 
 export type CoverLetterStatus = "active" | "archived";
 
@@ -17,7 +17,7 @@ export type CoverLetterRecord = {
   updatedAt: string;
 };
 
-function mapRow(row: {
+type Row = {
   id: string;
   user_id: string;
   title: string;
@@ -26,7 +26,9 @@ function mapRow(row: {
   status: CoverLetterStatus;
   created_at: string;
   updated_at: string;
-}): CoverLetterRecord {
+};
+
+function mapRow(row: Row): CoverLetterRecord {
   return {
     id: row.id,
     userId: row.user_id,
@@ -46,29 +48,40 @@ function requireTitle(title: unknown): string {
   return t;
 }
 
-export function listCoverLetters(
+export async function listCoverLetters(
   userId: string,
   opts?: { includeArchived?: boolean },
-): CoverLetterRecord[] {
+): Promise<CoverLetterRecord[]> {
+  await ensureAppSchema();
   const includeArchived = opts?.includeArchived ?? false;
-  const sql = includeArchived
-    ? `SELECT * FROM cover_letters WHERE user_id = ? ORDER BY updated_at DESC`
-    : `SELECT * FROM cover_letters WHERE user_id = ? AND status != 'archived' ORDER BY updated_at DESC`;
-  const rows = getAppDb().prepare(sql).all(userId) as Array<Parameters<typeof mapRow>[0]>;
+  const rows = includeArchived
+    ? ((await getSql()`
+        SELECT * FROM cover_letters WHERE user_id = ${userId} ORDER BY updated_at DESC
+      `) as Row[])
+    : ((await getSql()`
+        SELECT * FROM cover_letters
+        WHERE user_id = ${userId} AND status != 'archived'
+        ORDER BY updated_at DESC
+      `) as Row[]);
   return rows.map(mapRow);
 }
 
-export function getCoverLetter(userId: string, id: string): CoverLetterRecord | null {
-  const row = getAppDb()
-    .prepare(`SELECT * FROM cover_letters WHERE id = ? AND user_id = ?`)
-    .get(id, userId) as Parameters<typeof mapRow>[0] | undefined;
-  return row ? mapRow(row) : null;
+export async function getCoverLetter(
+  userId: string,
+  id: string,
+): Promise<CoverLetterRecord | null> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT * FROM cover_letters WHERE id = ${id} AND user_id = ${userId}
+  `) as Row[];
+  return rows[0] ? mapRow(rows[0]) : null;
 }
 
-export function createCoverLetter(
+export async function createCoverLetter(
   userId: string,
   input: { title: string; body?: string; applicationId?: string | null },
-): CoverLetterRecord {
+): Promise<CoverLetterRecord> {
+  await ensureAppSchema();
   const title = requireTitle(input.title);
   const body = typeof input.body === "string" ? input.body : "";
   const applicationId =
@@ -80,17 +93,17 @@ export function createCoverLetter(
   }
   const id = randomUUID();
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `INSERT INTO cover_letters
-        (id, user_id, title, body, application_id, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
-    )
-    .run(id, userId, title, body, applicationId, now, now);
-  return getCoverLetter(userId, id)!;
+  await getSql()`
+    INSERT INTO cover_letters
+      (id, user_id, title, body, application_id, status, created_at, updated_at)
+    VALUES (${id}, ${userId}, ${title}, ${body}, ${applicationId}, 'active', ${now}, ${now})
+  `;
+  const created = await getCoverLetter(userId, id);
+  if (!created) throw new Error("Failed to create cover letter.");
+  return created;
 }
 
-export function updateCoverLetter(
+export async function updateCoverLetter(
   userId: string,
   id: string,
   patch: Partial<{
@@ -99,8 +112,9 @@ export function updateCoverLetter(
     applicationId: string | null;
     status: CoverLetterStatus;
   }>,
-): CoverLetterRecord {
-  const existing = getCoverLetter(userId, id);
+): Promise<CoverLetterRecord> {
+  await ensureAppSchema();
+  const existing = await getCoverLetter(userId, id);
   if (!existing) throw new Error("Cover letter not found.");
 
   const title = patch.title !== undefined ? requireTitle(patch.title) : existing.title;
@@ -115,15 +129,17 @@ export function updateCoverLetter(
   if (status !== "active" && status !== "archived") throw new Error("Invalid status.");
 
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `UPDATE cover_letters SET title = ?, body = ?, application_id = ?, status = ?, updated_at = ?
-       WHERE id = ? AND user_id = ?`,
-    )
-    .run(title, body, applicationId, status, now, id, userId);
-  return getCoverLetter(userId, id)!;
+  await getSql()`
+    UPDATE cover_letters
+    SET title = ${title}, body = ${body}, application_id = ${applicationId},
+        status = ${status}, updated_at = ${now}
+    WHERE id = ${id} AND user_id = ${userId}
+  `;
+  const updated = await getCoverLetter(userId, id);
+  if (!updated) throw new Error("Cover letter not found after update.");
+  return updated;
 }
 
-export function archiveCoverLetter(userId: string, id: string): CoverLetterRecord {
+export async function archiveCoverLetter(userId: string, id: string): Promise<CoverLetterRecord> {
   return updateCoverLetter(userId, id, { status: "archived" });
 }

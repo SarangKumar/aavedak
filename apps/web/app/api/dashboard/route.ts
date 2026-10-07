@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { applicationToDto } from "@/lib/applications";
@@ -7,17 +6,17 @@ import { getDashboardSnapshot } from "@/lib/dashboard";
 import { ensureProfile } from "@/lib/profile";
 
 export async function GET() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const { data: session } = await auth.getSession();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
   });
 
-  const snap = getDashboardSnapshot(session.user.id);
+  const snap = await getDashboardSnapshot(session.user.id);
   return NextResponse.json({
     ...snap,
     recentApplications: snap.recentApplications.map(applicationToDto),

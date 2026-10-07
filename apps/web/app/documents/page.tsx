@@ -15,11 +15,11 @@ export const metadata: Metadata = {
 
 export default async function DocumentsPage() {
   const { user } = await requireOnboarded();
-  const profile = getProfile(user.id);
-  const resumes = listResumes(user.id);
-  const coverLetters = listCoverLetters(user.id);
-  const templates = listTemplates(user.id);
-  const applications = listApplications(user.id, "active");
+  const profile = await getProfile(user.id);
+  const resumes = await listResumes(user.id);
+  const coverLetters = await listCoverLetters(user.id);
+  const templates = await listTemplates(user.id);
+  const applications = await listApplications(user.id, "active");
 
   return (
     <DocumentsHub

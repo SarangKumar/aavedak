@@ -38,13 +38,13 @@ function loadBulkSeedItems(): BulkSeedItem[] {
 }
 
 /** Upsert bulk applications by company+role+applied calendar day. */
-export function seedBulkApplications(userId: string): {
+export async function seedBulkApplications(userId: string): Promise<{
   inserted: ApplicationRecord[];
   skipped: number;
   appliedInserted: number;
   rejectedInserted: number;
   totalSource: number;
-} {
+}> {
   const items = loadBulkSeedItems();
   const inserted: ApplicationRecord[] = [];
   let skipped = 0;
@@ -58,13 +58,13 @@ export function seedBulkApplications(userId: string): {
       skipped += 1;
       continue;
     }
-    if (hasApplicationOnDay(userId, company, role, item.applied_at ?? null)) {
+    if (await hasApplicationOnDay(userId, company, role, item.applied_at ?? null)) {
       skipped += 1;
       continue;
     }
 
     const status: ApplicationStatus = item.status === "rejected" ? "rejected" : "applied";
-    const created = createApplication(userId, {
+    const created = await createApplication(userId, {
       companyName: company,
       role,
       location: item.location?.trim() || "Unknown",

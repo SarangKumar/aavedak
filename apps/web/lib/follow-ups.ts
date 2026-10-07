@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { getAppDb } from "@/lib/app-db";
+import { ensureAppSchema, getSql } from "@/lib/app-db";
 
 export type FollowUpStatus = "pending" | "queued" | "sent_stub" | "done" | "dismissed";
 
@@ -20,7 +20,7 @@ export type FollowUpRecord = {
   updatedAt: string;
 };
 
-function mapRow(row: {
+type Row = {
   id: string;
   user_id: string;
   title: string;
@@ -32,7 +32,9 @@ function mapRow(row: {
   notes: string | null;
   created_at: string;
   updated_at: string;
-}): FollowUpRecord {
+};
+
+function mapRow(row: Row): FollowUpRecord {
   return {
     id: row.id,
     userId: row.user_id,
@@ -75,29 +77,35 @@ function parseStatus(value: unknown, fallback: FollowUpStatus = "pending"): Foll
   return fallback;
 }
 
-export function listFollowUps(
+export async function listFollowUps(
   userId: string,
   opts?: { includeClosed?: boolean },
-): FollowUpRecord[] {
+): Promise<FollowUpRecord[]> {
+  await ensureAppSchema();
   const includeClosed = opts?.includeClosed ?? false;
-  const sql = includeClosed
-    ? `SELECT * FROM follow_up_tasks WHERE user_id = ? ORDER BY
-         CASE status WHEN 'queued' THEN 0 WHEN 'pending' THEN 1 WHEN 'sent_stub' THEN 2 WHEN 'done' THEN 3 ELSE 4 END,
-         send_after IS NULL, send_after ASC, due_date IS NULL, due_date ASC, updated_at DESC`
-    : `SELECT * FROM follow_up_tasks WHERE user_id = ? AND status IN ('pending', 'queued')
-       ORDER BY send_after IS NULL, send_after ASC, due_date IS NULL, due_date ASC, updated_at DESC`;
-  const rows = getAppDb().prepare(sql).all(userId) as Array<Parameters<typeof mapRow>[0]>;
+  const rows = includeClosed
+    ? ((await getSql()`
+        SELECT * FROM follow_up_tasks WHERE user_id = ${userId} ORDER BY
+          CASE status WHEN 'queued' THEN 0 WHEN 'pending' THEN 1 WHEN 'sent_stub' THEN 2 WHEN 'done' THEN 3 ELSE 4 END,
+          send_after IS NULL, send_after ASC, due_date IS NULL, due_date ASC, updated_at DESC
+      `) as Row[])
+    : ((await getSql()`
+        SELECT * FROM follow_up_tasks
+        WHERE user_id = ${userId} AND status IN ('pending', 'queued')
+        ORDER BY send_after IS NULL, send_after ASC, due_date IS NULL, due_date ASC, updated_at DESC
+      `) as Row[]);
   return rows.map(mapRow);
 }
 
-export function getFollowUp(userId: string, id: string): FollowUpRecord | null {
-  const row = getAppDb()
-    .prepare(`SELECT * FROM follow_up_tasks WHERE id = ? AND user_id = ?`)
-    .get(id, userId) as Parameters<typeof mapRow>[0] | undefined;
-  return row ? mapRow(row) : null;
+export async function getFollowUp(userId: string, id: string): Promise<FollowUpRecord | null> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT * FROM follow_up_tasks WHERE id = ${id} AND user_id = ${userId}
+  `) as Row[];
+  return rows[0] ? mapRow(rows[0]) : null;
 }
 
-export function createFollowUp(
+export async function createFollowUp(
   userId: string,
   input: {
     title: string;
@@ -108,34 +116,31 @@ export function createFollowUp(
     notes?: string | null;
     status?: FollowUpStatus;
   },
-): FollowUpRecord {
+): Promise<FollowUpRecord> {
+  await ensureAppSchema();
   const title = requireTitle(input.title);
   const id = randomUUID();
   const now = new Date().toISOString();
   const status = parseStatus(input.status, "pending");
-  getAppDb()
-    .prepare(
-      `INSERT INTO follow_up_tasks
-        (id, user_id, title, due_date, send_after, status, person_id, application_id, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  const dueDate = optional(input.dueDate);
+  const sendAfter = optional(input.sendAfter);
+  const personId = optional(input.personId);
+  const applicationId = optional(input.applicationId);
+  const notes = optional(input.notes);
+  await getSql()`
+    INSERT INTO follow_up_tasks
+      (id, user_id, title, due_date, send_after, status, person_id, application_id, notes, created_at, updated_at)
+    VALUES (
+      ${id}, ${userId}, ${title}, ${dueDate}, ${sendAfter}, ${status}, ${personId},
+      ${applicationId}, ${notes}, ${now}, ${now}
     )
-    .run(
-      id,
-      userId,
-      title,
-      optional(input.dueDate),
-      optional(input.sendAfter),
-      status,
-      optional(input.personId),
-      optional(input.applicationId),
-      optional(input.notes),
-      now,
-      now,
-    );
-  return getFollowUp(userId, id)!;
+  `;
+  const created = await getFollowUp(userId, id);
+  if (!created) throw new Error("Failed to create follow-up.");
+  return created;
 }
 
-export function updateFollowUp(
+export async function updateFollowUp(
   userId: string,
   id: string,
   patch: Partial<{
@@ -146,8 +151,9 @@ export function updateFollowUp(
     applicationId: string | null;
     notes: string | null;
   }>,
-): FollowUpRecord {
-  const existing = getFollowUp(userId, id);
+): Promise<FollowUpRecord> {
+  await ensureAppSchema();
+  const existing = await getFollowUp(userId, id);
   if (!existing) throw new Error("Follow-up not found.");
 
   const title = patch.title !== undefined ? requireTitle(patch.title) : existing.title;
@@ -160,55 +166,48 @@ export function updateFollowUp(
   const notes = patch.notes !== undefined ? optional(patch.notes) : existing.notes;
 
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `UPDATE follow_up_tasks SET title = ?, due_date = ?, status = ?, person_id = ?,
-         application_id = ?, notes = ?, updated_at = ?
-       WHERE id = ? AND user_id = ?`,
-    )
-    .run(title, dueDate, status, personId, applicationId, notes, now, id, userId);
-  return getFollowUp(userId, id)!;
+  await getSql()`
+    UPDATE follow_up_tasks SET
+      title = ${title}, due_date = ${dueDate}, status = ${status}, person_id = ${personId},
+      application_id = ${applicationId}, notes = ${notes}, updated_at = ${now}
+    WHERE id = ${id} AND user_id = ${userId}
+  `;
+  const updated = await getFollowUp(userId, id);
+  if (!updated) throw new Error("Follow-up not found after update.");
+  return updated;
 }
 
-/**
- * Deferred outreach processor stub.
- * Marks queued items whose send_after <= now as sent_stub.
- * Does NOT call Gmail — wire a real mailer here later (or cron hitting /api/referrals/process-queue).
- */
-export function processDueQueuedFollowUps(userId?: string): {
+export async function processDueQueuedFollowUps(userId?: string): Promise<{
   processed: FollowUpRecord[];
   skippedGmail: true;
-} {
+}> {
+  await ensureAppSchema();
   const now = new Date().toISOString();
-  const db = getAppDb();
   const rows = (
     userId
-      ? db
-          .prepare(
-            `SELECT * FROM follow_up_tasks
-             WHERE user_id = ? AND status = 'queued'
-               AND send_after IS NOT NULL AND send_after <= ?
-             ORDER BY send_after ASC`,
-          )
-          .all(userId, now)
-      : db
-          .prepare(
-            `SELECT * FROM follow_up_tasks
-             WHERE status = 'queued'
-               AND send_after IS NOT NULL AND send_after <= ?
-             ORDER BY send_after ASC`,
-          )
-          .all(now)
-  ) as Array<Parameters<typeof mapRow>[0]>;
+      ? await getSql()`
+          SELECT * FROM follow_up_tasks
+          WHERE user_id = ${userId} AND status = 'queued'
+            AND send_after IS NOT NULL AND send_after <= ${now}
+          ORDER BY send_after ASC
+        `
+      : await getSql()`
+          SELECT * FROM follow_up_tasks
+          WHERE status = 'queued'
+            AND send_after IS NOT NULL AND send_after <= ${now}
+          ORDER BY send_after ASC
+        `
+  ) as Row[];
 
   const processed: FollowUpRecord[] = [];
   for (const row of rows) {
     const noteSuffix = "\n\n[scheduled send due — Gmail API not wired; marked sent_stub]";
     const notes = (row.notes ?? "") + noteSuffix;
-    db.prepare(
-      `UPDATE follow_up_tasks SET status = 'sent_stub', notes = ?, updated_at = ? WHERE id = ?`,
-    ).run(notes, now, row.id);
-    const updated = getFollowUp(row.user_id, row.id);
+    await getSql()`
+      UPDATE follow_up_tasks SET status = 'sent_stub', notes = ${notes}, updated_at = ${now}
+      WHERE id = ${row.id}
+    `;
+    const updated = await getFollowUp(row.user_id, row.id);
     if (updated) processed.push(updated);
   }
   return { processed, skippedGmail: true };

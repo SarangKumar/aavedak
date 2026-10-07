@@ -1,6 +1,5 @@
 import fs from "node:fs";
 
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { isAdminEmail } from "@/lib/admin";
@@ -11,18 +10,18 @@ import { getResume, getResumeById } from "@/lib/resumes";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, ctx: Ctx) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const { data: session } = await auth.getSession();
   const { id } = await ctx.params;
 
   if (session?.user?.email) {
-    ensureProfile({
+    await ensureProfile({
       id: session.user.id,
       email: session.user.email,
       name: session.user.name,
       image: session.user.image,
     });
     const admin = isAdminEmail(session.user.email);
-    const resume = admin ? getResumeById(id) : getResume(session.user.id, id);
+    const resume = admin ? await getResumeById(id) : await getResume(session.user.id, id);
     if (!resume || (resume.status === "archived" && !admin)) {
       return NextResponse.json({ error: "Resume not found." }, { status: 404 });
     }
@@ -30,7 +29,7 @@ export async function GET(_request: Request, ctx: Ctx) {
   }
 
   // Public: only the active showcase resume is viewable without sign-in.
-  const resume = getResumeById(id);
+  const resume = await getResumeById(id);
   if (!resume || resume.status !== "active") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

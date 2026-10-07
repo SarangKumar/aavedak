@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
@@ -6,9 +5,9 @@ import { createJob, ensureDemoJobs, listJobs, type JobSource } from "@/lib/jobs"
 import { ensureProfile } from "@/lib/profile";
 
 async function requireUser() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const { data: session } = await auth.getSession();
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -16,7 +15,7 @@ async function requireUser() {
   return session.user;
 }
 
-function toDto(row: ReturnType<typeof listJobs>[number]) {
+function toDto(row: Awaited<ReturnType<typeof listJobs>>[number]) {
   return {
     id: row.id,
     title: row.title,
@@ -35,7 +34,7 @@ function toDto(row: ReturnType<typeof listJobs>[number]) {
 export async function GET() {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const jobs = ensureDemoJobs(user.id).map(toDto);
+  const jobs = (await ensureDemoJobs(user.id)).map(toDto);
   return NextResponse.json({ jobs });
 }
 
@@ -49,7 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
   try {
-    const job = createJob(user.id, {
+    const job = await createJob(user.id, {
       title: String(body.title ?? ""),
       company: String(body.company ?? ""),
       location: String(body.location ?? ""),

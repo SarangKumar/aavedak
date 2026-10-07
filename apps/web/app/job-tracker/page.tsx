@@ -13,15 +13,15 @@ export const metadata: Metadata = {
 
 export default async function JobTrackerPage() {
   const { user } = await requireOnboarded();
-  seedDemoAppliedApplications(user.id);
-  seedBulkApplications(user.id);
+  await seedDemoAppliedApplications(user.id);
+  await seedBulkApplications(user.id);
 
-  let preferences = getPreferences(user.id);
+  let preferences = await getPreferences(user.id);
   if (preferences.trackerScope !== "active") {
-    preferences = updatePreferences(user.id, { trackerScope: "active" });
+    preferences = await updatePreferences(user.id, { trackerScope: "active" });
   }
 
-  const applications = listApplications(user.id, "active");
+  const applications = await listApplications(user.id, "active");
 
   return (
     <div className="relative overflow-hidden">

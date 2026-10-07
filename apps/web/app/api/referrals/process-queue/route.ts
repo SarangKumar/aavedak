@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
@@ -10,17 +9,17 @@ import { ensureProfile } from "@/lib/profile";
  * Does not call Gmail. Safe to POST repeatedly.
  */
 export async function POST() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const { data: session } = await auth.getSession();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
   });
 
-  const result = processDueQueuedFollowUps(session.user.id);
+  const result = await processDueQueuedFollowUps(session.user.id);
   return NextResponse.json({
     processed: result.processed.length,
     followUps: result.processed,

@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { parseAndValidateApplicationsImport } from "@/lib/application-import";
@@ -7,9 +6,9 @@ import { auth } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
 
 async function requireUser() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const { data: session } = await auth.getSession();
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -39,7 +38,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = importApplications(user.id, parsed.items);
+  const result = await importApplications(user.id, parsed.items);
   return NextResponse.json({
     inserted: result.inserted.map(applicationToDto),
     skippedDuplicates: result.skippedDuplicates,

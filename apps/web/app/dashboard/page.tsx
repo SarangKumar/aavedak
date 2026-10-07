@@ -28,7 +28,7 @@ function formatDue(dueDate: string | null): string {
 
 export default async function DashboardPage() {
   const { user, profile } = await requireOnboarded();
-  const dash = getDashboardSnapshot(user.id);
+  const dash = await getDashboardSnapshot(user.id);
 
   const metaStats = [
     { label: "Active apps", value: dash.activeApplicationCount, href: "/job-tracker" },

@@ -1,45 +1,35 @@
-import { betterAuth } from "better-auth";
-import { nextCookies } from "better-auth/next-js";
-import Database from "better-sqlite3";
-import fs from "node:fs";
-import path from "node:path";
+import { createNeonAuth } from "@neondatabase/auth/next/server";
 
 /**
- * Local auth DB: SQLite via Better Auth's built-in Kysely adapter.
- * Production target is MySQL (Aiven). When ready, swap `database` for
- * mysql2 createPool(...) using AUTH_DATABASE_URL (or DATABASE_URL) —
- * keep socialProviders / plugins the same.
+ * Neon Auth (Managed Better Auth). Google OAuth is configured in the Neon Console,
+ * not via GOOGLE_CLIENT_* env on the Next app.
  */
-function createSqliteDatabase() {
-  const dataDir = path.join(process.cwd(), "data");
-  fs.mkdirSync(dataDir, { recursive: true });
-  const dbPath = path.join(dataDir, "local.db");
-  return new Database(dbPath);
+const baseUrl = process.env.NEON_AUTH_BASE_URL?.trim() ?? "";
+const cookieSecret = process.env.NEON_AUTH_COOKIE_SECRET?.trim() ?? "";
+
+if (!baseUrl) {
+  console.warn("[aavedak] NEON_AUTH_BASE_URL is not set — auth routes will fail until configured.");
+}
+if (!cookieSecret || cookieSecret.length < 32) {
+  console.warn(
+    "[aavedak] NEON_AUTH_COOKIE_SECRET missing or shorter than 32 chars — set via openssl rand -base64 32",
+  );
 }
 
-const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
-
-/** True when Google OAuth env is present — used to degrade UI without crashing. */
-export const isGoogleAuthConfigured = Boolean(googleClientId && googleClientSecret);
-
-export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
-  secret: process.env.BETTER_AUTH_SECRET,
-  database: createSqliteDatabase(),
-  socialProviders: {
-    ...(isGoogleAuthConfigured
-      ? {
-          google: {
-            clientId: googleClientId,
-            clientSecret: googleClientSecret,
-            prompt: "select_account",
-          },
-        }
-      : {}),
+export const auth = createNeonAuth({
+  baseUrl: baseUrl || "http://localhost/missing-neon-auth",
+  cookies: {
+    secret: cookieSecret || "dev-only-insecure-cookie-secret-replace-me!!",
+    sameSite: "lax",
   },
-  // last plugin — sets cookies from server actions / RSC flows
-  plugins: [nextCookies()],
 });
 
-export type Session = typeof auth.$Infer.Session;
+/** True when Neon Auth base URL is present (Google provider lives in Neon Console). */
+export const isNeonAuthConfigured = Boolean(baseUrl);
+
+export type SessionUser = {
+  id: string;
+  name: string;
+  email: string;
+  image?: string | null;
+};

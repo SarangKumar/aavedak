@@ -1,33 +1,41 @@
 import "server-only";
 
-import Database from "better-sqlite3";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import fs from "node:fs";
 import path from "node:path";
 
 /**
- * Local app data (profiles + resumes + applications). Separate from Better Auth `data/local.db`.
- * Production will move to MySQL / R2 — keep this API surface stable.
+ * App data on Neon Postgres (profiles, resumes metadata, applications, etc.).
+ * Resume binary files still live under `.data/resumes` locally; object storage later.
  */
 const dataRoot = path.join(process.cwd(), ".data");
 const resumesRoot = path.join(dataRoot, "resumes");
 
-let db: Database.Database | null = null;
+let sql: NeonQueryFunction<false, false> | null = null;
+let schemaReady: Promise<void> | null = null;
 
 export function getDataRoot() {
   return dataRoot;
 }
 
 export function getResumesRoot() {
+  fs.mkdirSync(resumesRoot, { recursive: true });
   return resumesRoot;
 }
 
-export function getAppDb() {
-  if (db) return db;
-  fs.mkdirSync(dataRoot, { recursive: true });
-  fs.mkdirSync(resumesRoot, { recursive: true });
-  const instance = new Database(path.join(dataRoot, "app.db"));
-  instance.pragma("journal_mode = WAL");
-  instance.exec(`
+export function getSql() {
+  if (sql) return sql;
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) {
+    throw new Error("DATABASE_URL is required (Neon pooled connection string).");
+  }
+  sql = neon(url);
+  return sql;
+}
+
+async function runSchema() {
+  const db = getSql();
+  await db`
     CREATE TABLE IF NOT EXISTS profiles (
       user_id TEXT PRIMARY KEY NOT NULL,
       username TEXT NOT NULL UNIQUE,
@@ -41,8 +49,9 @@ export function getAppDb() {
       onboarding_complete INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
-    );
+    )`;
 
+  await db`
     CREATE TABLE IF NOT EXISTS resumes (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL,
@@ -54,11 +63,11 @@ export function getAppDb() {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       UNIQUE (user_id, display_name)
-    );
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS resumes_user_id_idx ON resumes (user_id)`;
+  await db`CREATE INDEX IF NOT EXISTS resumes_user_status_idx ON resumes (user_id, status)`;
 
-    CREATE INDEX IF NOT EXISTS resumes_user_id_idx ON resumes (user_id);
-    CREATE INDEX IF NOT EXISTS resumes_user_status_idx ON resumes (user_id, status);
-
+  await db`
     CREATE TABLE IF NOT EXISTS applications (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL,
@@ -73,19 +82,20 @@ export function getAppDb() {
       applied_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
-    );
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS applications_user_id_idx ON applications (user_id)`;
+  await db`CREATE INDEX IF NOT EXISTS applications_user_status_idx ON applications (user_id, status)`;
 
-    CREATE INDEX IF NOT EXISTS applications_user_id_idx ON applications (user_id);
-    CREATE INDEX IF NOT EXISTS applications_user_status_idx ON applications (user_id, status);
-
+  await db`
     CREATE TABLE IF NOT EXISTS user_preferences (
       user_id TEXT PRIMARY KEY NOT NULL,
       tracker_view TEXT NOT NULL DEFAULT 'kanban',
       tracker_scope TEXT NOT NULL DEFAULT 'active',
       hidden_columns TEXT NOT NULL DEFAULT '[]',
       updated_at TEXT NOT NULL
-    );
+    )`;
 
+  await db`
     CREATE TABLE IF NOT EXISTS cover_letters (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL,
@@ -95,25 +105,24 @@ export function getAppDb() {
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
-    );
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS cover_letters_user_id_idx ON cover_letters (user_id)`;
 
-    CREATE INDEX IF NOT EXISTS cover_letters_user_id_idx ON cover_letters (user_id);
-
+  await db`
     CREATE TABLE IF NOT EXISTS templates (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL,
       title TEXT NOT NULL,
       body TEXT NOT NULL DEFAULT '',
+      subject TEXT NOT NULL DEFAULT '',
       kind TEXT NOT NULL DEFAULT 'other' CHECK (kind IN ('outreach', 'cover', 'other')),
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
-    );
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS templates_user_id_idx ON templates (user_id)`;
 
-    CREATE INDEX IF NOT EXISTS templates_user_id_idx ON templates (user_id);
-
-    /* User-scoped contacts for referrals/outreach (local v1).
-       Global/admin Person.email sync comes later — never overwrite from here. */
+  await db`
     CREATE TABLE IF NOT EXISTS people (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL,
@@ -126,28 +135,28 @@ export function getAppDb() {
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
-    );
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS people_user_id_idx ON people (user_id)`;
 
-    CREATE INDEX IF NOT EXISTS people_user_id_idx ON people (user_id);
-
+  await db`
     CREATE TABLE IF NOT EXISTS follow_up_tasks (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL,
       title TEXT NOT NULL,
       due_date TEXT,
       send_after TEXT,
-      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'queued', 'sent_stub', 'done', 'dismissed')),
+      status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'queued', 'sent_stub', 'done', 'dismissed')),
       person_id TEXT,
       application_id TEXT,
       notes TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
-    );
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS follow_up_tasks_user_id_idx ON follow_up_tasks (user_id)`;
+  await db`CREATE INDEX IF NOT EXISTS follow_up_tasks_user_status_idx ON follow_up_tasks (user_id, status)`;
 
-    CREATE INDEX IF NOT EXISTS follow_up_tasks_user_id_idx ON follow_up_tasks (user_id);
-    CREATE INDEX IF NOT EXISTS follow_up_tasks_user_status_idx ON follow_up_tasks (user_id, status);
-
-    /* User-scoped jobs for local v1 (multi-source ingestion later). */
+  await db`
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL,
@@ -161,12 +170,11 @@ export function getAppDb() {
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
-    );
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS jobs_user_id_idx ON jobs (user_id)`;
+  await db`CREATE INDEX IF NOT EXISTS jobs_user_source_idx ON jobs (user_id, source)`;
 
-    CREATE INDEX IF NOT EXISTS jobs_user_id_idx ON jobs (user_id);
-    CREATE INDEX IF NOT EXISTS jobs_user_source_idx ON jobs (user_id, source);
-
-    /* Pasted JD analysis — user-scoped; does not create global Job records. */
+  await db`
     CREATE TABLE IF NOT EXISTS job_analyses (
       id TEXT PRIMARY KEY NOT NULL,
       user_id TEXT NOT NULL,
@@ -175,84 +183,23 @@ export function getAppDb() {
       job_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
-    );
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS job_analyses_user_id_idx ON job_analyses (user_id)`;
+}
 
-    CREATE INDEX IF NOT EXISTS job_analyses_user_id_idx ON job_analyses (user_id);
-  `);
-  // Migrations for existing local DBs
-  const appCols = instance.prepare(`PRAGMA table_info(applications)`).all() as Array<{
-    name: string;
-  }>;
-  if (!appCols.some((c) => c.name === "applied_at")) {
-    instance.exec(`ALTER TABLE applications ADD COLUMN applied_at TEXT`);
+/** Ensure Postgres app schema exists (idempotent). */
+export async function ensureAppSchema() {
+  if (!schemaReady) {
+    schemaReady = runSchema().catch((err) => {
+      schemaReady = null;
+      throw err;
+    });
   }
+  await schemaReady;
+}
 
-  const profileCols = instance.prepare(`PRAGMA table_info(profiles)`).all() as Array<{
-    name: string;
-  }>;
-  const profileColNames = new Set(profileCols.map((c) => c.name));
-  if (!profileColNames.has("bio")) {
-    instance.exec(`ALTER TABLE profiles ADD COLUMN bio TEXT`);
-  }
-  if (!profileColNames.has("portfolio_url")) {
-    instance.exec(`ALTER TABLE profiles ADD COLUMN portfolio_url TEXT`);
-  }
-  if (!profileColNames.has("linkedin_url")) {
-    instance.exec(`ALTER TABLE profiles ADD COLUMN linkedin_url TEXT`);
-  }
-  if (!profileColNames.has("image_url")) {
-    instance.exec(`ALTER TABLE profiles ADD COLUMN image_url TEXT`);
-  }
-  if (!profileColNames.has("links_json")) {
-    instance.exec(`ALTER TABLE profiles ADD COLUMN links_json TEXT NOT NULL DEFAULT '{}'`);
-  }
-
-  const templateCols = instance.prepare(`PRAGMA table_info(templates)`).all() as Array<{
-    name: string;
-  }>;
-  if (!templateCols.some((c) => c.name === "subject")) {
-    instance.exec(`ALTER TABLE templates ADD COLUMN subject TEXT NOT NULL DEFAULT ''`);
-  }
-
-  const followCols = instance.prepare(`PRAGMA table_info(follow_up_tasks)`).all() as Array<{
-    name: string;
-  }>;
-  const followColNames = new Set(followCols.map((c) => c.name));
-  if (!followColNames.has("send_after")) {
-    instance.exec(`ALTER TABLE follow_up_tasks ADD COLUMN send_after TEXT`);
-  }
-  // Expand status CHECK for existing local DBs (SQLite cannot ALTER CHECK in place).
-  const followSql = (
-    instance
-      .prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'follow_up_tasks'`)
-      .get() as { sql: string } | undefined
-  )?.sql;
-  if (followSql && !followSql.includes("'queued'")) {
-    instance.exec(`
-      CREATE TABLE follow_up_tasks__mig (
-        id TEXT PRIMARY KEY NOT NULL,
-        user_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        due_date TEXT,
-        send_after TEXT,
-        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'queued', 'sent_stub', 'done', 'dismissed')),
-        person_id TEXT,
-        application_id TEXT,
-        notes TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-      INSERT INTO follow_up_tasks__mig
-        (id, user_id, title, due_date, send_after, status, person_id, application_id, notes, created_at, updated_at)
-      SELECT id, user_id, title, due_date, send_after, status, person_id, application_id, notes, created_at, updated_at
-      FROM follow_up_tasks;
-      DROP TABLE follow_up_tasks;
-      ALTER TABLE follow_up_tasks__mig RENAME TO follow_up_tasks;
-      CREATE INDEX IF NOT EXISTS follow_up_tasks_user_id_idx ON follow_up_tasks (user_id);
-      CREATE INDEX IF NOT EXISTS follow_up_tasks_user_status_idx ON follow_up_tasks (user_id, status);
-    `);
-  }
-
-  db = instance;
-  return instance;
+/** @deprecated Use getSql() + ensureAppSchema(); kept name for fewer import churns during migration. */
+export async function getAppDb() {
+  await ensureAppSchema();
+  return getSql();
 }

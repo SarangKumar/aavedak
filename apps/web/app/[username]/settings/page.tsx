@@ -10,13 +10,13 @@ type Props = { params: Promise<{ username: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params;
-  const profile = getProfileByUsername(username);
+  const profile = await getProfileByUsername(username);
   return { title: profile ? `@${profile.username} · Settings` : `@${username} · Settings` };
 }
 
 export default async function ProfileSettingsPage({ params }: Props) {
   const { username } = await params;
-  const profile = getProfileByUsername(username);
+  const profile = await getProfileByUsername(username);
   if (!profile) notFound();
 
   const access = await getOptionalAccess();
@@ -27,7 +27,7 @@ export default async function ProfileSettingsPage({ params }: Props) {
     notFound();
   }
 
-  const resumes = listResumes(profile.userId, { includeArchived: false }).map((r) => ({
+  const resumes = (await listResumes(profile.userId, { includeArchived: false })).map((r) => ({
     id: r.id,
     displayName: r.displayName,
     status: r.status,

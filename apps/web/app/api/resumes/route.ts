@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
@@ -6,9 +5,9 @@ import { ensureProfile } from "@/lib/profile";
 import { createResumeFromPdf, listResumes } from "@/lib/resumes";
 
 async function requireUser() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const { data: session } = await auth.getSession();
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -21,7 +20,7 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const resumes = listResumes(user.id, { includeArchived: false });
+  const resumes = await listResumes(user.id, { includeArchived: false });
   return NextResponse.json({
     resumes: resumes.map((r) => ({
       id: r.id,

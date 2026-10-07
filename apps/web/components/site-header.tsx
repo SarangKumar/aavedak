@@ -1,5 +1,3 @@
-import { headers } from "next/headers";
-
 import { SiteHeaderBar } from "@/components/site-header-bar";
 import { auth } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
@@ -7,20 +5,20 @@ import { usernameFromUser } from "@/lib/username";
 import { cn } from "@/lib/utils";
 
 export async function SiteHeader({ className }: { className?: string }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const { data: session } = await auth.getSession();
 
   const sessionUser = session?.user;
   let username = "";
   if (sessionUser?.email) {
     try {
-      username = ensureProfile({
-        id: sessionUser.id,
-        email: sessionUser.email,
-        name: sessionUser.name,
-        image: sessionUser.image,
-      }).username;
+      username = (
+        await ensureProfile({
+          id: sessionUser.id,
+          email: sessionUser.email,
+          name: sessionUser.name,
+          image: sessionUser.image,
+        })
+      ).username;
     } catch {
       username = usernameFromUser({
         email: sessionUser.email,

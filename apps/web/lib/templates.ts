@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { getAppDb } from "@/lib/app-db";
+import { ensureAppSchema, getSql } from "@/lib/app-db";
 
 export type TemplateKind = "outreach" | "cover" | "other";
 export type TemplateStatus = "active" | "archived";
@@ -11,7 +11,6 @@ export type TemplateRecord = {
   id: string;
   userId: string;
   title: string;
-  /** Email subject line with {{placeholders}}; empty means use default. */
   subject: string;
   body: string;
   kind: TemplateKind;
@@ -22,7 +21,7 @@ export type TemplateRecord = {
 
 const KINDS: TemplateKind[] = ["outreach", "cover", "other"];
 
-function mapRow(row: {
+type Row = {
   id: string;
   user_id: string;
   title: string;
@@ -32,7 +31,9 @@ function mapRow(row: {
   status: TemplateStatus;
   created_at: string;
   updated_at: string;
-}): TemplateRecord {
+};
+
+function mapRow(row: Row): TemplateRecord {
   return {
     id: row.id,
     userId: row.user_id,
@@ -60,25 +61,6 @@ function parseKind(value: unknown): TemplateKind {
   return "other";
 }
 
-export function listTemplates(
-  userId: string,
-  opts?: { includeArchived?: boolean },
-): TemplateRecord[] {
-  const includeArchived = opts?.includeArchived ?? false;
-  const sql = includeArchived
-    ? `SELECT * FROM templates WHERE user_id = ? ORDER BY updated_at DESC`
-    : `SELECT * FROM templates WHERE user_id = ? AND status != 'archived' ORDER BY updated_at DESC`;
-  const rows = getAppDb().prepare(sql).all(userId) as Array<Parameters<typeof mapRow>[0]>;
-  return rows.map(mapRow);
-}
-
-export function getTemplate(userId: string, id: string): TemplateRecord | null {
-  const row = getAppDb()
-    .prepare(`SELECT * FROM templates WHERE id = ? AND user_id = ?`)
-    .get(id, userId) as Parameters<typeof mapRow>[0] | undefined;
-  return row ? mapRow(row) : null;
-}
-
 function optionalSubject(value: unknown): string {
   if (typeof value !== "string") return "";
   const t = value.trim();
@@ -86,27 +68,53 @@ function optionalSubject(value: unknown): string {
   return t;
 }
 
-export function createTemplate(
+export async function listTemplates(
+  userId: string,
+  opts?: { includeArchived?: boolean },
+): Promise<TemplateRecord[]> {
+  await ensureAppSchema();
+  const includeArchived = opts?.includeArchived ?? false;
+  const rows = includeArchived
+    ? ((await getSql()`
+        SELECT * FROM templates WHERE user_id = ${userId} ORDER BY updated_at DESC
+      `) as Row[])
+    : ((await getSql()`
+        SELECT * FROM templates WHERE user_id = ${userId} AND status != 'archived'
+        ORDER BY updated_at DESC
+      `) as Row[]);
+  return rows.map(mapRow);
+}
+
+export async function getTemplate(userId: string, id: string): Promise<TemplateRecord | null> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT * FROM templates WHERE id = ${id} AND user_id = ${userId}
+  `) as Row[];
+  return rows[0] ? mapRow(rows[0]) : null;
+}
+
+export async function createTemplate(
   userId: string,
   input: { title: string; subject?: string; body?: string; kind?: TemplateKind },
-): TemplateRecord {
+): Promise<TemplateRecord> {
+  await ensureAppSchema();
   const title = requireTitle(input.title);
   const subject = optionalSubject(input.subject);
   const body = typeof input.body === "string" ? input.body : "";
   const kind = parseKind(input.kind);
   const id = randomUUID();
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `INSERT INTO templates
-        (id, user_id, title, subject, body, kind, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
-    )
-    .run(id, userId, title, subject, body, kind, now, now);
-  return getTemplate(userId, id)!;
+  await getSql()`
+    INSERT INTO templates
+      (id, user_id, title, subject, body, kind, status, created_at, updated_at)
+    VALUES (${id}, ${userId}, ${title}, ${subject}, ${body}, ${kind}, 'active', ${now}, ${now})
+  `;
+  const created = await getTemplate(userId, id);
+  if (!created) throw new Error("Failed to create template.");
+  return created;
 }
 
-export function updateTemplate(
+export async function updateTemplate(
   userId: string,
   id: string,
   patch: Partial<{
@@ -116,8 +124,9 @@ export function updateTemplate(
     kind: TemplateKind;
     status: TemplateStatus;
   }>,
-): TemplateRecord {
-  const existing = getTemplate(userId, id);
+): Promise<TemplateRecord> {
+  await ensureAppSchema();
+  const existing = await getTemplate(userId, id);
   if (!existing) throw new Error("Template not found.");
 
   const title = patch.title !== undefined ? requireTitle(patch.title) : existing.title;
@@ -128,16 +137,18 @@ export function updateTemplate(
   if (status !== "active" && status !== "archived") throw new Error("Invalid status.");
 
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `UPDATE templates SET title = ?, subject = ?, body = ?, kind = ?, status = ?, updated_at = ?
-       WHERE id = ? AND user_id = ?`,
-    )
-    .run(title, subject, body, kind, status, now, id, userId);
-  return getTemplate(userId, id)!;
+  await getSql()`
+    UPDATE templates
+    SET title = ${title}, subject = ${subject}, body = ${body}, kind = ${kind},
+        status = ${status}, updated_at = ${now}
+    WHERE id = ${id} AND user_id = ${userId}
+  `;
+  const updated = await getTemplate(userId, id);
+  if (!updated) throw new Error("Template not found after update.");
+  return updated;
 }
 
-export function archiveTemplate(userId: string, id: string): TemplateRecord {
+export async function archiveTemplate(userId: string, id: string): Promise<TemplateRecord> {
   return updateTemplate(userId, id, { status: "archived" });
 }
 
@@ -151,9 +162,8 @@ Thank you,
 {{user_name}}
 `;
 
-/** Ensure at least one outreach template exists for the user (idempotent). */
-export function ensureDefaultOutreachTemplate(userId: string): TemplateRecord {
-  const existing = listTemplates(userId).find((t) => t.kind === "outreach");
+export async function ensureDefaultOutreachTemplate(userId: string): Promise<TemplateRecord> {
+  const existing = (await listTemplates(userId)).find((t) => t.kind === "outreach");
   if (existing) return existing;
   return createTemplate(userId, {
     title: "Cold outreach — referral ask",
