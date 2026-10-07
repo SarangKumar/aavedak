@@ -4,7 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
+import { SHELL_X } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -54,7 +62,7 @@ export type FollowUpDto = {
 type ColumnId = "applications" | "template" | "people";
 
 const DEFAULT_ORDER: ColumnId[] = ["applications", "template", "people"];
-const STORAGE_KEY = "avsar-referrals-column-order";
+const STORAGE_KEY = "arambh-referrals-column-order";
 
 const COLUMN_META: Record<ColumnId, { title: string; blurb: string }> = {
   applications: { title: "Applications", blurb: "Context for {{company}} / {{role}}" },
@@ -396,17 +404,21 @@ export function ReferralsComposer({
               </label>
               <label className="block space-y-1">
                 <span className="text-muted-foreground text-[11px] font-medium">Template</span>
-                <select
-                  value={selectedTemplateId ?? ""}
-                  onChange={(e) => setSelectedTemplateId(e.target.value || null)}
-                  className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2 text-[12px]"
+                <Select
+                  value={selectedTemplateId ?? undefined}
+                  onValueChange={(v) => setSelectedTemplateId(v || null)}
                 >
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title} ({t.kind})
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2 text-[12px]">
+                    <SelectValue placeholder="Template" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[240]">
+                    {templates.map((tpl) => (
+                      <SelectItem key={tpl.id} value={tpl.id}>
+                        {tpl.title} ({tpl.kind})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </label>
               <label className="block space-y-1">
                 <span className="text-muted-foreground text-[11px] font-medium">Subject</span>
@@ -508,11 +520,11 @@ export function ReferralsComposer({
   }
 
   return (
-    <div className="avsar-fade-up mx-auto w-full max-w-[90rem] space-y-4 px-4 py-6 sm:px-6 sm:py-8">
+    <div className={cn("avsar-fade-up mx-auto w-full space-y-6 py-8 sm:py-10", SHELL_X)}>
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-            अवसर
+            आरंभ
           </p>
           <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Referrals</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">

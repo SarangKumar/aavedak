@@ -149,9 +149,9 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
     <div className="avsar-fade-up mx-auto w-full max-w-lg space-y-5 px-4 py-8 sm:px-6 sm:py-10">
       <header className="space-y-1.5 text-center sm:text-left">
         <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-          अवसर
+          आरंभ
         </p>
-        <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Welcome to Avsar</h1>
+        <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Welcome to Arambh</h1>
         <p className="text-muted-foreground text-[13px] leading-relaxed">
           Signed in as <span className="text-foreground font-medium">{email}</span>
           {" · "}

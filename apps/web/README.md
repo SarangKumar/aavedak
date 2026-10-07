@@ -1,8 +1,8 @@
-# Avsar Web
+# Arambh Web
 
-Next.js (App Router) + TypeScript + Tailwind CSS v4 front end for Avsar — the personal job-search OS.
+Next.js (App Router) + TypeScript + Tailwind CSS v4 front end for Arambh — the personal job-search OS.
 
-**Philosophy:** Avsar recommends and prepares. The user decides and sends.
+**Philosophy:** Arambh recommends and prepares. The user decides and sends.
 
 ## Routes
 
@@ -126,7 +126,7 @@ apps/web/
 - `/job-tracker`: Kanban + list, Active / Archived scopes.
 - Applications in `.data/app.db` (`applications` table). `job_id` nullable; required snapshot: company, role, location.
 - Single status enum (no custom statuses). Column show/hide + view prefs in `user_preferences`.
-- Status changes only via user (drag or select) — Avsar never auto-moves cards.
+- Status changes only via user (drag or select) — Arambh never auto-moves cards.
 
 ## Onboarding & resumes (local v1)
 

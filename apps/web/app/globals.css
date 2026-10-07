@@ -4,13 +4,14 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Avsar theme — premium dark + light.
+ * Arambh theme — premium dark + light.
  * Brand gold: #F5B91F / #FFD34D (oklch hue ~92, clean yellow-gold).
  * Dark bg #090909 · text #F5F5F0 · secondary #9A9AA0
  */
 :root {
   color-scheme: light;
   --radius: 0.875rem;
+  --shell-gap: 1.5rem;
   --background: oklch(0.985 0.008 95);
   --foreground: oklch(0.2 0.02 95);
   --card: oklch(0.995 0.004 95);
@@ -20,15 +21,15 @@
   /* #F5B91F-ish gold, readable on light */
   --primary: oklch(0.72 0.14 92);
   --primary-foreground: oklch(0.18 0.02 95);
-  --secondary: oklch(0.95 0.015 95);
-  --secondary-foreground: oklch(0.28 0.03 95);
-  --muted: oklch(0.95 0.012 95);
-  --muted-foreground: oklch(0.5 0.02 95);
-  --accent: oklch(0.94 0.035 95);
-  --accent-foreground: oklch(0.28 0.04 95);
+  --secondary: oklch(0.94 0.004 260);
+  --secondary-foreground: oklch(0.28 0.01 260);
+  --muted: oklch(0.945 0.004 260);
+  --muted-foreground: oklch(0.48 0.01 260);
+  --accent: oklch(0.93 0.006 260);
+  --accent-foreground: oklch(0.28 0.01 260);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.02 95);
-  --input: oklch(0.9 0.02 95);
+  --border: oklch(0.88 0.006 260);
+  --input: oklch(0.88 0.006 260);
   --ring: oklch(0.78 0.12 92);
   --chart-1: oklch(0.72 0.14 92);
   --chart-2: oklch(0.65 0.1 100);
@@ -53,15 +54,15 @@
   /* Clean yellow-gold — hue ~92 (#F5B91F / #FFD34D) */
   --primary: oklch(0.86 0.14 92);
   --primary-foreground: oklch(0.16 0.02 95);
-  --secondary: oklch(0.24 0.016 95);
-  --secondary-foreground: oklch(0.95 0.015 95);
-  --muted: oklch(0.24 0.016 95);
-  --muted-foreground: oklch(0.68 0.02 95);
-  --accent: oklch(0.26 0.03 95);
-  --accent-foreground: oklch(0.96 0.03 95);
+  --secondary: oklch(0.22 0.006 260);
+  --secondary-foreground: oklch(0.94 0.005 260);
+  --muted: oklch(0.22 0.006 260);
+  --muted-foreground: oklch(0.66 0.01 260);
+  --accent: oklch(0.25 0.008 260);
+  --accent-foreground: oklch(0.95 0.005 260);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.92 0.03 95 / 12%);
-  --input: oklch(0.92 0.03 95 / 14%);
+  --border: oklch(0.92 0.01 260 / 12%);
+  --input: oklch(0.92 0.01 260 / 14%);
   --ring: oklch(0.8 0.12 92);
   --chart-1: oklch(0.86 0.14 92);
   --chart-2: oklch(0.75 0.1 100);

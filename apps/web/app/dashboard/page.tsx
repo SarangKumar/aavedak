@@ -5,10 +5,11 @@ import { requireOnboarded } from "@/lib/app-access";
 import { STATUS_LABELS } from "@/lib/application-status";
 import { getDashboardSnapshot } from "@/lib/dashboard";
 import { cn } from "@/lib/utils";
+import { SHELL_X } from "@/lib/layout";
 
 export const metadata: Metadata = {
   title: "Dashboard",
-  description: "Your Avsar application summary and today’s focus.",
+  description: "Your Arambh application summary and today’s focus.",
 };
 
 const quickLinks = [
@@ -39,17 +40,17 @@ export default async function DashboardPage() {
   return (
     <div className="relative overflow-hidden">
       <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-70" aria-hidden />
-      <div className="avsar-fade-up relative mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
+      <div className={cn("avsar-fade-up relative mx-auto w-full space-y-8 py-8 sm:py-10", SHELL_X)}>
         <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="space-y-1">
             <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-              अवसर
+              आरंभ
             </p>
             <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">
               Welcome{user.name ? `, ${user.name.split(" ")[0]}` : ""}
             </h1>
             <p className="text-muted-foreground text-[13px] leading-relaxed">
-              Avsar recommends and prepares. You decide and send.
+              Arambh recommends and prepares. You decide and send.
               {" · "}
               <Link href={`/${profile.username}`} className="text-primary hover:underline">
                 /{profile.username}

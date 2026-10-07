@@ -4,10 +4,12 @@ import { redirect } from "next/navigation";
 
 import { getAdminEmails, isAdminEmail } from "@/lib/admin";
 import { requireOnboarded } from "@/lib/app-access";
+import { SHELL_X } from "@/lib/layout";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Admin",
-  description: "Avsar admin tools (allowlisted emails only).",
+  description: "Arambh admin tools (allowlisted emails only).",
 };
 
 export default async function AdminPage() {
@@ -21,9 +23,9 @@ export default async function AdminPage() {
   return (
     <div className="relative overflow-hidden">
       <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-50" aria-hidden />
-      <div className="avsar-fade-up relative mx-auto w-full max-w-3xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
+      <div className={cn("avsar-fade-up relative mx-auto w-full space-y-6 py-8 sm:py-10", SHELL_X)}>
         <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-          अवसर
+          आरंभ
         </p>
         <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Admin</h1>
         <p className="text-muted-foreground text-[13px] leading-relaxed">

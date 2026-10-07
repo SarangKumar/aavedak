@@ -8,6 +8,14 @@ import {
   FileUploadList,
   type FileUploadFile,
 } from "@/components/ui/file-upload";
+import { SHELL_X } from "@/lib/layout";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 type Tab = "resumes" | "cover_letters" | "templates";
@@ -256,10 +264,10 @@ export function DocumentsHub({
   }
 
   return (
-    <div className="avsar-fade-up mx-auto w-full max-w-3xl space-y-4 px-4 py-6 sm:px-6 sm:py-8">
+    <div className={cn("avsar-fade-up mx-auto w-full space-y-6 py-8 sm:py-10", SHELL_X)}>
       <header className="space-y-1">
         <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-          अवसर
+          आरंभ
         </p>
         <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Documents</h1>
         <p className="text-muted-foreground text-[13px] leading-relaxed">
@@ -517,15 +525,19 @@ export function DocumentsHub({
               placeholder="Title"
               className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
             />
-            <select
+            <Select
               value={tplKind}
-              onChange={(e) => setTplKind(e.target.value as "outreach" | "cover" | "other")}
-              className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-2.5 text-[13px]"
+              onValueChange={(v) => setTplKind((v as "outreach" | "cover" | "other") || "outreach")}
             >
-              <option value="outreach">Outreach</option>
-              <option value="cover">Cover</option>
-              <option value="other">Other</option>
-            </select>
+              <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-2.5 text-[13px]">
+                <SelectValue placeholder="Kind" />
+              </SelectTrigger>
+              <SelectContent className="z-[240]">
+                <SelectItem value="outreach">Outreach</SelectItem>
+                <SelectItem value="cover">Cover</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
             <textarea
               value={tplBody}
               onChange={(e) => setTplBody(e.target.value)}

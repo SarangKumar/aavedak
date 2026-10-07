@@ -20,12 +20,14 @@ import {
   type DragDropItems,
 } from "@/components/ui/drag-and-drop";
 import { Modal } from "@/components/ui/modal";
+import { StatusSelect } from "@/components/status-select";
 import {
   APPLICATION_STATUSES,
   DEFAULT_KANBAN_STATUSES,
   STATUS_LABELS,
   type ApplicationStatus,
 } from "@/lib/application-status";
+import { SHELL_X } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -99,6 +101,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
   const [prefs, setPrefs] = useState(initialPreferences);
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [pending, setPending] = useState(false);
@@ -114,6 +117,41 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
   const [columns, setColumns] = useState<ColumnMap>(() =>
     buildColumns(initialApplications, visibleStatuses),
   );
+
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("avsar-tracker-col-widths");
+      if (raw) setColWidths(JSON.parse(raw) as Record<string, number>);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function persistWidth(status: string, width: number) {
+    setColWidths((prev) => {
+      const next = { ...prev, [status]: Math.min(480, Math.max(220, width)) };
+      try {
+        localStorage.setItem("avsar-tracker-col-widths", JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
+
+  function startResize(status: string, startX: number, startW: number) {
+    function onMove(e: MouseEvent) {
+      persistWidth(status, startW + (e.clientX - startX));
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
 
   useEffect(() => {
     setColumns((prev) => buildColumns(applications, visibleStatuses, prev));
@@ -299,17 +337,33 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
     }
   }
 
+  const filteredApplications = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return applications;
+    return applications.filter(
+      (a) =>
+        a.companyName.toLowerCase().includes(q) ||
+        a.role.toLowerCase().includes(q) ||
+        a.location.toLowerCase().includes(q),
+    );
+  }, [applications, searchQuery]);
+
+  const filteredIds = useMemo(
+    () => new Set(filteredApplications.map((a) => a.id)),
+    [filteredApplications],
+  );
+
   const statusOptions =
     prefs.trackerScope === "archived"
       ? [...APPLICATION_STATUSES]
       : [...DEFAULT_KANBAN_STATUSES, "archived" as const];
 
   return (
-    <div className="avsar-fade-up mx-auto w-full max-w-[90rem] space-y-4 px-4 py-6 sm:px-6 sm:py-8">
+    <div className={cn("avsar-fade-up mx-auto w-full space-y-6 py-8 sm:py-10", SHELL_X)}>
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-            अवसर
+            आरंभ
           </p>
           <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Job tracker</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
@@ -343,6 +397,14 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
               Columns
             </button>
           ) : null}
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search company, role, location…"
+            aria-label="Search applications"
+            className="border-border bg-card/70 text-foreground placeholder:text-muted-foreground h-8 w-44 rounded-lg border px-2.5 text-[12px] sm:w-56"
+          />
           <button
             type="button"
             onClick={() => {
@@ -405,8 +467,19 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                   return (
                     <section
                       key={status}
-                      className="border-border/70 bg-muted/50 flex w-[18rem] shrink-0 flex-col rounded-xl border p-2.5"
+                      style={{ width: colWidths[status] ?? 288 }}
+                      className="border-border/70 bg-muted/50 relative flex shrink-0 flex-col rounded-xl border p-2.5"
                     >
+                      <div
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label={`Resize ${STATUS_LABELS[status]} column`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          startResize(status, e.clientX, colWidths[status] ?? 288);
+                        }}
+                        className="hover:bg-primary/40 absolute bottom-2 right-0 top-2 z-10 w-1.5 cursor-col-resize rounded-full bg-transparent"
+                      />
                       <div className="mb-2 flex items-center justify-between gap-2 px-1">
                         <h2 className="text-foreground truncate text-[12px] font-semibold tracking-tight">
                           {STATUS_LABELS[status]}
@@ -420,78 +493,73 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                       </div>
                       <DragDropList
                         id={status}
-                        items={ids}
+                        items={ids.filter((id) => filteredIds.has(id))}
                         className="max-h-[calc(100vh-14rem)] min-h-40 flex-1 gap-2.5 overflow-y-auto pr-0.5"
                       >
-                        {ids.map((id) => {
-                          const app = appsById.get(id);
-                          if (!app) return null;
-                          return (
-                            <DragDropItem
-                              key={id}
-                              id={id}
-                              className="border-border/80 bg-card hover:bg-card overflow-hidden p-0 shadow-sm"
-                            >
-                              <Card
-                                size="sm"
-                                className="gap-0 border-0 bg-transparent p-0 shadow-none"
+                        {ids
+                          .filter((id) => filteredIds.has(id))
+                          .map((id) => {
+                            const app = appsById.get(id);
+                            if (!app) return null;
+                            return (
+                              <DragDropItem
+                                key={id}
+                                id={id}
+                                className="border-border/80 bg-card hover:bg-card overflow-hidden p-0 shadow-sm"
                               >
-                                <CardHeader className="gap-1 p-3 pb-2">
-                                  <CardTitle className="pr-8 text-[13px] font-semibold leading-snug">
-                                    {app.companyName}
-                                  </CardTitle>
-                                  <CardDescription className="text-xs leading-5">
-                                    {app.role}
-                                  </CardDescription>
-                                  <CardAction>
-                                    <DragDropHandle
-                                      aria-label={`Move ${app.companyName}`}
-                                      className="text-muted-foreground size-8"
-                                    />
-                                  </CardAction>
-                                </CardHeader>
-                                <CardFooter className="border-border/60 flex-wrap justify-between gap-x-2 gap-y-1.5 border-t px-3 py-2">
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    <Badge
-                                      variant="secondary"
-                                      className="h-5 px-1.5 text-[11px] font-medium"
-                                    >
-                                      {STATUS_LABELS[app.status]}
-                                    </Badge>
-                                    <Badge
-                                      variant="outline"
-                                      className="text-muted-foreground h-5 max-w-[8rem] truncate px-1.5 text-[11px]"
-                                    >
-                                      {app.location}
-                                    </Badge>
-                                    {app.salaryCtc ? (
+                                <Card
+                                  size="sm"
+                                  className="gap-0 border-0 bg-transparent p-0 shadow-none"
+                                >
+                                  <CardHeader className="gap-1 p-3 pb-2">
+                                    <CardTitle className="pr-8 text-[13px] font-semibold leading-snug">
+                                      {app.companyName}
+                                    </CardTitle>
+                                    <CardDescription className="text-[13px] leading-5">
+                                      {app.role}
+                                    </CardDescription>
+                                    <CardAction>
+                                      <DragDropHandle
+                                        aria-label={`Move ${app.companyName}`}
+                                        className="text-muted-foreground size-8"
+                                      />
+                                    </CardAction>
+                                  </CardHeader>
+                                  <CardFooter className="border-border/60 flex-wrap justify-between gap-x-2 gap-y-1.5 border-t px-3 py-2">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <Badge
+                                        variant="secondary"
+                                        className="h-5 px-1.5 text-[11px] font-medium"
+                                      >
+                                        {STATUS_LABELS[app.status]}
+                                      </Badge>
                                       <Badge
                                         variant="outline"
-                                        className="text-muted-foreground h-5 px-1.5 text-[11px]"
+                                        className="text-muted-foreground h-5 max-w-[8rem] truncate px-1.5 text-[11px]"
                                       >
-                                        {app.salaryCtc}
+                                        {app.location}
                                       </Badge>
-                                    ) : null}
-                                  </div>
-                                  <select
-                                    value={app.status}
-                                    onChange={(e) =>
-                                      void changeStatus(app.id, e.target.value as ApplicationStatus)
-                                    }
-                                    className="border-border bg-background text-foreground h-6 max-w-[7.5rem] rounded-md border px-1 text-[10px]"
-                                    aria-label={`Status for ${app.companyName}`}
-                                  >
-                                    {statusOptions.map((s) => (
-                                      <option key={s} value={s}>
-                                        {STATUS_LABELS[s]}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </CardFooter>
-                              </Card>
-                            </DragDropItem>
-                          );
-                        })}
+                                      {app.salaryCtc ? (
+                                        <Badge
+                                          variant="outline"
+                                          className="text-muted-foreground h-5 px-1.5 text-[11px]"
+                                        >
+                                          {app.salaryCtc}
+                                        </Badge>
+                                      ) : null}
+                                    </div>
+                                    <StatusSelect
+                                      value={app.status}
+                                      options={statusOptions}
+                                      onChange={(s) => void changeStatus(app.id, s)}
+                                      aria-label={`Status for ${app.companyName}`}
+                                      triggerClassName="h-7 max-w-[8.5rem] text-[12px]"
+                                    />
+                                  </CardFooter>
+                                </Card>
+                              </DragDropItem>
+                            );
+                          })}
                       </DragDropList>
                     </section>
                   );
@@ -502,13 +570,13 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         </div>
       ) : (
         <ListView
-          applications={applications}
+          applications={filteredApplications}
           statusOptions={statusOptions}
           onStatusChange={(id, s) => void changeStatus(id, s)}
         />
       )}
 
-      {applications.length === 0 && !pending ? (
+      {filteredApplications.length === 0 && !pending ? (
         <div className="border-border/70 bg-card/40 text-muted-foreground rounded-2xl border border-dashed px-4 py-10 text-center text-[13px]">
           {prefs.trackerScope === "archived"
             ? "No archived applications yet."
@@ -579,25 +647,15 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             onChange={(v) => setDraft((d) => ({ ...d, jobId: v }))}
           />
           {prefs.trackerScope === "active" ? (
-            <label className="block space-y-1">
+            <div className="space-y-1">
               <span className="text-foreground text-[12px] font-medium">Status</span>
-              <select
+              <StatusSelect
                 value={draft.status}
-                onChange={(e) =>
-                  setDraft((d) => ({
-                    ...d,
-                    status: e.target.value as ApplicationStatus,
-                  }))
-                }
-                className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-2.5 text-[13px]"
-              >
-                {DEFAULT_KANBAN_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </label>
+                options={DEFAULT_KANBAN_STATUSES}
+                onChange={(s) => setDraft((d) => ({ ...d, status: s }))}
+                triggerClassName="h-9 w-full text-[13px]"
+              />
+            </div>
           ) : null}
           {warning ? <p className="text-primary text-[12px] leading-relaxed">{warning}</p> : null}
         </div>
@@ -704,17 +762,12 @@ function ListView({
                 <td className="text-muted-foreground px-3 py-2">{app.location}</td>
                 <td className="text-muted-foreground px-3 py-2">{app.salaryCtc || "—"}</td>
                 <td className="px-3 py-2">
-                  <select
+                  <StatusSelect
                     value={app.status}
-                    onChange={(e) => onStatusChange(app.id, e.target.value as ApplicationStatus)}
-                    className="border-border bg-background text-foreground h-7 rounded-md border px-1.5 text-[11px]"
-                  >
-                    {statusOptions.map((s) => (
-                      <option key={s} value={s}>
-                        {STATUS_LABELS[s]}
-                      </option>
-                    ))}
-                  </select>
+                    options={statusOptions}
+                    onChange={(s) => onStatusChange(app.id, s)}
+                    aria-label={`Status for ${app.companyName}`}
+                  />
                 </td>
               </tr>
             ))}

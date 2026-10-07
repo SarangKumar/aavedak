@@ -20,19 +20,19 @@ const geistMono = Geist_Mono({
 });
 
 const siteDescription =
-  "Avsar (अवसर) — job discovery, application & career platform. Discover roles, prepare documents, track applications. Avsar recommends and prepares. You decide and send.";
+  "Arambh (आरंभ) — job discovery, application & career platform. Discover roles, prepare documents, track applications. Arambh recommends and prepares. You decide and send.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3000"),
   title: {
-    default: "Avsar · Job-search OS",
-    template: "%s · Avsar",
+    default: "Arambh · Job-search OS",
+    template: "%s · Arambh",
   },
   description: siteDescription,
-  applicationName: "Avsar",
+  applicationName: "Arambh",
   keywords: [
-    "Avsar",
-    "अवसर",
+    "Arambh",
+    "आरंभ",
     "job search",
     "job tracker",
     "career",
@@ -54,21 +54,21 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "/",
-    siteName: "Avsar",
-    title: "Avsar · Discover · Apply · Grow",
+    siteName: "Arambh",
+    title: "Arambh · Discover · Apply · Grow",
     description: siteDescription,
     images: [
       {
         url: "/brand/logo-icon.png",
         width: 1051,
         height: 1051,
-        alt: "Avsar logo — stylized golden A",
+        alt: "Arambh logo — stylized golden A",
       },
     ],
   },
   twitter: {
     card: "summary",
-    title: "Avsar · Job-search OS",
+    title: "Arambh · Job-search OS",
     description: siteDescription,
     images: ["/brand/logo-icon.png"],
   },
@@ -98,15 +98,15 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "WebSite",
-      name: "Avsar",
-      alternateName: "अवसर",
+      name: "Arambh",
+      alternateName: "आरंभ",
       url: "/",
       description: siteDescription,
     },
     {
       "@type": "SoftwareApplication",
-      name: "Avsar",
-      alternateName: "अवसर",
+      name: "Arambh",
+      alternateName: "आरंभ",
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       description: siteDescription,

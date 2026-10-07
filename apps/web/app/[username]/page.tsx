@@ -22,7 +22,7 @@ export default async function ProfilePage({ params }: Props) {
       title={`@${profile.username}`}
       description={
         profile.name
-          ? `${profile.name}'s shareable Avsar profile.`
+          ? `${profile.name}'s shareable Arambh profile.`
           : "Shareable public profile. App routes stay at the root — only profiles use a username prefix."
       }
       hint="Bio, links, and active resume will appear when this profile is published."

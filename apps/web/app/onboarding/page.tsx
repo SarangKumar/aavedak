@@ -5,7 +5,7 @@ import { requireOnboardingSession } from "@/lib/app-access";
 
 export const metadata: Metadata = {
   title: "Onboarding",
-  description: "Upload your PDF resume to start using Avsar.",
+  description: "Upload your PDF resume to start using Arambh.",
 };
 
 export default async function OnboardingPage() {

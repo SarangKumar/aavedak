@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { APPLICATION_IMPORT_SAMPLE, APPLICATION_IMPORT_SCHEMA } from "@/lib/application-import";
 import { APPLICATION_STATUSES } from "@/lib/application-status";
 
-const APPLICATION_IMPORT_HUMAN = `Avsar applications import schema
+const APPLICATION_IMPORT_HUMAN = `Arambh applications import schema
 =================================
 
 Root: either

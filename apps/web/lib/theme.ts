@@ -11,7 +11,7 @@ export function parseThemeMode(value: string | undefined | null): ThemeMode {
  * Resolve whether SSR HTML should include `.dark`.
  * - explicit light/dark from cookie
  * - system: honor Sec-CH-Prefers-Color-Scheme when present
- * - otherwise dark-first (Avsar brand default) to avoid light FOUC
+ * - otherwise dark-first (Arambh brand default) to avoid light FOUC
  */
 export function serverPrefersDark(
   mode: ThemeMode,

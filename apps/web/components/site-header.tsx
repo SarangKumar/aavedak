@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { auth } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
 import { usernameFromUser } from "@/lib/username";
+import { SHELL_X } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -61,23 +62,28 @@ export async function SiteHeader({ className }: { className?: string }) {
         className,
       )}
     >
-      <div className="relative mx-auto flex h-12 max-w-5xl items-center gap-2.5 overflow-visible px-4 sm:gap-3 sm:px-6">
+      <div
+        className={cn(
+          "relative mx-auto flex h-12 w-full items-center gap-2.5 overflow-visible sm:gap-3",
+          SHELL_X,
+        )}
+      >
         <MobileNav items={nav} />
 
         <Link
           href="/"
           className="group flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5"
-          aria-label="Avsar home"
+          aria-label="Arambh home"
         >
           <Image
             src="/brand/logo-icon.png"
-            alt="Avsar logo"
+            alt="Arambh logo"
             width={28}
             height={28}
             className="avsar-logo size-7"
             priority
           />
-          <span className="avsar-display text-foreground text-sm">Avsar</span>
+          <span className="avsar-display text-foreground text-sm">Arambh</span>
         </Link>
 
         <nav className="ml-1 hidden items-center gap-0.5 md:flex" aria-label="Main">

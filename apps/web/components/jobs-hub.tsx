@@ -3,7 +3,15 @@
 import { useMemo, useRef, useState } from "react";
 
 import { Modal } from "@/components/ui/modal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
+import { SHELL_X } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
 export type JobDto = {
@@ -217,11 +225,11 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
   }
 
   return (
-    <div className="avsar-fade-up mx-auto flex w-full max-w-[90rem] flex-col gap-3 px-4 py-6 sm:px-6 sm:py-8">
+    <div className={cn("avsar-fade-up mx-auto flex w-full flex-col gap-5 py-8 sm:py-10", SHELL_X)}>
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-            अवसर
+            आरंभ
           </p>
           <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Jobs</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
@@ -254,18 +262,19 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
           placeholder="Search title or company…"
           className="border-border bg-card/70 text-foreground h-8 w-full rounded-lg border px-3 text-[13px] sm:max-w-xs"
         />
-        <select
-          value={sourceFilter}
-          onChange={(e) => setSourceFilter(e.target.value)}
-          className="border-border bg-card/70 text-foreground h-8 rounded-lg border px-2.5 text-[12px]"
-        >
-          <option value="all">All sources</option>
-          {JOB_SOURCES.map((s) => (
-            <option key={s} value={s}>
-              {SOURCE_LABELS[s]}
-            </option>
-          ))}
-        </select>
+        <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v || "all")}>
+          <SelectTrigger className="border-border bg-card/70 text-foreground h-8 w-[9.5rem] rounded-lg border px-2.5 text-[12px]">
+            <SelectValue placeholder="Source" />
+          </SelectTrigger>
+          <SelectContent className="z-[240]">
+            <SelectItem value="all">All sources</SelectItem>
+            {JOB_SOURCES.map((s) => (
+              <SelectItem key={s} value={s}>
+                {SOURCE_LABELS[s]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="text-muted-foreground text-[11px]">{filtered.length} roles</span>
       </div>
 
@@ -397,17 +406,23 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
           />
           <label className="block space-y-1">
             <span className="text-foreground text-[12px] font-medium">Source</span>
-            <select
+            <Select
               value={draft.source}
-              onChange={(e) => setDraft((d) => ({ ...d, source: e.target.value as JobSource }))}
-              className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-2.5 text-[13px]"
+              onValueChange={(v) =>
+                setDraft((d) => ({ ...d, source: (v as JobSource) || d.source }))
+              }
             >
-              {JOB_SOURCES.filter((s) => s !== "demo").map((s) => (
-                <option key={s} value={s}>
-                  {SOURCE_LABELS[s]}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-2.5 text-[13px]">
+                <SelectValue placeholder="Source" />
+              </SelectTrigger>
+              <SelectContent className="z-[240]">
+                {JOB_SOURCES.filter((s) => s !== "demo").map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {SOURCE_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <Field
             label="URL"

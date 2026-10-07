@@ -3,13 +3,13 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Avsar · Discover · Apply · Grow",
+  title: "Arambh · Discover · Apply · Grow",
   description:
-    "Avsar (अवसर) is your personal job-search OS — discover roles, prepare documents, track applications, and grow your career. Avsar recommends and prepares. You decide and send.",
+    "Arambh (आरंभ) is your personal job-search OS — discover roles, prepare documents, track applications, and grow your career. Arambh recommends and prepares. You decide and send.",
 };
 
 const chips = [
-  { label: "You send · Avsar prepares" },
+  { label: "You send · Arambh prepares" },
   { label: "Recommend · Decide · Act" },
 ] as const;
 
@@ -64,7 +64,7 @@ export default function HomePage() {
             />
             <Image
               src="/brand/logo-icon.png"
-              alt="Avsar — stylized golden A mark"
+              alt="Arambh — stylized golden A mark"
               width={96}
               height={96}
               className="avsar-logo relative h-[4.5rem] w-[4.5rem] sm:h-24 sm:w-24"
@@ -76,14 +76,14 @@ export default function HomePage() {
             className="text-primary/90 mb-1.5 font-mono text-[13px] tracking-wide sm:mb-2"
             lang="hi"
           >
-            अवसर
+            आरंभ
           </p>
 
           <h1
             id="hero-heading"
             className="avsar-display text-foreground text-3xl leading-none sm:text-5xl md:text-6xl"
           >
-            Avsar
+            Arambh
           </h1>
 
           <p className="text-muted-foreground mt-1.5 text-[11px] font-medium uppercase tracking-wide sm:text-xs">
@@ -91,7 +91,7 @@ export default function HomePage() {
           </p>
 
           <p className="text-muted-foreground mt-3.5 max-w-lg text-pretty text-[15px] leading-relaxed sm:mt-4 sm:text-base">
-            Avsar recommends and prepares. The user decides and sends.
+            Arambh recommends and prepares. The user decides and sends.
           </p>
 
           <div className="avsar-fade-up avsar-fade-up-delay-1 mt-4 flex max-w-md flex-wrap items-center justify-center gap-1.5 sm:mt-5 sm:max-w-none">

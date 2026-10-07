@@ -44,7 +44,7 @@ export function CardHeader({ className, ...props }: React.ComponentProps<"header
 export function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("min-w-0 break-words text-sm font-semibold leading-none", className)}
+      className={cn("min-w-0 break-words text-[15px] font-semibold leading-none", className)}
       {...props}
     />
   );
@@ -53,7 +53,7 @@ export function CardTitle({ className, ...props }: React.ComponentProps<"div">) 
 export function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
-      className={cn("text-muted-foreground min-w-0 break-words text-sm leading-5", className)}
+      className={cn("text-muted-foreground min-w-0 break-words text-[13px] leading-5", className)}
       {...props}
     />
   );

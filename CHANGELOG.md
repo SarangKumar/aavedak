@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Avsar are documented in this file.
+All notable changes to Arambh are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -9,12 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Rebrand** — Product display name **Arambh** (आरंभ); user-facing copy, SEO, footer, landing.
+- **Layout** — Shared shell max-width + horizontal padding for nav and pages; denser→spacier page padding/gaps.
+- **Job tracker** — Resizable Kanban columns (localStorage), search filter, Vinyaas Select for status (no native `<select>`).
+- **Command palette** — ⌘/Ctrl+K (Vinyaas Command) for navigation, theme, sign out.
+- **Theme** — Secondary/muted/borders charcoal-neutral (gold reserved for primary accent); larger card/badge type.
+
 - **Referrals composer** — Three reorderable columns (Applications / Cold email / People), Gmail From locked to signed-in user, confirm + queue follow-ups (no send). Admin allowlist via `ADMIN_EMAILS` (+ local fallback). `POST /api/referrals/queue`.
 - **Dashboard** — Live SQLite snapshot: status counts, active apps / follow-ups / resumes / jobs, recent applications (5), upcoming follow-ups (5). Optional `GET /api/dashboard`.
 
 ## [1.0.0] - 2026-10-07
 
-First product cut of the Avsar web app (local SQLite + Google Better Auth).
+First product cut of the Arambh web app (local SQLite + Google Better Auth).
 
 ### Added
 
@@ -34,4 +40,4 @@ First product cut of the Avsar web app (local SQLite + Google Better Auth).
 ### Notes
 
 - Local-first data in `.data/app.db` (separate from Better Auth DB). Production MySQL / R2 planned later.
-- Avsar recommends and prepares; the user decides and sends.
+- Arambh recommends and prepares; the user decides and sends.

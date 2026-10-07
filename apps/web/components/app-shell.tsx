@@ -1,3 +1,4 @@
+import { CommandPalette } from "@/components/command-palette";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ export function AppShell({ children, className }: AppShellProps) {
       <SiteHeader />
       <main className="flex-1">{children}</main>
       <SiteFooter />
+      <CommandPalette />
     </div>
   );
 }

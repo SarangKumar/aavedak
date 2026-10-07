@@ -1,7 +1,7 @@
 {
-  "name": "Avsar",
-  "short_name": "Avsar",
-  "description": "Job discovery, application & career platform. Avsar recommends and prepares. You decide and send.",
+  "name": "Arambh",
+  "short_name": "Arambh",
+  "description": "Job discovery, application & career platform. Arambh recommends and prepares. You decide and send.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#090909",
