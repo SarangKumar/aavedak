@@ -105,7 +105,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/onboarding"
-              className="aavedak-btn border-border bg-card/80 text-foreground ring-ring/10 hover:text-primary inline-flex h-9 items-center justify-center rounded-lg border px-5 text-[13px] font-medium shadow-sm ring-1 backdrop-blur-sm"
+              className="aavedak-btn border-border bg-card text-foreground ring-ring/10 hover:text-primary inline-flex h-9 items-center justify-center rounded-lg border px-5 text-[13px] font-medium shadow-sm ring-1 backdrop-blur-sm"
             >
               Start onboarding
             </Link>
@@ -132,7 +132,7 @@ export default function HomePage() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="aavedak-card-lift aavedak-fade-up aavedak-fade-up-delay-3 border-border/80 bg-card/70 ring-ring/5 hover:border-primary/25 group flex min-h-[6.75rem] flex-col rounded-xl border p-3.5 shadow-sm ring-1 backdrop-blur-sm sm:p-4"
+                className="aavedak-card-lift aavedak-fade-up aavedak-fade-up-delay-3 border-border/80 bg-card ring-ring/5 hover:border-primary/25 group flex min-h-[6.75rem] flex-col rounded-xl border p-3.5 shadow-sm ring-1 backdrop-blur-sm sm:p-4"
               >
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-foreground text-[13px] font-semibold tracking-tight">

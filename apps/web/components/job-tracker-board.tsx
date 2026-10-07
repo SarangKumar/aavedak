@@ -28,6 +28,7 @@ import {
   type ApplicationStatus,
 } from "@/lib/application-status";
 import { ShellWidth } from "@/components/shell-width";
+import { ResizeHandle } from "@/components/ui/resize-handle";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -368,7 +369,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <div
-            className="border-border bg-card/70 inline-flex items-center gap-0.5 rounded-[10px] border p-0.5"
+            className="border-border bg-card inline-flex items-center gap-0.5 rounded-[10px] border p-0.5"
             role="group"
             aria-label="Board view"
           >
@@ -415,7 +416,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             <button
               type="button"
               onClick={() => setColumnsOpen((o) => !o)}
-              className="border-border bg-card/70 text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-[10px] border px-2.5 text-[12px]"
+              className="border-border bg-card text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-[10px] border px-2.5 text-[12px]"
             >
               Columns
             </button>
@@ -428,7 +429,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             }}
             title="Import applications"
             aria-label="Import applications"
-            className="border-border bg-card/70 text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-[10px] border"
+            className="border-border bg-card text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-[10px] border"
           >
             <ImportGlyph className="size-3.5" />
           </button>
@@ -449,7 +450,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
       </header>
 
       {columnsOpen && prefs.trackerScope === "active" ? (
-        <div className="border-border/80 bg-card/70 rounded-xl border p-3">
+        <div className="border-border/80 bg-card rounded-xl border p-3">
           <p className="text-foreground mb-2 text-[12px] font-medium">Show / hide Kanban columns</p>
           <div className="flex flex-wrap gap-1.5">
             {DEFAULT_KANBAN_STATUSES.map((status) => {
@@ -486,12 +487,12 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search company, role, location…"
-          className="border-border bg-card/80 text-foreground placeholder:text-muted-foreground h-9 w-full rounded-xl border px-3 text-[13px]"
+          className="border-border bg-card text-foreground placeholder:text-muted-foreground h-9 w-full rounded-xl border px-3 text-[13px]"
         />
       </div>
 
       {prefs.trackerView === "kanban" ? (
-        <div className="border-border/70 bg-card/30 overflow-hidden rounded-xl border">
+        <div className="border-border/70 bg-card overflow-hidden rounded-xl border">
           <div className="p-3 sm:p-4">
             <DragDrop items={columns} onReorder={onKanbanReorder}>
               <div className="flex gap-3 overflow-x-auto pb-1">
@@ -501,17 +502,15 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                     <section
                       key={status}
                       style={{ width: colWidths[status] ?? 288 }}
-                      className="border-border/60 bg-muted/30 relative flex h-[min(75vh,46rem)] shrink-0 flex-col overflow-hidden rounded-lg border"
+                      className="border-border/60 bg-card relative flex h-[min(75vh,46rem)] shrink-0 flex-col overflow-hidden rounded-lg border"
                     >
-                      <div
-                        role="separator"
-                        aria-orientation="vertical"
+                      <ResizeHandle
                         aria-label={`Resize ${STATUS_LABELS[status]} column`}
                         onMouseDown={(e) => {
                           e.preventDefault();
                           startResize(status, e.clientX, colWidths[status] ?? 288);
                         }}
-                        className="hover:bg-primary/40 absolute bottom-2 right-0 top-2 z-20 w-1.5 cursor-col-resize rounded-full bg-transparent"
+                        className="absolute bottom-2 right-0 top-2 z-20"
                       />
                       <div className="mb-0 flex shrink-0 items-center justify-between gap-2 px-2.5 pb-2 pt-2.5">
                         <h2 className="text-foreground truncate text-[12px] font-semibold tracking-tight">
@@ -754,7 +753,7 @@ function Segmented<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="border-border bg-card/70 inline-flex h-8 items-center rounded-lg border p-0.5">
+    <div className="border-border bg-card inline-flex h-8 items-center rounded-lg border p-0.5">
       {options.map((opt) => (
         <button
           key={opt.value}

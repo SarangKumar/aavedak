@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
 import { ShellWidth } from "@/components/shell-width";
+import { ResizeHandle } from "@/components/ui/resize-handle";
 import { cn } from "@/lib/utils";
 
 export type JobDto = {
@@ -375,7 +376,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
         </p>
       ) : null}
 
-      <div className="border-border/80 bg-card/50 flex min-h-[30rem] flex-col overflow-hidden rounded-lg border md:flex-row">
+      <div className="border-border/80 bg-card flex min-h-[30rem] flex-col overflow-hidden rounded-lg border md:flex-row">
         <aside
           className="border-border/60 flex w-full shrink-0 flex-col border-b md:w-[var(--jobs-list-width)] md:max-w-[min(100%,560px)] md:border-b-0 md:border-r"
           style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
@@ -383,14 +384,12 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
           <JobList jobs={filtered} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
         </aside>
 
-        <div
-          role="separator"
-          aria-orientation="vertical"
+        <ResizeHandle
           aria-label="Resize panes"
           onPointerDown={onResizeStart}
           onPointerMove={onResizeMove}
           onPointerUp={onResizeEnd}
-          className="border-border/60 hover:bg-primary/25 hidden w-1.5 shrink-0 cursor-col-resize touch-none bg-transparent md:block"
+          className="border-border/40 hidden shrink-0 border-x bg-transparent md:flex"
         />
 
         <section className="min-w-0 flex-1 p-4 sm:p-5">
@@ -501,7 +500,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
                 </button>
               </div>
 
-              <div className="border-border/70 bg-background/60 rounded-lg border p-3 sm:p-4">
+              <div className="border-border/70 bg-muted/30 rounded-lg border p-3 sm:p-4">
                 <h3 className="text-foreground mb-2 text-[12px] font-semibold tracking-tight">
                   Description
                 </h3>
@@ -627,7 +626,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
 
 function MetaChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-border/70 bg-background/50 rounded-md border px-2.5 py-2">
+    <div className="border-border/70 bg-muted/40 rounded-md border px-2.5 py-2">
       <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
         {label}
       </p>

@@ -210,7 +210,7 @@ export function FileUploadDropzone({ className, children, ...props }: FileUpload
       disabled={upload.disabled}
       data-dragover={upload.dragOver ? "true" : undefined}
       className={cn(
-        "border-input bg-muted text-muted-foreground focus-visible:ring-ring focus-visible:ring-offset-background flex min-h-28 w-full min-w-0 max-w-full cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden rounded-md border border-dashed px-4 py-6 text-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "border-input bg-muted text-muted-foreground focus-visible:ring-ring focus-visible:ring-offset-background flex min-h-36 w-full min-w-0 max-w-full cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden rounded-md border border-dashed px-4 py-6 text-center text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         upload.dragOver && "border-foreground bg-accent text-foreground",
         className,
       )}

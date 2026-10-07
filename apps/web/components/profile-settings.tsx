@@ -133,7 +133,7 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
       {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
       {saved ? <p className="text-primary text-[12px]">Profile saved.</p> : null}
 
-      <section className="border-border/80 bg-card/80 ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
+      <section className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Public details</h2>
 
         <div className="grid gap-2.5 sm:grid-cols-2">
@@ -190,7 +190,7 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
         </button>
       </section>
 
-      <section className="border-border/80 bg-card/80 ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
+      <section className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
             Resumes ({resumes.length})

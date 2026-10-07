@@ -276,7 +276,7 @@ export function DocumentsHub({
       </header>
 
       <div
-        className="border-border bg-card/70 relative z-10 inline-flex h-8 items-center rounded-lg border p-0.5"
+        className="border-border bg-card relative z-10 inline-flex h-8 items-center rounded-lg border p-0.5"
         role="tablist"
         aria-label="Documents sections"
       >
@@ -310,7 +310,7 @@ export function DocumentsHub({
 
       {tab === "resumes" ? (
         <section className="space-y-4">
-          <div className="border-border/80 bg-card/70 ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
+          <div className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
             <div className="space-y-1.5">
               <label
                 htmlFor="resume-display-name"
@@ -339,7 +339,7 @@ export function DocumentsHub({
               onFilesChange={setUploadFiles}
               disabled={pending}
             >
-              <FileUploadDropzone className="min-h-24 rounded-xl text-[13px]">
+              <FileUploadDropzone className="min-h-40 rounded-xl text-[13px]">
                 Drop a PDF resume here, or browse
               </FileUploadDropzone>
               <FileUploadList />
@@ -368,7 +368,7 @@ export function DocumentsHub({
                 {resumes.map((resume) => (
                   <li
                     key={resume.id}
-                    className="border-border/80 bg-card/70 flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="border-border/80 bg-card flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
                       <p className="text-foreground truncate text-[13px] font-medium">
@@ -436,7 +436,7 @@ export function DocumentsHub({
             Cover letters are always company-specific (tied to an application). Optional cover
             templates seed the body; after save you can download PDF or DOCX.
           </p>
-          <div className="border-border/80 bg-card/70 space-y-2.5 rounded-xl border p-4">
+          <div className="border-border/80 bg-card space-y-2.5 rounded-xl border p-4">
             <p className="text-foreground text-[12px] font-medium">
               {editingClId ? "Edit cover letter" : "New cover letter"}
             </p>
@@ -547,7 +547,7 @@ export function DocumentsHub({
                 {coverLetters.map((cl) => {
                   const app = cl.applicationId ? appsById.get(cl.applicationId) : undefined;
                   return (
-                    <li key={cl.id} className="border-border/80 bg-card/70 rounded-lg border p-3">
+                    <li key={cl.id} className="border-border/80 bg-card rounded-lg border p-3">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <p className="text-foreground text-[13px] font-medium">{cl.title}</p>

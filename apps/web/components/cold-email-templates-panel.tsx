@@ -198,7 +198,7 @@ export function ColdEmailTemplatesPanel({
   return (
     <div className={cn("space-y-3", className)}>
       {/* 1) Dummy application strip */}
-      <div className="border-border/80 bg-card/80 flex flex-wrap items-start justify-between gap-2 rounded-xl border px-3 py-2.5 shadow-sm">
+      <div className="border-border/80 bg-card flex flex-wrap items-start justify-between gap-2 rounded-xl border px-3 py-2.5 shadow-sm">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-1.5">
             <p className="text-foreground text-[12px] font-semibold tracking-tight">
@@ -224,15 +224,25 @@ export function ColdEmailTemplatesPanel({
 
       {/* 2) Create/edit | live preview */}
       <div className="grid gap-3 lg:grid-cols-2">
-        <div className="border-border/80 bg-card/80 relative space-y-2 rounded-xl border p-3 shadow-sm">
+        <div className="border-border/80 bg-card relative space-y-2 rounded-xl border p-3 shadow-sm">
           <button
             type="button"
             onClick={() => setInfoOpen(true)}
-            className="text-foreground hover:bg-muted/60 absolute right-2.5 top-2.5 inline-flex size-6 items-center justify-center rounded-md"
-            aria-label="Template variable info"
-            title="Template variables"
+            className="group/info bg-foreground text-background absolute right-2.5 top-2.5 z-10 inline-flex size-7 items-center justify-center rounded-full shadow-sm"
+            aria-label="Template variable meanings"
+            aria-describedby="template-vars-tooltip"
           >
-            <InfoIcon className="size-3.5" />
+            <span className="text-[13px] font-bold leading-none" aria-hidden>
+              i
+            </span>
+            <span
+              id="template-vars-tooltip"
+              role="tooltip"
+              className="border-border bg-popover text-popover-foreground pointer-events-none absolute right-0 top-[calc(100%+6px)] z-30 w-56 rounded-md border px-2.5 py-1.5 text-left text-[11px] font-normal leading-snug opacity-0 shadow-md transition-opacity group-hover/info:opacity-100 group-focus-visible/info:opacity-100"
+            >
+              Placeholders like {"{{company}}"} fill from the dummy application. Click for the full
+              variable list.
+            </span>
           </button>
           <div className="flex items-center justify-between gap-2 pr-8">
             <p className="text-foreground text-[12px] font-semibold tracking-tight">
@@ -301,7 +311,7 @@ export function ColdEmailTemplatesPanel({
           </button>
         </div>
 
-        <div className="border-border/80 bg-card/80 flex min-h-[22rem] flex-col rounded-xl border p-3 shadow-sm">
+        <div className="border-border/80 bg-card flex min-h-[22rem] flex-col rounded-xl border p-3 shadow-sm">
           <p className="text-foreground text-[12px] font-semibold tracking-tight">Live preview</p>
           <p className="text-muted-foreground mb-2 text-[11px]">
             Updates as you type subject and body.
@@ -349,7 +359,7 @@ export function ColdEmailTemplatesPanel({
                 <li
                   key={tpl.id}
                   className={cn(
-                    "border-border/80 bg-card/70 flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between",
+                    "border-border/80 bg-card flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between",
                     selected && "border-primary/40 bg-primary/10",
                   )}
                 >
@@ -428,24 +438,6 @@ export function ColdEmailTemplatesPanel({
         </ul>
       </Modal>
     </div>
-  );
-}
-
-function InfoIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M12 16v-5" />
-      <path d="M12 8h.01" />
-    </svg>
   );
 }
 

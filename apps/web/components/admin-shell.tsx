@@ -94,7 +94,7 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
         {cards.map((card) => (
           <div
             key={card.key}
-            className="border-border/80 bg-card/80 rounded-xl border px-3 py-2.5 shadow-sm"
+            className="border-border/80 bg-card rounded-xl border px-3 py-2.5 shadow-sm"
           >
             <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
               {card.label}
@@ -106,7 +106,7 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
         ))}
       </section>
 
-      <section className="border-border/80 bg-card/80 space-y-2.5 rounded-xl border p-3.5 shadow-sm">
+      <section className="border-border/80 bg-card space-y-2.5 rounded-xl border p-3.5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
@@ -229,7 +229,7 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
         )}
       </section>
 
-      <section className="border-border/80 bg-card/80 space-y-2 rounded-xl border p-3.5 shadow-sm">
+      <section className="border-border/80 bg-card space-y-2 rounded-xl border p-3.5 shadow-sm">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
           Person email suggest-corrections
         </h2>
@@ -241,7 +241,7 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
         </div>
       </section>
 
-      <section className="border-border/80 bg-card/70 rounded-xl border p-3.5">
+      <section className="border-border/80 bg-card rounded-xl border p-3.5">
         <p className="text-foreground text-[12px] font-semibold tracking-tight">
           ADMIN_EMAILS allowlist
         </p>

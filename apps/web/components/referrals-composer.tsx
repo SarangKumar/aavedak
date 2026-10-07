@@ -14,6 +14,7 @@ import {
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { ShellWidth } from "@/components/shell-width";
+import { ResizeHandle } from "@/components/ui/resize-handle";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -65,11 +66,11 @@ type ColumnId = "applications" | "template" | "people";
 
 const DEFAULT_ORDER: ColumnId[] = ["applications", "template", "people"];
 const STORAGE_KEY = "aavedak-referrals-column-order";
-const WIDTHS_KEY = "aavedak-referrals-column-widths";
+const WIDTHS_KEY = "aavedak-referrals-column-widths-v2";
 const DEFAULT_WIDTHS: Record<ColumnId, number> = {
-  applications: 320,
-  template: 420,
-  people: 320,
+  applications: 1,
+  template: 2,
+  people: 1,
 };
 
 const COLUMN_META: Record<ColumnId, { title: string; blurb: string }> = {
@@ -111,6 +112,12 @@ function loadColumnOrder(): ColumnId[] {
   }
 }
 
+function clampFlex(n: number, fallback: number): number {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return fallback;
+  return Math.min(4, Math.max(0.55, v));
+}
+
 function loadColumnWidths(): Record<ColumnId, number> {
   if (typeof window === "undefined") return { ...DEFAULT_WIDTHS };
   try {
@@ -118,12 +125,9 @@ function loadColumnWidths(): Record<ColumnId, number> {
     if (!raw) return { ...DEFAULT_WIDTHS };
     const parsed = JSON.parse(raw) as Partial<Record<ColumnId, number>>;
     return {
-      applications: Math.min(
-        640,
-        Math.max(240, Number(parsed.applications) || DEFAULT_WIDTHS.applications),
-      ),
-      template: Math.min(720, Math.max(280, Number(parsed.template) || DEFAULT_WIDTHS.template)),
-      people: Math.min(640, Math.max(240, Number(parsed.people) || DEFAULT_WIDTHS.people)),
+      applications: clampFlex(parsed.applications as number, DEFAULT_WIDTHS.applications),
+      template: clampFlex(parsed.template as number, DEFAULT_WIDTHS.template),
+      people: clampFlex(parsed.people as number, DEFAULT_WIDTHS.people),
     };
   } catch {
     return { ...DEFAULT_WIDTHS };
@@ -226,9 +230,10 @@ export function ReferralsComposer({
 
   function startResize(id: ColumnId, startX: number, startW: number) {
     function onMove(e: MouseEvent) {
-      const w = Math.min(720, Math.max(240, startW + (e.clientX - startX)));
+      // ~140px of drag ≈ one flex unit so columns stay snappy but controllable
+      const nextFlex = clampFlex(startW + (e.clientX - startX) / 140, startW);
       setColWidths((prev) => {
-        const next = { ...prev, [id]: w };
+        const next = { ...prev, [id]: nextFlex };
         try {
           localStorage.setItem(WIDTHS_KEY, JSON.stringify(next));
         } catch {
@@ -381,21 +386,22 @@ export function ReferralsComposer({
         key={id}
         onDragOver={(e) => e.preventDefault()}
         onDrop={() => onColDrop(id)}
-        style={{ width: colWidths[id] ?? DEFAULT_WIDTHS[id] }}
+        style={{
+          flex: `${colWidths[id] ?? DEFAULT_WIDTHS[id]} 1 0%`,
+          minWidth: 240,
+        }}
         className={cn(
-          "border-border/80 bg-card/90 relative flex h-[min(70vh,40rem)] shrink-0 flex-col rounded-xl border shadow-sm",
+          "border-border/80 bg-card relative flex h-[min(70vh,40rem)] min-w-0 flex-col rounded-xl border shadow-sm",
           dragCol === id && "ring-primary/40 opacity-70 ring-2",
         )}
       >
-        <div
-          role="separator"
-          aria-orientation="vertical"
+        <ResizeHandle
           aria-label={`Resize ${meta.title} column`}
           onMouseDown={(e) => {
             e.preventDefault();
             startResize(id, e.clientX, colWidths[id] ?? DEFAULT_WIDTHS[id]);
           }}
-          className="hover:bg-primary/40 absolute bottom-2 right-0 top-2 z-10 w-1.5 cursor-col-resize rounded-full bg-transparent"
+          className="absolute bottom-2 right-0 top-2"
         />
         <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
           <div className="min-w-0">
@@ -615,7 +621,7 @@ export function ReferralsComposer({
               persistOrder(DEFAULT_ORDER);
               persistWidths({ ...DEFAULT_WIDTHS });
             }}
-            className="border-border bg-card/70 text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+            className="border-border bg-card text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
           >
             Reset columns
           </button>
@@ -625,11 +631,11 @@ export function ReferralsComposer({
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
       {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
 
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className="flex w-full gap-3 overflow-x-auto pb-1">
         {columnOrder.map((id) => renderColumn(id))}
       </div>
 
-      <section className="border-border/80 bg-card/80 space-y-3 rounded-xl border p-4 shadow-sm">
+      <section className="border-border/80 bg-card space-y-3 rounded-xl border p-4 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1.5">
             <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
@@ -686,7 +692,7 @@ export function ReferralsComposer({
         </button>
       </section>
 
-      <section className="border-border/80 bg-card/70 space-y-2 rounded-xl border p-4">
+      <section className="border-border/80 bg-card space-y-2 rounded-xl border p-4">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
           Pending follow-ups
         </h2>

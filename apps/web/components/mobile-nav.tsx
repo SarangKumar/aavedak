@@ -36,7 +36,7 @@ export function MobileNav({ items }: { items: readonly NavItem[] }) {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
-        className="border-border bg-card/80 text-foreground hover:text-primary inline-flex size-8 items-center justify-center rounded-lg border transition-colors"
+        className="border-border bg-card text-foreground hover:text-primary inline-flex size-8 items-center justify-center rounded-lg border transition-colors"
       >
         <span className="sr-only">Menu</span>
         <span className="flex w-3.5 flex-col gap-0.5" aria-hidden>

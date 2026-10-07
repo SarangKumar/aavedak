@@ -27,7 +27,7 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
 
   return (
     <ShellWidth className="aavedak-fade-up space-y-5 py-8 sm:py-10">
-      <div className="border-border/80 bg-card/80 ring-ring/10 relative overflow-hidden rounded-xl border p-5 shadow-sm ring-1 sm:p-6">
+      <div className="border-border/80 bg-card ring-ring/10 relative overflow-hidden rounded-xl border p-5 shadow-sm ring-1 sm:p-6">
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3.5">
             <Avatar className="size-14 sm:size-16">
@@ -92,7 +92,7 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
         </div>
       </div>
 
-      <div className="border-border/80 bg-card/70 ring-ring/10 rounded-xl border p-4 shadow-sm ring-1 sm:p-5">
+      <div className="border-border/80 bg-card ring-ring/10 rounded-xl border p-4 shadow-sm ring-1 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Resume</h2>
           {isOwner ? (

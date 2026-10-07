@@ -38,7 +38,7 @@ export default function SignInPage() {
         <p className="text-muted-foreground mt-2.5 max-w-sm text-center text-[13px] leading-relaxed">
           Aavedak recommends and prepares. The user decides and sends.
         </p>
-        <div className="border-border/80 bg-card/70 ring-ring/10 mt-6 w-full rounded-xl border p-3.5 shadow-sm ring-1 backdrop-blur-sm sm:p-4">
+        <div className="border-border/80 bg-card ring-ring/10 mt-6 w-full rounded-xl border p-3.5 shadow-sm ring-1 backdrop-blur-sm sm:p-4">
           <SignInForm googleConfigured={isGoogleAuthConfigured} />
         </div>
         <p className="text-muted-foreground mt-6 text-center text-[11px]">

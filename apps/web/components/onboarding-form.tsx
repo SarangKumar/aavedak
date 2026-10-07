@@ -165,7 +165,7 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
 
       <form
         onSubmit={onUpload}
-        className="border-border/80 bg-card/70 ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1 backdrop-blur-sm sm:p-5"
+        className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1 backdrop-blur-sm sm:p-5"
       >
         <div className="space-y-1.5">
           <label htmlFor="displayName" className="text-foreground text-[12px] font-medium">
@@ -193,7 +193,7 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
             onFilesChange={setUploadFiles}
             disabled={uploading}
           >
-            <FileUploadDropzone className="min-h-24 rounded-xl text-[13px]">
+            <FileUploadDropzone className="min-h-40 rounded-xl text-[13px]">
               Drop a PDF resume here, or browse
             </FileUploadDropzone>
             <FileUploadList />
@@ -223,7 +223,7 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
         </div>
 
         {resumes.length === 0 && !loadingList ? (
-          <div className="border-border/70 bg-card/50 text-muted-foreground rounded-xl border border-dashed px-4 py-6 text-center text-[13px]">
+          <div className="border-border/70 bg-card text-muted-foreground rounded-xl border border-dashed px-4 py-6 text-center text-[13px]">
             No resumes yet — upload a PDF to continue.
           </div>
         ) : (
@@ -231,7 +231,7 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
             {resumes.map((resume) => (
               <li
                 key={resume.id}
-                className="border-border/80 bg-card/70 flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"
+                className="border-border/80 bg-card flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <p className="text-foreground truncate text-[13px] font-medium">
