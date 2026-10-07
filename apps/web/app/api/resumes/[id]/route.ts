@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
-import { archiveResume, updateResume, type ResumeStatus } from "@/lib/resumes";
+import {
+  archiveResume,
+  deleteInactiveResume,
+  updateResume,
+  type ResumeStatus,
+} from "@/lib/resumes";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -46,12 +51,17 @@ export async function PATCH(request: Request, ctx: Ctx) {
   }
 }
 
-export async function DELETE(_request: Request, ctx: Ctx) {
+export async function DELETE(request: Request, ctx: Ctx) {
   const authResult = await requireUser();
   if ("error" in authResult) return authResult.error;
   const user = authResult.user;
   const { id } = await ctx.params;
+  const permanent = new URL(request.url).searchParams.get("permanent") === "1";
   try {
+    if (permanent) {
+      await deleteInactiveResume(user.id, id);
+      return NextResponse.json({ ok: true, deleted: id });
+    }
     const resume = await archiveResume(user.id, id);
     return NextResponse.json({
       resume: {
@@ -60,12 +70,13 @@ export async function DELETE(_request: Request, ctx: Ctx) {
         status: resume.status,
         originalFilename: resume.originalFilename,
         byteSize: resume.byteSize,
+        atsScore: resume.atsScore,
         createdAt: resume.createdAt,
         updatedAt: resume.updatedAt,
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Archive failed.";
+    const message = err instanceof Error ? err.message : "Delete failed.";
     const status = message === "Resume not found." ? 404 : 400;
     return NextResponse.json({ error: message }, { status });
   }

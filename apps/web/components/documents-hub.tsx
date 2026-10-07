@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -67,7 +68,7 @@ export type JobOptionDto = {
   company: string;
   location: string;
   compatibilityScore?: number | null;
-  atsScore?: number | null;
+  atsScore: number | null;
 };
 
 export type TemplateDto = {
@@ -374,6 +375,18 @@ export function DocumentsHub({
     await refreshResumes();
   }
 
+  async function deleteInactiveResume(id: string) {
+    setError(null);
+    if (!window.confirm("Permanently delete this inactive resume and its PDF?")) return;
+    const res = await fetch(`/api/resumes/${id}?permanent=1`, { method: "DELETE" });
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) {
+      setError(data.error || "Could not delete resume.");
+      return;
+    }
+    await refreshResumes();
+  }
+
   async function archiveResume(id: string) {
     setError(null);
     const res = await fetch(`/api/resumes/${id}`, { method: "DELETE" });
@@ -563,9 +576,17 @@ export function DocumentsHub({
           </div>
 
           <div className="space-y-2">
-            <h2 className="aavedak-section-title text-foreground">
-              Your resumes ({resumes.length})
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="aavedak-section-title text-foreground">
+                Your resumes ({resumes.length})
+              </h2>
+              <Link
+                href="/ats"
+                className="text-primary text-[12px] font-medium underline-offset-2 hover:underline"
+              >
+                ATS scores
+              </Link>
+            </div>
             {resumes.length === 0 ? (
               <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-[13px]">
                 No resumes yet — upload a PDF to get started.
@@ -593,6 +614,7 @@ export function DocumentsHub({
                       </p>
                       <p className="text-muted-foreground truncate text-[11px]">
                         {resume.originalFilename} · {formatBytes(resume.byteSize)}
+                        {resume.atsScore != null ? ` · ATS ${resume.atsScore}` : ""}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -621,13 +643,23 @@ export function DocumentsHub({
                           Unset showcase
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => void archiveResume(resume.id)}
-                        className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-                      >
-                        Archive
-                      </button>
+                      {resume.status === "inactive" ? (
+                        <button
+                          type="button"
+                          onClick={() => void deleteInactiveResume(resume.id)}
+                          className="border-border text-destructive hover:bg-destructive/10 inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                        >
+                          Delete permanently
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void archiveResume(resume.id)}
+                          className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                        >
+                          Archive
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -640,9 +672,9 @@ export function DocumentsHub({
       {tab === "cover_letters" ? (
         <section className="space-y-4 px-0">
           <p className="aavedak-meta text-muted-foreground leading-relaxed">
-            Cover letters are tied to a Jobs listing or a custom company + role (for external JDs you
-            registered). Limited to one A4 page. Use {"{{role}}"} / {"{{company}}"} variables, preview,
-            then download PDF or DOCX.
+            Cover letters are tied to a Jobs listing or a custom company + role (for external JDs
+            you registered). Limited to one A4 page. Use {"{{role}}"} / {"{{company}}"} variables,
+            preview, then download PDF or DOCX.
           </p>
 
           <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.18fr)] xl:items-stretch">
@@ -677,10 +709,7 @@ export function DocumentsHub({
               {clMode === "job" ? (
                 <label className="block space-y-1">
                   <span className="text-muted-foreground text-[11px] font-medium">Job *</span>
-                  <Select
-                    value={clJobId || undefined}
-                    onValueChange={(v) => setClJobId(v || "")}
-                  >
+                  <Select value={clJobId || undefined} onValueChange={(v) => setClJobId(v || "")}>
                     <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
                       <SelectValue placeholder="Pick a job from Jobs…" />
                     </SelectTrigger>

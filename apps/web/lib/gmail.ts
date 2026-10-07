@@ -137,19 +137,55 @@ function encodeRfc2047(text: string): string {
   return `=?UTF-8?B?${b64}?=`;
 }
 
-function buildRawMime(opts: { to: string; from: string; subject: string; body: string }): string {
+function buildRawMime(opts: {
+  to: string;
+  from: string;
+  subject: string;
+  body: string;
+  attachment?: { filename: string; mimeType: string; bytes: Buffer };
+}): string {
+  const bodyText = opts.body.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
+  if (!opts.attachment) {
+    const lines = [
+      `To: ${opts.to}`,
+      `From: ${opts.from}`,
+      `Subject: ${encodeRfc2047(opts.subject)}`,
+      "MIME-Version: 1.0",
+      'Content-Type: text/plain; charset="UTF-8"',
+      "Content-Transfer-Encoding: 7bit",
+      "",
+      bodyText,
+    ];
+    return Buffer.from(lines.join("\r\n"), "utf8")
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  }
+
+  const boundary = `aavedak_${Date.now().toString(36)}`;
+  const filename = opts.attachment.filename.replace(/"/g, "");
   const lines = [
     `To: ${opts.to}`,
     `From: ${opts.from}`,
     `Subject: ${encodeRfc2047(opts.subject)}`,
     "MIME-Version: 1.0",
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
     'Content-Type: text/plain; charset="UTF-8"',
     "Content-Transfer-Encoding: 7bit",
     "",
-    opts.body.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n"),
+    bodyText,
+    `--${boundary}`,
+    `Content-Type: ${opts.attachment.mimeType || "application/pdf"}; name="${filename}"`,
+    "Content-Transfer-Encoding: base64",
+    `Content-Disposition: attachment; filename="${filename}"`,
+    "",
+    opts.attachment.bytes.toString("base64").replace(/(.{76})/g, "$1\r\n"),
+    `--${boundary}--`,
   ];
-  const mime = lines.join("\r\n");
-  return Buffer.from(mime, "utf8")
+  return Buffer.from(lines.join("\r\n"), "utf8")
     .toString("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
@@ -168,6 +204,7 @@ export async function sendGmailMessage(opts: {
   from: string;
   subject: string;
   body: string;
+  attachment?: { filename: string; mimeType: string; bytes: Buffer };
 }): Promise<SendGmailResult> {
   const to = opts.to.trim();
   const subject = opts.subject.trim();
@@ -188,6 +225,7 @@ export async function sendGmailMessage(opts: {
     from: opts.from.trim() || "me",
     subject,
     body,
+    attachment: opts.attachment,
   });
 
   const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
@@ -222,25 +260,32 @@ export async function sendGmailMessage(opts: {
   return { id: data.id, threadId: data.threadId };
 }
 
-/** Parse Subject/To/From/body from follow-up notes written by referrals queue. */
+/** Parse Subject/To/From/Resume-Id/body from follow-up notes written by referrals queue. */
 export function parseQueuedMailNotes(notes: string | null): {
   to: string | null;
   from: string | null;
   subject: string | null;
+  resumeId: string | null;
   body: string;
 } {
   if (!notes) {
-    return { to: null, from: null, subject: null, body: "" };
+    return { to: null, from: null, subject: null, resumeId: null, body: "" };
   }
   const lines = notes.replace(/\r\n/g, "\n").split("\n");
   let to: string | null = null;
   let from: string | null = null;
   let subject: string | null = null;
+  let resumeId: string | null = null;
   let bodyStart = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     if (/^Subject:\s*/i.test(line)) {
       subject = line.replace(/^Subject:\s*/i, "").trim();
+      bodyStart = i + 1;
+      continue;
+    }
+    if (/^Resume-Id:\s*/i.test(line)) {
+      resumeId = line.replace(/^Resume-Id:\s*/i, "").trim() || null;
       bodyStart = i + 1;
       continue;
     }
@@ -264,5 +309,5 @@ export function parseQueuedMailNotes(notes: string | null): {
   const blankIdx = lines.findIndex((l, idx) => idx >= 3 && l.trim() === "");
   if (blankIdx >= 0) bodyStart = blankIdx + 1;
   const body = lines.slice(bodyStart).join("\n").trim();
-  return { to, from, subject, body };
+  return { to, from, subject, resumeId, body };
 }

@@ -3,7 +3,9 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
+import { downloadResumePdf } from "@/lib/gcs";
 import { getGmailAuthStatus, parseQueuedMailNotes, sendGmailMessage } from "@/lib/gmail";
+import { getResume } from "@/lib/resumes";
 
 export type FollowUpStatus =
   "pending" | "queued" | "sent" | "sent_stub" | "failed" | "done" | "dismissed";
@@ -310,12 +312,27 @@ export async function processDueQueuedFollowUps(userId?: string): Promise<Proces
     }
 
     try {
+      let attachment: { filename: string; mimeType: string; bytes: Buffer } | undefined;
+      if (parsed.resumeId) {
+        const resume = await getResume(uid, parsed.resumeId);
+        if (resume?.storagePath) {
+          const bytes = await downloadResumePdf(resume.storagePath);
+          if (bytes) {
+            attachment = {
+              filename: resume.originalFilename || `${resume.displayName}.pdf`,
+              mimeType: "application/pdf",
+              bytes,
+            };
+          }
+        }
+      }
       const result = await sendGmailMessage({
         userId: uid,
         to: mailTo,
         from: mailFrom || "me",
         subject: mailSubject || row.title,
         body: mailBody,
+        attachment,
       });
       const noteSuffix = `\n\n[sent via Gmail ${now} · id ${result.id}]`;
       const notes = (row.notes ?? "") + noteSuffix;

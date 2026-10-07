@@ -513,6 +513,17 @@ export function JobTrackerBoard({
           <button
             type="button"
             onClick={() => {
+              window.location.assign("/api/applications/export");
+            }}
+            title="Download applications JSON backup"
+            aria-label="Download applications JSON backup"
+            className={cn(toolbarBtn, "size-8")}
+          >
+            <DownloadGlyph className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               setCreateOpen(true);
               setWarning(null);
               setError(null);
@@ -969,6 +980,21 @@ function ImportGlyph({ className }: { className?: string }) {
         strokeWidth="1.5"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function DownloadGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M8 2.5v7M5.5 7.5 8 10l2.5-2.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M3 12.5h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }

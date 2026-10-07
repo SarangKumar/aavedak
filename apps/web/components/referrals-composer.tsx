@@ -143,6 +143,14 @@ export function ReferralsComposer({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [resumeId, setResumeId] = useState<string | null>(null);
+  const [resumeOptions, setResumeOptions] = useState<
+    Array<{ id: string; displayName: string; status: string }>
+  >([]);
+  const [resumePickerOpen, setResumePickerOpen] = useState(false);
+  const [countdownOpen, setCountdownOpen] = useState(false);
+  const [countdown, setCountdown] = useState(20);
+  const [countdownArmed, setCountdownArmed] = useState(false);
 
   const [manageOpen, setManageOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -156,6 +164,32 @@ export function ReferralsComposer({
   useEffect(() => {
     setColumnOrder(loadColumnOrder());
   }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/resumes");
+        const data = (await res.json()) as {
+          resumes?: Array<{ id: string; displayName: string; status: string }>;
+        };
+        if (res.ok) setResumeOptions(data.resumes ?? []);
+      } catch {
+        /* optional */
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!countdownOpen || !countdownArmed) return;
+    if (countdown <= 0) {
+      setCountdownArmed(false);
+      void finalizeQueuedSend();
+      return;
+    }
+    const timer = window.setTimeout(() => setCountdown((value) => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- countdown tick only
+  }, [countdownOpen, countdown, countdownArmed]);
 
   const selectedApp = useMemo(
     () => applications.find((a) => a.id === selectedAppId) ?? null,
@@ -268,20 +302,20 @@ export function ReferralsComposer({
       setError("Confirm recipients before queueing.");
       return;
     }
+    setCountdown(20);
+    setCountdownArmed(true);
+    setCountdownOpen(true);
+  }
+
+  async function finalizeQueuedSend() {
+    if (!selectedAppId) return;
     setPending(true);
+    setCountdownOpen(false);
     try {
       const due = new Date();
       due.setUTCDate(due.getUTCDate() + 3);
       const dueDate = due.toISOString().slice(0, 10);
-
       const personIds = Array.from(checkedPeople);
-      // Render per-person body into notes via server using raw template + we send already-rendered with person vars
-      // Send subject/body with company/role filled; person_name left for notes per person on server from people table
-      // Actually server stores subject/body as-is; better fill person on client per-request — API takes one body.
-      // Fill person_name as "{{person_name}}" still in body; server uses people names in title only.
-      // For richer notes, render each on client and batch — API currently one body. Keep one body with company vars;
-      // person_name in preview empty; follow-up notes still useful with subject/body.
-
       const res = await fetch("/api/referrals/queue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -292,7 +326,8 @@ export function ReferralsComposer({
           body,
           dueDate,
           confirmed: true,
-          sendAfterMinutes: 10,
+          sendAfterSeconds: 0,
+          resumeId,
         }),
       });
       const data = (await res.json()) as {
@@ -310,8 +345,15 @@ export function ReferralsComposer({
       if (data.followUps?.length) {
         setFollowUps((list) => [...data.followUps!, ...list]);
       }
+      const sendRes = await fetch("/api/referrals/process-queue", { method: "POST" });
+      const sendData = (await sendRes.json()) as {
+        error?: string;
+        sent?: number;
+        failed?: number;
+      };
+      if (!sendRes.ok) throw new Error(sendData.error || "Could not send queued mail.");
       setNotice(
-        `Queued ${data.count ?? personIds.length} follow-up(s) for ~10 min — Gmail will send when due.`,
+        `Batch ready after the 20s wait. Gmail sent ${sendData.sent ?? 0}. Failed ${sendData.failed ?? 0}.`,
       );
       setCheckedPeople(new Set());
       setConfirmed(false);
@@ -506,7 +548,7 @@ export function ReferralsComposer({
                   in Manage templates / Documents.
                 </p>
               )}
-              <div className="border-border/60 bg-muted/30 space-y-2 rounded-xl border p-2.5">
+              <div className="border-border/60 bg-muted/30 space-y-2.5 rounded-xl border p-2.5">
                 <div>
                   <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
                     Subject
@@ -526,6 +568,68 @@ export function ReferralsComposer({
                       ? previewBody || "(empty body)"
                       : "Choose a template to preview filled subject and body."}
                   </pre>
+                </div>
+                <div className="border-border/50 space-y-2 border-t pt-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setResumePickerOpen((open) => !open)}
+                      className="border-border bg-background text-foreground hover:bg-muted/60 inline-flex h-8 items-center rounded-lg border px-3 text-[12px] font-medium"
+                    >
+                      {resumeId ? "Change resume" : "Attach resume"}
+                    </button>
+                    {resumeId ? (
+                      <span className="text-muted-foreground truncate text-[11px]">
+                        {resumeOptions.find((resume) => resume.id === resumeId)?.displayName ||
+                          "resume"}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-[11px]">
+                        Optional · pick one uploaded resume
+                      </span>
+                    )}
+                  </div>
+                  {resumePickerOpen ? (
+                    <div className="space-y-2">
+                      <p className="text-muted-foreground text-[11px] leading-relaxed">
+                        Attach one of your uploaded resumes as a PDF. Prefer a different file?
+                        Upload it on Documents first.
+                      </p>
+                      {resumeOptions.length === 0 ? (
+                        <p className="text-muted-foreground text-[11px]">
+                          No resumes uploaded yet — add one on Documents.
+                        </p>
+                      ) : (
+                        <Select
+                          value={resumeId ?? ""}
+                          onValueChange={(value) => {
+                            setResumeId(value || null);
+                            setResumePickerOpen(false);
+                          }}
+                        >
+                          <SelectTrigger className="h-9 w-full text-[12px]">
+                            <SelectValue placeholder="Choose a resume" />
+                          </SelectTrigger>
+                          <SelectContent className="z-[240]">
+                            {resumeOptions.map((resume) => (
+                              <SelectItem key={resume.id} value={resume.id}>
+                                {resume.displayName} ({resume.status})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {resumeId ? (
+                        <button
+                          type="button"
+                          className="text-muted-foreground text-[11px] underline"
+                          onClick={() => setResumeId(null)}
+                        >
+                          Remove attachment
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -598,8 +702,7 @@ export function ReferralsComposer({
           <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Referrals</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Compose cold outreach against an application, pick people at that company, confirm, then
-            queue follow-ups (~10 min delay). Mail sends from your Gmail ({userEmail}) after the
-            delay.
+            wait 20 seconds on screen before the batch sends from {userEmail} through Gmail.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -635,12 +738,22 @@ export function ReferralsComposer({
             </h2>
             <div className="border-border/70 bg-muted/40 rounded-lg border px-3 py-2">
               <p className="text-foreground text-[12px] font-medium leading-relaxed">
-                Creates pending follow-up tasks (linked to application + person).
+                Creates follow-up tasks (linked to application + person), then shows a 20 second
+                countdown before Gmail sends the batch.
               </p>
-              <p className="text-muted-foreground mt-0.5 text-[12px] font-semibold leading-relaxed">
-                Queued sends wait ~10 minutes, then the cron (or Process due queue) sends each
-                message via your Gmail. Authorize Gmail above if the banner asks for consent.
-              </p>
+              {resumeId ? (
+                <p className="text-muted-foreground mt-0.5 text-[12px] leading-relaxed">
+                  Resume attached from Cold email:{" "}
+                  <span className="text-foreground font-medium">
+                    {resumeOptions.find((resume) => resume.id === resumeId)?.displayName ||
+                      "resume"}
+                  </span>
+                </p>
+              ) : (
+                <p className="text-muted-foreground mt-0.5 text-[12px] leading-relaxed">
+                  Attach a resume in the Cold email preview if you want a PDF on the send.
+                </p>
+              )}
             </div>
           </div>
           <label className="text-foreground flex shrink-0 items-center gap-2 text-[12px]">
@@ -672,12 +785,13 @@ export function ReferralsComposer({
             !confirmed ||
             checkedPeople.size === 0 ||
             !selectedAppId ||
-            !selectedTemplateId
+            !selectedTemplateId ||
+            countdownOpen
           }
           onClick={() => void queueFollowUps()}
           className="aavedak-btn bg-primary text-primary-foreground inline-flex h-9 items-center rounded-lg px-4 text-[12px] font-semibold disabled:opacity-50"
         >
-          {pending ? "Queueing…" : "Queue follow-ups"}
+          {pending ? "Sending…" : "Queue & send (20s)"}
         </button>
       </section>
 
@@ -709,6 +823,40 @@ export function ReferralsComposer({
           </ul>
         )}
       </section>
+
+      <Modal
+        open={countdownOpen}
+        onClose={() => {
+          setCountdownOpen(false);
+          setCountdownArmed(false);
+          setCountdown(20);
+        }}
+        title="Sending batch in…"
+        description="Stay on this screen. Gmail sends after the countdown."
+        footer={
+          <button
+            type="button"
+            onClick={() => {
+              setCountdownOpen(false);
+              setCountdownArmed(false);
+              setCountdown(20);
+              setNotice("Send cancelled. Nothing was queued.");
+            }}
+            className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+          >
+            Cancel
+          </button>
+        }
+      >
+        <div className="flex flex-col items-center gap-2 py-4">
+          <p className="aavedak-display text-foreground text-5xl tabular-nums">{countdown}</p>
+          <p className="text-muted-foreground text-center text-[13px]">
+            seconds before this batch goes out to {checkedPeople.size} recipient
+            {checkedPeople.size === 1 ? "" : "s"}
+            {resumeId ? " with your resume attached" : ""}.
+          </p>
+        </div>
+      </Modal>
 
       <Modal
         open={manageOpen}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Legend, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import {
   ChartContainer,
@@ -9,29 +9,22 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 type ActivityDay = { date: string; count: number };
 
-type FriendMeta = {
+type SeriesDto = {
   userId: string;
   username: string;
   name: string | null;
+  isMe: boolean;
+  days: ActivityDay[];
 };
 
 type ActivityResponse = {
   months: number;
-  mine: ActivityDay[];
-  friends: FriendMeta[];
-  friend: (FriendMeta & { days: ActivityDay[] }) | null;
+  series: SeriesDto[];
   error?: string;
 };
 
@@ -42,124 +35,45 @@ const RANGES = [
   { value: "12", label: "12 months" },
 ] as const;
 
-function ActivityLineChart({
-  days,
-  seriesKey,
-  label,
-  colorToken,
-}: {
-  days: ActivityDay[];
-  seriesKey: string;
-  label: string;
-  colorToken: string;
-}) {
-  const config = useMemo(
-    () =>
-      ({
-        [seriesKey]: {
-          label,
-          color: colorToken,
-        },
-      }) satisfies ChartConfig,
-    [seriesKey, label, colorToken],
-  );
+/** Distinct series colors: you first, then friends. */
+const SERIES_COLORS = [
+  "var(--color-chart-1)",
+  "var(--color-chart-2)",
+  "var(--color-chart-3)",
+  "var(--color-chart-4)",
+  "var(--color-chart-5)",
+  "oklch(0.70 0.14 40)",
+  "oklch(0.66 0.15 320)",
+  "oklch(0.68 0.13 280)",
+  "oklch(0.70 0.12 20)",
+  "oklch(0.64 0.11 180)",
+  "oklch(0.67 0.13 60)",
+] as const;
 
-  const data = useMemo(
-    () =>
-      days.map((d) => ({
-        date: d.date,
-        label: d.date.slice(5),
-        [seriesKey]: d.count,
-      })),
-    [days, seriesKey],
-  );
+function seriesLabel(s: SeriesDto): string {
+  if (s.isMe) return "You";
+  return s.name?.trim() || `@${s.username}`;
+}
 
-  const total = days.reduce((s, d) => s + d.count, 0);
-  const peak = Math.max(0, ...days.map((d) => d.count));
-
-  // Sparse X ticks for long ranges
-  const tickInterval = Math.max(0, Math.ceil(data.length / 6) - 1);
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-foreground text-[13px] font-semibold tracking-tight">{label}</p>
-        <p className="text-muted-foreground text-[11px] tabular-nums">
-          {total} total · peak {peak}/day
-        </p>
-      </div>
-      <ChartContainer config={config} className="aspect-auto h-[200px] w-full">
-        <LineChart data={data} accessibilityLayer margin={{ left: 4, right: 8, top: 8, bottom: 0 }}>
-          <CartesianGrid vertical={false} strokeDasharray="3 3" />
-          <XAxis
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            minTickGap={24}
-            interval={tickInterval}
-            tickMargin={8}
-          />
-          <YAxis
-            allowDecimals={false}
-            width={28}
-            tickLine={false}
-            axisLine={false}
-            tickMargin={4}
-          />
-          <ChartTooltip
-            content={
-              <ChartTooltipContent
-                labelFormatter={(_, payload) => {
-                  const row = payload?.[0]?.payload as { date?: string } | undefined;
-                  return row?.date ?? "";
-                }}
-              />
-            }
-          />
-          <Line
-            dataKey={seriesKey}
-            type="monotone"
-            stroke={`var(--color-${seriesKey})`}
-            strokeWidth={2}
-            dot={{
-              r: 3,
-              fill: "var(--color-foreground)",
-              stroke: `var(--color-${seriesKey})`,
-              strokeWidth: 2,
-            }}
-            activeDot={{
-              r: 5,
-              fill: "var(--color-foreground)",
-              stroke: `var(--color-${seriesKey})`,
-              strokeWidth: 2,
-            }}
-          />
-        </LineChart>
-      </ChartContainer>
-    </div>
-  );
+function seriesKey(s: SeriesDto): string {
+  return s.isMe ? "you" : `f_${s.userId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12)}`;
 }
 
 export function ApplicationsActivityCharts() {
   const [months, setMonths] = useState("3");
-  const [friendId, setFriendId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ActivityResponse | null>(null);
 
-  const load = useCallback(async (m: string, fId: string) => {
+  const load = useCallback(async (m: string) => {
     setLoading(true);
     setError(null);
     try {
       const qs = new URLSearchParams({ months: m });
-      if (fId) qs.set("friendId", fId);
       const res = await fetch(`/api/dashboard/activity?${qs.toString()}`);
       const json = (await res.json()) as ActivityResponse;
       if (!res.ok) throw new Error(json.error || "Could not load activity.");
       setData(json);
-      if (!fId && json.friend?.userId) {
-        setFriendId(json.friend.userId);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load activity.");
     } finally {
@@ -168,109 +82,165 @@ export function ApplicationsActivityCharts() {
   }, []);
 
   useEffect(() => {
-    void load(months, friendId);
-  }, [months, friendId, load]);
+    void load(months);
+  }, [months, load]);
 
-  const friends = data?.friends ?? [];
-  const hasFriendSlot = friends.length > 0;
+  const series = useMemo(() => data?.series ?? [], [data?.series]);
+  const hasFriends = series.some((s) => !s.isMe);
+
+  const chartConfig = useMemo(() => {
+    const cfg: ChartConfig = {};
+    series.forEach((s, i) => {
+      const key = seriesKey(s);
+      cfg[key] = {
+        label: seriesLabel(s),
+        color: SERIES_COLORS[i % SERIES_COLORS.length]!,
+      };
+    });
+    return cfg;
+  }, [series]);
+
+  const chartData = useMemo(() => {
+    const dates = new Set<string>();
+    for (const s of series) {
+      for (const d of s.days) dates.add(d.date);
+    }
+    const sorted = [...dates].sort();
+    return sorted.map((date) => {
+      const row: Record<string, string | number> = {
+        date,
+        label: date.slice(5),
+      };
+      for (const s of series) {
+        const key = seriesKey(s);
+        row[key] = s.days.find((d) => d.date === date)?.count ?? 0;
+      }
+      return row;
+    });
+  }, [series]);
+
+  const tickInterval = Math.max(0, Math.ceil(chartData.length / 6) - 1);
+  const rangeLabel = RANGES.find((r) => r.value === months)?.label ?? `${months} months`;
 
   return (
     <section aria-labelledby="activity-heading" className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2
-            id="activity-heading"
-            className="text-foreground text-[13px] font-semibold tracking-tight"
-          >
-            Applications per day
-          </h2>
-          <p className="text-muted-foreground text-[11px] leading-relaxed">
-            Live counts from your tracker (deleting an application removes that day&apos;s
-            contribution). Compete with friends once they accept your invite.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={months} onValueChange={setMonths}>
-            <SelectTrigger className="border-border bg-card text-foreground h-8 w-[8.5rem] rounded-lg border px-2.5 text-[12px]">
-              <SelectValue placeholder="Range" />
-            </SelectTrigger>
-            <SelectContent className="z-[280]">
-              {RANGES.map((r) => (
-                <SelectItem key={r.value} value={r.value}>
-                  {r.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {friends.length > 0 ? (
-            <Select value={friendId || friends[0]!.userId} onValueChange={setFriendId}>
-              <SelectTrigger className="border-border bg-card text-foreground h-8 min-w-[9rem] rounded-lg border px-2.5 text-[12px]">
-                <SelectValue placeholder="Friend" />
-              </SelectTrigger>
-              <SelectContent className="z-[280]">
-                {friends.map((f) => (
-                  <SelectItem key={f.userId} value={f.userId}>
-                    {f.name?.trim() || `@${f.username}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
-        </div>
+      <div>
+        <h2
+          id="activity-heading"
+          className="text-foreground text-[13px] font-semibold tracking-tight"
+        >
+          Applications per day
+        </h2>
+        <p className="text-muted-foreground text-[11px] leading-relaxed">
+          One shared chart — you and your friends as colored lines. Live counts from the tracker
+          (deleting an application removes that day&apos;s contribution).
+        </p>
       </div>
 
       {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
 
-      <div
-        className={cn(
-          "grid grid-cols-1 gap-4",
-          hasFriendSlot || !data ? "lg:grid-cols-2" : "lg:grid-cols-1",
-        )}
-      >
-        <div className="border-border/80 bg-card rounded-lg border p-4 shadow-sm">
-          {loading && !data ? (
-            <div className="text-muted-foreground flex h-[220px] items-center justify-center gap-2 text-[12px]">
-              <Spinner /> Loading chart…
-            </div>
-          ) : (
-            <ActivityLineChart
-              days={data?.mine ?? []}
-              seriesKey="you"
-              label="You"
-              colorToken="var(--color-chart-1)"
-            />
-          )}
-        </div>
-
-        {hasFriendSlot ? (
-          <div className="border-border/80 bg-card rounded-lg border p-4 shadow-sm">
-            {loading && !data?.friend ? (
-              <div className="text-muted-foreground flex h-[220px] items-center justify-center gap-2 text-[12px]">
-                <Spinner /> Loading friend…
-              </div>
-            ) : data?.friend ? (
-              <ActivityLineChart
-                days={data.friend.days}
-                seriesKey="friend"
-                label={data.friend.name?.trim() || `@${data.friend.username}`}
-                colorToken="var(--color-chart-2)"
-              />
-            ) : (
-              <p className="text-muted-foreground text-[12px]">No friend data yet.</p>
-            )}
+      <div className="border-border/80 bg-card relative rounded-lg border p-4 shadow-sm">
+        {loading && !data ? (
+          <div className="text-muted-foreground flex h-[260px] items-center justify-center gap-2 text-[12px]">
+            <Spinner /> Loading chart…
           </div>
+        ) : chartData.length === 0 ? (
+          <p className="text-muted-foreground flex h-[200px] items-center justify-center text-[12px]">
+            No application activity in this range yet.
+          </p>
         ) : (
-          <div className="border-border/80 bg-card flex flex-col justify-center rounded-lg border border-dashed p-4 shadow-sm">
-            <p className="text-foreground text-[13px] font-semibold tracking-tight">
-              Friendly competition
-            </p>
-            <p className="text-muted-foreground mt-1 text-[12px] leading-relaxed">
-              Copy your invite link from Profile → Friends. When someone accepts, their
-              applications/day graph appears here.
-            </p>
-          </div>
+          <ChartContainer config={chartConfig} className="aspect-auto h-[280px] w-full pb-10">
+            <LineChart
+              data={chartData}
+              accessibilityLayer
+              margin={{ left: 4, right: 8, top: 8, bottom: 8 }}
+            >
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                minTickGap={24}
+                interval={tickInterval}
+                tickMargin={8}
+              />
+              <YAxis
+                allowDecimals={false}
+                width={28}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={4}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(_, payload) => {
+                      const row = payload?.[0]?.payload as { date?: string } | undefined;
+                      return row?.date ?? "";
+                    }}
+                  />
+                }
+              />
+              <Legend
+                verticalAlign="top"
+                align="left"
+                wrapperStyle={{ fontSize: 11, paddingBottom: 8 }}
+              />
+              {series.map((s) => {
+                const key = seriesKey(s);
+                return (
+                  <Line
+                    key={s.userId}
+                    dataKey={key}
+                    name={seriesLabel(s)}
+                    type="monotone"
+                    stroke={`var(--color-${key})`}
+                    strokeWidth={s.isMe ? 2.5 : 2}
+                    dot={{
+                      r: s.isMe ? 3.5 : 2.5,
+                      fill: "var(--color-foreground)",
+                      stroke: `var(--color-${key})`,
+                      strokeWidth: 2,
+                    }}
+                    activeDot={{
+                      r: 5,
+                      fill: "var(--color-foreground)",
+                      stroke: `var(--color-${key})`,
+                      strokeWidth: 2,
+                    }}
+                  />
+                );
+              })}
+            </LineChart>
+          </ChartContainer>
         )}
+
+        {/* Duration / interval — bottom right of the chart */}
+        <div className="border-border/70 bg-background/95 absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border p-1 text-[11px] shadow-sm">
+          {RANGES.map((r) => (
+            <button
+              key={r.value}
+              type="button"
+              className={cn(
+                "rounded-md px-2 py-1",
+                months === r.value
+                  ? "bg-primary/15 text-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setMonths(r.value)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {!hasFriends && !loading ? (
+        <p className="text-muted-foreground text-[12px] leading-relaxed">
+          Invite a friend from Profile → Friends. When they accept, their line appears on this same
+          chart ({rangeLabel} range).
+        </p>
+      ) : null}
     </section>
   );
 }

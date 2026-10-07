@@ -50,6 +50,7 @@ export default async function DocumentsPage() {
         status: r.status,
         originalFilename: r.originalFilename,
         byteSize: r.byteSize,
+        atsScore: r.atsScore,
         createdAt: r.createdAt,
         updatedAt: r.updatedAt,
       }))}

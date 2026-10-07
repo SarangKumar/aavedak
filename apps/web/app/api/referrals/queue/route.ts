@@ -5,6 +5,7 @@ import { getApplication } from "@/lib/applications";
 import { createFollowUp } from "@/lib/follow-ups";
 import { getGmailAuthStatus } from "@/lib/gmail";
 import { getPerson } from "@/lib/people";
+import { getResume } from "@/lib/resumes";
 
 function fill(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => vars[key] ?? "");
@@ -12,8 +13,10 @@ function fill(template: string, vars: Record<string, string>): string {
 
 /**
  * Queue outreach follow-ups for confirmed recipients.
- * Schedules send_after ≈ now + sendAfterMinutes (default 10). Cron sends via Gmail.
- * Body: { applicationId, personIds, subject, body, dueDate?, sendAfterMinutes?, confirmed: true }
+ * Prefer sendAfterSeconds (default 0 after on-screen 20s countdown).
+ * Legacy sendAfterMinutes still accepted.
+ * Body: { applicationId, personIds, subject, body, dueDate?, sendAfterSeconds?,
+ *         sendAfterMinutes?, resumeId?, confirmed: true }
  */
 export async function POST(request: Request) {
   const authResult = await requireApiUser();
@@ -36,12 +39,16 @@ export async function POST(request: Request) {
   const bodyTpl = typeof body.body === "string" ? body.body : "";
   const dueDate =
     typeof body.dueDate === "string" && body.dueDate.trim() ? body.dueDate.trim() : null;
-  const sendAfterMinutesRaw = body.sendAfterMinutes;
-  const sendAfterMinutes =
-    typeof sendAfterMinutesRaw === "number" && Number.isFinite(sendAfterMinutesRaw)
-      ? Math.min(24 * 60, Math.max(1, Math.round(sendAfterMinutesRaw)))
-      : 10;
-  const sendAfter = new Date(Date.now() + sendAfterMinutes * 60_000).toISOString();
+  const resumeId =
+    typeof body.resumeId === "string" && body.resumeId.trim() ? body.resumeId.trim() : null;
+
+  let sendAfterMs = 0;
+  if (typeof body.sendAfterSeconds === "number" && Number.isFinite(body.sendAfterSeconds)) {
+    sendAfterMs = Math.min(3600, Math.max(0, Math.round(body.sendAfterSeconds))) * 1000;
+  } else if (typeof body.sendAfterMinutes === "number" && Number.isFinite(body.sendAfterMinutes)) {
+    sendAfterMs = Math.min(24 * 60, Math.max(0, Math.round(body.sendAfterMinutes))) * 60_000;
+  }
+  const sendAfter = new Date(Date.now() + sendAfterMs).toISOString();
   const confirmed = body.confirmed === true;
 
   if (!confirmed) {
@@ -55,6 +62,12 @@ export async function POST(request: Request) {
   }
   if (personIds.length === 0) {
     return NextResponse.json({ error: "Select at least one recipient." }, { status: 400 });
+  }
+  if (resumeId) {
+    const resume = await getResume(userId, resumeId);
+    if (!resume || resume.status === "archived") {
+      return NextResponse.json({ error: "Resume not found." }, { status: 400 });
+    }
   }
 
   const gmail = await getGmailAuthStatus(userId);
@@ -105,6 +118,7 @@ export async function POST(request: Request) {
       subject ? `Subject: ${subject}` : null,
       `To: ${person.email}`,
       `From: ${session.user.email}`,
+      resumeId ? `Resume-Id: ${resumeId}` : null,
       "",
       renderedBody.trim() || "(empty body)",
     ]
@@ -143,9 +157,13 @@ export async function POST(request: Request) {
     {
       followUps: created,
       count: created.length,
-      sendAfterMinutes,
+      sendAfterMs,
+      resumeId,
       gmail: "queued",
-      note: `Queued with ~${sendAfterMinutes} min delay. Cron / process-queue will send via your Gmail.`,
+      note:
+        sendAfterMs === 0
+          ? "Queued for immediate send after the on-screen countdown."
+          : `Queued with ~${Math.round(sendAfterMs / 1000)}s delay before Gmail send.`,
     },
     { status: 201 },
   );

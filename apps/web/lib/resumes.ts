@@ -16,6 +16,8 @@ export type ResumeRecord = {
   storagePath: string;
   originalFilename: string;
   byteSize: number;
+  textExcerpt: string | null;
+  atsScore: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -28,6 +30,8 @@ type Row = {
   storage_path: string;
   original_filename: string;
   byte_size: number;
+  extracted_text?: string | null;
+  ats_score?: number | string | null;
   created_at: string;
   updated_at: string;
 };
@@ -41,6 +45,11 @@ function mapRow(row: Row): ResumeRecord {
     storagePath: row.storage_path,
     originalFilename: row.original_filename,
     byteSize: Number(row.byte_size),
+    textExcerpt: row.extracted_text ?? null,
+    atsScore:
+      row.ats_score === null || row.ats_score === undefined || row.ats_score === ""
+        ? null
+        : Number(row.ats_score),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -220,6 +229,35 @@ export async function updateResume(
 
 export async function archiveResume(userId: string, resumeId: string): Promise<ResumeRecord> {
   return updateResume(userId, resumeId, { status: "archived" });
+}
+
+export async function countActiveResumes(userId: string): Promise<number> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT COUNT(*)::int AS n FROM resumes
+    WHERE user_id = ${userId} AND status = 'active'
+  `) as Array<{ n: number }>;
+  return Number(rows[0]?.n) || 0;
+}
+
+/** Permanently delete an inactive/archived resume (PDF + row). Keeps ≥1 active. */
+export async function deleteInactiveResume(userId: string, resumeId: string): Promise<void> {
+  await ensureAppSchema();
+  const existing = await getResume(userId, resumeId);
+  if (!existing) throw new Error("Resume not found.");
+  if (existing.status === "active") {
+    throw new Error("Active resumes cannot be permanently deleted. Demote them first.");
+  }
+  if ((await countActiveResumes(userId)) < 1) {
+    throw new Error("Keep at least one active resume on your profile.");
+  }
+  const { deleteResumePdf } = await import("@/lib/gcs");
+  try {
+    await deleteResumePdf(existing.storagePath);
+  } catch {
+    /* object may already be gone */
+  }
+  await getSql()`DELETE FROM resumes WHERE id = ${resumeId} AND user_id = ${userId}`;
 }
 
 export async function setResumeExtractedText(

@@ -31,5 +31,6 @@ export const config = {
     "/admin/:path*",
     "/auth/continue",
     "/friends/invite/:path*",
+    "/ats/:path*",
   ],
 };

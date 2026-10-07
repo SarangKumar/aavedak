@@ -14,15 +14,6 @@ export const metadata: Metadata = {
   description: "Your Aavedak application summary and today’s focus.",
 };
 
-const quickLinks = [
-  { href: "/jobs", title: "Jobs", blurb: "Discover and shortlist roles" },
-  { href: "/job-tracker", title: "Job tracker", blurb: "Pipeline by stage" },
-  { href: "/documents", title: "Documents", blurb: "Resumes & cover letters" },
-  { href: "/referrals", title: "Referrals", blurb: "Warm paths & asks" },
-  { href: "/people", title: "People", blurb: "Contacts CRM" },
-  { href: "/follow-ups", title: "Follow-ups", blurb: "Pending & queued asks" },
-] as const;
-
 function formatDue(dueDate: string | null): string {
   if (!dueDate) return "No due date";
   return dueDate.slice(0, 10);
@@ -31,6 +22,19 @@ function formatDue(dueDate: string | null): string {
 export default async function DashboardPage() {
   const { user, profile } = await requireOnboarded();
   const dash = await getDashboardSnapshot(user.id);
+
+  const quickLinks = [
+    { href: "/jobs", title: "Jobs", blurb: "Discover and shortlist roles" },
+    { href: "/job-tracker", title: "Job tracker", blurb: "Pipeline by stage" },
+    { href: "/documents", title: "Documents", blurb: "Resumes & cover letters" },
+    { href: "/referrals", title: "Referrals", blurb: "Warm paths & asks" },
+    {
+      href: `/${profile.username}/settings`,
+      title: "Friends",
+      blurb: "Invite + shared activity chart",
+    },
+    { href: "/ats", title: "ATS", blurb: "Resume ATS readiness & JD match" },
+  ] as const;
 
   const metaStats = [
     { label: "Active apps", value: dash.activeApplicationCount, href: "/job-tracker" },

@@ -9,8 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Dashboard applications/day charts** — Vinyaas Chart (recharts) line graphs for you + friend; range Select 1/3/6/12 months; counts derive from live applications (hard delete lowers the day).
-- **Friends** — Profile invite URL; `/friends/invite/[token]` confirm; accepted friendships power the second dashboard graph.
+- **Dashboard applications/day charts** — One shared multi-line chart (you + friends as distinct colored series); range control on the chart bottom-right; counts derive from live applications (hard delete lowers the day).
+- **Friends** — Profile invite URL; `/friends/invite/[token]` confirm; accepted friendships appear as lines on the shared dashboard graph.
+- **Referrals** — 20s on-screen countdown before batch Gmail send; Attach resume in the Cold email preview (one uploaded PDF).
+- **ATS** — `/ats` page + dashboard card; readiness / JD match scoring; inactive resumes can be permanently deleted (keep ≥1 active).
+- **Tracker** — Download applications JSON backup for re-import.
 - **Wipe script** — `scripts/wipe-all-data.mjs` clears Neon app + Better Auth tables and GCS `resumes/` (not GCP OAuth clients).
 
 ### Changed
