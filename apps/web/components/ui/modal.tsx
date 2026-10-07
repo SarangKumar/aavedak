@@ -66,7 +66,7 @@ export function Modal({
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-black/60 backdrop-blur-[2px] dark:bg-black/70"
         onClick={onClose}
       />
       <div
@@ -75,7 +75,9 @@ export function Modal({
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "border-border bg-popover text-popover-foreground relative z-10 flex max-h-[min(90vh,52rem)] w-full flex-col rounded-2xl border shadow-xl",
+          // `dark` forces dark theme tokens for dialog content (dark-first surfaces).
+          "dark relative z-10 flex max-h-[min(90vh,52rem)] w-full flex-col rounded-2xl border shadow-xl shadow-black/40",
+          "border-border bg-card text-card-foreground",
           size === "lg" ? "max-w-lg" : "max-w-md",
           className,
         )}

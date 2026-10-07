@@ -1,15 +1,31 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { ImportApplicationsDialog } from "@/components/import-applications-dialog";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  DragDrop,
+  DragDropHandle,
+  DragDropItem,
+  DragDropList,
+  type DragDropItems,
+} from "@/components/ui/drag-and-drop";
+import { Modal } from "@/components/ui/modal";
 import {
   APPLICATION_STATUSES,
   DEFAULT_KANBAN_STATUSES,
   STATUS_LABELS,
   type ApplicationStatus,
 } from "@/lib/application-status";
-import { ImportApplicationsDialog } from "@/components/import-applications-dialog";
-import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -48,6 +64,8 @@ type Draft = {
   status: ApplicationStatus;
 };
 
+type ColumnMap = Record<string, string[]>;
+
 const emptyDraft = (): Draft => ({
   companyName: "",
   role: "",
@@ -57,6 +75,24 @@ const emptyDraft = (): Draft => ({
   jobId: "",
   status: "bookmarked",
 });
+
+function buildColumns(
+  applications: ApplicationDto[],
+  statuses: ApplicationStatus[],
+  previous?: ColumnMap,
+): ColumnMap {
+  const byId = new Map(applications.map((a) => [a.id, a]));
+  const next: ColumnMap = {};
+  for (const status of statuses) {
+    const prevIds = previous?.[status] ?? [];
+    const kept = prevIds.filter((id) => byId.get(id)?.status === status);
+    const extras = applications
+      .filter((a) => a.status === status && !kept.includes(a.id))
+      .map((a) => a.id);
+    next[status] = [...kept, ...extras];
+  }
+  return next;
+}
 
 export function JobTrackerBoard({ initialApplications, initialPreferences }: JobTrackerBoardProps) {
   const [applications, setApplications] = useState(initialApplications);
@@ -68,13 +104,26 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const visibleStatuses = useMemo(() => {
     if (prefs.trackerScope === "archived") return ["archived"] as ApplicationStatus[];
     const hidden = new Set(prefs.hiddenColumns);
     return DEFAULT_KANBAN_STATUSES.filter((s) => !hidden.has(s));
   }, [prefs]);
+
+  const [columns, setColumns] = useState<ColumnMap>(() =>
+    buildColumns(initialApplications, visibleStatuses),
+  );
+
+  useEffect(() => {
+    setColumns((prev) => buildColumns(applications, visibleStatuses, prev));
+  }, [applications, visibleStatuses]);
+
+  const appsById = useMemo(() => {
+    const map = new Map<string, ApplicationDto>();
+    for (const app of applications) map.set(app.id, app);
+    return map;
+  }, [applications]);
 
   const persistPrefs = useCallback(async (patch: Partial<TrackerPrefsDto>) => {
     setError(null);
@@ -191,7 +240,6 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
   async function changeStatus(id: string, status: ApplicationStatus) {
     setError(null);
     const prev = applications;
-    // Optimistic
     if (prefs.trackerScope === "active" && status === "archived") {
       setApplications((list) => list.filter((a) => a.id !== id));
     } else if (prefs.trackerScope === "archived" && status !== "archived") {
@@ -225,30 +273,36 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
     }
   }
 
-  function onDragStart(id: string) {
-    setDraggingId(id);
-  }
-
-  function onDragEnd() {
-    setDraggingId(null);
-  }
-
-  async function onDropStatus(status: ApplicationStatus) {
-    if (!draggingId) return;
-    const id = draggingId;
-    setDraggingId(null);
-    await changeStatus(id, status);
-  }
-
-  const byStatus = useMemo(() => {
-    const map = new Map<ApplicationStatus, ApplicationDto[]>();
-    for (const s of visibleStatuses) map.set(s, []);
-    for (const app of applications) {
-      const bucket = map.get(app.status);
-      if (bucket) bucket.push(app);
+  function findContainer(map: ColumnMap, id: string): string | undefined {
+    for (const [container, ids] of Object.entries(map)) {
+      if (ids.includes(id)) return container;
     }
-    return map;
-  }, [applications, visibleStatuses]);
+    return undefined;
+  }
+
+  function onKanbanReorder(nextItems: DragDropItems) {
+    if (Array.isArray(nextItems)) return;
+    const next = nextItems as ColumnMap;
+    const prev = columns;
+    setColumns(next);
+
+    const touched = new Set<string>();
+    for (const ids of Object.values(next)) {
+      for (const id of ids) touched.add(String(id));
+    }
+    for (const id of touched) {
+      const from = findContainer(prev, id);
+      const to = findContainer(next, id);
+      if (from && to && from !== to && (APPLICATION_STATUSES as readonly string[]).includes(to)) {
+        void changeStatus(id, to as ApplicationStatus);
+      }
+    }
+  }
+
+  const statusOptions =
+    prefs.trackerScope === "archived"
+      ? [...APPLICATION_STATUSES]
+      : [...DEFAULT_KANBAN_STATUSES, "archived" as const];
 
   return (
     <div className="avsar-fade-up mx-auto w-full max-w-[90rem] space-y-4 px-4 py-6 sm:px-6 sm:py-8">
@@ -259,8 +313,8 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           </p>
           <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Job tracker</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-            You own every status change. Bookmarked means saved interest — not applied yet.
-            Applications can exist without a linked job.
+            You own every status change. Drag cards between columns to update status. Bookmarked
+            means saved interest — not applied yet.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -342,60 +396,114 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
 
       {prefs.trackerView === "kanban" ? (
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {visibleStatuses.map((status) => {
-            const cards = byStatus.get(status) ?? [];
-            return (
-              <section
-                key={status}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => void onDropStatus(status)}
-                className="border-border/80 bg-card/50 flex w-[17.5rem] shrink-0 flex-col rounded-2xl border"
-                style={{ minHeight: "22rem" }}
-              >
-                <div className="border-border/60 flex items-center justify-between gap-2 border-b px-3 py-2.5">
-                  <h2 className="text-foreground text-[12px] font-semibold tracking-tight">
-                    {STATUS_LABELS[status]}
-                  </h2>
-                  <span className="text-muted-foreground text-[11px] tabular-nums">
-                    {cards.length}
-                  </span>
-                </div>
-                <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
-                  {cards.length === 0 ? (
-                    <p className="text-muted-foreground px-1 py-6 text-center text-[11px]">
-                      Drop cards here
-                    </p>
-                  ) : (
-                    cards.map((app) => (
-                      <ApplicationCard
-                        key={app.id}
-                        app={app}
-                        dragging={draggingId === app.id}
-                        onDragStart={() => onDragStart(app.id)}
-                        onDragEnd={onDragEnd}
-                        onStatusChange={(s) => void changeStatus(app.id, s)}
-                        statusOptions={
-                          prefs.trackerScope === "archived"
-                            ? [...APPLICATION_STATUSES]
-                            : [...DEFAULT_KANBAN_STATUSES, "archived"]
-                        }
-                      />
-                    ))
-                  )}
-                </div>
-              </section>
-            );
-          })}
+        <div className="border-border bg-card/40 overflow-hidden rounded-2xl border">
+          <div className="bg-muted/20 p-3 sm:p-4">
+            <DragDrop items={columns} onReorder={onKanbanReorder}>
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {visibleStatuses.map((status) => {
+                  const ids = columns[status] ?? [];
+                  return (
+                    <section
+                      key={status}
+                      className="border-border/70 bg-muted/50 flex w-[18rem] shrink-0 flex-col rounded-xl border p-2.5"
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                        <h2 className="text-foreground truncate text-[12px] font-semibold tracking-tight">
+                          {STATUS_LABELS[status]}
+                        </h2>
+                        <Badge
+                          variant="outline"
+                          className="text-muted-foreground h-5 min-w-5 justify-center px-1.5 text-[11px] tabular-nums"
+                        >
+                          {ids.length}
+                        </Badge>
+                      </div>
+                      <DragDropList
+                        id={status}
+                        items={ids}
+                        className="max-h-[calc(100vh-14rem)] min-h-40 flex-1 gap-2.5 overflow-y-auto pr-0.5"
+                      >
+                        {ids.map((id) => {
+                          const app = appsById.get(id);
+                          if (!app) return null;
+                          return (
+                            <DragDropItem
+                              key={id}
+                              id={id}
+                              className="border-border/80 bg-card hover:bg-card overflow-hidden p-0 shadow-sm"
+                            >
+                              <Card
+                                size="sm"
+                                className="gap-0 border-0 bg-transparent p-0 shadow-none"
+                              >
+                                <CardHeader className="gap-1 p-3 pb-2">
+                                  <CardTitle className="pr-8 text-[13px] font-semibold leading-snug">
+                                    {app.companyName}
+                                  </CardTitle>
+                                  <CardDescription className="text-xs leading-5">
+                                    {app.role}
+                                  </CardDescription>
+                                  <CardAction>
+                                    <DragDropHandle
+                                      aria-label={`Move ${app.companyName}`}
+                                      className="text-muted-foreground size-8"
+                                    />
+                                  </CardAction>
+                                </CardHeader>
+                                <CardFooter className="border-border/60 flex-wrap justify-between gap-x-2 gap-y-1.5 border-t px-3 py-2">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <Badge
+                                      variant="secondary"
+                                      className="h-5 px-1.5 text-[11px] font-medium"
+                                    >
+                                      {STATUS_LABELS[app.status]}
+                                    </Badge>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-muted-foreground h-5 max-w-[8rem] truncate px-1.5 text-[11px]"
+                                    >
+                                      {app.location}
+                                    </Badge>
+                                    {app.salaryCtc ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-muted-foreground h-5 px-1.5 text-[11px]"
+                                      >
+                                        {app.salaryCtc}
+                                      </Badge>
+                                    ) : null}
+                                  </div>
+                                  <select
+                                    value={app.status}
+                                    onChange={(e) =>
+                                      void changeStatus(app.id, e.target.value as ApplicationStatus)
+                                    }
+                                    className="border-border bg-background text-foreground h-6 max-w-[7.5rem] rounded-md border px-1 text-[10px]"
+                                    aria-label={`Status for ${app.companyName}`}
+                                  >
+                                    {statusOptions.map((s) => (
+                                      <option key={s} value={s}>
+                                        {STATUS_LABELS[s]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </CardFooter>
+                              </Card>
+                            </DragDropItem>
+                          );
+                        })}
+                      </DragDropList>
+                    </section>
+                  );
+                })}
+              </div>
+            </DragDrop>
+          </div>
         </div>
       ) : (
         <ListView
           applications={applications}
-          statusOptions={
-            prefs.trackerScope === "archived"
-              ? [...APPLICATION_STATUSES]
-              : [...DEFAULT_KANBAN_STATUSES, "archived"]
-          }
+          statusOptions={statusOptions}
           onStatusChange={(id, s) => void changeStatus(id, s)}
         />
       )}
@@ -562,58 +670,6 @@ function Field({
         className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
       />
     </label>
-  );
-}
-
-function ApplicationCard({
-  app,
-  dragging,
-  onDragStart,
-  onDragEnd,
-  onStatusChange,
-  statusOptions,
-}: {
-  app: ApplicationDto;
-  dragging: boolean;
-  onDragStart: () => void;
-  onDragEnd: () => void;
-  onStatusChange: (status: ApplicationStatus) => void;
-  statusOptions: readonly ApplicationStatus[];
-}) {
-  return (
-    <article
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      className={cn(
-        "border-border/80 bg-background/80 cursor-grab rounded-xl border p-2.5 shadow-sm active:cursor-grabbing",
-        dragging && "opacity-60",
-      )}
-    >
-      <p className="text-foreground truncate text-[13px] font-semibold tracking-tight">
-        {app.companyName}
-      </p>
-      <p className="text-foreground/90 truncate text-[12px]">{app.role}</p>
-      <p className="text-muted-foreground mt-1 truncate text-[11px]">{app.location}</p>
-      {app.salaryCtc ? (
-        <p className="text-primary/90 mt-1 truncate text-[11px] font-medium">{app.salaryCtc}</p>
-      ) : null}
-      <label className="mt-2 block">
-        <span className="sr-only">Status</span>
-        <select
-          value={app.status}
-          onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
-          onClick={(e) => e.stopPropagation()}
-          className="border-border bg-card text-muted-foreground hover:text-foreground h-7 w-full rounded-md border px-1.5 text-[11px]"
-        >
-          {statusOptions.map((s) => (
-            <option key={s} value={s}>
-              {STATUS_LABELS[s]}
-            </option>
-          ))}
-        </select>
-      </label>
-    </article>
   );
 }
 
