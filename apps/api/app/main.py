@@ -9,7 +9,7 @@ from app.core.logging import setup_logging
 setup_logging(settings.log_level)
 logger = logging.getLogger("avsar.api")
 
-app = FastAPI(title="Avsar API", version="0.0.0")
+app = FastAPI(title="Avsar API", version="0.1.0")
 
 
 @app.middleware("http")

@@ -8,11 +8,11 @@ Personal job-search operating system.
 
 ## Prerequisites
 
-| Tool    | Version                              |
-| ------- | ------------------------------------ |
-| Node.js | **20+** (LTS recommended)            |
-| pnpm    | **12.6.0** (via Corepack or install) |
-| Python  | **3.11+** preferred (`python3`)      |
+| Tool    | Version                                                    |
+| ------- | ---------------------------------------------------------- |
+| Node.js | **20+** (LTS recommended)                                  |
+| pnpm    | **12.6.0** (via Corepack or install)                       |
+| Python  | **3.12** preferred (`python3.12` / Homebrew `python@3.12`) |
 
 ## Quick start (fresh clone)
 
@@ -50,7 +50,7 @@ cp apps/web/.env.example apps/web/.env.local
 # 3. API env + venv
 cp apps/api/.env.example apps/api/.env
 cd apps/api
-python3 -m venv .venv
+python3.12 -m venv .venv   # prefer 3.12; setup.sh recreates if < 3.11
 source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
 cd ../..
@@ -105,7 +105,7 @@ avsar/
 **Local scaffold**
 
 - Web needs `NEXT_PUBLIC_API_URL` (default `http://127.0.0.1:8000`) for `pnpm dev`.
-- Auth/Google keys (`BETTER_AUTH_*`, `GOOGLE_*`) are optional until login is wired.
+- Auth/Google keys (`BETTER_AUTH_*`, `GOOGLE_*`) — see Auth section below / `apps/web/README.md`.
 - API starts with an empty `DATABASE_URL`; DB-backed features won’t work until you set it. `CRON_SECRET` and R2 keys are optional for the health stub.
 
 Generators and scripts must read the **app-specific** env file — never mix web and API keys.

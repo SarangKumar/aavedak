@@ -33,8 +33,9 @@ node_major() {
 }
 
 pick_python() {
+  # Prefer stable 3.12 for FastAPI ecosystem, then nearby minors, then unversioned.
   local c
-  for c in python3.14 python3.13 python3.12 python3.11 python3; do
+  for c in python3.12 python3.13 python3.11 python3.14 python3; do
     if have "$c"; then
       echo "$c"
       return 0
@@ -122,11 +123,32 @@ ok "pnpm install complete"
 section "Setting up API virtualenv"
 API_DIR="$ROOT/apps/api"
 VENV="$API_DIR/.venv"
+RECREATE_VENV=0
 if [[ ! -d "$VENV" ]]; then
+  RECREATE_VENV=1
+else
+  # Recreate if below 3.11, or if 3.12 is available but venv is not 3.12
+  VENV_PY="$VENV/bin/python"
+  if [[ ! -x "$VENV_PY" ]]; then
+    warn "Existing venv missing interpreter — recreating"
+    RECREATE_VENV=1
+  elif ! "$VENV_PY" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null; then
+    warn "Existing venv is below Python 3.11 — recreating with $PY"
+    RECREATE_VENV=1
+  elif have python3.12; then
+    if ! "$VENV_PY" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] == (3, 12) else 1)' 2>/dev/null; then
+      warn "Python 3.12 available but venv is not 3.12 — recreating with $PY"
+      RECREATE_VENV=1
+    fi
+  fi
+fi
+
+if [[ "$RECREATE_VENV" -eq 1 ]]; then
+  rm -rf "$VENV"
   "$PY" -m venv "$VENV" || die "Failed to create $VENV"
   ok "Created $VENV with $PY"
 else
-  ok "Using existing $VENV"
+  ok "Using existing $VENV ($("$VENV/bin/python" -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])'))"
 fi
 
 # shellcheck disable=SC1091

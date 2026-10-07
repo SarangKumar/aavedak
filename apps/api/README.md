@@ -19,10 +19,12 @@ apps/api/
 
 ## Setup
 
+Local virtualenv targets **Python 3.12** (Homebrew `python@3.12` / `python3.12`). `scripts/setup.sh` prefers 3.12, then 3.13, 3.11, 3.14, then `python3`.
+
 ```bash
 cd apps/api
-python3 -m venv .venv          # prefer 3.11+
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
+/opt/homebrew/bin/python3.12 -m venv .venv   # or: python3.12 -m venv .venv
+source .venv/bin/activate                    # Windows: .venv\Scripts\activate
 pip install -r requirements.txt -r requirements-dev.txt
 cp .env.example .env
 ```
