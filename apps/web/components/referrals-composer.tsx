@@ -370,7 +370,9 @@ export function ReferralsComposer({
       const sent = sendData.sent ?? 0;
       const failed = sendData.failed ?? 0;
       if (sent === 0 && failed > 0) {
-        setError(`Gmail could not send ${failed} message${failed === 1 ? "" : "s"}. Check Follow-ups.`);
+        setError(
+          `Gmail could not send ${failed} message${failed === 1 ? "" : "s"}. Check Follow-ups.`,
+        );
       } else {
         setNotice(
           `Sent ${sent} via Gmail${failed ? ` · ${failed} failed` : ""}${
@@ -432,7 +434,7 @@ export function ReferralsComposer({
           minWidth: 240,
         }}
         className={cn(
-          "border-border/80 bg-card relative flex h-[min(70vh,40rem)] min-w-0 flex-col rounded-xl border shadow-sm",
+          "border-border/80 bg-card relative flex h-[min(70vh,calc(40rem+40px))] min-w-0 flex-col rounded-xl border shadow-sm",
           dragCol === id && "ring-primary/40 opacity-70 ring-2",
         )}
       >
