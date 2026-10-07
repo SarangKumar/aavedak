@@ -42,11 +42,11 @@ export async function SiteHeader({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "border-border/60 bg-background/70 sticky top-0 z-40 border-b backdrop-blur-xl",
+        "border-border/60 bg-background/70 sticky top-0 z-50 overflow-visible border-b backdrop-blur-xl",
         className,
       )}
     >
-      <div className="relative mx-auto flex h-12 max-w-5xl items-center gap-2.5 px-4 sm:gap-3 sm:px-6">
+      <div className="relative mx-auto flex h-12 max-w-5xl items-center gap-2.5 overflow-visible px-4 sm:gap-3 sm:px-6">
         <MobileNav items={nav} />
 
         <Link

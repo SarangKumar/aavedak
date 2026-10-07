@@ -125,7 +125,12 @@
       radial-gradient(ellipse 80% 50% at 50% -20%, var(--glow), transparent),
       radial-gradient(ellipse 40% 30% at 100% 0%, var(--mesh-b), transparent);
     background-attachment: fixed;
-    overflow-x: hidden;
+  }
+
+  /* Keep horizontal scroll off without making body a clip/scroll container
+     that hides sticky-header dropdowns (overflow-x:hidden → overflow-y:auto). */
+  main {
+    overflow-x: clip;
   }
 
   :focus-visible {

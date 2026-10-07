@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
+import { HeaderMenu } from "@/components/header-menu";
 import { cn } from "@/lib/utils";
 
 export type ThemeMode = "light" | "dark" | "system";
@@ -16,8 +17,9 @@ function resolveDark(mode: ThemeMode): boolean {
 
 function applyTheme(mode: ThemeMode) {
   const root = document.documentElement;
-  root.classList.toggle("dark", resolveDark(mode));
-  root.style.colorScheme = resolveDark(mode) ? "dark" : "light";
+  const dark = resolveDark(mode);
+  root.classList.toggle("dark", dark);
+  root.style.colorScheme = dark ? "dark" : "light";
   root.dataset.theme = mode;
 }
 
@@ -89,44 +91,25 @@ function ModeIcon({ mode, className }: { mode: ThemeMode; className?: string }) 
 
 export function ThemeToggle({ className }: { className?: string }) {
   const [mode, setMode] = useState<ThemeMode>("system");
-  const [mounted, setMounted] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [ready, setReady] = useState(false);
   const [iconKey, setIconKey] = useState(0);
-  const menuId = useId();
-  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const stored = readStoredTheme();
     setMode(stored);
     applyTheme(stored);
-    setMounted(true);
+    setReady(true);
   }, []);
 
   useEffect(() => {
-    if (!mounted || mode !== "system") return;
+    if (!ready || mode !== "system") return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => applyTheme("system");
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
-  }, [mounted, mode]);
+  }, [ready, mode]);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  function select(next: ThemeMode) {
+  function select(next: ThemeMode, close: () => void) {
     setMode(next);
     setIconKey((k) => k + 1);
     try {
@@ -135,53 +118,49 @@ export function ThemeToggle({ className }: { className?: string }) {
       /* ignore */
     }
     applyTheme(next);
-    setOpen(false);
+    close();
   }
 
   return (
-    <div ref={rootRef} className={cn("relative", className)}>
-      <button
-        type="button"
-        aria-label={`Theme: ${mode}. Change theme`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={menuId}
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          "border-border/80 bg-card/60 text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-lg border transition-colors",
-          open && "text-foreground border-primary/40",
+    <div className={cn("relative", className)}>
+      <HeaderMenu
+        menuClassName="w-36"
+        trigger={({ open, triggerProps }) => (
+          <button
+            {...triggerProps}
+            aria-label={`Theme: ${mode}. Change theme`}
+            className={cn(
+              "border-border/80 bg-card/60 text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-lg border transition-colors",
+              open && "border-primary/40 text-foreground",
+            )}
+          >
+            <span key={iconKey} className="avsar-theme-icon inline-flex">
+              <ModeIcon mode={ready ? mode : "system"} className="size-3.5" />
+            </span>
+          </button>
         )}
       >
-        <span key={iconKey} className="avsar-theme-icon inline-flex">
-          <ModeIcon mode={mounted ? mode : "system"} className="size-3.5" />
-        </span>
-      </button>
-
-      {open ? (
-        <div
-          id={menuId}
-          role="menu"
-          aria-label="Theme"
-          className="border-border bg-popover text-popover-foreground absolute right-0 z-50 mt-2 w-36 overflow-hidden rounded-xl border shadow-lg shadow-black/20"
-        >
-          {options.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              role="menuitemradio"
-              aria-checked={mode === opt.value}
-              onClick={() => select(opt.value)}
-              className={cn(
-                "hover:text-foreground flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors",
-                mode === opt.value ? "text-primary font-medium" : "text-muted-foreground",
-              )}
-            >
-              <ModeIcon mode={opt.value} className="size-3.5 shrink-0" />
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
+        {({ close }) => (
+          <>
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                role="menuitemradio"
+                aria-checked={mode === opt.value}
+                onClick={() => select(opt.value, close)}
+                className={cn(
+                  "hover:text-foreground flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors",
+                  mode === opt.value ? "text-primary font-medium" : "text-muted-foreground",
+                )}
+              >
+                <ModeIcon mode={opt.value} className="size-3.5 shrink-0" />
+                {opt.label}
+              </button>
+            ))}
+          </>
+        )}
+      </HeaderMenu>
     </div>
   );
 }
