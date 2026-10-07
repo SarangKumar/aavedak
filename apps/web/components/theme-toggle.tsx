@@ -124,21 +124,19 @@ export function ThemeToggle({ className }: { className?: string }) {
   return (
     <div className={cn("relative", className)}>
       <HeaderMenu
+        label={`Theme: ${mode}. Change theme`}
         menuClassName="w-36"
-        trigger={({ open, triggerProps }) => (
-          <button
-            {...triggerProps}
-            aria-label={`Theme: ${mode}. Change theme`}
-            className={cn(
-              "border-border/80 bg-card/60 text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-lg border transition-colors",
-              open && "border-primary/40 text-foreground",
-            )}
-          >
-            <span key={iconKey} className="avsar-theme-icon inline-flex">
-              <ModeIcon mode={ready ? mode : "system"} className="size-3.5" />
-            </span>
-          </button>
-        )}
+        triggerClassName={(open) =>
+          cn(
+            "border-border/80 bg-card/60 text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-lg border transition-colors",
+            open && "border-primary/40 text-foreground",
+          )
+        }
+        trigger={
+          <span key={iconKey} className="avsar-theme-icon inline-flex">
+            <ModeIcon mode={ready ? mode : "system"} className="size-3.5" />
+          </span>
+        }
       >
         {({ close }) => (
           <>

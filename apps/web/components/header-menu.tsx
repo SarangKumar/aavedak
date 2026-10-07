@@ -14,29 +14,31 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 type HeaderMenuProps = {
-  trigger: (args: {
-    open: boolean;
-    setOpen: (open: boolean) => void;
-    triggerProps: {
-      ref: React.RefObject<HTMLButtonElement | null>;
-      "aria-expanded": boolean;
-      "aria-haspopup": "menu";
-      "aria-controls": string;
-      type: "button";
-      onClick: () => void;
-    };
-  }) => ReactNode;
-  children: (args: { close: () => void; menuId: string }) => ReactNode;
-  /** Fixed menu panel width class, e.g. w-36 */
+  /** Accessible name for the trigger button */
+  label: string;
+  /** Extra classes for the trigger button */
+  triggerClassName?: string | ((open: boolean) => string);
+  /** Trigger button contents */
+  trigger: ReactNode;
+  /** Menu panel width / extra classes */
   menuClassName?: string;
   align?: "right" | "left";
+  children: (args: { close: () => void }) => ReactNode;
 };
 
 /**
  * Header dropdown that portals to document.body with fixed positioning.
- * Avoids sticky-header / overflow-x clipping that hides absolute menus.
+ * Avoids sticky-header / overflow clipping that hides absolute menus.
+ * Only portals after mount (SSR-safe).
  */
-export function HeaderMenu({ trigger, children, menuClassName, align = "right" }: HeaderMenuProps) {
+export function HeaderMenu({
+  label,
+  triggerClassName,
+  trigger,
+  menuClassName,
+  align = "right",
+  children,
+}: HeaderMenuProps) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left?: number; right?: number }>({
@@ -87,42 +89,46 @@ export function HeaderMenu({ trigger, children, menuClassName, align = "right" }
       if (event.key === "Escape") setOpen(false);
     }
 
-    function onReposition() {
-      updatePosition();
-    }
-
     // Defer so the opening click doesn't immediately close.
     const timer = window.setTimeout(() => {
       document.addEventListener("pointerdown", onPointerDown);
     }, 0);
 
     document.addEventListener("keydown", onKey);
-    window.addEventListener("resize", onReposition);
-    window.addEventListener("scroll", onReposition, true);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
 
     return () => {
       window.clearTimeout(timer);
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", onReposition);
-      window.removeEventListener("scroll", onReposition, true);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
   }, [open, updatePosition]);
 
   const close = useCallback(() => setOpen(false), []);
 
-  const triggerProps = {
-    ref: triggerRef,
-    "aria-expanded": open,
-    "aria-haspopup": "menu" as const,
-    "aria-controls": menuId,
-    type: "button" as const,
-    onClick: () => setOpen((value) => !value),
-  };
+  const triggerCls =
+    typeof triggerClassName === "function" ? triggerClassName(open) : triggerClassName;
 
   return (
     <>
-      {trigger({ open, setOpen, triggerProps })}
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        className={triggerCls}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((value) => !value);
+        }}
+      >
+        {trigger}
+      </button>
       {mounted && open
         ? createPortal(
             <div
@@ -141,7 +147,7 @@ export function HeaderMenu({ trigger, children, menuClassName, align = "right" }
                 menuClassName,
               )}
             >
-              {children({ close, menuId })}
+              {children({ close })}
             </div>,
             document.body,
           )

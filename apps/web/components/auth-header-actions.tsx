@@ -48,32 +48,30 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
 
   return (
     <HeaderMenu
+      label="Account menu"
       menuClassName="w-40"
-      trigger={({ open, triggerProps }) => (
-        <button
-          {...triggerProps}
-          aria-label="Account menu"
-          className={cn(
-            "ring-border hover:ring-primary/40 focus-visible:ring-primary/50 flex size-8 items-center justify-center overflow-hidden rounded-full ring-1 transition focus-visible:outline-none focus-visible:ring-2",
-            open && "ring-primary/50",
-          )}
-        >
-          {user.image ? (
-            <Image
-              src={user.image}
-              alt=""
-              width={32}
-              height={32}
-              className="pointer-events-none size-8 rounded-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <span className="bg-muted text-muted-foreground pointer-events-none flex size-8 items-center justify-center text-xs font-medium">
-              {initial}
-            </span>
-          )}
-        </button>
-      )}
+      triggerClassName={(open) =>
+        cn(
+          "ring-border hover:ring-primary/40 focus-visible:ring-primary/50 flex size-8 items-center justify-center overflow-hidden rounded-full ring-1 transition focus-visible:outline-none focus-visible:ring-2",
+          open && "ring-primary/50",
+        )
+      }
+      trigger={
+        user.image ? (
+          <Image
+            src={user.image}
+            alt=""
+            width={32}
+            height={32}
+            className="pointer-events-none size-8 rounded-full object-cover"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <span className="bg-muted text-muted-foreground pointer-events-none flex size-8 items-center justify-center text-xs font-medium">
+            {initial}
+          </span>
+        )
+      }
     >
       {({ close }) => (
         <>

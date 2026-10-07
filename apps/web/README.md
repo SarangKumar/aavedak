@@ -101,3 +101,7 @@ apps/web/
 ├── data/                # local.db (gitignored)
 └── public/brand/icon.png
 ```
+
+## Dev notes
+
+If styles vanish after `pnpm build` while `next dev` is running, stop the dev server, `rm -rf apps/web/.next`, and start `pnpm --filter web dev` again. A production build overwrites `.next` and breaks the live CSS URLs.
