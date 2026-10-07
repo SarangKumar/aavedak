@@ -10,6 +10,12 @@ import { Storage, type Bucket } from "@google-cloud/storage";
  * - GCS_CLIENT_EMAIL + GCS_PRIVATE_KEY  (preferred on Vercel)
  * - or GCS_CREDENTIALS_JSON (service-account JSON string)
  * - or GOOGLE_APPLICATION_CREDENTIALS (path to JSON file; local only)
+ *
+ * Vercel: set GCS_PRIVATE_KEY as a quoted value with literal \n escapes, e.g.
+ *   GCS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+ * Do not paste wrapping quotes into the Vercel UI value field (the platform stores
+ * the raw string). If the dashboard value still includes quotes or \\n, normalizePrivateKey
+ * strips/repairs them.
  */
 
 let storage: Storage | null = null;
@@ -24,8 +30,27 @@ export function isGcsConfigured(): boolean {
   return false;
 }
 
-function normalizePrivateKey(raw: string): string {
-  return raw.replace(/\\n/g, "\n").trim();
+/** Repair private keys from .env / Vercel (quotes, \\n vs newlines). */
+export function normalizePrivateKey(raw: string): string {
+  let s = raw.trim();
+  // Strip one layer of wrapping quotes (common when pasting into Vercel or double-encoding)
+  if (
+    (s.startsWith('"') && s.endsWith('"') && s.length >= 2) ||
+    (s.startsWith("'") && s.endsWith("'") && s.length >= 2)
+  ) {
+    s = s.slice(1, -1).trim();
+  }
+  // Collapse escaped newlines (and accidental double-escapes) into real PEM line breaks
+  while (s.includes("\\n")) {
+    s = s.replace(/\\n/g, "\n");
+  }
+  s = s.replace(/\r\n/g, "\n").trim();
+  if (!s.includes("BEGIN PRIVATE KEY") || !s.includes("END PRIVATE KEY")) {
+    throw new Error(
+      "GCS_PRIVATE_KEY is missing PEM headers. Use the private_key from the service-account JSON, with \\n escapes inside quotes.",
+    );
+  }
+  return s;
 }
 
 function getStorage(): Storage {
@@ -102,13 +127,23 @@ export async function uploadResumePdf(
     );
   }
   const file = getBucket().file(objectKey);
-  await file.save(buffer, {
-    resumable: false,
-    contentType,
-    metadata: {
-      cacheControl: "private, max-age=0, no-store",
-    },
-  });
+  try {
+    await file.save(buffer, {
+      resumable: false,
+      contentType,
+      metadata: {
+        cacheControl: "private, max-age=0, no-store",
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/invalid_grant|Invalid JWT Signature/i.test(msg)) {
+      throw new Error(
+        "GCS authentication failed (Invalid JWT Signature). Re-paste GCS_PRIVATE_KEY from a fresh service-account JSON key — the PEM was corrupted or mismatched. On Vercel use quoted \\n escapes, no extra quotes in the UI value.",
+      );
+    }
+    throw err;
+  }
 }
 
 export async function downloadResumePdf(objectKey: string): Promise<Buffer | null> {
