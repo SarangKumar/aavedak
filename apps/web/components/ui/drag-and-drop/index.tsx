@@ -546,7 +546,7 @@ export function DragDropItem({
         data-drop-target={showIndicator ? "" : undefined}
         style={itemStyle}
         className={cn(
-          "border-border bg-card text-card-foreground relative rounded-md border",
+          "border-border bg-card text-card-foreground relative shrink-0 rounded-md border",
           "transition-[opacity,box-shadow,background-color] duration-150 ease-linear",
           "motion-reduce:transition-none",
           !isDisabled && "hover:bg-accent/40",

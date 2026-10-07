@@ -484,7 +484,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                     <section
                       key={status}
                       style={{ width: colWidths[status] ?? 288 }}
-                      className="border-border/70 bg-muted/50 relative flex shrink-0 flex-col rounded-xl border p-2.5"
+                      className="border-border/70 bg-muted/50 relative flex h-[min(75vh,46rem)] shrink-0 flex-col rounded-xl border p-2.5"
                     >
                       <div
                         role="separator"
@@ -510,7 +510,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                       <DragDropList
                         id={status}
                         items={ids.filter((id) => filteredIds.has(id))}
-                        className="max-h-[calc(100vh-14rem)] min-h-40 flex-1 gap-2.5 overflow-y-auto pr-0.5"
+                        className="min-h-0 flex-1 gap-2.5 overflow-y-auto overflow-x-hidden pr-0.5"
                       >
                         {ids
                           .filter((id) => filteredIds.has(id))
@@ -521,11 +521,11 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                               <DragDropItem
                                 key={id}
                                 id={id}
-                                className="border-border/80 bg-card hover:bg-card overflow-hidden p-0 shadow-sm"
+                                className="border-border/80 bg-card hover:bg-card min-h-[7.5rem] shrink-0 overflow-visible p-0 shadow-sm"
                               >
                                 <Card
                                   size="sm"
-                                  className="gap-0 border-0 bg-transparent p-0 shadow-none"
+                                  className="min-h-[7.5rem] shrink-0 gap-0 border-0 bg-transparent p-0 shadow-none"
                                 >
                                   <CardHeader className="gap-1 p-3 pb-2">
                                     <CardTitle className="pr-8 text-[13px] font-semibold leading-snug">

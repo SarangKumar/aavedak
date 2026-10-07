@@ -14,7 +14,6 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
-import { useShellDensity } from "@/components/shell-density-provider";
 import { authClient } from "@/lib/auth-client";
 import { themeCookieString, THEME_KEY, type ThemeMode } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -23,7 +22,6 @@ export function CommandPalette() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const signedIn = Boolean(session?.user);
-  const { setDensity } = useShellDensity();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -150,35 +148,6 @@ export function CommandPalette() {
                 </CommandItem>
               </CommandGroup>
             ) : null}
-            <CommandGroup heading="Layout">
-              <CommandItem
-                value="width wide"
-                onClick={() => {
-                  setDensity("wide");
-                  setOpen(false);
-                }}
-              >
-                Width: Wide
-              </CommandItem>
-              <CommandItem
-                value="width medium"
-                onClick={() => {
-                  setDensity("medium");
-                  setOpen(false);
-                }}
-              >
-                Width: Medium
-              </CommandItem>
-              <CommandItem
-                value="width narrow"
-                onClick={() => {
-                  setDensity("narrow");
-                  setOpen(false);
-                }}
-              >
-                Width: Narrow
-              </CommandItem>
-            </CommandGroup>
             <CommandGroup heading="Theme">
               <CommandItem value="dark theme" onClick={() => setTheme("dark")}>
                 Dark theme

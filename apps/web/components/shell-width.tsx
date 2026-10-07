@@ -1,9 +1,7 @@
-"use client";
-
-import { useShellDensity } from "@/components/shell-density-provider";
+import { SHELL_X } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
-/** Applies the active shell density max-width + horizontal padding. */
+/** Applies the wide shell max-width + horizontal padding. */
 export function ShellWidth({
   className,
   children,
@@ -13,6 +11,5 @@ export function ShellWidth({
   children: React.ReactNode;
   as?: "div" | "header" | "footer" | "section";
 }) {
-  const { shellX } = useShellDensity();
-  return <Comp className={cn("mx-auto w-full", shellX, className)}>{children}</Comp>;
+  return <Comp className={cn("mx-auto w-full", SHELL_X, className)}>{children}</Comp>;
 }

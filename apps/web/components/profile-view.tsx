@@ -28,11 +28,6 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
   return (
     <ShellWidth className="avsar-fade-up space-y-5 py-8 sm:py-10">
       <div className="border-border/80 bg-card/80 ring-ring/10 relative overflow-hidden rounded-2xl border p-5 shadow-sm ring-1 sm:p-6">
-        <div
-          className="pointer-events-none absolute -top-20 right-0 size-44 rounded-full opacity-40 blur-3xl"
-          style={{ background: "var(--glow)" }}
-          aria-hidden
-        />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3.5">
             <Avatar className="size-14 sm:size-16">

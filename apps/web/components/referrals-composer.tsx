@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +64,12 @@ type ColumnId = "applications" | "template" | "people";
 
 const DEFAULT_ORDER: ColumnId[] = ["applications", "template", "people"];
 const STORAGE_KEY = "arambh-referrals-column-order";
+const WIDTHS_KEY = "arambh-referrals-column-widths";
+const DEFAULT_WIDTHS: Record<ColumnId, number> = {
+  applications: 320,
+  template: 420,
+  people: 320,
+};
 
 const COLUMN_META: Record<ColumnId, { title: string; blurb: string }> = {
   applications: { title: "Applications", blurb: "Context for {{company}} / {{role}}" },
@@ -103,6 +110,25 @@ function loadColumnOrder(): ColumnId[] {
   }
 }
 
+function loadColumnWidths(): Record<ColumnId, number> {
+  if (typeof window === "undefined") return { ...DEFAULT_WIDTHS };
+  try {
+    const raw = localStorage.getItem(WIDTHS_KEY);
+    if (!raw) return { ...DEFAULT_WIDTHS };
+    const parsed = JSON.parse(raw) as Partial<Record<ColumnId, number>>;
+    return {
+      applications: Math.min(
+        640,
+        Math.max(240, Number(parsed.applications) || DEFAULT_WIDTHS.applications),
+      ),
+      template: Math.min(720, Math.max(280, Number(parsed.template) || DEFAULT_WIDTHS.template)),
+      people: Math.min(640, Math.max(240, Number(parsed.people) || DEFAULT_WIDTHS.people)),
+    };
+  } catch {
+    return { ...DEFAULT_WIDTHS };
+  }
+}
+
 export function ReferralsComposer({
   userEmail,
   userName,
@@ -135,6 +161,14 @@ export function ReferralsComposer({
   const [notice, setNotice] = useState<string | null>(null);
 
   const [manageOpen, setManageOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [colWidths, setColWidths] = useState<Record<ColumnId, number>>(DEFAULT_WIDTHS);
+  const [tplDraft, setTplDraft] = useState({
+    id: null as string | null,
+    title: "",
+    body: "",
+    kind: "outreach" as "outreach" | "cover" | "other",
+  });
   const [personDraft, setPersonDraft] = useState({
     name: "",
     email: "",
@@ -144,6 +178,7 @@ export function ReferralsComposer({
 
   useEffect(() => {
     setColumnOrder(loadColumnOrder());
+    setColWidths(loadColumnWidths());
   }, []);
 
   useEffect(() => {
@@ -179,6 +214,107 @@ export function ReferralsComposer({
       /* ignore */
     }
   }, []);
+
+  const persistWidths = useCallback((next: Record<ColumnId, number>) => {
+    setColWidths(next);
+    try {
+      localStorage.setItem(WIDTHS_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function startResize(id: ColumnId, startX: number, startW: number) {
+    function onMove(e: MouseEvent) {
+      const w = Math.min(720, Math.max(240, startW + (e.clientX - startX)));
+      setColWidths((prev) => {
+        const next = { ...prev, [id]: w };
+        try {
+          localStorage.setItem(WIDTHS_KEY, JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
+        return next;
+      });
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  async function saveManagedTemplate() {
+    if (!tplDraft.title.trim()) {
+      setError("Template title is required.");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      if (tplDraft.id) {
+        const res = await fetch(`/api/templates/${tplDraft.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: tplDraft.title.trim(),
+            body: tplDraft.body,
+            kind: tplDraft.kind,
+          }),
+        });
+        const data = (await res.json()) as { template?: TemplateDto; error?: string };
+        if (!res.ok) throw new Error(data.error || "Could not update template.");
+        if (data.template) {
+          setTemplates((list) =>
+            list.map((t) => (t.id === data.template!.id ? data.template! : t)),
+          );
+        }
+      } else {
+        const res = await fetch("/api/templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: tplDraft.title.trim(),
+            body: tplDraft.body,
+            kind: tplDraft.kind,
+          }),
+        });
+        const data = (await res.json()) as { template?: TemplateDto; error?: string };
+        if (!res.ok) throw new Error(data.error || "Could not create template.");
+        if (data.template) {
+          setTemplates((list) => [data.template!, ...list]);
+          setSelectedTemplateId(data.template.id);
+        }
+      }
+      setTplDraft({ id: null, title: "", body: "", kind: "outreach" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save template.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function archiveManagedTemplate(id: string) {
+    setPending(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/templates/${id}`, { method: "DELETE" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not archive template.");
+      setTemplates((list) => list.filter((t) => t.id !== id));
+      if (selectedTemplateId === id) {
+        setSelectedTemplateId(null);
+      }
+      if (tplDraft.id === id) {
+        setTplDraft({ id: null, title: "", body: "", kind: "outreach" });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not archive template.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   function onColDragStart(id: ColumnId) {
     setDragCol(id);
@@ -335,16 +471,27 @@ export function ReferralsComposer({
         key={id}
         onDragOver={(e) => e.preventDefault()}
         onDrop={() => onColDrop(id)}
+        style={{ width: colWidths[id] ?? DEFAULT_WIDTHS[id] }}
         className={cn(
-          "border-border/80 bg-card/90 flex min-h-[28rem] min-w-0 flex-1 flex-col rounded-2xl border shadow-sm",
+          "border-border/80 bg-card/90 relative flex h-[min(70vh,40rem)] shrink-0 flex-col rounded-2xl border shadow-sm",
           dragCol === id && "ring-primary/40 opacity-70 ring-2",
         )}
       >
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={`Resize ${meta.title} column`}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            startResize(id, e.clientX, colWidths[id] ?? DEFAULT_WIDTHS[id]);
+          }}
+          className="hover:bg-primary/40 absolute bottom-2 right-0 top-2 z-10 w-1.5 cursor-col-resize rounded-full bg-transparent"
+        />
         <header
           draggable
           onDragStart={() => onColDragStart(id)}
           onDragEnd={() => setDragCol(null)}
-          className="border-border/60 flex cursor-grab items-start justify-between gap-2 border-b px-3 py-2.5 active:cursor-grabbing"
+          className="border-border/60 flex shrink-0 cursor-grab items-start justify-between gap-2 border-b px-3 py-2.5 active:cursor-grabbing"
         >
           <div className="min-w-0">
             <p className="text-foreground text-[13px] font-semibold tracking-tight">{meta.title}</p>
@@ -355,7 +502,7 @@ export function ReferralsComposer({
           </Badge>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3">
           {id === "applications" ? (
             <ul className="space-y-1.5">
               {applications.length === 0 ? (
@@ -402,24 +549,36 @@ export function ReferralsComposer({
                   className="border-border bg-muted/40 text-foreground h-8 w-full cursor-not-allowed rounded-lg border px-2.5 text-[12px]"
                 />
               </label>
-              <label className="block space-y-1">
-                <span className="text-muted-foreground text-[11px] font-medium">Template</span>
-                <Select
-                  value={selectedTemplateId ?? undefined}
-                  onValueChange={(v) => setSelectedTemplateId(v || null)}
+              <div className="flex items-end justify-between gap-2">
+                <label className="block min-w-0 flex-1 space-y-1">
+                  <span className="text-muted-foreground text-[11px] font-medium">Template</span>
+                  <Select
+                    value={selectedTemplateId ?? undefined}
+                    onValueChange={(v) => setSelectedTemplateId(v || null)}
+                  >
+                    <SelectTrigger className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2 text-[12px]">
+                      <SelectValue placeholder="Template" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[240]">
+                      {templates.map((tpl) => (
+                        <SelectItem key={tpl.id} value={tpl.id}>
+                          {tpl.title} ({tpl.kind})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTplDraft({ id: null, title: "", body: "", kind: "outreach" });
+                    setTemplatesOpen(true);
+                  }}
+                  className="text-primary mb-0.5 shrink-0 text-[11px] font-medium hover:underline"
                 >
-                  <SelectTrigger className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2 text-[12px]">
-                    <SelectValue placeholder="Template" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[240]">
-                    {templates.map((tpl) => (
-                      <SelectItem key={tpl.id} value={tpl.id}>
-                        {tpl.title} ({tpl.kind})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
+                  Manage templates
+                </button>
+              </div>
               <label className="block space-y-1">
                 <span className="text-muted-foreground text-[11px] font-medium">Subject</span>
                 <input
@@ -540,7 +699,10 @@ export function ReferralsComposer({
           ) : null}
           <button
             type="button"
-            onClick={() => persistOrder(DEFAULT_ORDER)}
+            onClick={() => {
+              persistOrder(DEFAULT_ORDER);
+              persistWidths({ ...DEFAULT_WIDTHS });
+            }}
             className="border-border bg-card/70 text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
           >
             Reset columns
@@ -551,7 +713,7 @@ export function ReferralsComposer({
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
       {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
+      <div className="flex gap-3 overflow-x-auto pb-1">
         {columnOrder.map((id) => renderColumn(id))}
       </div>
 
@@ -652,6 +814,129 @@ export function ReferralsComposer({
               />
             </label>
           ))}
+        </div>
+      </Modal>
+
+      <Modal
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        title="Mail templates"
+        description="Add, edit, or archive cold-email templates. Also available under Documents → Templates."
+        footer={
+          <>
+            <Link
+              href="/documents"
+              className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+            >
+              Open Documents
+            </Link>
+            <button
+              type="button"
+              onClick={() => setTemplatesOpen(false)}
+              className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => void saveManagedTemplate()}
+              className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
+            >
+              {pending ? "Saving…" : tplDraft.id ? "Update template" : "Add template"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <input
+              value={tplDraft.title}
+              onChange={(e) => setTplDraft((d) => ({ ...d, title: e.target.value }))}
+              placeholder="Title"
+              className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px]"
+            />
+            <Select
+              value={tplDraft.kind}
+              onValueChange={(v) =>
+                setTplDraft((d) => ({
+                  ...d,
+                  kind: (v as "outreach" | "cover" | "other") || "outreach",
+                }))
+              }
+            >
+              <SelectTrigger className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2 text-[12px]">
+                <SelectValue placeholder="Kind" />
+              </SelectTrigger>
+              <SelectContent className="z-[260]">
+                <SelectItem value="outreach">Outreach</SelectItem>
+                <SelectItem value="cover">Cover</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+            <textarea
+              value={tplDraft.body}
+              onChange={(e) => setTplDraft((d) => ({ ...d, body: e.target.value }))}
+              placeholder="Body — use {{company}}, {{role}}, {{person_name}}, …"
+              rows={6}
+              className="border-border bg-background text-foreground w-full rounded-lg border px-2.5 py-2 font-mono text-[11px] leading-relaxed"
+            />
+            {tplDraft.id ? (
+              <button
+                type="button"
+                onClick={() => setTplDraft({ id: null, title: "", body: "", kind: "outreach" })}
+                className="text-muted-foreground text-[11px] hover:underline"
+              >
+                Cancel edit — start new
+              </button>
+            ) : null}
+          </div>
+
+          <ul className="border-border/70 max-h-48 space-y-1.5 overflow-y-auto rounded-xl border p-2">
+            {templates.length === 0 ? (
+              <li className="text-muted-foreground px-1 py-3 text-center text-[12px]">
+                No templates yet.
+              </li>
+            ) : (
+              templates.map((tpl) => (
+                <li
+                  key={tpl.id}
+                  className="border-border/60 bg-muted/30 flex items-start justify-between gap-2 rounded-lg border px-2 py-1.5"
+                >
+                  <div className="min-w-0">
+                    <p className="text-foreground truncate text-[12px] font-medium">
+                      {tpl.title}
+                      <span className="text-muted-foreground ml-1 text-[10px]">({tpl.kind})</span>
+                    </p>
+                    <p className="text-muted-foreground line-clamp-1 text-[10px]">{tpl.body}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTplDraft({
+                          id: tpl.id,
+                          title: tpl.title,
+                          body: tpl.body,
+                          kind: tpl.kind,
+                        })
+                      }
+                      className="border-border text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void archiveManagedTemplate(tpl.id)}
+                      className="border-border text-muted-foreground hover:text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
+                    >
+                      Archive
+                    </button>
+                  </div>
+                </li>
+              ))
+            )}
+          </ul>
         </div>
       </Modal>
     </ShellWidth>

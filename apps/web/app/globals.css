@@ -122,10 +122,7 @@
   }
 
   body {
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, var(--glow), transparent),
-      radial-gradient(ellipse 40% 30% at 100% 0%, var(--mesh-b), transparent);
-    background-attachment: fixed;
+    background-image: none;
   }
 
   /* Keep horizontal scroll off without making body a clip/scroll container

@@ -5,9 +5,8 @@ import Link from "next/link";
 
 import { AuthHeaderActions, type HeaderUser } from "@/components/auth-header-actions";
 import { MobileNav } from "@/components/mobile-nav";
-import { useShellDensity } from "@/components/shell-density-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
-import type { ShellDensity } from "@/lib/layout";
+import { SHELL_X } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -18,25 +17,16 @@ const nav = [
   { href: "/referrals", label: "Referrals" },
 ] as const;
 
-const DENSITY_CYCLE: ShellDensity[] = ["wide", "medium", "narrow"];
-
 type SiteHeaderBarProps = {
   user: HeaderUser | null;
 };
 
 export function SiteHeaderBar({ user }: SiteHeaderBarProps) {
-  const { density, setDensity, shellX } = useShellDensity();
-
-  function cycleDensity() {
-    const i = DENSITY_CYCLE.indexOf(density);
-    setDensity(DENSITY_CYCLE[(i + 1) % DENSITY_CYCLE.length]!);
-  }
-
   return (
     <div
       className={cn(
         "relative mx-auto flex h-12 w-full items-center gap-2.5 overflow-visible sm:gap-3",
-        shellX,
+        SHELL_X,
       )}
     >
       <MobileNav items={[...nav]} />
@@ -70,15 +60,6 @@ export function SiteHeaderBar({ user }: SiteHeaderBarProps) {
       </nav>
 
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-        <button
-          type="button"
-          onClick={cycleDensity}
-          title={`Content width: ${density} (click to cycle)`}
-          aria-label={`Content width ${density}. Click to cycle wide, medium, narrow.`}
-          className="border-border bg-card/70 text-muted-foreground hover:text-foreground hidden h-8 items-center rounded-lg border px-2 text-[11px] font-medium sm:inline-flex"
-        >
-          {density === "wide" ? "Wide" : density === "medium" ? "Medium" : "Narrow"}
-        </button>
         <ThemeToggle />
         <AuthHeaderActions user={user} />
       </div>

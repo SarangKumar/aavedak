@@ -48,20 +48,13 @@ const features = [
 
 export default function HomePage() {
   return (
-    <div className="relative overflow-hidden">
-      <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-90" aria-hidden />
-
+    <div className="relative">
       <div className="relative mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-16 lg:py-20">
         <section
           className="avsar-fade-up flex flex-col items-center px-1 text-center sm:px-0"
           aria-labelledby="hero-heading"
         >
           <div className="relative mb-5 sm:mb-6">
-            <div
-              className="absolute inset-[-20%] rounded-[2rem] opacity-70 blur-3xl"
-              style={{ background: "var(--glow)" }}
-              aria-hidden
-            />
             <Image
               src="/brand/logo-icon.png"
               alt="Arambh — stylized golden A mark"

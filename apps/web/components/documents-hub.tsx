@@ -280,7 +280,7 @@ export function DocumentsHub({
           [
             { id: "resumes", label: "Resumes" },
             { id: "cover_letters", label: "Cover letters" },
-            { id: "templates", label: "Templates" },
+            { id: "templates", label: "Mail templates" },
           ] as const
         ).map((item) => (
           <button
@@ -516,6 +516,9 @@ export function DocumentsHub({
       {tab === "templates" ? (
         <section className="space-y-4">
           <div className="border-border/80 bg-card/70 space-y-2.5 rounded-2xl border p-4">
+            <p className="text-muted-foreground text-[12px] leading-relaxed">
+              Cold-email / outreach templates used on Referrals. Add, edit, or archive here.
+            </p>
             <p className="text-foreground text-[12px] font-medium">
               {editingTplId ? "Edit template" : "New template"}
             </p>
