@@ -434,7 +434,7 @@ export function ReferralsComposer({
           minWidth: 240,
         }}
         className={cn(
-          "border-border/80 bg-card relative flex h-[min(70vh,calc(40rem+40px))] min-w-0 flex-col rounded-xl border shadow-sm",
+          "border-border/80 bg-card relative flex h-[min(70vh,42rem)] min-w-0 flex-col rounded-xl border shadow-sm",
           dragCol === id && "ring-primary/40 opacity-70 ring-2",
         )}
       >
@@ -853,7 +853,7 @@ export function ReferralsComposer({
         <div
           role="status"
           aria-live="polite"
-          className="border-border bg-card fixed bottom-4 left-1/2 z-[300] flex w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-xl border px-3.5 py-3 shadow-lg"
+          className="border-border bg-card fixed bottom-4 right-4 z-[300] flex w-[min(28rem,calc(100vw-2rem))] items-center gap-3 rounded-xl border px-3.5 py-3 shadow-lg"
         >
           <div className="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-lg">
             <span className="aavedak-display text-lg tabular-nums leading-none">{countdown}</span>

@@ -31,8 +31,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const resumeId = typeof body.resumeId === "string" ? body.resumeId : "";
   const jdText = typeof body.jdText === "string" ? body.jdText : "";
+  const scoreAll = body.scoreAll === true;
+  const resumeId = typeof body.resumeId === "string" ? body.resumeId : "";
+
+  if (scoreAll) {
+    if (!jdText.trim()) {
+      return NextResponse.json({ error: "Job description is required." }, { status: 400 });
+    }
+    const resumes = await listResumes(authResult.user.id);
+    const results = resumes.map((resume) => {
+      const excerpt = resume.textExcerpt || "";
+      const againstJd = scoreResumeAgainstJd(excerpt, jdText);
+      return {
+        resumeId: resume.id,
+        displayName: resume.displayName,
+        status: resume.status,
+        readiness: scoreResumeAtsReadiness(excerpt),
+        againstJd,
+      };
+    });
+    return NextResponse.json({ results });
+  }
+
   const resume = resumeId
     ? await getResume(authResult.user.id, resumeId)
     : await getActiveResume(authResult.user.id);

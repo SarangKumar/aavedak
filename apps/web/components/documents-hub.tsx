@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
+import { AlertDialog } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileUpload,
@@ -174,6 +175,8 @@ export function DocumentsHub({
   const [pending, setPending] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
   const [atsScoringIds, setAtsScoringIds] = useState<Set<string>>(() => new Set());
+  const [deleteTarget, setDeleteTarget] = useState<ResumeDto | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
 
   // Resume upload state
   const [displayName, setDisplayName] = useState("Primary Resume");
@@ -347,7 +350,9 @@ export function DocumentsHub({
       if (!res.ok) throw new Error(data.error || "ATS scoring failed.");
       if (data.resume) {
         setResumes((list) =>
-          list.map((r) => (r.id === resumeId ? { ...r, ...data.resume!, atsScore: data.resume!.atsScore } : r)),
+          list.map((r) =>
+            r.id === resumeId ? { ...r, ...data.resume!, atsScore: data.resume!.atsScore } : r,
+          ),
         );
       } else {
         await refreshResumes();
@@ -405,16 +410,22 @@ export function DocumentsHub({
     await refreshResumes();
   }
 
-  async function deleteInactiveResume(id: string) {
+  async function confirmDeleteInactiveResume() {
+    if (!deleteTarget) return;
     setError(null);
-    if (!window.confirm("Permanently delete this inactive resume and its PDF?")) return;
-    const res = await fetch(`/api/resumes/${id}?permanent=1`, { method: "DELETE" });
-    const data = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      setError(data.error || "Could not delete resume.");
-      return;
+    setDeletePending(true);
+    try {
+      const res = await fetch(`/api/resumes/${deleteTarget.id}?permanent=1`, { method: "DELETE" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error || "Could not delete resume.");
+        return;
+      }
+      setDeleteTarget(null);
+      await refreshResumes();
+    } finally {
+      setDeletePending(false);
     }
-    await refreshResumes();
   }
 
   async function archiveResume(id: string) {
@@ -684,7 +695,7 @@ export function DocumentsHub({
                       {resume.status === "inactive" ? (
                         <button
                           type="button"
-                          onClick={() => void deleteInactiveResume(resume.id)}
+                          onClick={() => setDeleteTarget(resume)}
                           className="border-border text-destructive hover:bg-destructive/10 inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                         >
                           Delete permanently
@@ -1009,6 +1020,42 @@ export function DocumentsHub({
           />
         </section>
       ) : null}
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onClose={() => {
+          if (!deletePending) setDeleteTarget(null);
+        }}
+        title="Delete resume permanently?"
+        description="This removes the PDF from storage and cannot be undone. Active showcase resumes cannot be deleted."
+        footer={
+          <>
+            <button
+              type="button"
+              disabled={deletePending}
+              onClick={() => setDeleteTarget(null)}
+              className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px] disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={deletePending}
+              onClick={() => void confirmDeleteInactiveResume()}
+              className="bg-destructive inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold text-white disabled:opacity-50"
+            >
+              {deletePending ? "Deleting…" : "Delete permanently"}
+            </button>
+          </>
+        }
+      >
+        {deleteTarget ? (
+          <p className="text-muted-foreground text-[13px] leading-relaxed">
+            Delete <span className="text-foreground font-medium">{deleteTarget.displayName}</span> (
+            {deleteTarget.originalFilename})?
+          </p>
+        ) : null}
+      </AlertDialog>
     </ShellWidth>
   );
 }
