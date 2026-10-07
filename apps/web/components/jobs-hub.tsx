@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 
-import { JOB_SOURCES, type JobSource } from "@/lib/jobs";
+import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
 import { cn } from "@/lib/utils";
 
 export type JobDto = {

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { getAppDb } from "@/lib/app-db";
 import { usernameFromUser } from "@/lib/username";
 

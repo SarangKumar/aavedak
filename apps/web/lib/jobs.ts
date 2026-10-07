@@ -1,11 +1,11 @@
+import "server-only";
+
 import { randomUUID } from "node:crypto";
 
 import { getAppDb } from "@/lib/app-db";
+import { JOB_SOURCES, isJobSource, type JobSource, type JobStatus } from "@/lib/job-constants";
 
-export const JOB_SOURCES = ["manual", "linkedin", "careers", "indeed", "other", "demo"] as const;
-
-export type JobSource = (typeof JOB_SOURCES)[number];
-export type JobStatus = "active" | "archived";
+export { JOB_SOURCES, isJobSource, type JobSource, type JobStatus };
 
 export type JobRecord = {
   id: string;
