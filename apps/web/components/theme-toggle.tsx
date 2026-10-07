@@ -3,16 +3,26 @@
 import { useEffect, useState } from "react";
 
 import { HeaderMenu } from "@/components/header-menu";
+import { parseThemeMode, themeCookieString, THEME_KEY, type ThemeMode } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-
-export type ThemeMode = "light" | "dark" | "system";
-
-const STORAGE_KEY = "avsar-theme";
 
 function resolveDark(mode: ThemeMode): boolean {
   if (mode === "dark") return true;
   if (mode === "light") return false;
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function persistTheme(mode: ThemeMode) {
+  try {
+    localStorage.setItem(THEME_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+  try {
+    document.cookie = themeCookieString(mode);
+  } catch {
+    /* ignore */
+  }
 }
 
 function applyTheme(mode: ThemeMode) {
@@ -21,12 +31,19 @@ function applyTheme(mode: ThemeMode) {
   root.classList.toggle("dark", dark);
   root.style.colorScheme = dark ? "dark" : "light";
   root.dataset.theme = mode;
+  persistTheme(mode);
 }
 
-export function readStoredTheme(): ThemeMode {
+function readStoredTheme(): ThemeMode {
   try {
-    const value = localStorage.getItem(STORAGE_KEY);
+    const value = localStorage.getItem(THEME_KEY);
     if (value === "light" || value === "dark" || value === "system") return value;
+  } catch {
+    /* ignore */
+  }
+  try {
+    const match = document.cookie.match(/(?:^|; )avsar-theme=([^;]+)/);
+    if (match) return parseThemeMode(decodeURIComponent(match[1]));
   } catch {
     /* ignore */
   }
@@ -112,11 +129,6 @@ export function ThemeToggle({ className }: { className?: string }) {
   function select(next: ThemeMode, close: () => void) {
     setMode(next);
     setIconKey((k) => k + 1);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      /* ignore */
-    }
     applyTheme(next);
     close();
   }

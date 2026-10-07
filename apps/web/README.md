@@ -102,6 +102,12 @@ apps/web/
 └── public/brand/icon.png
 ```
 
+## Theme (FOUC)
+
+Theme preference is stored in both `localStorage` and the `avsar-theme` cookie (`light` | `dark` | `system`). The root layout reads the cookie on the server so `<html class="dark">` and `color-scheme` match on first paint. A blocking inline script in `<head>` is the client backup. Dark is the brand default when preference is unknown.
+
+Hydration warnings mentioning `data-gr-ext-installed` / `data-new-gr-c-s-check-loaded` come from browser extensions (e.g. Grammarly), not the app — `<html>` and `<body>` use `suppressHydrationWarning` for that.
+
 ## Dev notes
 
 If styles vanish after `pnpm build` while `next dev` is running, stop the dev server, `rm -rf apps/web/.next`, and start `pnpm --filter web dev` again. A production build overwrites `.next` and breaks the live CSS URLs.

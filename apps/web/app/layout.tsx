@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
+import { cookies, headers } from "next/headers";
 
 import { AppShell } from "@/components/app-shell";
 import { themeInitScript } from "@/lib/theme-script";
+import { parseThemeMode, serverPrefersDark, THEME_KEY } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
 import "./globals.css";
 
@@ -88,7 +90,7 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#F5F5F0" },
     { media: "(prefers-color-scheme: dark)", color: "#090909" },
   ],
-  colorScheme: "light dark",
+  colorScheme: "dark light",
 };
 
 const jsonLd = {
@@ -122,17 +124,36 @@ const jsonLd = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const headerStore = await headers();
+  const themeMode = parseThemeMode(cookieStore.get(THEME_KEY)?.value);
+  const prefersHeader = headerStore.get("sec-ch-prefers-color-scheme");
+  const isDark = serverPrefersDark(themeMode, prefersHeader);
+
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full`}
+      className={cn(geistSans.variable, geistMono.variable, "h-full", isDark && "dark")}
+      style={{ colorScheme: isDark ? "dark" : "light" }}
+      data-theme={themeMode}
+      // Theme class may differ slightly from SSR when cookie is "system" and CH hint is missing;
+      // also absorbs browser extension attrs mutating <html>.
       suppressHydrationWarning
     >
-      <body className="bg-background text-foreground min-h-screen font-sans text-[15px] antialiased">
-        <Script id="avsar-theme-init" strategy="beforeInteractive">
-          {themeInitScript}
-        </Script>
+      <head>
+        {/* Blocking theme sync before first paint (cookie SSR is primary; this is the client backup). */}
+        <script id="avsar-theme-init" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      {/*
+        suppressHydrationWarning: browser extensions (e.g. Grammarly) inject attributes like
+        data-new-gr-c-s-check-loaded / data-gr-ext-installed on <body>. That is not an app bug.
+        html already has suppressHydrationWarning for theme class sync.
+      */}
+      <body
+        className="bg-background text-foreground min-h-screen font-sans text-[15px] antialiased"
+        suppressHydrationWarning
+      >
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
