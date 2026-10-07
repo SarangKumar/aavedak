@@ -15,6 +15,9 @@ function toDto(row: Awaited<ReturnType<typeof listCoverLetters>>[number]) {
     title: row.title,
     body: row.body,
     applicationId: row.applicationId,
+    jobId: row.jobId,
+    companyName: row.companyName,
+    roleTitle: row.roleTitle,
     status: row.status,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -43,6 +46,9 @@ export async function POST(request: Request) {
       title: String(body.title ?? ""),
       body: typeof body.body === "string" ? body.body : "",
       applicationId: (body.applicationId as string | null | undefined) ?? null,
+      jobId: (body.jobId as string | null | undefined) ?? null,
+      companyName: (body.companyName as string | null | undefined) ?? null,
+      roleTitle: (body.roleTitle as string | null | undefined) ?? null,
     });
     return NextResponse.json({ coverLetter: toDto(coverLetter) }, { status: 201 });
   } catch (err) {

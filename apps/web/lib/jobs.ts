@@ -3,41 +3,54 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
+import { ensureCompany } from "@/lib/companies";
 import { JOB_SOURCES, isJobSource, type JobSource, type JobStatus } from "@/lib/job-constants";
 
 export { JOB_SOURCES, isJobSource, type JobSource, type JobStatus };
 
 export type JobRecord = {
   id: string;
-  userId: string;
+  /** Null = shared feed / global ingest job. */
+  userId: string | null;
   title: string;
   company: string;
+  companyId: string | null;
   location: string;
   source: JobSource;
   url: string | null;
   description: string;
   salary: string | null;
   status: JobStatus;
+  externalId: string | null;
+  feedSource: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
+export type UserJobState = {
+  ignored: boolean;
+  applicationId: string | null;
+};
+
 type Row = {
   id: string;
-  user_id: string;
+  user_id: string | null;
   title: string;
   company: string;
+  company_id: string | null;
   location: string;
   source: string;
   url: string | null;
   description: string;
   salary: string | null;
   status: JobStatus;
+  external_id: string | null;
+  feed_source: string | null;
   created_at: string;
   updated_at: string;
 };
 
-function mapRow(row: Row): JobRecord {
+export function mapJobRow(row: Row): JobRecord {
   const source = (JOB_SOURCES as readonly string[]).includes(row.source)
     ? (row.source as JobSource)
     : "other";
@@ -46,12 +59,15 @@ function mapRow(row: Row): JobRecord {
     userId: row.user_id,
     title: row.title,
     company: row.company,
+    companyId: row.company_id,
     location: row.location,
     source,
     url: row.url,
-    description: row.description,
+    description: row.description ?? "",
     salary: row.salary,
     status: row.status,
+    externalId: row.external_id,
+    feedSource: row.feed_source,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -78,41 +94,116 @@ function parseSource(value: unknown): JobSource {
   return "manual";
 }
 
-export async function listJobs(
+export async function getJobById(id: string): Promise<JobRecord | null> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT * FROM jobs WHERE id = ${id} LIMIT 1
+  `) as Row[];
+  return rows[0] ? mapJobRow(rows[0]) : null;
+}
+
+export async function getJob(userId: string, id: string): Promise<JobRecord | null> {
+  const job = await getJobById(id);
+  if (!job) return null;
+  if (job.userId === null || job.userId === userId) return job;
+  return null;
+}
+
+export async function getUserJobState(
   userId: string,
-  opts?: { includeArchived?: boolean },
+  jobId: string,
+): Promise<UserJobState | null> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT ignored, application_id FROM user_job_state
+    WHERE user_id = ${userId} AND job_id = ${jobId}
+  `) as Array<{ ignored: number; application_id: string | null }>;
+  if (!rows[0]) return null;
+  return {
+    ignored: Boolean(rows[0].ignored),
+    applicationId: rows[0].application_id,
+  };
+}
+
+export async function setJobIgnored(userId: string, jobId: string, ignored: boolean): Promise<void> {
+  await ensureAppSchema();
+  const now = new Date().toISOString();
+  const flag = ignored ? 1 : 0;
+  await getSql()`
+    INSERT INTO user_job_state (user_id, job_id, ignored, application_id, updated_at)
+    VALUES (${userId}, ${jobId}, ${flag}, NULL, ${now})
+    ON CONFLICT (user_id, job_id) DO UPDATE SET
+      ignored = ${flag},
+      updated_at = ${now}
+  `;
+}
+
+export async function setJobApplicationLink(
+  userId: string,
+  jobId: string,
+  applicationId: string,
+): Promise<void> {
+  await ensureAppSchema();
+  const now = new Date().toISOString();
+  await getSql()`
+    INSERT INTO user_job_state (user_id, job_id, ignored, application_id, updated_at)
+    VALUES (${userId}, ${jobId}, 0, ${applicationId}, ${now})
+    ON CONFLICT (user_id, job_id) DO UPDATE SET
+      application_id = ${applicationId},
+      ignored = 0,
+      updated_at = ${now}
+  `;
+}
+
+export async function listIgnoredJobIds(userId: string): Promise<Set<string>> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT job_id FROM user_job_state WHERE user_id = ${userId} AND ignored = 1
+  `) as Array<{ job_id: string }>;
+  return new Set(rows.map((r) => r.job_id));
+}
+
+/** Jobs visible on Jobs page: shared feed + user's own, minus ignored (unless includeIgnored). */
+export async function listJobsForUser(
+  userId: string,
+  opts?: { includeArchived?: boolean; includeIgnored?: boolean },
 ): Promise<JobRecord[]> {
   await ensureAppSchema();
   const includeArchived = opts?.includeArchived ?? false;
   const rows = includeArchived
     ? ((await getSql()`
-        SELECT * FROM jobs WHERE user_id = ${userId} ORDER BY updated_at DESC
+        SELECT * FROM jobs
+        WHERE user_id IS NULL OR user_id = ${userId}
+        ORDER BY updated_at DESC
       `) as Row[])
     : ((await getSql()`
-        SELECT * FROM jobs WHERE user_id = ${userId} AND status != 'archived'
+        SELECT * FROM jobs
+        WHERE (user_id IS NULL OR user_id = ${userId}) AND status != 'archived'
         ORDER BY updated_at DESC
       `) as Row[]);
-  return rows.map(mapRow);
+
+  let jobs = rows.map(mapJobRow);
+  if (!opts?.includeIgnored) {
+    const ignored = await listIgnoredJobIds(userId);
+    jobs = jobs.filter((j) => !ignored.has(j.id));
+  }
+  return jobs;
 }
 
-export async function getJob(userId: string, id: string): Promise<JobRecord | null> {
-  await ensureAppSchema();
-  const rows = (await getSql()`
-    SELECT * FROM jobs WHERE id = ${id} AND user_id = ${userId}
-  `) as Row[];
-  return rows[0] ? mapRow(rows[0]) : null;
+/** @deprecated Prefer listJobsForUser — kept for older call sites. */
+export async function listJobs(
+  userId: string,
+  opts?: { includeArchived?: boolean },
+): Promise<JobRecord[]> {
+  return listJobsForUser(userId, opts);
 }
 
 export async function countJobs(userId: string): Promise<number> {
-  await ensureAppSchema();
-  const rows = (await getSql()`
-    SELECT COUNT(*)::int AS n FROM jobs WHERE user_id = ${userId} AND status != 'archived'
-  `) as Array<{ n: number }>;
-  return Number(rows[0]?.n) || 0;
+  return (await listJobsForUser(userId)).length;
 }
 
 export async function createJob(
-  userId: string,
+  userId: string | null,
   input: {
     title: string;
     company: string;
@@ -121,29 +212,91 @@ export async function createJob(
     url?: string | null;
     description?: string;
     salary?: string | null;
+    externalId?: string | null;
+    feedSource?: string | null;
+    companyId?: string | null;
   },
 ): Promise<JobRecord> {
   await ensureAppSchema();
   const title = requireText(input.title, "Title");
-  const company = requireText(input.company, "Company");
+  const companyName = requireText(input.company, "Company");
   const location = requireText(input.location, "Location");
   const source = parseSource(input.source);
   const url = optional(input.url);
   const description = typeof input.description === "string" ? input.description : "";
   const salary = optional(input.salary);
+  const externalId = optional(input.externalId);
+  const feedSource = optional(input.feedSource);
+
+  let companyId = optional(input.companyId);
+  if (!companyId) {
+    const company = await ensureCompany(companyName);
+    companyId = company.id;
+  }
+
   const id = randomUUID();
   const now = new Date().toISOString();
   await getSql()`
     INSERT INTO jobs
-      (id, user_id, title, company, location, source, url, description, salary, status, created_at, updated_at)
+      (id, user_id, title, company, company_id, location, source, url, description, salary,
+       status, external_id, feed_source, created_at, updated_at)
     VALUES (
-      ${id}, ${userId}, ${title}, ${company}, ${location}, ${source}, ${url}, ${description},
-      ${salary}, 'active', ${now}, ${now}
+      ${id}, ${userId}, ${title}, ${companyName}, ${companyId}, ${location}, ${source}, ${url},
+      ${description}, ${salary}, 'active', ${externalId}, ${feedSource}, ${now}, ${now}
     )
   `;
-  const created = await getJob(userId, id);
+  const created = await getJobById(id);
   if (!created) throw new Error("Failed to create job.");
   return created;
+}
+
+export async function upsertFeedJob(input: {
+  title: string;
+  company: string;
+  location: string;
+  source: JobSource;
+  url?: string | null;
+  description?: string;
+  salary?: string | null;
+  externalId: string;
+  feedSource: string;
+}): Promise<{ job: JobRecord; created: boolean }> {
+  await ensureAppSchema();
+  const externalId = requireText(input.externalId, "externalId");
+  const feedSource = requireText(input.feedSource, "feedSource");
+  const existing = (await getSql()`
+    SELECT * FROM jobs
+    WHERE feed_source = ${feedSource} AND external_id = ${externalId}
+    LIMIT 1
+  `) as Row[];
+  if (existing[0]) {
+    const id = existing[0].id;
+    const title = requireText(input.title, "Title");
+    const companyName = requireText(input.company, "Company");
+    const location = requireText(input.location, "Location");
+    const company = await ensureCompany(companyName);
+    const url = optional(input.url);
+    const description = typeof input.description === "string" ? input.description : "";
+    const salary = optional(input.salary);
+    const now = new Date().toISOString();
+    await getSql()`
+      UPDATE jobs SET
+        title = ${title}, company = ${companyName}, company_id = ${company.id},
+        location = ${location}, source = ${input.source}, url = ${url},
+        description = ${description}, salary = ${salary}, updated_at = ${now},
+        status = 'active'
+      WHERE id = ${id}
+    `;
+    const job = await getJobById(id);
+    if (!job) throw new Error("Feed upsert failed.");
+    return { job, created: false };
+  }
+  const job = await createJob(null, {
+    ...input,
+    externalId,
+    feedSource,
+  });
+  return { job, created: true };
 }
 
 export async function updateJob(
@@ -163,10 +316,18 @@ export async function updateJob(
   await ensureAppSchema();
   const existing = await getJob(userId, id);
   if (!existing) throw new Error("Job not found.");
+  if (existing.userId !== null && existing.userId !== userId) {
+    throw new Error("Cannot edit a shared feed job.");
+  }
 
   const title = patch.title !== undefined ? requireText(patch.title, "Title") : existing.title;
-  const company =
-    patch.company !== undefined ? requireText(patch.company, "Company") : existing.company;
+  let company = existing.company;
+  let companyId = existing.companyId;
+  if (patch.company !== undefined) {
+    company = requireText(patch.company, "Company");
+    const c = await ensureCompany(company);
+    companyId = c.id;
+  }
   const location =
     patch.location !== undefined ? requireText(patch.location, "Location") : existing.location;
   const source = patch.source !== undefined ? parseSource(patch.source) : existing.source;
@@ -179,17 +340,23 @@ export async function updateJob(
   const now = new Date().toISOString();
   await getSql()`
     UPDATE jobs SET
-      title = ${title}, company = ${company}, location = ${location}, source = ${source},
-      url = ${url}, description = ${description}, salary = ${salary}, status = ${status},
-      updated_at = ${now}
-    WHERE id = ${id} AND user_id = ${userId}
+      title = ${title}, company = ${company}, company_id = ${companyId}, location = ${location},
+      source = ${source}, url = ${url}, description = ${description}, salary = ${salary},
+      status = ${status}, updated_at = ${now}
+    WHERE id = ${id}
   `;
-  const updated = await getJob(userId, id);
+  const updated = await getJobById(id);
   if (!updated) throw new Error("Job not found after update.");
   return updated;
 }
 
 export async function archiveJob(userId: string, id: string): Promise<JobRecord> {
+  const job = await getJob(userId, id);
+  if (!job) throw new Error("Job not found.");
+  if (job.userId === null) {
+    await setJobIgnored(userId, id, true);
+    return job;
+  }
   return updateJob(userId, id, { status: "archived" });
 }
 
@@ -203,7 +370,7 @@ export async function ensureDemoJobs(userId: string): Promise<JobRecord[]> {
       url: "https://example.com/jobs/northwind-frontend",
       salary: "₹35–45 LPA",
       description:
-        "Build dense product UI for a career OS. React, TypeScript, Tailwind. Own design-system collaboration with Vinyaas.\n\nRequirements:\n• 4+ years React/TypeScript\n• Design-system experience\n• Comfortable with Next.js App Router",
+        "Build dense product UI for a career OS. React, TypeScript, Tailwind. Own design-system collaboration with Vinyaas.\n\nRequirements:\n• 4+ years React/TypeScript\n• Design-system experience\n• Comfortable with Next.js App Router\n\nResponsibilities:\n• Ship polished UI\n• Partner with design",
     },
     {
       title: "Full Stack Engineer",
@@ -213,7 +380,7 @@ export async function ensureDemoJobs(userId: string): Promise<JobRecord[]> {
       url: "https://example.com/jobs/cascade-fullstack",
       salary: "₹28–38 LPA",
       description:
-        "Ship Next.js + API services. Experience with Postgres and auth flows preferred.\n\nNice to have: Neon Auth, Drizzle, or similar.",
+        "Ship Next.js + API services. Experience with Postgres and auth flows preferred.\n\nRequirements:\n• 3+ years full-stack\n• Postgres, TypeScript\n\nNice to have: Neon Auth, Drizzle, or similar.",
     },
     {
       title: "Product Engineer",
@@ -223,7 +390,7 @@ export async function ensureDemoJobs(userId: string): Promise<JobRecord[]> {
       url: "https://example.com/jobs/aether-product",
       salary: null,
       description:
-        "0→1 features across discovery, applications, and referrals. Strong taste for UX density and micro-interactions.",
+        "0→1 features across discovery, applications, and referrals. Strong taste for UX density and micro-interactions.\n\nResponsibilities:\n• Own features end-to-end\n• Talk to users",
     },
     {
       title: "Platform Engineer",
@@ -233,7 +400,7 @@ export async function ensureDemoJobs(userId: string): Promise<JobRecord[]> {
       url: "https://example.com/jobs/herald-platform",
       salary: "₹32–42 LPA",
       description:
-        "Own CI/CD, observability, and internal developer tooling. Kubernetes and Terraform experience preferred.",
+        "Own CI/CD, observability, and internal developer tooling. Kubernetes and Terraform experience preferred.\n\nRequirements:\n• 4+ years platform / DevOps\n• Kubernetes, Terraform",
     },
     {
       title: "Mobile Engineer (React Native)",
@@ -243,7 +410,7 @@ export async function ensureDemoJobs(userId: string): Promise<JobRecord[]> {
       url: null,
       salary: "₹24–32 LPA",
       description:
-        "Ship patient-facing React Native apps. Collaboration with design and clinical product teams.",
+        "Ship patient-facing React Native apps. Collaboration with design and clinical product teams.\n\nRequirements:\n• React Native, TypeScript\n• 2+ years mobile",
     },
     {
       title: "Backend Engineer",
@@ -253,15 +420,15 @@ export async function ensureDemoJobs(userId: string): Promise<JobRecord[]> {
       url: "https://example.com/jobs/orbit-backend",
       salary: "₹30–40 LPA",
       description:
-        "APIs for logistics ops. Node/Go, Postgres, event-driven services. On-call rotation shared.",
+        "APIs for logistics ops. Node/Go, Postgres, event-driven services. On-call rotation shared.\n\nRequirements:\n• Node or Go\n• Postgres\n• 3+ years backend",
     },
   ];
 
-  const existing = await listJobs(userId);
+  const existing = await listJobsForUser(userId, { includeIgnored: true });
   const titles = new Set(existing.map((j) => j.title.toLowerCase()));
   if (existing.length === 0) {
     for (const sample of samples) await createJob(userId, sample);
-    return listJobs(userId);
+    return listJobsForUser(userId);
   }
 
   if (existing.length < 6) {
@@ -272,5 +439,5 @@ export async function ensureDemoJobs(userId: string): Promise<JobRecord[]> {
       if ((await countJobs(userId)) >= 6) break;
     }
   }
-  return listJobs(userId);
+  return listJobsForUser(userId);
 }

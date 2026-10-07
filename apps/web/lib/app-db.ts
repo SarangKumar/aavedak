@@ -188,6 +188,76 @@ async function runSchema() {
   await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS job_search_status TEXT`;
   await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS company_size_preference TEXT`;
   await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS industry_preference TEXT`;
+
+  // Shared company directory (creatable Select; used for search / match / referrals)
+  await db`
+    CREATE TABLE IF NOT EXISTS companies (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      name_key TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS companies_name_key_idx ON companies (name_key)`;
+
+  // Global + user jobs: user_id NULL = shared feed ingest
+  await db`ALTER TABLE jobs ALTER COLUMN user_id DROP NOT NULL`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS company_id TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS external_id TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS feed_source TEXT`;
+  await db`CREATE UNIQUE INDEX IF NOT EXISTS jobs_feed_external_uidx
+    ON jobs (feed_source, external_id) WHERE external_id IS NOT NULL`;
+
+  // Per-user job actions (ignore / applied)
+  await db`
+    CREATE TABLE IF NOT EXISTS user_job_state (
+      user_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      ignored INTEGER NOT NULL DEFAULT 0,
+      application_id TEXT,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, job_id)
+    )`;
+
+  // Compatibility + built-in ATS scores vs resume / career profile
+  await db`
+    CREATE TABLE IF NOT EXISTS job_scores (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      resume_id TEXT,
+      compatibility_score INTEGER NOT NULL DEFAULT 0,
+      ats_score INTEGER NOT NULL DEFAULT 0,
+      details_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE (user_id, job_id)
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS job_scores_user_job_idx ON job_scores (user_id, job_id)`;
+
+  // Cover letters link to jobs (or custom company/role), not only applications
+  await db`ALTER TABLE cover_letters ADD COLUMN IF NOT EXISTS job_id TEXT`;
+  await db`ALTER TABLE cover_letters ADD COLUMN IF NOT EXISTS company_name TEXT`;
+  await db`ALTER TABLE cover_letters ADD COLUMN IF NOT EXISTS role_title TEXT`;
+
+  // Tracker: which cover letter was used for an application
+  await db`ALTER TABLE applications ADD COLUMN IF NOT EXISTS cover_letter_id TEXT`;
+  await db`ALTER TABLE applications ADD COLUMN IF NOT EXISTS company_id TEXT`;
+
+  // Optional resume text cache for matching (paste / future PDF extract)
+  await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS extracted_text TEXT`;
+
+  // Ingest watermark
+  await db`
+    CREATE TABLE IF NOT EXISTS jobs_ingest_runs (
+      id TEXT PRIMARY KEY NOT NULL,
+      source TEXT NOT NULL,
+      fetched_count INTEGER NOT NULL DEFAULT 0,
+      upserted_count INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL,
+      message TEXT,
+      created_at TEXT NOT NULL
+    )`;
 }
 
 /** Ensure Postgres app schema exists (idempotent). */

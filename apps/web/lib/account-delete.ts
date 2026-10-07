@@ -26,6 +26,8 @@ export async function deleteUserAccount(userId: string): Promise<void> {
   // Detach shared people before dropping applications (FK-less, but clear links)
   await detachPeopleForDeletedUser(userId);
 
+  await sql`DELETE FROM job_scores WHERE user_id = ${userId}`;
+  await sql`DELETE FROM user_job_state WHERE user_id = ${userId}`;
   await sql`DELETE FROM follow_up_tasks WHERE user_id = ${userId}`;
   await sql`DELETE FROM job_analyses WHERE user_id = ${userId}`;
   await sql`DELETE FROM jobs WHERE user_id = ${userId}`;

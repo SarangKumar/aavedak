@@ -22,6 +22,9 @@ function toDto(row: NonNullable<Awaited<ReturnType<typeof getCoverLetter>>>) {
     title: row.title,
     body: row.body,
     applicationId: row.applicationId,
+    jobId: row.jobId,
+    companyName: row.companyName,
+    roleTitle: row.roleTitle,
     status: row.status,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -45,6 +48,15 @@ export async function PATCH(request: Request, ctx: Ctx) {
     if ("body" in body) patch.body = String(body.body ?? "");
     if ("applicationId" in body) {
       patch.applicationId = (body.applicationId as string | null) ?? null;
+    }
+    if ("jobId" in body) {
+      patch.jobId = (body.jobId as string | null) ?? null;
+    }
+    if ("companyName" in body) {
+      patch.companyName = (body.companyName as string | null) ?? null;
+    }
+    if ("roleTitle" in body) {
+      patch.roleTitle = (body.roleTitle as string | null) ?? null;
     }
     if ("status" in body) {
       const status = body.status as CoverLetterStatus;

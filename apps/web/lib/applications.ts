@@ -9,16 +9,20 @@ import {
   type ApplicationStatus,
 } from "@/lib/application-status";
 import type { ApplicationImportItem } from "@/lib/application-import";
+import { ensureCompany } from "@/lib/companies";
+import { setJobApplicationLink } from "@/lib/jobs";
 
 export type ApplicationRecord = {
   id: string;
   userId: string;
   companyName: string;
+  companyId: string | null;
   role: string;
   location: string;
   salaryCtc: string | null;
   jobLink: string | null;
   jobId: string | null;
+  coverLetterId: string | null;
   status: ApplicationStatus;
   notes: string | null;
   appliedAt: string | null;
@@ -33,6 +37,8 @@ export type CreateApplicationInput = {
   salaryCtc?: string | null;
   jobLink?: string | null;
   jobId?: string | null;
+  coverLetterId?: string | null;
+  companyId?: string | null;
   status?: ApplicationStatus;
   notes?: string | null;
   appliedAt?: string | null;
@@ -43,11 +49,13 @@ type ApplicationRow = {
   id: string;
   user_id: string;
   company_name: string;
+  company_id?: string | null;
   role: string;
   location: string;
   salary_ctc: string | null;
   job_link: string | null;
   job_id: string | null;
+  cover_letter_id?: string | null;
   status: string;
   notes: string | null;
   applied_at?: string | null;
@@ -63,11 +71,13 @@ function mapRow(row: ApplicationRow): ApplicationRecord {
     id: row.id,
     userId: row.user_id,
     companyName: row.company_name,
+    companyId: row.company_id ?? null,
     role: row.role,
     location: row.location,
     salaryCtc: row.salary_ctc,
     jobLink: row.job_link,
     jobId: row.job_id,
+    coverLetterId: row.cover_letter_id ?? null,
     status: row.status,
     notes: row.notes,
     appliedAt: row.applied_at ?? null,
@@ -171,6 +181,7 @@ export async function createApplication(
   const salaryCtc = optionalText(input.salaryCtc ?? null);
   const jobLink = optionalText(input.jobLink ?? null);
   const jobId = optionalText(input.jobId ?? null);
+  const coverLetterId = optionalText(input.coverLetterId ?? null);
   const notes = optionalText(input.notes ?? null);
   const status: ApplicationStatus =
     input.status && isApplicationStatus(input.status) ? input.status : "bookmarked";
@@ -179,6 +190,9 @@ export async function createApplication(
   if (role.length > 200) throw new Error("Role is too long.");
   if (location.length > 200) throw new Error("Location is too long.");
 
+  const company = await ensureCompany(companyName);
+  const companyId = optionalText(input.companyId ?? null) || company.id;
+
   const now = new Date().toISOString();
   const createdAt = optionalText(input.createdAt ?? null) || now;
   const appliedAt = optionalText(input.appliedAt ?? null) || optionalText(input.createdAt ?? null);
@@ -186,12 +200,17 @@ export async function createApplication(
   const id = randomUUID();
   await getSql()`
     INSERT INTO applications
-      (id, user_id, company_name, role, location, salary_ctc, job_link, job_id, status, notes, applied_at, created_at, updated_at)
+      (id, user_id, company_name, company_id, role, location, salary_ctc, job_link, job_id,
+       cover_letter_id, status, notes, applied_at, created_at, updated_at)
     VALUES (
-      ${id}, ${userId}, ${companyName}, ${role}, ${location}, ${salaryCtc}, ${jobLink}, ${jobId},
-      ${status}, ${notes}, ${appliedAt}, ${createdAt}, ${createdAt}
+      ${id}, ${userId}, ${companyName}, ${companyId}, ${role}, ${location}, ${salaryCtc}, ${jobLink},
+      ${jobId}, ${coverLetterId}, ${status}, ${notes}, ${appliedAt}, ${createdAt}, ${createdAt}
     )
   `;
+
+  if (jobId) {
+    await setJobApplicationLink(userId, jobId, id);
+  }
 
   const created = await getApplication(userId, id);
   if (!created) throw new Error("Failed to create application.");
@@ -208,6 +227,8 @@ export async function updateApplication(
     salaryCtc: string | null;
     jobLink: string | null;
     jobId: string | null;
+    coverLetterId: string | null;
+    companyId: string | null;
     status: ApplicationStatus;
     notes: string | null;
     appliedAt: string | null;
@@ -228,6 +249,8 @@ export async function updateApplication(
     patch.salaryCtc !== undefined ? optionalText(patch.salaryCtc) : existing.salaryCtc;
   const jobLink = patch.jobLink !== undefined ? optionalText(patch.jobLink) : existing.jobLink;
   const jobId = patch.jobId !== undefined ? optionalText(patch.jobId) : existing.jobId;
+  const coverLetterId =
+    patch.coverLetterId !== undefined ? optionalText(patch.coverLetterId) : existing.coverLetterId;
   const notes = patch.notes !== undefined ? optionalText(patch.notes) : existing.notes;
   const appliedAt =
     patch.appliedAt !== undefined ? optionalText(patch.appliedAt) : existing.appliedAt;
@@ -237,21 +260,33 @@ export async function updateApplication(
     status = patch.status;
   }
 
+  let companyId = existing.companyId;
+  if (patch.companyName !== undefined || patch.companyId !== undefined) {
+    const company = await ensureCompany(companyName);
+    companyId = optionalText(patch.companyId ?? null) || company.id;
+  }
+
   const now = new Date().toISOString();
   await getSql()`
     UPDATE applications SET
       company_name = ${companyName},
+      company_id = ${companyId},
       role = ${role},
       location = ${location},
       salary_ctc = ${salaryCtc},
       job_link = ${jobLink},
       job_id = ${jobId},
+      cover_letter_id = ${coverLetterId},
       status = ${status},
       notes = ${notes},
       applied_at = ${appliedAt},
       updated_at = ${now}
     WHERE id = ${id} AND user_id = ${userId}
   `;
+
+  if (jobId) {
+    await setJobApplicationLink(userId, jobId, id);
+  }
 
   const updated = await getApplication(userId, id);
   if (!updated) throw new Error("Application not found after update.");
@@ -399,11 +434,13 @@ export function applicationToDto(app: ApplicationRecord) {
   return {
     id: app.id,
     companyName: app.companyName,
+    companyId: app.companyId,
     role: app.role,
     location: app.location,
     salaryCtc: app.salaryCtc,
     jobLink: app.jobLink,
     jobId: app.jobId,
+    coverLetterId: app.coverLetterId,
     status: app.status,
     notes: app.notes,
     appliedAt: app.appliedAt,

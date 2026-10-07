@@ -3,6 +3,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
+import { ensureCompany } from "@/lib/companies";
+import { getJob } from "@/lib/jobs";
 
 export type CoverLetterStatus = "active" | "archived";
 
@@ -12,6 +14,9 @@ export type CoverLetterRecord = {
   title: string;
   body: string;
   applicationId: string | null;
+  jobId: string | null;
+  companyName: string | null;
+  roleTitle: string | null;
   status: CoverLetterStatus;
   createdAt: string;
   updatedAt: string;
@@ -23,6 +28,9 @@ type Row = {
   title: string;
   body: string;
   application_id: string | null;
+  job_id: string | null;
+  company_name: string | null;
+  role_title: string | null;
   status: CoverLetterStatus;
   created_at: string;
   updated_at: string;
@@ -35,6 +43,9 @@ function mapRow(row: Row): CoverLetterRecord {
     title: row.title,
     body: row.body,
     applicationId: row.application_id,
+    jobId: row.job_id,
+    companyName: row.company_name,
+    roleTitle: row.role_title,
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -46,6 +57,12 @@ function requireTitle(title: unknown): string {
   const t = title.trim();
   if (t.length > 200) throw new Error("Title is too long.");
   return t;
+}
+
+function optionalId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const t = value.trim();
+  return t || null;
 }
 
 export async function listCoverLetters(
@@ -77,26 +94,61 @@ export async function getCoverLetter(
   return rows[0] ? mapRow(rows[0]) : null;
 }
 
+export async function listCoverLettersForApplication(
+  userId: string,
+  applicationId: string,
+): Promise<CoverLetterRecord[]> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT * FROM cover_letters
+    WHERE user_id = ${userId} AND application_id = ${applicationId} AND status != 'archived'
+    ORDER BY updated_at DESC
+  `) as Row[];
+  return rows.map(mapRow);
+}
+
 export async function createCoverLetter(
   userId: string,
-  input: { title: string; body?: string; applicationId?: string | null },
+  input: {
+    title: string;
+    body?: string;
+    applicationId?: string | null;
+    jobId?: string | null;
+    companyName?: string | null;
+    roleTitle?: string | null;
+  },
 ): Promise<CoverLetterRecord> {
   await ensureAppSchema();
   const title = requireTitle(input.title);
   const body = typeof input.body === "string" ? input.body : "";
-  const applicationId =
-    typeof input.applicationId === "string" && input.applicationId.trim()
-      ? input.applicationId.trim()
-      : null;
-  if (!applicationId) {
-    throw new Error("Cover letters must be linked to a company / application.");
+  let jobId = optionalId(input.jobId);
+  let applicationId = optionalId(input.applicationId);
+  let companyName = optionalId(input.companyName);
+  let roleTitle = optionalId(input.roleTitle);
+
+  if (jobId) {
+    const job = await getJob(userId, jobId);
+    if (!job) throw new Error("Job not found.");
+    companyName = companyName || job.company;
+    roleTitle = roleTitle || job.title;
+    await ensureCompany(companyName);
+  } else if (companyName && roleTitle) {
+    await ensureCompany(companyName);
+  } else if (applicationId) {
+    // legacy path
+  } else {
+    throw new Error("Pick a job from Jobs, or enter a custom company and role.");
   }
+
   const id = randomUUID();
   const now = new Date().toISOString();
   await getSql()`
     INSERT INTO cover_letters
-      (id, user_id, title, body, application_id, status, created_at, updated_at)
-    VALUES (${id}, ${userId}, ${title}, ${body}, ${applicationId}, 'active', ${now}, ${now})
+      (id, user_id, title, body, application_id, job_id, company_name, role_title, status, created_at, updated_at)
+    VALUES (
+      ${id}, ${userId}, ${title}, ${body}, ${applicationId}, ${jobId}, ${companyName}, ${roleTitle},
+      'active', ${now}, ${now}
+    )
   `;
   const created = await getCoverLetter(userId, id);
   if (!created) throw new Error("Failed to create cover letter.");
@@ -110,6 +162,9 @@ export async function updateCoverLetter(
     title: string;
     body: string;
     applicationId: string | null;
+    jobId: string | null;
+    companyName: string | null;
+    roleTitle: string | null;
     status: CoverLetterStatus;
   }>,
 ): Promise<CoverLetterRecord> {
@@ -119,12 +174,24 @@ export async function updateCoverLetter(
 
   const title = patch.title !== undefined ? requireTitle(patch.title) : existing.title;
   const body = patch.body !== undefined ? patch.body : existing.body;
-  const applicationId =
-    patch.applicationId !== undefined
-      ? patch.applicationId && patch.applicationId.trim()
-        ? patch.applicationId.trim()
-        : null
-      : existing.applicationId;
+  let jobId = patch.jobId !== undefined ? optionalId(patch.jobId) : existing.jobId;
+  let applicationId =
+    patch.applicationId !== undefined ? optionalId(patch.applicationId) : existing.applicationId;
+  let companyName =
+    patch.companyName !== undefined ? optionalId(patch.companyName) : existing.companyName;
+  let roleTitle = patch.roleTitle !== undefined ? optionalId(patch.roleTitle) : existing.roleTitle;
+
+  if (jobId) {
+    const job = await getJob(userId, jobId);
+    if (!job) throw new Error("Job not found.");
+    companyName = companyName || job.company;
+    roleTitle = roleTitle || job.title;
+  }
+
+  if (!jobId && !(companyName && roleTitle) && !applicationId) {
+    throw new Error("Cover letter needs a job or custom company + role.");
+  }
+
   const status = patch.status ?? existing.status;
   if (status !== "active" && status !== "archived") throw new Error("Invalid status.");
 
@@ -132,6 +199,7 @@ export async function updateCoverLetter(
   await getSql()`
     UPDATE cover_letters
     SET title = ${title}, body = ${body}, application_id = ${applicationId},
+        job_id = ${jobId}, company_name = ${companyName}, role_title = ${roleTitle},
         status = ${status}, updated_at = ${now}
     WHERE id = ${id} AND user_id = ${userId}
   `;

@@ -221,3 +221,20 @@ export async function updateResume(
 export async function archiveResume(userId: string, resumeId: string): Promise<ResumeRecord> {
   return updateResume(userId, resumeId, { status: "archived" });
 }
+
+export async function setResumeExtractedText(
+  userId: string,
+  resumeId: string,
+  extractedText: string,
+): Promise<void> {
+  await ensureAppSchema();
+  const existing = await getResume(userId, resumeId);
+  if (!existing) throw new Error("Resume not found.");
+  const textValue = extractedText.trim();
+  if (textValue.length > 200_000) throw new Error("Extracted text is too long.");
+  const now = new Date().toISOString();
+  await getSql()`
+    UPDATE resumes SET extracted_text = ${textValue}, updated_at = ${now}
+    WHERE id = ${resumeId} AND user_id = ${userId}
+  `;
+}

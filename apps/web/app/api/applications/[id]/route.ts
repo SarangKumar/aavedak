@@ -32,8 +32,10 @@ export async function PATCH(request: Request, ctx: Ctx) {
     if ("location" in body) patch.location = String(body.location ?? "");
     if ("salaryCtc" in body) patch.salaryCtc = (body.salaryCtc as string | null) ?? null;
     if ("jobLink" in body) patch.jobLink = (body.jobLink as string | null) ?? null;
+    if ("coverLetterId" in body) patch.coverLetterId = (body.coverLetterId as string | null) ?? null;
     if ("jobId" in body) patch.jobId = (body.jobId as string | null) ?? null;
     if ("notes" in body) patch.notes = (body.notes as string | null) ?? null;
+    if ("appliedAt" in body) patch.appliedAt = (body.appliedAt as string | null) ?? null;
     if ("status" in body) {
       if (typeof body.status !== "string" || !isApplicationStatus(body.status)) {
         return NextResponse.json({ error: "Invalid status." }, { status: 400 });

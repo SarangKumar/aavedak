@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       salaryCtc: (body.salaryCtc as string | null | undefined) ?? null,
       jobLink: (body.jobLink as string | null | undefined) ?? null,
       jobId: (body.jobId as string | null | undefined) ?? null,
+      coverLetterId: (body.coverLetterId as string | null | undefined) ?? null,
       notes: (body.notes as string | null | undefined) ?? null,
       status,
     });
