@@ -429,6 +429,29 @@ export function ReferralsComposer({
                 />
               </label>
               <div className="space-y-1">
+                <span className="text-muted-foreground text-[11px] font-medium">To</span>
+                <div className="border-border bg-muted/30 flex min-h-8 flex-wrap items-center gap-1.5 rounded-lg border px-2 py-1.5">
+                  {checkedPeople.size === 0 ? (
+                    <p className="text-muted-foreground text-[11px]">
+                      Select people in the People column — emails appear here.
+                    </p>
+                  ) : (
+                    people
+                      .filter((p) => checkedPeople.has(p.id))
+                      .map((p) => (
+                        <Badge
+                          key={p.id}
+                          variant="secondary"
+                          className="h-6 max-w-full truncate px-2 text-[10px] font-medium"
+                          title={p.name}
+                        >
+                          {p.email?.trim() || `${p.name} (no email)`}
+                        </Badge>
+                      ))
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground text-[11px] font-medium">
                     Cold email template
