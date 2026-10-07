@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
-import { GMAIL_REAUTH_SCOPES, GMAIL_SEND_SCOPE } from "@/lib/gmail-scopes";
+import { GMAIL_REAUTH_PARAMS, GMAIL_REAUTH_SCOPES, GMAIL_SEND_SCOPE } from "@/lib/gmail-scopes";
 import { cn } from "@/lib/utils";
 
 export type GmailStatusDto = {
@@ -61,7 +61,9 @@ export function GmailConnectBanner({
       await authClient.linkSocial({
         provider: "google",
         scopes: [...GMAIL_REAUTH_SCOPES],
+        additionalParams: { ...GMAIL_REAUTH_PARAMS },
         callbackURL,
+        errorCallbackURL: callbackURL,
       });
     } catch (err) {
       setPending(false);
@@ -116,7 +118,7 @@ export function GmailConnectBanner({
       <p className="text-muted-foreground text-[12px] leading-relaxed">
         {status?.reason ||
           error ||
-          "Allow Aavedak to send email as you (gmail.send + offline access) so queued outreach can leave your inbox."}
+          "Allow Aavedak to send email as you (gmail.send + offline access) so queued outreach can leave your inbox. Google may show “Google hasn’t verified this app” — choose Advanced → Continue."}
       </p>
       <p className="text-muted-foreground break-all font-mono text-[10px]">
         Scope: {status?.requiredScope || GMAIL_SEND_SCOPE}

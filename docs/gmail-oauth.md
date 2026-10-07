@@ -33,11 +33,25 @@ Queued referral follow-ups send from the **user's Gmail** via the Gmail API (`us
 
 Better Auth Google provider is configured with:
 
-- sign-in scopes: default openid/email/profile only
-- `gmail.send` via `authClient.linkSocial({ scopes: [gmail.send] })`; Better Auth sends
-  `include_granted_scopes=true`, so later sign-ins keep the granted scope
-- `accessType`: `offline`
-- `prompt`: `select_account consent` (so refresh tokens are issued)
+- **Sign-in**: default `openid email profile` only, `prompt: select_account` — no sensitive
+  scopes, no offline access, so any Google account can sign in once the app is **In production**.
+- **Authorize Gmail send** (`GmailConnectBanner` on Referrals / Follow-ups / Profile settings):
+  `authClient.linkSocial({ scopes: [gmail.send], additionalParams: { access_type: "offline", prompt: "consent" } })`.
+  Better Auth merges the scope into `account.scope` and stores the refresh token.
+- `include_granted_scopes=true` (Better Auth default) + sign-in never overwriting `scope` /
+  missing refresh tokens means later sign-ins keep Gmail send working.
+
+## Publish for any Google account
+
+1. Google Auth Platform → **Branding**: app name, support email, logo (optional), app home page
+   `https://aavedak.vercel.app`, privacy policy `https://aavedak.vercel.app/privacy`, terms
+   `https://aavedak.vercel.app/terms`, authorized domain `aavedak.vercel.app`.
+2. **Audience** → Publishing status → **Publish app** → confirm (In production).
+3. Sign-in (basic scopes) works for everyone immediately — no verification needed.
+4. Until `gmail.send` is verified, Authorize Gmail send shows "Google hasn't verified this app"
+   (Advanced → Go to aavedak.vercel.app (unsafe)); 100-user lifetime cap for unverified sensitive scopes.
+5. To remove that screen: **Verification Center** → submit for sensitive-scope verification
+   (justification + demo video of the Gmail send flow; homepage, privacy, terms must be live).
 
 ## Troubleshooting
 

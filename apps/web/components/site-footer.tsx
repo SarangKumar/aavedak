@@ -43,6 +43,24 @@ export function SiteFooter({ className }: { className?: string }) {
             ·
           </span>
           <Link
+            href="/privacy"
+            className="hover:text-foreground inline-flex min-h-8 items-center transition-colors"
+          >
+            Privacy
+          </Link>
+          <span className="text-border hidden sm:inline" aria-hidden>
+            ·
+          </span>
+          <Link
+            href="/terms"
+            className="hover:text-foreground inline-flex min-h-8 items-center transition-colors"
+          >
+            Terms
+          </Link>
+          <span className="text-border hidden sm:inline" aria-hidden>
+            ·
+          </span>
+          <Link
             href="https://sarangkumar.vercel.app"
             className="hover:text-foreground inline-flex min-h-8 items-center transition-colors"
             target="_blank"

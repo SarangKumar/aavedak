@@ -37,9 +37,9 @@ export const auth = betterAuth({
           google: {
             clientId: googleClientId,
             clientSecret: googleClientSecret,
-            // Basic scopes only at sign-in; offline + consent so linkSocial(gmail.send) gets a refresh token
-            accessType: "offline",
-            prompt: "select_account consent",
+            // Sign-in: openid/email/profile only. Offline access + consent are requested
+            // only by the incremental Gmail step (GmailConnectBanner → linkSocial).
+            prompt: "select_account",
           },
         }
       : {}),
