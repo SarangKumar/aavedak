@@ -3,7 +3,9 @@ import Link from "next/link";
 import { headers } from "next/headers";
 
 import { AuthHeaderActions } from "@/components/auth-header-actions";
+import { MobileNav } from "@/components/mobile-nav";
 import { auth } from "@/lib/auth";
+import { usernameFromUser } from "@/lib/username";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -18,11 +20,21 @@ export async function SiteHeader({ className }: { className?: string }) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  const user = session?.user
+
+  const sessionUser = session?.user;
+  const user = sessionUser
     ? {
-        name: session.user.name,
-        email: session.user.email,
-        image: session.user.image,
+        name: sessionUser.name,
+        email: sessionUser.email,
+        image: sessionUser.image,
+        username: usernameFromUser({
+          email: sessionUser.email,
+          name: sessionUser.name,
+          username:
+            "username" in sessionUser
+              ? (sessionUser.username as string | null | undefined)
+              : undefined,
+        }),
       }
     : null;
 
@@ -33,19 +45,22 @@ export async function SiteHeader({ className }: { className?: string }) {
         className,
       )}
     >
-      <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-4 sm:px-6">
-        <Link href="/" className="group flex shrink-0 items-center gap-2.5">
+      <div className="relative mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:gap-4 sm:px-6">
+        <MobileNav items={nav} />
+
+        <Link href="/" className="group flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
           <Image
             src="/brand/icon.png"
             alt=""
             width={28}
             height={28}
-            className="shadow-sm shadow-black/30 transition-transform group-hover:scale-[1.03]"
+            className="size-7 shadow-sm shadow-black/30 transition-transform group-hover:scale-[1.03]"
             priority
           />
           <span className="avsar-display text-foreground text-[15px]">Avsar</span>
         </Link>
-        <nav className="hidden items-center gap-0.5 md:flex" aria-label="Main">
+
+        <nav className="ml-1 hidden items-center gap-0.5 md:flex" aria-label="Main">
           {nav.map((item) => (
             <Link
               key={item.href}
@@ -56,6 +71,7 @@ export async function SiteHeader({ className }: { className?: string }) {
             </Link>
           ))}
         </nav>
+
         <div className="ml-auto flex items-center gap-2">
           <AuthHeaderActions user={user} />
         </div>

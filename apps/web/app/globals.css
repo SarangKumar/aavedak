@@ -4,70 +4,46 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Avsar theme — opportunity / job-search OS.
- * Warm amber-gold accent (matches brand mark), dark-first, not a gray twin.
+ * Avsar theme — dark only.
+ * Clean gold / yellow accent (logo metallic gold), not amber-rust/orange.
+ * Accent stays minimal: CTAs, rings, highlights — not flooded.
  */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   --radius: 0.875rem;
-  --background: oklch(0.985 0.008 85);
-  --foreground: oklch(0.18 0.02 55);
-  --card: oklch(1 0.005 85);
-  --card-foreground: oklch(0.18 0.02 55);
-  --popover: oklch(1 0.005 85);
-  --popover-foreground: oklch(0.18 0.02 55);
-  --primary: oklch(0.55 0.14 70);
-  --primary-foreground: oklch(0.99 0.01 95);
-  --secondary: oklch(0.95 0.02 85);
-  --secondary-foreground: oklch(0.28 0.04 60);
-  --muted: oklch(0.95 0.015 85);
-  --muted-foreground: oklch(0.5 0.03 60);
-  --accent: oklch(0.94 0.04 80);
-  --accent-foreground: oklch(0.28 0.05 60);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.02 80);
-  --input: oklch(0.9 0.02 80);
-  --ring: oklch(0.7 0.12 75);
-  --chart-1: oklch(0.65 0.14 70);
-  --chart-2: oklch(0.55 0.1 55);
-  --chart-3: oklch(0.7 0.08 95);
-  --chart-4: oklch(0.5 0.06 40);
-  --chart-5: oklch(0.8 0.1 85);
-  --glow: oklch(0.78 0.14 75 / 35%);
-  --mesh-a: oklch(0.85 0.12 75 / 40%);
-  --mesh-b: oklch(0.88 0.08 45 / 30%);
-  --mesh-c: oklch(0.9 0.06 120 / 20%);
+  --background: oklch(0.145 0.012 95);
+  --foreground: oklch(0.97 0.01 95);
+  --card: oklch(0.19 0.014 95);
+  --card-foreground: oklch(0.97 0.01 95);
+  --popover: oklch(0.19 0.014 95);
+  --popover-foreground: oklch(0.97 0.01 95);
+  /* Clean yellow-gold — hue ~92, avoid orange/rust ~40–70 */
+  --primary: oklch(0.86 0.14 92);
+  --primary-foreground: oklch(0.16 0.02 95);
+  --secondary: oklch(0.24 0.016 95);
+  --secondary-foreground: oklch(0.95 0.015 95);
+  --muted: oklch(0.24 0.016 95);
+  --muted-foreground: oklch(0.68 0.02 95);
+  --accent: oklch(0.26 0.03 95);
+  --accent-foreground: oklch(0.96 0.03 95);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(0.92 0.03 95 / 12%);
+  --input: oklch(0.92 0.03 95 / 14%);
+  --ring: oklch(0.8 0.12 92);
+  --chart-1: oklch(0.86 0.14 92);
+  --chart-2: oklch(0.75 0.1 100);
+  --chart-3: oklch(0.78 0.08 85);
+  --chart-4: oklch(0.7 0.06 110);
+  --chart-5: oklch(0.9 0.1 95);
+  --glow: oklch(0.82 0.14 92 / 22%);
+  --mesh-a: oklch(0.55 0.12 92 / 22%);
+  --mesh-b: oklch(0.4 0.06 100 / 16%);
+  --mesh-c: oklch(0.35 0.04 120 / 12%);
 }
 
+/* Same tokens — html always has .dark; no light mode. */
 .dark {
   color-scheme: dark;
-  --background: oklch(0.145 0.018 55);
-  --foreground: oklch(0.97 0.01 90);
-  --card: oklch(0.19 0.02 55);
-  --card-foreground: oklch(0.97 0.01 90);
-  --popover: oklch(0.19 0.02 55);
-  --popover-foreground: oklch(0.97 0.01 90);
-  --primary: oklch(0.82 0.13 78);
-  --primary-foreground: oklch(0.18 0.03 55);
-  --secondary: oklch(0.24 0.025 55);
-  --secondary-foreground: oklch(0.95 0.02 85);
-  --muted: oklch(0.24 0.025 55);
-  --muted-foreground: oklch(0.68 0.03 70);
-  --accent: oklch(0.26 0.04 65);
-  --accent-foreground: oklch(0.95 0.04 85);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.92 0.04 80 / 12%);
-  --input: oklch(0.92 0.04 80 / 14%);
-  --ring: oklch(0.75 0.12 75);
-  --chart-1: oklch(0.82 0.13 78);
-  --chart-2: oklch(0.72 0.1 55);
-  --chart-3: oklch(0.78 0.08 95);
-  --chart-4: oklch(0.6 0.06 40);
-  --chart-5: oklch(0.88 0.1 85);
-  --glow: oklch(0.75 0.14 75 / 28%);
-  --mesh-a: oklch(0.55 0.14 75 / 28%);
-  --mesh-b: oklch(0.4 0.08 40 / 22%);
-  --mesh-c: oklch(0.35 0.06 140 / 16%);
 }
 
 @theme inline {
@@ -111,11 +87,16 @@
     @apply border-border;
   }
 
+  html {
+    color-scheme: dark;
+  }
+
   body {
     background-image:
       radial-gradient(ellipse 80% 50% at 50% -20%, var(--glow), transparent),
       radial-gradient(ellipse 40% 30% at 100% 0%, var(--mesh-b), transparent);
     background-attachment: fixed;
+    overflow-x: hidden;
   }
 }
 
