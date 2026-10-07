@@ -50,93 +50,105 @@ function PaperContent({
   footerRow,
   contentRef,
   denser,
+  fillPage,
 }: {
   title: string;
   body: string;
   companyName?: string;
   role?: string;
   footerRow: FooterRowItem[];
+  /** Measures the main text block for one-page overflow (not the outer page). */
   contentRef?: RefObject<HTMLDivElement | null>;
   /** Slightly larger type for the zoomed modal (still print-like). */
   denser?: boolean;
+  /** Stretch to full page height so footer can sit at the page bottom. */
+  fillPage?: boolean;
 }) {
+  const footer =
+    footerRow.length > 0 ? (
+      <div className="shrink-0 border-t border-neutral-200 pt-2.5">
+        <p
+          className={
+            denser
+              ? "flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] text-neutral-600"
+              : "flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[9px] text-neutral-600"
+          }
+        >
+          {footerRow.map((item, idx) => (
+            <span key={item.key} className="inline-flex items-center gap-x-1">
+              {idx > 0 ? (
+                <span className="text-neutral-400" aria-hidden>
+                  ⋅
+                </span>
+              ) : null}
+              <a
+                href={item.href}
+                target={item.key === "email" ? undefined : "_blank"}
+                rel={item.key === "email" ? undefined : "noreferrer"}
+                className="text-blue-700 underline-offset-2 hover:underline"
+              >
+                {item.label}
+              </a>
+            </span>
+          ))}
+        </p>
+      </div>
+    ) : null;
+
   return (
     <div
-      ref={contentRef}
-      className="box-border w-full px-[9%] pb-[8%] pt-[8%] text-black"
+      className={
+        fillPage
+          ? "box-border flex h-full min-h-full w-full flex-col px-[9%] pb-[8%] pt-[8%] text-black"
+          : "box-border flex w-full flex-col px-[9%] pb-[8%] pt-[8%] text-black"
+      }
       style={{ fontFamily: PAPER_FONT }}
     >
-      <p
-        className={
-          denser
-            ? "text-[14px] font-bold leading-snug tracking-tight text-black"
-            : "text-[12.5px] font-bold leading-snug tracking-tight text-black"
-        }
-      >
-        {title || "(untitled cover letter)"}
-      </p>
-      {companyName || role ? (
+      <div ref={contentRef} className="min-h-0 flex-1 overflow-hidden">
         <p
           className={
             denser
-              ? "mt-1.5 text-[10.5px] leading-snug text-neutral-500"
-              : "mt-1.5 text-[9.5px] leading-snug text-neutral-500"
+              ? "text-[14px] font-bold leading-snug tracking-tight text-black"
+              : "text-[12.5px] font-bold leading-snug tracking-tight text-black"
           }
         >
-          {companyName ? `Company: ${companyName}` : null}
-          {companyName && role ? " · " : null}
-          {role ? `Role: ${role}` : null}
+          {title || "(untitled cover letter)"}
         </p>
-      ) : (
-        <p
-          className={
-            denser
-              ? "mt-1.5 text-[10.5px] text-neutral-500"
-              : "mt-1.5 text-[9.5px] text-neutral-500"
-          }
-        >
-          Pick an application to fill {"{{company}}"} / {"{{role}}"}.
-        </p>
-      )}
-      <pre
-        className={
-          denser
-            ? "mt-4 whitespace-pre-wrap font-sans text-[11.5px] leading-[1.45] text-neutral-900"
-            : "mt-4 whitespace-pre-wrap font-sans text-[10.5px] leading-[1.45] text-neutral-900"
-        }
-        style={{ fontFamily: PAPER_FONT }}
-      >
-        {body || "(empty body)"}
-      </pre>
-      {footerRow.length > 0 ? (
-        <div className="mt-5 border-t border-neutral-200 pt-2.5">
+        {companyName || role ? (
           <p
             className={
               denser
-                ? "flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] text-neutral-600"
-                : "flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[9px] text-neutral-600"
+                ? "mt-1.5 text-[10.5px] leading-snug text-neutral-500"
+                : "mt-1.5 text-[9.5px] leading-snug text-neutral-500"
             }
           >
-            {footerRow.map((item, idx) => (
-              <span key={item.key} className="inline-flex items-center gap-x-1">
-                {idx > 0 ? (
-                  <span className="text-neutral-400" aria-hidden>
-                    ⋅
-                  </span>
-                ) : null}
-                <a
-                  href={item.href}
-                  target={item.key === "email" ? undefined : "_blank"}
-                  rel={item.key === "email" ? undefined : "noreferrer"}
-                  className="text-blue-700 underline-offset-2 hover:underline"
-                >
-                  {item.label}
-                </a>
-              </span>
-            ))}
+            {companyName ? `Company: ${companyName}` : null}
+            {companyName && role ? " · " : null}
+            {role ? `Role: ${role}` : null}
           </p>
-        </div>
-      ) : null}
+        ) : (
+          <p
+            className={
+              denser
+                ? "mt-1.5 text-[10.5px] text-neutral-500"
+                : "mt-1.5 text-[9.5px] text-neutral-500"
+            }
+          >
+            Pick an application to fill {"{{company}}"} / {"{{role}}"}.
+          </p>
+        )}
+        <pre
+          className={
+            denser
+              ? "mt-4 whitespace-pre-wrap font-sans text-[11.5px] leading-[1.45] text-neutral-900"
+              : "mt-4 whitespace-pre-wrap font-sans text-[10.5px] leading-[1.45] text-neutral-900"
+          }
+          style={{ fontFamily: PAPER_FONT }}
+        >
+          {body || "(empty body)"}
+        </pre>
+      </div>
+      {footer ? <div className="mt-auto">{footer}</div> : null}
     </div>
   );
 }
@@ -197,18 +209,16 @@ export function CoverLetterPdfPreview({
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
-    const page = pageRef.current;
     const content = contentRef.current;
-    if (!page || !content) return;
+    if (!content) return;
 
     const measure = () => {
-      const next = content.scrollHeight > page.clientHeight + 1;
+      const next = content.scrollHeight > content.clientHeight + 1;
       setOverflows((prev) => (prev === next ? prev : next));
     };
 
     measure();
     const ro = new ResizeObserver(measure);
-    ro.observe(page);
     ro.observe(content);
     return () => ro.disconnect();
   }, [title, body, companyName, role, footerRow]);
@@ -235,6 +245,7 @@ export function CoverLetterPdfPreview({
             role={role}
             footerRow={footerRow}
             contentRef={contentRef}
+            fillPage
           />
         </A4Paper>
       </div>
@@ -269,6 +280,7 @@ export function CoverLetterPdfPreview({
                 role={role}
                 footerRow={footerRow}
                 denser
+                fillPage
               />
             </div>
           </div>

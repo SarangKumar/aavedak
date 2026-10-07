@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ImportApplicationsDialog } from "@/components/import-applications-dialog";
 import { Badge } from "@/components/ui/badge";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -30,6 +30,14 @@ import {
 } from "@/lib/application-status";
 import { ShellWidth } from "@/components/shell-width";
 import { Sheet } from "@/components/ui/sheet";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -70,6 +78,8 @@ type Draft = {
 };
 
 type ColumnMap = Record<string, string[]>;
+
+type PendingAction = "create" | "save" | "delete" | null;
 
 const emptyDraft = (): Draft => ({
   companyName: "",
@@ -113,8 +123,24 @@ function buildColumns(
   return next;
 }
 
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg
+      className={cn("size-3.5 animate-spin", className)}
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+    >
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
+      <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function JobTrackerBoard({ initialApplications, initialPreferences }: JobTrackerBoardProps) {
-  const [applications, setApplications] = useState(initialApplications);
+  const [applications, setApplications] = useState(() =>
+    initialApplications.filter((a) => a.status !== "archived"),
+  );
   const [prefs, setPrefs] = useState(initialPreferences);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -122,23 +148,31 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
   const [searchQuery, setSearchQuery] = useState("");
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [pending, setPending] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
 
+  const pending = pendingAction !== null;
+
   const visibleStatuses = useMemo(() => {
-    if (prefs.trackerScope === "archived") return ["archived"] as ApplicationStatus[];
     const hidden = new Set(prefs.hiddenColumns);
     return DEFAULT_KANBAN_STATUSES.filter((s) => !hidden.has(s));
-  }, [prefs]);
+  }, [prefs.hiddenColumns]);
 
   const [columns, setColumns] = useState<ColumnMap>(() =>
-    buildColumns(initialApplications, visibleStatuses),
+    buildColumns(
+      initialApplications.filter((a) => a.status !== "archived"),
+      visibleStatuses,
+    ),
   );
 
   useEffect(() => {
     setColumns((prev) => buildColumns(applications, visibleStatuses, prev));
   }, [applications, visibleStatuses]);
+
+  useEffect(() => {
+    if (prefs.trackerView !== "kanban") setColumnsOpen(false);
+  }, [prefs.trackerView]);
 
   const appsById = useMemo(() => {
     const map = new Map<string, ApplicationDto>();
@@ -164,35 +198,15 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
     if (data.preferences) {
       setPrefs({
         trackerView: data.preferences.trackerView,
-        trackerScope: data.preferences.trackerScope,
+        trackerScope: "active",
         hiddenColumns: data.preferences.hiddenColumns,
       });
     }
   }, []);
 
-  async function reloadScope(scope: "active" | "archived") {
-    const res = await fetch(`/api/applications?scope=${scope}`);
-    const data = (await res.json()) as { applications?: ApplicationDto[]; error?: string };
-    if (!res.ok) throw new Error(data.error || "Failed to load applications.");
-    setApplications(data.applications ?? []);
-  }
-
   async function setView(view: "kanban" | "list") {
     setPrefs((p) => ({ ...p, trackerView: view }));
-    await persistPrefs({ trackerView: view });
-  }
-
-  async function setScope(scope: "active" | "archived") {
-    setPrefs((p) => ({ ...p, trackerScope: scope }));
-    setPending(true);
-    try {
-      await persistPrefs({ trackerScope: scope });
-      await reloadScope(scope);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to switch scope.");
-    } finally {
-      setPending(false);
-    }
+    await persistPrefs({ trackerView: view, trackerScope: "active" });
   }
 
   async function toggleColumn(status: ApplicationStatus) {
@@ -212,7 +226,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
       setError("Company name, role, and location are required.");
       return;
     }
-    setPending(true);
+    setPendingAction("create");
     try {
       const res = await fetch("/api/applications", {
         method: "POST",
@@ -224,7 +238,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           salaryCtc: draft.salaryCtc || null,
           jobLink: draft.jobLink || null,
           jobId: draft.jobId || null,
-          status: prefs.trackerScope === "archived" ? "archived" : draft.status,
+          status: draft.status === "archived" ? "bookmarked" : draft.status,
         }),
       });
       const data = (await res.json()) as {
@@ -237,16 +251,11 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         setWarning(
           "You already have an active application with this company + role. Create anyway?",
         );
-        setPending(false);
+        setPendingAction(null);
         return;
       }
-      if (data.application) {
-        if (
-          (prefs.trackerScope === "active" && data.application.status !== "archived") ||
-          (prefs.trackerScope === "archived" && data.application.status === "archived")
-        ) {
-          setApplications((list) => [data.application!, ...list]);
-        }
+      if (data.application && data.application.status !== "archived") {
+        setApplications((list) => [data.application!, ...list]);
       }
       setDraft(emptyDraft());
       setCreateOpen(false);
@@ -254,16 +263,14 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed.");
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
 
   async function changeStatus(id: string, status: ApplicationStatus) {
     setError(null);
     const prev = applications;
-    if (prefs.trackerScope === "active" && status === "archived") {
-      setApplications((list) => list.filter((a) => a.id !== id));
-    } else if (prefs.trackerScope === "archived" && status !== "archived") {
+    if (status === "archived") {
       setApplications((list) => list.filter((a) => a.id !== id));
     } else {
       setApplications((list) =>
@@ -284,12 +291,9 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
     }
     if (data.application) {
       const app = data.application;
-      const belongs =
-        (prefs.trackerScope === "active" && app.status !== "archived") ||
-        (prefs.trackerScope === "archived" && app.status === "archived");
       setApplications((list) => {
         const without = list.filter((a) => a.id !== id);
-        return belongs ? [app, ...without] : without;
+        return app.status === "archived" ? without : [app, ...without];
       });
     }
   }
@@ -314,7 +318,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
       setError("Company name, role, and location are required.");
       return;
     }
-    setPending(true);
+    setPendingAction("save");
     try {
       const res = await fetch(`/api/applications/${editingId}`, {
         method: "PATCH",
@@ -334,26 +338,23 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
       if (!res.ok) throw new Error(data.error || "Update failed.");
       if (data.application) {
         const app = data.application;
-        const belongs =
-          (prefs.trackerScope === "active" && app.status !== "archived") ||
-          (prefs.trackerScope === "archived" && app.status === "archived");
         setApplications((list) => {
           const without = list.filter((a) => a.id !== editingId);
-          return belongs ? [app, ...without] : without;
+          return app.status === "archived" ? without : [app, ...without];
         });
       }
       closeEdit();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Update failed.");
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
 
   async function deleteApplication() {
     if (!editingId) return;
     setError(null);
-    setPending(true);
+    setPendingAction("delete");
     try {
       const res = await fetch(`/api/applications/${editingId}`, {
         method: "PATCH",
@@ -367,7 +368,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed.");
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
 
@@ -413,6 +414,9 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
     [filteredApplications],
   );
 
+  const toolbarBtn =
+    "border-border bg-card text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center justify-center rounded-[10px] border transition-colors";
+
   return (
     <ShellWidth className="aavedak-fade-up space-y-6 py-8 sm:py-10">
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -439,7 +443,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
               aria-pressed={prefs.trackerView === "kanban"}
               onClick={() => void setView("kanban")}
               className={cn(
-                "inline-flex size-8 items-center justify-center rounded-[8px] transition-colors",
+                "inline-flex size-8 cursor-pointer items-center justify-center rounded-[8px] transition-colors",
                 prefs.trackerView === "kanban"
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:text-foreground",
@@ -454,7 +458,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
               aria-pressed={prefs.trackerView === "list"}
               onClick={() => void setView("list")}
               className={cn(
-                "inline-flex size-8 items-center justify-center rounded-[8px] transition-colors",
+                "inline-flex size-8 cursor-pointer items-center justify-center rounded-[8px] transition-colors",
                 prefs.trackerView === "list"
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:text-foreground",
@@ -463,19 +467,11 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
               <ListGlyph className="size-3.5" />
             </button>
           </div>
-          <Segmented
-            value={prefs.trackerScope}
-            options={[
-              { value: "active", label: "Active", shortLabel: "A" },
-              { value: "archived", label: "Archived", shortLabel: "Arch" },
-            ]}
-            onChange={(v) => void setScope(v)}
-          />
-          {prefs.trackerScope === "active" && prefs.trackerView === "kanban" ? (
+          {prefs.trackerView === "kanban" ? (
             <button
               type="button"
               onClick={() => setColumnsOpen((o) => !o)}
-              className="border-border bg-card text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-[10px] border px-2.5 text-[12px]"
+              className={cn(toolbarBtn, "h-8 px-2.5 text-[12px]")}
             >
               Columns
             </button>
@@ -488,7 +484,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             }}
             title="Import applications"
             aria-label="Import applications"
-            className="border-border bg-card text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-[10px] border"
+            className={cn(toolbarBtn, "size-8")}
           >
             <ImportGlyph className="size-3.5" />
           </button>
@@ -501,14 +497,17 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             }}
             title="New application"
             aria-label="New application"
-            className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex size-8 items-center justify-center rounded-[10px] text-[16px] font-semibold leading-none shadow-sm ring-1 hover:opacity-90"
+            className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-[10px] px-2.5 text-[13px] font-semibold shadow-sm ring-1 hover:opacity-90 sm:px-3"
           >
-            <span aria-hidden>+</span>
+            <span aria-hidden className="text-[16px] leading-none">
+              +
+            </span>
+            <span className="hidden sm:inline">New Application</span>
           </button>
         </div>
       </header>
 
-      {columnsOpen && prefs.trackerScope === "active" ? (
+      {columnsOpen && prefs.trackerView === "kanban" ? (
         <div className="border-border/80 bg-card rounded-xl border p-3">
           <p className="text-foreground mb-2 text-[12px] font-medium">Show / hide Kanban columns</p>
           <div className="flex flex-wrap gap-1.5">
@@ -520,7 +519,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                   type="button"
                   onClick={() => void toggleColumn(status)}
                   className={cn(
-                    "inline-flex h-7 items-center rounded-full border px-2.5 text-[11px] font-medium transition-colors",
+                    "inline-flex h-7 cursor-pointer items-center rounded-full border px-2.5 text-[11px] font-medium transition-colors",
                     hidden
                       ? "border-border text-muted-foreground bg-transparent"
                       : "border-primary/30 bg-primary/10 text-primary",
@@ -613,7 +612,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                                       <CardAction>
                                         <DragDropHandle
                                           aria-label={`Move ${app.companyName}`}
-                                          className="text-muted-foreground size-7"
+                                          className="text-muted-foreground size-7 cursor-grab"
                                           onClick={(e) => e.stopPropagation()}
                                           onPointerDown={(e) => e.stopPropagation()}
                                         />
@@ -644,9 +643,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
 
       {filteredApplications.length === 0 && !pending ? (
         <div className="border-border/70 bg-card/40 text-muted-foreground rounded-xl border border-dashed px-4 py-10 text-center text-[13px]">
-          {prefs.trackerScope === "archived"
-            ? "No archived applications yet."
-            : "No applications yet — create one to start your pipeline."}
+          No applications yet — create one to start your pipeline.
         </div>
       ) : null}
 
@@ -660,24 +657,34 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         description="Company, role, and location are required. Job link / id optional — applications can exist without a linked job."
         footer={
           <>
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setCreateOpen(false);
                 setWarning(null);
               }}
-              className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
               disabled={pending}
               onClick={() => void createApplication(Boolean(warning))}
-              className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
             >
-              {pending ? "Saving…" : warning ? "Create anyway" : "Create"}
-            </button>
+              {pendingAction === "create" ? (
+                <>
+                  <Spinner className="mr-1.5" />
+                  Saving…
+                </>
+              ) : warning ? (
+                "Create anyway"
+              ) : (
+                "Create"
+              )}
+            </Button>
           </>
         }
       >
@@ -712,17 +719,15 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             value={draft.jobId}
             onChange={(v) => setDraft((d) => ({ ...d, jobId: v }))}
           />
-          {prefs.trackerScope === "active" ? (
-            <div className="space-y-1">
-              <span className="text-foreground text-[12px] font-medium">Status</span>
-              <StatusSelect
-                value={draft.status}
-                options={DEFAULT_KANBAN_STATUSES}
-                onChange={(s) => setDraft((d) => ({ ...d, status: s }))}
-                triggerClassName="h-9 w-full text-[13px]"
-              />
-            </div>
-          ) : null}
+          <div className="space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Status</span>
+            <StatusSelect
+              value={draft.status === "archived" ? "bookmarked" : draft.status}
+              options={DEFAULT_KANBAN_STATUSES}
+              onChange={(s) => setDraft((d) => ({ ...d, status: s }))}
+              triggerClassName="h-9 w-full cursor-pointer text-[13px]"
+            />
+          </div>
           {warning ? <p className="text-primary text-[12px] leading-relaxed">{warning}</p> : null}
         </div>
       </Modal>
@@ -734,29 +739,36 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         description="Update details or archive (delete) this application."
         footer={
           <>
-            <button
+            <Button
               type="button"
+              variant="destructive"
+              size="sm"
               disabled={pending}
               onClick={() => void deleteApplication()}
-              className="border-destructive/40 text-destructive hover:bg-destructive/10 mr-auto inline-flex h-8 items-center rounded-lg border px-3 text-[12px] disabled:opacity-60"
+              className="mr-auto"
             >
-              {pending ? "…" : "Delete"}
-            </button>
-            <button
-              type="button"
-              onClick={closeEdit}
-              className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-            >
+              {pendingAction === "delete" ? (
+                <>
+                  <Spinner className="mr-1.5" />
+                  Deleting…
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={closeEdit}>
               Cancel
-            </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => void saveEdit()}
-              className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
-            >
-              {pending ? "Saving…" : "Save"}
-            </button>
+            </Button>
+            <Button type="button" size="sm" disabled={pending} onClick={() => void saveEdit()}>
+              {pendingAction === "save" ? (
+                <>
+                  <Spinner className="mr-1.5" />
+                  Saving…
+                </>
+              ) : (
+                "Save"
+              )}
+            </Button>
           </>
         }
       >
@@ -797,7 +809,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
               value={draft.notes}
               onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
               rows={3}
-              className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+              className="border-border bg-background text-foreground max-h-40 min-h-[4.5rem] w-full overflow-y-auto rounded-lg border px-3 py-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
             />
           </label>
           <div className="space-y-1">
@@ -806,11 +818,11 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
               value={draft.status}
               options={APPLICATION_STATUSES}
               onChange={(s) => setDraft((d) => ({ ...d, status: s }))}
-              triggerClassName="h-9 w-full text-[13px]"
+              triggerClassName="h-9 w-full cursor-pointer text-[13px]"
             />
           </div>
           <p className="text-muted-foreground text-[11px] leading-relaxed">
-            Delete archives the application (moves it to Archived). It does not hard-delete.
+            Delete archives the application. It does not hard-delete.
           </p>
         </div>
       </Sheet>
@@ -822,11 +834,8 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           if (apps.length === 0) return;
           setApplications((list) => {
             const ids = new Set(list.map((a) => a.id));
-            const fresh = apps.filter((a) => !ids.has(a.id));
-            const scoped = fresh.filter((a) =>
-              prefs.trackerScope === "archived" ? a.status === "archived" : a.status !== "archived",
-            );
-            return scoped.length ? [...scoped, ...list] : list;
+            const fresh = apps.filter((a) => !ids.has(a.id) && a.status !== "archived");
+            return fresh.length ? [...fresh, ...list] : list;
           });
         }}
       />
@@ -892,39 +901,6 @@ function ImportGlyph({ className }: { className?: string }) {
   );
 }
 
-function Segmented<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T;
-  options: { value: T; label: string; shortLabel?: string }[];
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className="border-border bg-card inline-flex h-8 items-center rounded-lg border p-0.5">
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          title={opt.label}
-          aria-label={opt.label}
-          onClick={() => onChange(opt.value)}
-          className={cn(
-            "inline-flex h-7 items-center rounded-md px-2 text-[12px] font-medium transition-colors md:px-2.5",
-            value === opt.value
-              ? "bg-primary/15 text-primary"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <span className="md:hidden">{opt.shortLabel ?? opt.label.slice(0, 1)}</span>
-          <span className="hidden md:inline">{opt.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function Field({
   label,
   value,
@@ -953,70 +929,93 @@ function ListView({
   applications: ApplicationDto[];
   onSelect: (app: ApplicationDto) => void;
 }) {
-  if (applications.length === 0) return null;
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">("all");
 
-  const columns: DataTableColumn<ApplicationDto>[] = [
-    {
-      id: "company",
-      header: "Company",
-      accessorKey: "companyName",
-      sortable: true,
-      searchable: true,
-      enableHiding: false,
-      cell: (row) => (
-        <button
-          type="button"
-          onClick={() => onSelect(row)}
-          className="text-foreground text-left font-medium hover:underline"
-        >
-          {row.companyName}
-        </button>
-      ),
-    },
-    {
-      id: "role",
-      header: "Role",
-      accessorKey: "role",
-      sortable: true,
-      searchable: true,
-    },
-    {
-      id: "location",
-      header: "Location",
-      accessorKey: "location",
-      sortable: true,
-      searchable: true,
-    },
-    {
-      id: "ctc",
-      header: "CTC",
-      accessorKey: "salaryCtc",
-      cell: (row) => row.salaryCtc || "—",
-    },
-    {
-      id: "status",
-      header: "Status",
-      accessorKey: "status",
-      sortable: true,
-      cell: (row) => STATUS_LABELS[row.status],
-    },
-  ];
+  const rows = useMemo(() => {
+    if (statusFilter === "all") return applications;
+    return applications.filter((a) => a.status === statusFilter);
+  }, [applications, statusFilter]);
+
+  if (applications.length === 0) return null;
 
   return (
     <div className="border-border/80 bg-card/60 space-y-2 overflow-hidden rounded-xl border p-3">
-      <DataTable
-        columns={columns}
-        data={applications}
-        getRowId={(row) => row.id}
-        searchable
-        searchPlaceholder="Filter company, role, location…"
-        pagination={10}
-        emptyMessage="No applications match."
-        className="text-[12px]"
-      />
-      <p className="text-muted-foreground text-[11px]">
-        Click a company name to edit. Switch to Kanban and drag cards to change status.
-      </p>
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("all")}
+          className={cn(
+            "inline-flex h-7 cursor-pointer items-center rounded-full border px-2.5 text-[11px] font-medium",
+            statusFilter === "all"
+              ? "border-primary/30 bg-primary/10 text-primary"
+              : "border-border text-muted-foreground",
+          )}
+        >
+          All ({applications.length})
+        </button>
+        {DEFAULT_KANBAN_STATUSES.map((status) => {
+          const count = applications.filter((a) => a.status === status).length;
+          if (count === 0) return null;
+          return (
+            <button
+              key={status}
+              type="button"
+              onClick={() => setStatusFilter(status)}
+              className={cn(
+                "inline-flex h-7 cursor-pointer items-center rounded-full border px-2.5 text-[11px] font-medium",
+                statusFilter === status
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground",
+              )}
+            >
+              {STATUS_LABELS[status]} ({count})
+            </button>
+          );
+        })}
+      </div>
+      <Table className="text-[12px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Company</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Location</TableHead>
+            <TableHead>CTC</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((app) => (
+            <TableRow
+              key={app.id}
+              className="cursor-pointer"
+              onClick={() => onSelect(app)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect(app);
+                }
+              }}
+              tabIndex={0}
+              role="button"
+            >
+              <TableCell className="text-foreground font-medium">{app.companyName}</TableCell>
+              <TableCell>{app.role}</TableCell>
+              <TableCell>{app.location}</TableCell>
+              <TableCell>{app.salaryCtc || "—"}</TableCell>
+              <TableCell>{STATUS_LABELS[app.status]}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {rows.length === 0 ? (
+        <p className="text-muted-foreground px-1 py-2 text-[11px]">
+          No applications in this status.
+        </p>
+      ) : (
+        <p className="text-muted-foreground px-1 py-1 text-[11px]">
+          Click a row to edit. Switch to Kanban and drag cards to change status.
+        </p>
+      )}
     </div>
   );
 }

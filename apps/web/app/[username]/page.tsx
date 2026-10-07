@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { ProfileOwner } from "@/components/profile-owner";
 import { ProfileView } from "@/components/profile-view";
 import { getOptionalAccess } from "@/lib/app-access";
 import { getProfileByUsername } from "@/lib/profile";
-import { getActiveResume } from "@/lib/resumes";
+import { getActiveResume, listResumes } from "@/lib/resumes";
 
 type Props = { params: Promise<{ username: string }> };
 
@@ -28,12 +29,40 @@ export default async function ProfilePage({ params }: Props) {
   const isOwner = access?.user.id === profile.userId;
   const active = getActiveResume(profile.userId);
 
+  if (!isOwner) {
+    return (
+      <ProfileView
+        profile={profile}
+        isOwner={false}
+        activeResumeTitle={active?.displayName ?? null}
+        activeResumeId={active?.id ?? null}
+      />
+    );
+  }
+
+  const resumes = listResumes(profile.userId, { includeArchived: false }).map((r) => ({
+    id: r.id,
+    displayName: r.displayName,
+    status: r.status,
+    originalFilename: r.originalFilename,
+    byteSize: r.byteSize,
+  }));
+
   return (
-    <ProfileView
+    <ProfileOwner
       profile={profile}
-      isOwner={Boolean(isOwner)}
+      isOwner
       activeResumeTitle={active?.displayName ?? null}
       activeResumeId={active?.id ?? null}
+      settingsProfile={{
+        username: profile.username,
+        name: profile.name,
+        bio: profile.bio,
+        portfolioUrl: profile.portfolioUrl,
+        linkedinUrl: profile.linkedinUrl,
+        links: profile.links,
+      }}
+      resumes={resumes}
     />
   );
 }

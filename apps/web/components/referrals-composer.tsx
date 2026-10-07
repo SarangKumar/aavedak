@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Modal } from "@/components/ui/modal";
 import {
@@ -427,39 +428,41 @@ export function ReferralsComposer({
                   className="border-border bg-muted/40 text-foreground h-8 w-full cursor-not-allowed rounded-lg border px-2.5 text-[12px]"
                 />
               </label>
-              <div className="flex items-end justify-between gap-2">
-                <label className="block min-w-0 flex-1 space-y-1">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground text-[11px] font-medium">
                     Cold email template
                   </span>
-                  <Select
-                    value={selectedTemplateId ?? undefined}
-                    onValueChange={(v) => setSelectedTemplateId(v || null)}
-                    disabled={templates.length === 0}
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="xs"
+                    onClick={() => setTemplatesOpen(true)}
+                    className="text-[11px]"
                   >
-                    <SelectTrigger className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2 text-[12px]">
-                      <SelectValue
-                        placeholder={
-                          templates.length === 0 ? "No saved templates" : "Choose a saved template"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent className="z-[240]">
-                      {templates.map((tpl) => (
-                        <SelectItem key={tpl.id} value={tpl.id}>
-                          {tpl.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setTemplatesOpen(true)}
-                  className="text-primary mb-0.5 shrink-0 text-[11px] font-medium hover:underline"
+                    Manage templates
+                  </Button>
+                </div>
+                <Select
+                  value={selectedTemplateId ?? undefined}
+                  onValueChange={(v) => setSelectedTemplateId(v || null)}
+                  disabled={templates.length === 0}
                 >
-                  Manage templates
-                </button>
+                  <SelectTrigger className="border-border bg-background text-foreground h-8 w-full cursor-pointer rounded-lg border px-2 text-[12px]">
+                    <SelectValue
+                      placeholder={
+                        templates.length === 0 ? "No saved templates" : "Choose a saved template"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent className="z-[240]">
+                    {templates.map((tpl) => (
+                      <SelectItem key={tpl.id} value={tpl.id}>
+                        {tpl.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               {templates.length === 0 ? (
                 <p className="text-muted-foreground text-[11px] leading-relaxed">
@@ -525,17 +528,13 @@ export function ReferralsComposer({
                       <li key={person.id}>
                         <label
                           className={cn(
-                            "flex cursor-pointer items-start gap-2 rounded-xl border px-2.5 py-2",
+                            "flex cursor-pointer items-center gap-2 rounded-xl border px-2.5 py-2",
                             checked
                               ? "border-primary/40 bg-primary/10"
                               : "border-border/70 bg-muted/30",
                           )}
                         >
-                          <Checkbox
-                            checked={checked}
-                            onChange={() => togglePerson(person.id)}
-                            className="mt-0.5"
-                          />
+                          <Checkbox checked={checked} onChange={() => togglePerson(person.id)} />
                           <span className="min-w-0">
                             <span className="text-foreground block truncate text-[12px] font-medium">
                               {person.name}

@@ -17,14 +17,11 @@ export default async function JobTrackerPage() {
   seedBulkApplications(user.id);
 
   let preferences = getPreferences(user.id);
-  const active = listApplications(user.id, "active");
-  const archived = listApplications(user.id, "archived");
-
-  if (preferences.trackerScope === "archived" && archived.length === 0 && active.length > 0) {
+  if (preferences.trackerScope !== "active") {
     preferences = updatePreferences(user.id, { trackerScope: "active" });
   }
 
-  const applications = preferences.trackerScope === "archived" ? archived : active;
+  const applications = listApplications(user.id, "active");
 
   return (
     <div className="relative overflow-hidden">
@@ -47,7 +44,7 @@ export default async function JobTrackerPage() {
           }))}
           initialPreferences={{
             trackerView: preferences.trackerView,
-            trackerScope: preferences.trackerScope,
+            trackerScope: "active",
             hiddenColumns: preferences.hiddenColumns,
           }}
         />

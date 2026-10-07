@@ -142,28 +142,29 @@ function layoutCoverLetterOnDoc(doc: JsPdfDoc, opts: CoverLetterDownloadOpts): C
 
   const rowItems = coverFooterRowItems(opts.footer);
   if (rowItems.length) {
-    y += 16;
-    ensure(22);
+    const footerBlock = 28; // line + text near page bottom
+    const footerY = bottom - 8;
+    if (y + 12 > footerY - footerBlock) exceedsOnePage = true;
     if (!exceedsOnePage) {
       doc.setDrawColor(200);
-      doc.line(margin, y, pageWidth - margin, y);
+      doc.line(margin, footerY - 14, pageWidth - margin, footerY - 14);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      let x = margin;
+      rowItems.forEach((item, idx) => {
+        const sep = idx === 0 ? "" : " ⋅ ";
+        if (sep) {
+          doc.setTextColor(140);
+          doc.text(sep, x, footerY);
+          x += doc.getTextWidth(sep);
+        }
+        doc.setTextColor(40, 80, 160);
+        doc.textWithLink(item.label, x, footerY, { url: item.href });
+        x += doc.getTextWidth(item.label);
+      });
+      doc.setTextColor(0);
     }
-    y += 14;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    let x = margin;
-    rowItems.forEach((item, idx) => {
-      const sep = idx === 0 ? "" : " ⋅ ";
-      if (sep) {
-        doc.setTextColor(140);
-        if (!exceedsOnePage) doc.text(sep, x, y);
-        x += doc.getTextWidth(sep);
-      }
-      doc.setTextColor(40, 80, 160);
-      if (!exceedsOnePage) doc.textWithLink(item.label, x, y, { url: item.href });
-      x += doc.getTextWidth(item.label);
-    });
-    doc.setTextColor(0);
+    y = Math.max(y, footerY);
   }
 
   return { exceedsOnePage, endY: y, pageHeight };

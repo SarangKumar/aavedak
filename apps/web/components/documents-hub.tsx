@@ -86,6 +86,17 @@ type DocumentsHubProps = {
   profileLinks?: ProfileLinks;
 };
 
+const DEFAULT_COVER_TITLE = "Cover letter — {{role}} at {{company}}";
+
+const DEFAULT_COVER_BODY = `Dear Hiring Manager,
+
+I am writing to express my interest in the {{role}} position at {{company}}. With a strong background and a passion for building thoughtful products, I would welcome the chance to contribute to your team.
+
+Thank you for your time and consideration.
+
+Sincerely,
+John Doe`;
+
 type FooterIncludeKey = CoverFooterLinkKey | "email";
 
 type FooterInclude = Record<FooterIncludeKey, boolean>;
@@ -150,8 +161,8 @@ export function DocumentsHub({
   const [uploadFiles, setUploadFiles] = useState<FileUploadFile[]>([]);
 
   // Cover / template editors
-  const [clTitle, setClTitle] = useState("");
-  const [clBody, setClBody] = useState("");
+  const [clTitle, setClTitle] = useState(DEFAULT_COVER_TITLE);
+  const [clBody, setClBody] = useState(DEFAULT_COVER_BODY);
   const [clApplicationId, setClApplicationId] = useState<string>(initialApplications[0]?.id ?? "");
   const [editingClId, setEditingClId] = useState<string | null>(null);
   const [clFooterInclude, setClFooterInclude] = useState<FooterInclude>(() =>
@@ -169,8 +180,8 @@ export function DocumentsHub({
 
   function resetCoverDraft() {
     setEditingClId(null);
-    setClTitle("");
-    setClBody("");
+    setClTitle(DEFAULT_COVER_TITLE);
+    setClBody(DEFAULT_COVER_BODY);
     setClApplicationId(applications[0]?.id ?? "");
     setClFooterInclude(defaultFooterInclude(profileEmail, profileLinks));
   }
@@ -239,8 +250,8 @@ export function DocumentsHub({
   }
 
   async function downloadDraft(format: "pdf" | "docx") {
-    if (!clTitle.trim() && !clBody.trim()) {
-      setError("Add a title or body before downloading.");
+    if (!clTitle.trim() || !clBody.trim()) {
+      setError("Title and body are required before downloading.");
       return;
     }
     if (clOverflowsPage) {
@@ -332,6 +343,10 @@ export function DocumentsHub({
     setError(null);
     if (!clTitle.trim()) {
       setError("Cover letter title is required.");
+      return;
+    }
+    if (!clBody.trim()) {
+      setError("Cover letter body is required.");
       return;
     }
     if (!clApplicationId) {
@@ -567,7 +582,7 @@ export function DocumentsHub({
       ) : null}
 
       {tab === "cover_letters" ? (
-        <section className="space-y-4">
+        <section className="space-y-4 px-0">
           <p className="aavedak-meta text-muted-foreground leading-relaxed">
             Cover letters are always company-specific and limited to one A4 page. New letters start
             from scratch — pick an application, write with {"{{role}}"} / {"{{company}}"} variables,
@@ -621,8 +636,8 @@ export function DocumentsHub({
                 placeholder={
                   "Dear Hiring Manager,\n\nI am writing to apply for the {{role}} role at {{company}}…"
                 }
-                rows={9}
-                className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
+                rows={8}
+                className="border-border bg-background text-foreground max-h-64 min-h-[10rem] w-full overflow-y-auto rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
               />
               <div className="space-y-1.5">
                 <p className="text-foreground text-[11px] font-semibold tracking-tight">
@@ -653,12 +668,11 @@ export function DocumentsHub({
                       <label
                         key={item.key}
                         className={cn(
-                          "border-border/70 flex items-start gap-2 rounded-lg border px-2.5 py-2",
+                          "border-border/70 flex items-center gap-2 rounded-lg border px-2.5 py-2",
                           hasValue ? "bg-background/50" : "bg-muted/30 opacity-70",
                         )}
                       >
                         <Checkbox
-                          className="mt-0.5"
                           checked={checked}
                           disabled={!hasValue}
                           onChange={(e) =>

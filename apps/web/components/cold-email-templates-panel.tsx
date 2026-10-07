@@ -107,6 +107,10 @@ export function ColdEmailTemplatesPanel({ templates, onTemplatesChange, classNam
       setError("Template title is required.");
       return;
     }
+    if (!draft.body.trim()) {
+      setError("Template body is required.");
+      return;
+    }
     setPending(true);
     setError(null);
     try {
@@ -299,8 +303,11 @@ export function ColdEmailTemplatesPanel({ templates, onTemplatesChange, classNam
               value={draft.body}
               onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))}
               placeholder="Hi {{person_name}}, …"
-              rows={10}
-              className={cn(field, "h-auto py-2 font-mono text-[11px] leading-relaxed")}
+              rows={8}
+              className={cn(
+                field,
+                "h-auto max-h-64 min-h-[10rem] overflow-y-auto py-2 font-mono text-[11px] leading-relaxed",
+              )}
             />
           </label>
           <button

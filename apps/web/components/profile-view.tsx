@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 import { ShellWidth } from "@/components/shell-width";
@@ -16,6 +18,8 @@ export type ProfileViewProps = {
   isOwner: boolean;
   activeResumeTitle: string | null;
   activeResumeId: string | null;
+  /** When set, Edit profile opens this instead of navigating to settings. */
+  onEdit?: () => void;
 };
 
 function displayName(profile: Profile) {
@@ -54,6 +58,7 @@ export function ProfileView({
   isOwner,
   activeResumeTitle,
   activeResumeId,
+  onEdit,
 }: ProfileViewProps) {
   const name = displayName(profile);
   const rowItems = buildProfileFooterRow(profile);
@@ -87,12 +92,22 @@ export function ProfileView({
           </div>
 
           {isOwner ? (
-            <Link
-              href={`/${profile.username}/settings`}
-              className="aavedak-btn border-border bg-background/80 text-foreground hover:bg-muted inline-flex h-8 shrink-0 items-center justify-center rounded-lg border px-3 text-[12px] font-semibold"
-            >
-              Edit profile
-            </Link>
+            onEdit ? (
+              <button
+                type="button"
+                onClick={onEdit}
+                className="aavedak-btn border-border bg-background/80 text-foreground hover:bg-muted inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border px-3 text-[12px] font-semibold"
+              >
+                Edit profile
+              </button>
+            ) : (
+              <Link
+                href={`/${profile.username}/settings`}
+                className="aavedak-btn border-border bg-background/80 text-foreground hover:bg-muted inline-flex h-8 shrink-0 items-center justify-center rounded-lg border px-3 text-[12px] font-semibold"
+              >
+                Edit profile
+              </Link>
+            )
           ) : null}
         </div>
 

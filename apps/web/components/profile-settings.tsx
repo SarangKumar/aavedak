@@ -40,6 +40,8 @@ export type ProfileSettingsResume = {
 type Props = {
   profile: ProfileSettingsProfile;
   initialResumes: ProfileSettingsResume[];
+  /** When set (inline edit from profile page), show Cancel back to view. */
+  onCancel?: () => void;
 };
 
 function formatBytes(n: number) {
@@ -59,7 +61,7 @@ function linksFromProfile(profile: ProfileSettingsProfile): ProfileLinks {
   return base;
 }
 
-export function ProfileSettings({ profile, initialResumes }: Props) {
+export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
   const router = useRouter();
   const [name, setName] = useState(profile.name ?? "");
   const [bio, setBio] = useState(profile.bio ?? "");
@@ -101,6 +103,7 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
       if (!res.ok) throw new Error(data.error || "Could not save profile.");
       setSaved(true);
       router.refresh();
+      if (onCancel) onCancel();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save profile.");
     } finally {
@@ -144,19 +147,31 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
             @{profile.username}
           </p>
           <h1 className="aavedak-display text-foreground text-xl tracking-tight sm:text-2xl">
-            Profile settings
+            Edit profile
           </h1>
           <p className="text-muted-foreground max-w-xl text-[13px]">
             Edit how you appear on Aavedak. Only one resume can be the active showcase on your
             public profile.
           </p>
         </div>
-        <Link
-          href={`/${profile.username}`}
-          className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-        >
-          View public profile
-        </Link>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {onCancel ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 cursor-pointer items-center rounded-lg border px-2.5 text-[12px]"
+            >
+              Cancel
+            </button>
+          ) : (
+            <Link
+              href={`/${profile.username}`}
+              className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+            >
+              View profile
+            </Link>
+          )}
+        </div>
       </div>
 
       {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
