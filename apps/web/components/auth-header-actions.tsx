@@ -24,7 +24,7 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
     return (
       <Link
         href="/sign-in"
-        className="avsar-btn bg-primary text-primary-foreground ring-primary/25 inline-flex h-8 items-center justify-center rounded-lg px-2.5 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90"
+        className="aavedak-btn bg-primary text-primary-foreground ring-primary/25 inline-flex h-8 items-center justify-center rounded-lg px-2.5 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90"
       >
         Sign in
       </Link>

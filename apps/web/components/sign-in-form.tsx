@@ -109,7 +109,7 @@ export function SignInForm({ googleConfigured }: SignInFormProps) {
         onClick={continueWithGoogle}
         disabled={pending}
         className={cn(
-          "avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg px-3.5 text-[13px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90 disabled:opacity-60",
+          "aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg px-3.5 text-[13px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90 disabled:opacity-60",
         )}
       >
         {!pending ? <GoogleMark className="size-3.5 shrink-0" /> : null}

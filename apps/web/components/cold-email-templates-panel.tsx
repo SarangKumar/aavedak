@@ -186,21 +186,12 @@ export function ColdEmailTemplatesPanel({
   return (
     <div className={cn("space-y-3", className)}>
       {/* 1) Dummy application strip */}
-      <div className="border-border/80 bg-card/80 flex flex-wrap items-start justify-between gap-2 rounded-2xl border px-3 py-2.5 shadow-sm">
+      <div className="border-border/80 bg-card/80 flex flex-wrap items-start justify-between gap-2 rounded-xl border px-3 py-2.5 shadow-sm">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-1.5">
             <p className="text-foreground text-[12px] font-semibold tracking-tight">
               Dummy application
             </p>
-            <button
-              type="button"
-              onClick={() => setInfoOpen(true)}
-              className="border-border text-muted-foreground hover:text-foreground inline-flex size-6 items-center justify-center rounded-full border text-[11px] font-semibold"
-              aria-label="Template variable info"
-              title="Template variables"
-            >
-              ⓘ
-            </button>
           </div>
           <p className="text-muted-foreground text-[11px] leading-relaxed">
             Preview substitutes placeholders from this sample job + person.
@@ -221,8 +212,17 @@ export function ColdEmailTemplatesPanel({
 
       {/* 2) Create/edit | live preview */}
       <div className="grid gap-3 lg:grid-cols-2">
-        <div className="border-border/80 bg-card/80 space-y-2 rounded-2xl border p-3 shadow-sm">
-          <div className="flex items-center justify-between gap-2">
+        <div className="border-border/80 bg-card/80 relative space-y-2 rounded-xl border p-3 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setInfoOpen(true)}
+            className="text-foreground absolute right-2.5 top-2.5 inline-flex size-6 items-center justify-center rounded-full hover:opacity-80"
+            aria-label="Template variable info"
+            title="Template variables"
+          >
+            <InfoIcon className="size-4" />
+          </button>
+          <div className="flex items-center justify-between gap-2 pr-8">
             <p className="text-foreground text-[12px] font-semibold tracking-tight">
               {draft.id ? "Edit template" : "New template"}
             </p>
@@ -283,13 +283,13 @@ export function ColdEmailTemplatesPanel({
             type="button"
             disabled={pending}
             onClick={() => void save()}
-            className="avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold shadow-sm ring-1 disabled:opacity-60"
+            className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold shadow-sm ring-1 disabled:opacity-60"
           >
             {pending ? "Saving…" : draft.id ? "Update template" : "Create template"}
           </button>
         </div>
 
-        <div className="border-border/80 bg-card/80 flex min-h-[22rem] flex-col rounded-2xl border p-3 shadow-sm">
+        <div className="border-border/80 bg-card/80 flex min-h-[22rem] flex-col rounded-xl border p-3 shadow-sm">
           <p className="text-foreground text-[12px] font-semibold tracking-tight">Live preview</p>
           <p className="text-muted-foreground mb-2 text-[11px]">
             Updates as you type subject and body.
@@ -311,12 +311,12 @@ export function ColdEmailTemplatesPanel({
         </div>
       </div>
 
-      {/* 3) Your templates list */}
-      <div className="border-border/80 bg-card/80 space-y-2 rounded-2xl border p-3 shadow-sm">
+      {/* 3) Your templates list — flat like Your resumes */}
+      <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-foreground text-[12px] font-semibold tracking-tight">
+          <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
             Your templates ({templates.length})
-          </p>
+          </h2>
           <button
             type="button"
             onClick={startNew}
@@ -326,19 +326,19 @@ export function ColdEmailTemplatesPanel({
           </button>
         </div>
         {templates.length === 0 ? (
-          <div className="border-border/70 text-muted-foreground rounded-xl border border-dashed px-3 py-6 text-center text-[12px]">
+          <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-[13px]">
             No templates yet — create one above.
           </div>
         ) : (
-          <ul className="max-h-56 space-y-1.5 overflow-y-auto">
+          <ul className="max-h-72 space-y-2 overflow-y-auto">
             {templates.map((tpl) => {
               const selected = draft.id === tpl.id;
               return (
                 <li
                   key={tpl.id}
                   className={cn(
-                    "border-border/70 flex flex-col gap-1.5 rounded-xl border px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between",
-                    selected ? "border-primary/40 bg-primary/10" : "bg-muted/30",
+                    "border-border/80 bg-card/70 flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between",
+                    selected && "border-primary/40 bg-primary/10",
                   )}
                 >
                   <button
@@ -346,9 +346,11 @@ export function ColdEmailTemplatesPanel({
                     onClick={() => loadTemplate(tpl)}
                     className="min-w-0 flex-1 text-left"
                   >
-                    <p className="text-foreground truncate text-[12px] font-medium">
+                    <p className="text-foreground truncate text-[13px] font-medium">
                       {tpl.title}
-                      <span className="text-muted-foreground ml-1 text-[10px]">({tpl.kind})</span>
+                      <span className="text-muted-foreground ml-2 text-[10px] font-semibold uppercase tracking-wide">
+                        {tpl.kind}
+                      </span>
                     </p>
                     <p className="text-muted-foreground line-clamp-1 text-[11px]">
                       {tpl.body || "Empty body"}
@@ -358,7 +360,7 @@ export function ColdEmailTemplatesPanel({
                     <button
                       type="button"
                       onClick={() => loadTemplate(tpl)}
-                      className="border-border text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
+                      className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                     >
                       Edit
                     </button>
@@ -366,7 +368,7 @@ export function ColdEmailTemplatesPanel({
                       type="button"
                       disabled={pending}
                       onClick={() => void archive(tpl.id)}
-                      className="border-border text-muted-foreground hover:text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px] disabled:opacity-50"
+                      className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
                     >
                       Archive
                     </button>
@@ -388,7 +390,7 @@ export function ColdEmailTemplatesPanel({
           <button
             type="button"
             onClick={() => setInfoOpen(false)}
-            className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold"
+            className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold"
           >
             Got it
           </button>
@@ -414,6 +416,25 @@ export function ColdEmailTemplatesPanel({
         </ul>
       </Modal>
     </div>
+  );
+}
+
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
+    </svg>
   );
 }
 

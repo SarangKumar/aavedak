@@ -95,7 +95,7 @@ export function CommandPalette() {
         aria-modal="true"
         aria-label="Command palette"
         className={cn(
-          "border-border bg-card text-card-foreground dark relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border shadow-2xl shadow-black/50",
+          "border-border bg-card text-card-foreground dark relative z-10 w-full max-w-lg overflow-hidden rounded-xl border shadow-2xl shadow-black/50",
         )}
         onClick={(e) => e.stopPropagation()}
       >

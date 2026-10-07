@@ -3,13 +3,13 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Arambh · Discover · Apply · Grow",
+  title: "Aavedak · Discover · Apply · Grow",
   description:
-    "Arambh (आरंभ) is your personal job-search OS — discover roles, prepare documents, track applications, and grow your career. Arambh recommends and prepares. You decide and send.",
+    "Aavedak (आवेदक) is your personal job-search OS — discover roles, prepare documents, track applications, and grow your career. Aavedak recommends and prepares. You decide and send.",
 };
 
 const chips = [
-  { label: "You send · Arambh prepares" },
+  { label: "You send · Aavedak prepares" },
   { label: "Recommend · Decide · Act" },
 ] as const;
 
@@ -51,16 +51,16 @@ export default function HomePage() {
     <div className="relative">
       <div className="relative mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-16 lg:py-20">
         <section
-          className="avsar-fade-up flex flex-col items-center px-1 text-center sm:px-0"
+          className="aavedak-fade-up flex flex-col items-center px-1 text-center sm:px-0"
           aria-labelledby="hero-heading"
         >
           <div className="relative mb-5 sm:mb-6">
             <Image
               src="/brand/logo-icon.png"
-              alt="Arambh — stylized golden A mark"
+              alt="Aavedak — stylized golden A mark"
               width={96}
               height={96}
-              className="avsar-logo relative h-[4.5rem] w-[4.5rem] sm:h-24 sm:w-24"
+              className="aavedak-logo relative h-[4.5rem] w-[4.5rem] sm:h-24 sm:w-24"
               priority
             />
           </div>
@@ -69,14 +69,14 @@ export default function HomePage() {
             className="text-primary/90 mb-1.5 font-mono text-[13px] tracking-wide sm:mb-2"
             lang="hi"
           >
-            आरंभ
+            आवेदक
           </p>
 
           <h1
             id="hero-heading"
-            className="avsar-display text-foreground text-3xl leading-none sm:text-5xl md:text-6xl"
+            className="aavedak-display text-foreground text-3xl leading-none sm:text-5xl md:text-6xl"
           >
-            Arambh
+            Aavedak
           </h1>
 
           <p className="text-muted-foreground mt-1.5 text-[11px] font-medium uppercase tracking-wide sm:text-xs">
@@ -84,28 +84,28 @@ export default function HomePage() {
           </p>
 
           <p className="text-muted-foreground mt-3.5 max-w-lg text-pretty text-[15px] leading-relaxed sm:mt-4 sm:text-base">
-            Arambh recommends and prepares. The user decides and sends.
+            Aavedak recommends and prepares. The user decides and sends.
           </p>
 
-          <div className="avsar-fade-up avsar-fade-up-delay-1 mt-4 flex max-w-md flex-wrap items-center justify-center gap-1.5 sm:mt-5 sm:max-w-none">
+          <div className="aavedak-fade-up aavedak-fade-up-delay-1 mt-4 flex max-w-md flex-wrap items-center justify-center gap-1.5 sm:mt-5 sm:max-w-none">
             {chips.map((chip) => (
-              <span key={chip.label} className="avsar-chip">
-                <span className="avsar-chip-dot" aria-hidden />
+              <span key={chip.label} className="aavedak-chip">
+                <span className="aavedak-chip-dot" aria-hidden />
                 {chip.label}
               </span>
             ))}
           </div>
 
-          <div className="avsar-fade-up avsar-fade-up-delay-2 mt-6 flex w-full max-w-sm flex-col items-stretch gap-2 sm:mt-7 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
+          <div className="aavedak-fade-up aavedak-fade-up-delay-2 mt-6 flex w-full max-w-sm flex-col items-stretch gap-2 sm:mt-7 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
             <Link
               href="/dashboard"
-              className="avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 items-center justify-center rounded-lg px-5 text-[13px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90"
+              className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 items-center justify-center rounded-lg px-5 text-[13px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90"
             >
               Open dashboard
             </Link>
             <Link
               href="/onboarding"
-              className="avsar-btn border-border bg-card/80 text-foreground ring-ring/10 hover:text-primary inline-flex h-9 items-center justify-center rounded-lg border px-5 text-[13px] font-medium shadow-sm ring-1 backdrop-blur-sm"
+              className="aavedak-btn border-border bg-card/80 text-foreground ring-ring/10 hover:text-primary inline-flex h-9 items-center justify-center rounded-lg border px-5 text-[13px] font-medium shadow-sm ring-1 backdrop-blur-sm"
             >
               Start onboarding
             </Link>
@@ -113,7 +113,7 @@ export default function HomePage() {
         </section>
 
         <section
-          className="avsar-fade-up avsar-fade-up-delay-3 mt-12 sm:mt-16"
+          className="aavedak-fade-up aavedak-fade-up-delay-3 mt-12 sm:mt-16"
           aria-labelledby="workspace-heading"
         >
           <div className="mb-3.5 flex flex-col gap-1 sm:mb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
@@ -132,7 +132,7 @@ export default function HomePage() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="avsar-card-lift avsar-fade-up avsar-fade-up-delay-3 border-border/80 bg-card/70 ring-ring/5 hover:border-primary/25 group flex min-h-[6.75rem] flex-col rounded-2xl border p-3.5 shadow-sm ring-1 backdrop-blur-sm sm:p-4"
+                className="aavedak-card-lift aavedak-fade-up aavedak-fade-up-delay-3 border-border/80 bg-card/70 ring-ring/5 hover:border-primary/25 group flex min-h-[6.75rem] flex-col rounded-xl border p-3.5 shadow-sm ring-1 backdrop-blur-sm sm:p-4"
               >
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-foreground text-[13px] font-semibold tracking-tight">

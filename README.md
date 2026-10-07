@@ -1,8 +1,8 @@
-# Avsar
+# Aavedak
 
 Personal job-search operating system.
 
-> **Avsar recommends and prepares. The user decides and sends.**
+> **Aavedak recommends and prepares. The user decides and sends.**
 
 अवसर — opportunity.
 
@@ -46,7 +46,7 @@ pnpm install
 # 2. Web env (see apps/web/README.md → Env)
 cp apps/web/.env.example apps/web/.env.local
 # Optional prod-oriented defaults: cp apps/web/.env.example apps/web/.env
-# .env.local overrides with localhost; .env uses https://arambh.vercel.app
+# .env.local overrides with localhost; .env uses https://aavedak.vercel.app
 # Ensure NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 
 # 3. API env + venv
@@ -79,7 +79,7 @@ pnpm dev
 ## Monorepo map
 
 ```
-avsar/
+aavedak/
 ├── apps/
 │   ├── web/          Next.js App Router + TS + Tailwind v4
 │   ├── api/          FastAPI (uvicorn)

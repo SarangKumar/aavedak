@@ -10,6 +10,14 @@ import {
 } from "@/components/ui/file-upload";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { ShellWidth } from "@/components/shell-width";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { downloadCoverLetterDocx, downloadCoverLetterPdf } from "@/lib/cover-letter-download";
 import { cn } from "@/lib/utils";
 
 type Tab = "resumes" | "cover_letters" | "templates";
@@ -44,10 +52,18 @@ export type TemplateDto = {
   updatedAt: string;
 };
 
+export type ApplicationOptionDto = {
+  id: string;
+  companyName: string;
+  role: string;
+  location: string;
+};
+
 type DocumentsHubProps = {
   initialResumes: ResumeDto[];
   initialCoverLetters: CoverLetterDto[];
   initialTemplates: TemplateDto[];
+  initialApplications: ApplicationOptionDto[];
   userEmail?: string;
   userName?: string;
 };
@@ -62,6 +78,7 @@ export function DocumentsHub({
   initialResumes,
   initialCoverLetters,
   initialTemplates,
+  initialApplications,
   userEmail,
   userName,
 }: DocumentsHubProps) {
@@ -69,8 +86,10 @@ export function DocumentsHub({
   const [resumes, setResumes] = useState(initialResumes);
   const [coverLetters, setCoverLetters] = useState(initialCoverLetters);
   const [templates, setTemplates] = useState(initialTemplates);
+  const [applications] = useState(initialApplications);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
 
   // Resume upload state
   const [displayName, setDisplayName] = useState("Primary Resume");
@@ -79,7 +98,41 @@ export function DocumentsHub({
   // Cover / template editors
   const [clTitle, setClTitle] = useState("");
   const [clBody, setClBody] = useState("");
+  const [clApplicationId, setClApplicationId] = useState<string>(initialApplications[0]?.id ?? "");
+  const [clTemplateId, setClTemplateId] = useState<string>("");
   const [editingClId, setEditingClId] = useState<string | null>(null);
+
+  const coverTemplates = useMemo(() => templates.filter((t) => t.kind === "cover"), [templates]);
+
+  const appsById = useMemo(() => {
+    const map = new Map(applications.map((a) => [a.id, a]));
+    return map;
+  }, [applications]);
+
+  function resetCoverDraft() {
+    setEditingClId(null);
+    setClTitle("");
+    setClBody("");
+    setClTemplateId("");
+    setClApplicationId(applications[0]?.id ?? "");
+  }
+
+  async function downloadCl(cl: CoverLetterDto, format: "pdf" | "docx") {
+    setError(null);
+    setDownloadBusy(`${cl.id}-${format}`);
+    try {
+      const company = cl.applicationId ? appsById.get(cl.applicationId)?.companyName : undefined;
+      if (format === "pdf") {
+        await downloadCoverLetterPdf({ title: cl.title, body: cl.body, companyName: company });
+      } else {
+        await downloadCoverLetterDocx({ title: cl.title, body: cl.body, companyName: company });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Download failed.");
+    } finally {
+      setDownloadBusy(null);
+    }
+  }
 
   const selectedPdf = useMemo(() => {
     const item = uploadFiles.find((f) => !f.error);
@@ -149,13 +202,21 @@ export function DocumentsHub({
       setError("Cover letter title is required.");
       return;
     }
+    if (!clApplicationId) {
+      setError("Pick a company / application — cover letters are always company-specific.");
+      return;
+    }
     setPending(true);
     try {
       if (editingClId) {
         const res = await fetch(`/api/cover-letters/${editingClId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: clTitle, body: clBody }),
+          body: JSON.stringify({
+            title: clTitle,
+            body: clBody,
+            applicationId: clApplicationId,
+          }),
         });
         const data = (await res.json()) as { coverLetter?: CoverLetterDto; error?: string };
         if (!res.ok) throw new Error(data.error || "Update failed.");
@@ -168,15 +229,17 @@ export function DocumentsHub({
         const res = await fetch("/api/cover-letters", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: clTitle, body: clBody }),
+          body: JSON.stringify({
+            title: clTitle,
+            body: clBody,
+            applicationId: clApplicationId,
+          }),
         });
         const data = (await res.json()) as { coverLetter?: CoverLetterDto; error?: string };
         if (!res.ok) throw new Error(data.error || "Create failed.");
         if (data.coverLetter) setCoverLetters((list) => [data.coverLetter!, ...list]);
       }
-      setClTitle("");
-      setClBody("");
-      setEditingClId(null);
+      resetCoverDraft();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
     } finally {
@@ -194,22 +257,20 @@ export function DocumentsHub({
     }
     setCoverLetters((list) => list.filter((c) => c.id !== id));
     if (editingClId === id) {
-      setEditingClId(null);
-      setClTitle("");
-      setClBody("");
+      resetCoverDraft();
     }
   }
 
   return (
-    <ShellWidth className="avsar-fade-up space-y-6 py-8 sm:py-10">
+    <ShellWidth className="aavedak-fade-up space-y-6 py-8 sm:py-10">
       <header className="space-y-1">
         <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-          आरंभ
+          आवेदक
         </p>
-        <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Documents</h1>
+        <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Documents</h1>
         <p className="text-muted-foreground text-[13px] leading-relaxed">
-          Resumes (PDF), cover letters, and cold-email templates. Multiple resumes can be active.
-          Resume delete archives only.
+          Resumes (PDF), company-specific cover letters (PDF/DOCX download), and cold-email
+          templates. Multiple resumes can be active. Resume delete archives only.
         </p>
       </header>
 
@@ -244,7 +305,7 @@ export function DocumentsHub({
 
       {tab === "resumes" ? (
         <section className="space-y-4">
-          <div className="border-border/80 bg-card/70 ring-ring/10 space-y-3 rounded-2xl border p-4 shadow-sm ring-1">
+          <div className="border-border/80 bg-card/70 ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
             <div className="space-y-1.5">
               <label
                 htmlFor="resume-display-name"
@@ -283,7 +344,7 @@ export function DocumentsHub({
               type="button"
               disabled={pending || !selectedPdf}
               onClick={() => void uploadResume()}
-              className="avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold shadow-sm ring-1 hover:opacity-90 disabled:opacity-60"
+              className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold shadow-sm ring-1 hover:opacity-90 disabled:opacity-60"
             >
               {pending ? "Uploading…" : "Upload PDF resume"}
             </button>
@@ -366,10 +427,74 @@ export function DocumentsHub({
 
       {tab === "cover_letters" ? (
         <section className="space-y-4">
-          <div className="border-border/80 bg-card/70 space-y-2.5 rounded-2xl border p-4">
+          <p className="text-muted-foreground text-[12px] leading-relaxed">
+            Cover letters are always company-specific (tied to an application). Optional cover
+            templates seed the body; after save you can download PDF or DOCX.
+          </p>
+          <div className="border-border/80 bg-card/70 space-y-2.5 rounded-xl border p-4">
             <p className="text-foreground text-[12px] font-medium">
               {editingClId ? "Edit cover letter" : "New cover letter"}
             </p>
+            <label className="block space-y-1">
+              <span className="text-muted-foreground text-[11px] font-medium">
+                Company / application *
+              </span>
+              <Select
+                value={clApplicationId || undefined}
+                onValueChange={(v) => setClApplicationId(v || "")}
+              >
+                <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
+                  <SelectValue placeholder="Select application" />
+                </SelectTrigger>
+                <SelectContent className="z-[280]">
+                  {applications.length === 0 ? (
+                    <SelectItem value="__none" disabled>
+                      No applications yet — add one in Job tracker
+                    </SelectItem>
+                  ) : (
+                    applications.map((app) => (
+                      <SelectItem key={app.id} value={app.id}>
+                        {app.companyName} · {app.role}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="block space-y-1">
+              <span className="text-muted-foreground text-[11px] font-medium">
+                Cover template (optional)
+              </span>
+              <Select
+                value={clTemplateId || undefined}
+                onValueChange={(v) => {
+                  const id = v || "";
+                  setClTemplateId(id);
+                  const tpl = coverTemplates.find((t) => t.id === id);
+                  if (tpl) {
+                    setClBody(tpl.body);
+                    if (!clTitle.trim()) setClTitle(tpl.title);
+                  }
+                }}
+              >
+                <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
+                  <SelectValue placeholder="Start from a saved cover template" />
+                </SelectTrigger>
+                <SelectContent className="z-[280]">
+                  {coverTemplates.length === 0 ? (
+                    <SelectItem value="__none" disabled>
+                      No cover templates — create one under Cold email templates (kind: Cover)
+                    </SelectItem>
+                  ) : (
+                    coverTemplates.map((tpl) => (
+                      <SelectItem key={tpl.id} value={tpl.id}>
+                        {tpl.title}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </label>
             <input
               value={clTitle}
               onChange={(e) => setClTitle(e.target.value)}
@@ -379,7 +504,7 @@ export function DocumentsHub({
             <textarea
               value={clBody}
               onChange={(e) => setClBody(e.target.value)}
-              placeholder="Body (plain text / markdown)"
+              placeholder="Body (plain text)"
               rows={8}
               className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] leading-relaxed"
             />
@@ -387,11 +512,7 @@ export function DocumentsHub({
               {editingClId ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditingClId(null);
-                    setClTitle("");
-                    setClBody("");
-                  }}
+                  onClick={() => resetCoverDraft()}
                   className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
                 >
                   Cancel
@@ -401,53 +522,82 @@ export function DocumentsHub({
                 type="button"
                 disabled={pending}
                 onClick={() => void saveCoverLetter()}
-                className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
+                className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
               >
                 {pending ? "Saving…" : editingClId ? "Update" : "Create"}
               </button>
             </div>
           </div>
 
-          {coverLetters.length === 0 ? (
-            <div className="border-border/70 text-muted-foreground rounded-xl border border-dashed px-4 py-8 text-center text-[13px]">
-              No cover letters yet.
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {coverLetters.map((cl) => (
-                <li key={cl.id} className="border-border/80 bg-card/70 rounded-xl border p-3">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-foreground text-[13px] font-medium">{cl.title}</p>
-                      <p className="text-muted-foreground mt-1 line-clamp-2 text-[12px] leading-relaxed">
-                        {cl.body || "Empty body"}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingClId(cl.id);
-                          setClTitle(cl.title);
-                          setClBody(cl.body);
-                        }}
-                        className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void archiveCoverLetter(cl.id)}
-                        className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-                      >
-                        Archive
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="space-y-2">
+            <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
+              Your cover letters ({coverLetters.length})
+            </h2>
+            {coverLetters.length === 0 ? (
+              <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-[13px]">
+                No cover letters yet.
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {coverLetters.map((cl) => {
+                  const app = cl.applicationId ? appsById.get(cl.applicationId) : undefined;
+                  return (
+                    <li key={cl.id} className="border-border/80 bg-card/70 rounded-lg border p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-foreground text-[13px] font-medium">{cl.title}</p>
+                          <p className="text-muted-foreground mt-0.5 text-[11px]">
+                            {app ? `${app.companyName} · ${app.role}` : "No company linked"}
+                          </p>
+                          <p className="text-muted-foreground mt-1 line-clamp-2 text-[12px] leading-relaxed">
+                            {cl.body || "Empty body"}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            disabled={downloadBusy === `${cl.id}-pdf`}
+                            onClick={() => void downloadCl(cl, "pdf")}
+                            className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
+                          >
+                            {downloadBusy === `${cl.id}-pdf` ? "PDF…" : "PDF"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={downloadBusy === `${cl.id}-docx`}
+                            onClick={() => void downloadCl(cl, "docx")}
+                            className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
+                          >
+                            {downloadBusy === `${cl.id}-docx` ? "DOCX…" : "DOCX"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingClId(cl.id);
+                              setClTitle(cl.title);
+                              setClBody(cl.body);
+                              setClApplicationId(cl.applicationId ?? applications[0]?.id ?? "");
+                              setClTemplateId("");
+                            }}
+                            className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void archiveCoverLetter(cl.id)}
+                            className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                          >
+                            Archive
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </section>
       ) : null}
 

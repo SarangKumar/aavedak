@@ -34,17 +34,17 @@ export function SiteHeaderBar({ user }: SiteHeaderBarProps) {
       <Link
         href="/"
         className="group flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5"
-        aria-label="Arambh home"
+        aria-label="Aavedak home"
       >
         <Image
           src="/brand/logo-icon.png"
-          alt="Arambh logo"
+          alt="Aavedak logo"
           width={28}
           height={28}
-          className="avsar-logo size-7"
+          className="aavedak-logo size-7"
           priority
         />
-        <span className="avsar-display text-foreground text-sm">Arambh</span>
+        <span className="aavedak-display text-foreground text-sm">Aavedak</span>
       </Link>
 
       <nav className="ml-1 hidden items-center gap-0.5 md:flex" aria-label="Main">

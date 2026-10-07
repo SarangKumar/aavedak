@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const titleName = profile.name?.trim() || `@${profile.username}`;
   return {
     title: titleName,
-    description: profile.bio?.trim() || `${titleName} on Arambh`,
+    description: profile.bio?.trim() || `${titleName} on Aavedak`,
   };
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Avsar monorepo bootstrap — macOS + Linux
+# Aavedak monorepo bootstrap — macOS + Linux
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -72,7 +72,7 @@ copy_env_if_missing() {
 }
 
 # --- start ---
-section "Avsar setup"
+section "Aavedak setup"
 printf 'Repo: %s\n' "$ROOT"
 
 # Node

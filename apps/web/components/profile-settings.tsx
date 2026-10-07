@@ -108,17 +108,17 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
     "border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]";
 
   return (
-    <ShellWidth className="avsar-fade-up space-y-4 py-7 sm:py-9">
+    <ShellWidth className="aavedak-fade-up space-y-4 py-7 sm:py-9">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="space-y-0.5">
           <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
             @{profile.username}
           </p>
-          <h1 className="avsar-display text-foreground text-xl tracking-tight sm:text-2xl">
+          <h1 className="aavedak-display text-foreground text-xl tracking-tight sm:text-2xl">
             Profile settings
           </h1>
           <p className="text-muted-foreground max-w-xl text-[13px]">
-            Edit how you appear on Arambh. Multiple resumes can be active; activate/deactivate
+            Edit how you appear on Aavedak. Multiple resumes can be active; activate/deactivate
             reuses Documents APIs.
           </p>
         </div>
@@ -133,7 +133,7 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
       {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
       {saved ? <p className="text-primary text-[12px]">Profile saved.</p> : null}
 
-      <section className="border-border/80 bg-card/80 ring-ring/10 space-y-3 rounded-2xl border p-4 shadow-sm ring-1">
+      <section className="border-border/80 bg-card/80 ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Public details</h2>
 
         <div className="grid gap-2.5 sm:grid-cols-2">
@@ -184,13 +184,13 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
           type="button"
           disabled={pending}
           onClick={() => void saveProfile()}
-          className="avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center justify-center rounded-lg px-3 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90 disabled:opacity-60"
+          className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center justify-center rounded-lg px-3 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90 disabled:opacity-60"
         >
           {pending ? "Saving…" : "Save profile"}
         </button>
       </section>
 
-      <section className="border-border/80 bg-card/80 ring-ring/10 space-y-3 rounded-2xl border p-4 shadow-sm ring-1">
+      <section className="border-border/80 bg-card/80 ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
             Resumes ({resumes.length})

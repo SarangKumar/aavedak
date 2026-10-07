@@ -7,7 +7,7 @@ import { ShellWidth } from "@/components/shell-width";
 
 export const metadata: Metadata = {
   title: "Changelog",
-  description: `Release notes for Arambh v${APP_VERSION} — what shipped and when.`,
+  description: `Release notes for Aavedak v${APP_VERSION} — what shipped and when.`,
 };
 
 export default function ChangelogPage() {
@@ -17,12 +17,12 @@ export default function ChangelogPage() {
 
   return (
     <div className="relative overflow-hidden">
-      <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-50" aria-hidden />
-      <ShellWidth className="avsar-fade-up relative space-y-6 py-8 sm:py-12">
+      <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-50" aria-hidden />
+      <ShellWidth className="aavedak-fade-up relative space-y-6 py-8 sm:py-12">
         <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-          आरंभ
+          आवेदक
         </p>
-        <div className="prose-avsar" dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="prose-aavedak" dangerouslySetInnerHTML={{ __html: html }} />
         <p className="text-muted-foreground border-border/60 mt-10 border-t pt-4 text-[12px]">
           Current version <span className="font-mono text-[11px]">v{APP_VERSION}</span>
           {" · "}

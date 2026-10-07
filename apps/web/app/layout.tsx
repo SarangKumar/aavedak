@@ -20,21 +20,21 @@ const geistMono = Geist_Mono({
 });
 
 const siteDescription =
-  "Arambh (आरंभ) — job discovery, application & career platform. Discover roles, prepare documents, track applications. Arambh recommends and prepares. You decide and send.";
+  "Aavedak (आवेदक) — job discovery, application & career platform. Discover roles, prepare documents, track applications. Aavedak recommends and prepares. You decide and send.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
   ),
   title: {
-    default: "Arambh · Job-search OS",
-    template: "%s · Arambh",
+    default: "Aavedak · Job-search OS",
+    template: "%s · Aavedak",
   },
   description: siteDescription,
-  applicationName: "Arambh",
+  applicationName: "Aavedak",
   keywords: [
-    "Arambh",
-    "आरंभ",
+    "Aavedak",
+    "आवेदक",
     "job search",
     "job tracker",
     "career",
@@ -56,21 +56,21 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "/",
-    siteName: "Arambh",
-    title: "Arambh · Discover · Apply · Grow",
+    siteName: "Aavedak",
+    title: "Aavedak · Discover · Apply · Grow",
     description: siteDescription,
     images: [
       {
         url: "/brand/logo-icon.png",
         width: 1051,
         height: 1051,
-        alt: "Arambh logo — stylized golden A",
+        alt: "Aavedak logo — stylized golden A",
       },
     ],
   },
   twitter: {
     card: "summary",
-    title: "Arambh · Job-search OS",
+    title: "Aavedak · Job-search OS",
     description: siteDescription,
     images: ["/brand/logo-icon.png"],
   },
@@ -100,15 +100,15 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "WebSite",
-      name: "Arambh",
-      alternateName: "आरंभ",
+      name: "Aavedak",
+      alternateName: "आवेदक",
       url: "/",
       description: siteDescription,
     },
     {
       "@type": "SoftwareApplication",
-      name: "Arambh",
-      alternateName: "आरंभ",
+      name: "Aavedak",
+      alternateName: "आवेदक",
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       description: siteDescription,
@@ -145,7 +145,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         {/* Blocking theme sync before first paint (cookie SSR is primary; this is the client backup). */}
-        <script id="avsar-theme-init" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script id="aavedak-theme-init" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       {/*
         suppressHydrationWarning: browser extensions (e.g. Grammarly) inject attributes like

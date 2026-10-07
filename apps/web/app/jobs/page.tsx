@@ -15,7 +15,7 @@ export default async function JobsPage() {
 
   return (
     <div className="relative overflow-hidden">
-      <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-50" aria-hidden />
+      <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-50" aria-hidden />
       <div className="relative">
         <JobsHub
           initialJobs={jobs.map((job) => ({

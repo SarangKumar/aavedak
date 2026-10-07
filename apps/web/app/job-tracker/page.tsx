@@ -28,7 +28,7 @@ export default async function JobTrackerPage() {
 
   return (
     <div className="relative overflow-hidden">
-      <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-60" aria-hidden />
+      <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-60" aria-hidden />
       <div className="relative">
         <JobTrackerBoard
           initialApplications={applications.map((app) => ({

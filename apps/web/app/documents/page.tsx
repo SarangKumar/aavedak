@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { DocumentsHub } from "@/components/documents-hub";
 import { requireOnboarded } from "@/lib/app-access";
+import { listApplications } from "@/lib/applications";
 import { listCoverLetters } from "@/lib/cover-letters";
 import { listResumes } from "@/lib/resumes";
 import { listTemplates } from "@/lib/templates";
@@ -16,11 +17,18 @@ export default async function DocumentsPage() {
   const resumes = listResumes(user.id);
   const coverLetters = listCoverLetters(user.id);
   const templates = listTemplates(user.id);
+  const applications = listApplications(user.id, "active");
 
   return (
     <DocumentsHub
       userEmail={user.email}
       userName={user.name}
+      initialApplications={applications.map((a) => ({
+        id: a.id,
+        companyName: a.companyName,
+        role: a.role,
+        location: a.location,
+      }))}
       initialResumes={resumes.map((r) => ({
         id: r.id,
         displayName: r.displayName,

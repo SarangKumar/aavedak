@@ -4,7 +4,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Arambh theme — premium dark + light.
+ * Aavedak theme — premium dark + light.
  * Brand gold: #F5B91F / #FFD34D (oklch hue ~92, clean yellow-gold).
  * Dark bg #090909 · text #F5F5F0 · secondary #9A9AA0
  */
@@ -137,48 +137,48 @@
 }
 
 @layer utilities {
-  .avsar-mesh {
+  .aavedak-mesh {
     background-image:
       radial-gradient(ellipse 60% 50% at 20% 20%, var(--mesh-a), transparent 70%),
       radial-gradient(ellipse 50% 40% at 80% 10%, var(--mesh-b), transparent 65%),
       radial-gradient(ellipse 45% 35% at 60% 80%, var(--mesh-c), transparent 60%);
   }
 
-  .avsar-display {
+  .aavedak-display {
     letter-spacing: -0.04em;
     font-weight: 650;
   }
 
-  .avsar-chip {
+  .aavedak-chip {
     @apply border-border/80 bg-card/70 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium backdrop-blur-sm;
   }
 
-  .avsar-chip-dot {
+  .aavedak-chip-dot {
     @apply bg-primary size-1.5 shrink-0 rounded-full shadow-[0_0_8px_var(--glow)];
   }
 
   /* Logo: idle pulse + hover/active glow (brand guide) */
-  .avsar-logo {
+  .aavedak-logo {
     transition:
       transform 200ms ease,
       filter 200ms ease,
       box-shadow 200ms ease;
-    animation: avsar-logo-pulse 3.2s ease-in-out infinite;
+    animation: aavedak-logo-pulse 3.2s ease-in-out infinite;
   }
 
-  .avsar-logo:hover,
-  .group:hover .avsar-logo {
+  .aavedak-logo:hover,
+  .group:hover .aavedak-logo {
     filter: drop-shadow(0 0 10px var(--logo-glow));
     transform: scale(1.04);
   }
 
-  .avsar-logo:active,
-  .group:active .avsar-logo {
+  .aavedak-logo:active,
+  .group:active .aavedak-logo {
     filter: drop-shadow(0 0 16px var(--logo-glow));
     transform: scale(0.98);
   }
 
-  .avsar-btn {
+  .aavedak-btn {
     transition:
       transform 140ms ease,
       opacity 140ms ease,
@@ -187,28 +187,28 @@
       box-shadow 140ms ease;
   }
 
-  .avsar-btn:active:not(:disabled) {
+  .aavedak-btn:active:not(:disabled) {
     transform: scale(0.97);
   }
 
-  .avsar-fade-up {
-    animation: avsar-fade-up 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  .aavedak-fade-up {
+    animation: aavedak-fade-up 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  .avsar-fade-up-delay-1 {
+  .aavedak-fade-up-delay-1 {
     animation-delay: 60ms;
   }
-  .avsar-fade-up-delay-2 {
+  .aavedak-fade-up-delay-2 {
     animation-delay: 120ms;
   }
-  .avsar-fade-up-delay-3 {
+  .aavedak-fade-up-delay-3 {
     animation-delay: 180ms;
   }
-  .avsar-fade-up-delay-4 {
+  .aavedak-fade-up-delay-4 {
     animation-delay: 240ms;
   }
 
-  .avsar-card-lift {
+  .aavedak-card-lift {
     transition:
       transform 200ms ease,
       border-color 200ms ease,
@@ -216,12 +216,12 @@
       background-color 200ms ease;
   }
 
-  .avsar-card-lift:hover {
+  .aavedak-card-lift:hover {
     transform: translateY(-2px);
   }
 }
 
-@keyframes avsar-logo-pulse {
+@keyframes aavedak-logo-pulse {
   0%,
   100% {
     filter: drop-shadow(0 0 4px transparent);
@@ -231,7 +231,7 @@
   }
 }
 
-@keyframes avsar-fade-up {
+@keyframes aavedak-fade-up {
   from {
     opacity: 0;
     transform: translateY(10px);
@@ -242,7 +242,7 @@
   }
 }
 
-@keyframes avsar-icon-spin {
+@keyframes aavedak-icon-spin {
   from {
     transform: rotate(-90deg);
     opacity: 0.4;
@@ -253,24 +253,24 @@
   }
 }
 
-.avsar-theme-icon {
-  animation: avsar-icon-spin 280ms ease;
+.aavedak-theme-icon {
+  animation: aavedak-icon-spin 280ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .avsar-logo,
-  .avsar-fade-up,
-  .avsar-theme-icon,
-  .avsar-btn,
-  .avsar-card-lift {
+  .aavedak-logo,
+  .aavedak-fade-up,
+  .aavedak-theme-icon,
+  .aavedak-btn,
+  .aavedak-card-lift {
     animation: none !important;
     transition: none !important;
   }
 
-  .avsar-logo:hover,
-  .group:hover .avsar-logo,
-  .avsar-card-lift:hover,
-  .avsar-btn:active:not(:disabled) {
+  .aavedak-logo:hover,
+  .group:hover .aavedak-logo,
+  .aavedak-card-lift:hover,
+  .aavedak-btn:active:not(:disabled) {
     transform: none;
     filter: none;
   }

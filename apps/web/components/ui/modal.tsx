@@ -21,7 +21,7 @@ type ModalProps = {
 
 /**
  * Viewport-centered modal via portal to document.body.
- * Avoids ancestors with transform/animation (e.g. avsar-fade-up) breaking `position: fixed`.
+ * Avoids ancestors with transform/animation (e.g. aavedak-fade-up) breaking `position: fixed`.
  */
 export function Modal({
   open,
@@ -76,14 +76,14 @@ export function Modal({
         onClick={(e) => e.stopPropagation()}
         className={cn(
           // `dark` forces dark theme tokens for dialog content (dark-first surfaces).
-          "dark relative z-10 flex max-h-[min(90vh,52rem)] w-full flex-col rounded-2xl border shadow-xl shadow-black/40",
+          "dark relative z-10 flex max-h-[min(90vh,52rem)] w-full flex-col rounded-xl border shadow-xl shadow-black/40",
           "border-border bg-card text-card-foreground",
           size === "xl" ? "max-w-4xl" : size === "lg" ? "max-w-lg" : "max-w-md",
           className,
         )}
       >
         <div className="border-border/70 shrink-0 border-b px-4 py-3.5 sm:px-5">
-          <h2 id={titleId} className="avsar-display text-foreground text-lg">
+          <h2 id={titleId} className="aavedak-display text-foreground text-lg">
             {title}
           </h2>
           {description ? (

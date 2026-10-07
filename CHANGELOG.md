@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Arambh are documented in this file.
+All notable changes to Aavedak are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Rebrand** — Product display name **Arambh** (आरंभ); user-facing copy, SEO, footer, landing.
+- **Rebrand** — Product display name **Aavedak** (आवेदक); root folder `aavedak`; package/CSS prefixes; prod URL examples `https://aavedak.vercel.app`.
+- **Documents** — Cold-email template editor: ⓘ (single circle, foreground) top-right on new-template card; Your templates flat like resumes. Cover letters company-specific + cover templates + PDF/DOCX download.
+- **Referrals** — Grip drag handle; template select = saved only; confirm shows `[name | email]` badges + pending/no-Gmail callout.
+- **Job tracker** — Cleaner Kanban cards (less chrome).
+- **UI** — Slightly smaller block border radii (`rounded-2xl` → `rounded-xl`).
 - **Layout** — Shared shell max-width + horizontal padding for nav and pages; denser→spacier page padding/gaps.
 - **Job tracker** — Resizable Kanban columns (localStorage), search filter, Vinyaas Select for status (no native `<select>`).
 - **Command palette** — ⌘/Ctrl+K (Vinyaas Command) for navigation, theme, sign out.
@@ -20,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2026-10-07
 
-First product cut of the Arambh web app (local SQLite + Google Better Auth).
+First product cut of the Aavedak web app (local SQLite + Google Better Auth).
 
 ### Added
 
@@ -40,4 +44,4 @@ First product cut of the Arambh web app (local SQLite + Google Better Auth).
 ### Notes
 
 - Local-first data in `.data/app.db` (separate from Better Auth DB). Production MySQL / R2 planned later.
-- Arambh recommends and prepares; the user decides and sends.
+- Aavedak recommends and prepares; the user decides and sends.

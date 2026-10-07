@@ -7,9 +7,9 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 
 setup_logging(settings.log_level)
-logger = logging.getLogger("avsar.api")
+logger = logging.getLogger("aavedak.api")
 
-app = FastAPI(title="Avsar API", version="0.1.0")
+app = FastAPI(title="Aavedak API", version="0.1.0")
 
 
 @app.middleware("http")

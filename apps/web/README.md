@@ -1,8 +1,8 @@
-# Arambh Web
+# Aavedak Web
 
-Next.js (App Router) + TypeScript + Tailwind CSS v4 front end for Arambh — the personal job-search OS.
+Next.js (App Router) + TypeScript + Tailwind CSS v4 front end for Aavedak — the personal job-search OS.
 
-**Philosophy:** Arambh recommends and prepares. The user decides and sends.
+**Philosophy:** Aavedak recommends and prepares. The user decides and sends.
 
 ## Routes
 
@@ -49,22 +49,22 @@ Three files under `apps/web/`:
 | File           | Git           | Role                                                                 |
 | -------------- | ------------- | -------------------------------------------------------------------- |
 | `.env.example` | **Committed** | Template listing every variable (placeholders only, no secrets).     |
-| `.env`         | Ignored       | Production-oriented defaults (`https://arambh.vercel.app` origins).  |
+| `.env`         | Ignored       | Production-oriented defaults (`https://aavedak.vercel.app` origins). |
 | `.env.local`   | Ignored       | Local overrides (`http://localhost:3000`). Wins over `.env` in Next. |
 
 Shared secrets (Google OAuth, `BETTER_AUTH_SECRET`, `ADMIN_EMAILS`, API URL when same) should match in `.env` and `.env.local`; only public origins differ.
 
 Copy from the template (`cp apps/web/.env.example apps/web/.env.local`) or run `pnpm setup`. Fill secrets locally — never commit `.env` / `.env.local`.
 
-| Variable                                    | Required for local UI | Notes                                                                       |
-| ------------------------------------------- | --------------------- | --------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_URL`                       | Yes                   | App origin; local `http://localhost:3000`, prod `https://arambh.vercel.app` |
-| `NEXT_PUBLIC_API_URL`                       | Yes                   | Document API; default `http://127.0.0.1:8000`                               |
-| `BETTER_AUTH_SECRET`                        | Yes for auth          | 32+ chars; `setup` / scaffold generates one if empty                        |
-| `BETTER_AUTH_URL`                           | Yes for auth          | Must match the browser origin (same as `NEXT_PUBLIC_APP_URL`)               |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | For Google sign-in    | Leave empty → `/sign-in` shows setup help (build still succeeds)            |
-| `AUTH_DATABASE_URL`                         | No (local)            | Reserved for production MySQL; local uses SQLite `data/local.db`            |
-| `ADMIN_EMAILS`                              | No                    | Comma-separated (e.g. `sarangkumar1578@gmail.com`)                          |
+| Variable                                    | Required for local UI | Notes                                                                        |
+| ------------------------------------------- | --------------------- | ---------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_URL`                       | Yes                   | App origin; local `http://localhost:3000`, prod `https://aavedak.vercel.app` |
+| `NEXT_PUBLIC_API_URL`                       | Yes                   | Document API; default `http://127.0.0.1:8000`                                |
+| `BETTER_AUTH_SECRET`                        | Yes for auth          | 32+ chars; `setup` / scaffold generates one if empty                         |
+| `BETTER_AUTH_URL`                           | Yes for auth          | Must match the browser origin (same as `NEXT_PUBLIC_APP_URL`)                |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | For Google sign-in    | Leave empty → `/sign-in` shows setup help (build still succeeds)             |
+| `AUTH_DATABASE_URL`                         | No (local)            | Reserved for production MySQL; local uses SQLite `data/local.db`             |
+| `ADMIN_EMAILS`                              | No                    | Comma-separated (e.g. `sarangkumar1578@gmail.com`)                           |
 
 Never commit secrets. `apps/web/data/` and `apps/web/.data/` are gitignored.
 
@@ -77,10 +77,10 @@ Frozen stack: **Better Auth** with **Google OAuth only** (no email/password).
 1. Google Cloud Console → APIs & Services → Credentials → Create OAuth client (Web).
 2. Authorized redirect URIs (add both):
    - `http://localhost:3000/api/auth/callback/google`
-   - `https://arambh.vercel.app/api/auth/callback/google`
+   - `https://aavedak.vercel.app/api/auth/callback/google`
 3. Put Client ID / Secret in `apps/web/.env` and `apps/web/.env.local` (same values).
 4. Local: `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL` = `http://localhost:3000` in `.env.local`.
-   Prod defaults: `https://arambh.vercel.app` in `.env`.
+   Prod defaults: `https://aavedak.vercel.app` in `.env`.
 5. From `apps/web` (first time / schema change): `pnpm dlx auth@latest migrate`
 6. `pnpm --filter web dev` → open `/sign-in` → Continue with Google.
 
@@ -141,7 +141,7 @@ apps/web/
 - `/job-tracker`: Kanban + list, Active / Archived scopes.
 - Applications in `.data/app.db` (`applications` table). `job_id` nullable; required snapshot: company, role, location.
 - Single status enum (no custom statuses). Column show/hide + view prefs in `user_preferences`.
-- Status changes only via user (drag or select) — Arambh never auto-moves cards.
+- Status changes only via user (drag or select) — Aavedak never auto-moves cards.
 
 ## Onboarding & resumes (local v1)
 
@@ -153,7 +153,7 @@ apps/web/
 
 ## Theme (FOUC)
 
-Theme preference is stored in both `localStorage` and the `avsar-theme` cookie (`light` | `dark` | `system`). The root layout reads the cookie on the server so `<html class="dark">` and `color-scheme` match on first paint. A blocking inline script in `<head>` is the client backup. Dark is the brand default when preference is unknown.
+Theme preference is stored in both `localStorage` and the `aavedak-theme` cookie (`light` | `dark` | `system`). The root layout reads the cookie on the server so `<html class="dark">` and `color-scheme` match on first paint. A blocking inline script in `<head>` is the client backup. Dark is the brand default when preference is unknown.
 
 Hydration warnings mentioning `data-gr-ext-installed` / `data-new-gr-c-s-check-loaded` come from browser extensions (e.g. Grammarly), not the app — `<html>` and `<body>` use `suppressHydrationWarning` for that.
 

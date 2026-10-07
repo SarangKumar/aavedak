@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Arambh applications import",
+  "title": "Aavedak applications import",
   "description": "Either a top-level array of application objects, or an object with an `applications` array.",
   "oneOf": [
     {

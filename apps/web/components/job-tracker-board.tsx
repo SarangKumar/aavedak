@@ -122,7 +122,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("avsar-tracker-col-widths");
+      const raw = localStorage.getItem("aavedak-tracker-col-widths");
       if (raw) setColWidths(JSON.parse(raw) as Record<string, number>);
     } catch {
       /* ignore */
@@ -133,7 +133,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
     setColWidths((prev) => {
       const next = { ...prev, [status]: Math.min(480, Math.max(220, width)) };
       try {
-        localStorage.setItem("avsar-tracker-col-widths", JSON.stringify(next));
+        localStorage.setItem("aavedak-tracker-col-widths", JSON.stringify(next));
       } catch {
         /* ignore */
       }
@@ -354,13 +354,13 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
   );
 
   return (
-    <ShellWidth className="avsar-fade-up space-y-6 py-8 sm:py-10">
+    <ShellWidth className="aavedak-fade-up space-y-6 py-8 sm:py-10">
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-            आरंभ
+            आवेदक
           </p>
-          <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Job tracker</h1>
+          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Job tracker</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Status changes by dragging cards between columns only. Bookmarked means saved interest —
             not applied yet.
@@ -416,7 +416,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             }}
             title="New application"
             aria-label="New application"
-            className="avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center justify-center rounded-lg px-2 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90 md:px-3"
+            className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center justify-center rounded-lg px-2 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90 md:px-3"
           >
             <span className="md:hidden" aria-hidden>
               +
@@ -469,8 +469,8 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
       </div>
 
       {prefs.trackerView === "kanban" ? (
-        <div className="border-border bg-card/40 overflow-hidden rounded-2xl border">
-          <div className="bg-muted/20 p-3 sm:p-4">
+        <div className="border-border/70 bg-card/30 overflow-hidden rounded-xl border">
+          <div className="p-3 sm:p-4">
             <DragDrop items={columns} onReorder={onKanbanReorder}>
               <div className="flex gap-3 overflow-x-auto pb-1">
                 {visibleStatuses.map((status) => {
@@ -479,7 +479,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                     <section
                       key={status}
                       style={{ width: colWidths[status] ?? 288 }}
-                      className="border-border/70 bg-muted/50 relative flex h-[min(75vh,46rem)] shrink-0 flex-col overflow-hidden rounded-xl border"
+                      className="border-border/60 bg-muted/30 relative flex h-[min(75vh,46rem)] shrink-0 flex-col overflow-hidden rounded-lg border"
                     >
                       <div
                         role="separator"
@@ -517,49 +517,31 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                                 <DragDropItem
                                   key={id}
                                   id={id}
-                                  className="border-border/80 bg-card hover:bg-card min-h-[7.5rem] shrink-0 overflow-visible p-0 shadow-sm"
+                                  className="border-border/70 bg-card hover:border-border shrink-0 overflow-visible rounded-lg p-0 shadow-none"
                                 >
                                   <Card
                                     size="sm"
-                                    className="min-h-[7.5rem] shrink-0 gap-0 border-0 bg-transparent p-0 shadow-none"
+                                    className="shrink-0 gap-0 border-0 bg-transparent p-0 shadow-none"
                                   >
-                                    <CardHeader className="gap-1 p-3 pb-2">
-                                      <CardTitle className="pr-8 text-[13px] font-semibold leading-snug">
+                                    <CardHeader className="gap-0.5 p-3 pb-2">
+                                      <CardTitle className="text-foreground pr-8 text-[13px] font-semibold leading-snug tracking-tight">
                                         {app.companyName}
                                       </CardTitle>
-                                      <CardDescription className="text-[13px] leading-5">
+                                      <CardDescription className="text-foreground/80 text-[12px] leading-snug">
                                         {app.role}
                                       </CardDescription>
                                       <CardAction>
                                         <DragDropHandle
                                           aria-label={`Move ${app.companyName}`}
-                                          className="text-muted-foreground size-8"
+                                          className="text-muted-foreground size-7"
                                         />
                                       </CardAction>
                                     </CardHeader>
-                                    <CardFooter className="border-border/60 flex-wrap gap-x-2 gap-y-1.5 border-t px-3 py-2">
-                                      <div className="flex flex-wrap items-center gap-1.5">
-                                        <Badge
-                                          variant="secondary"
-                                          className="h-5 px-1.5 text-[11px] font-medium"
-                                        >
-                                          {STATUS_LABELS[app.status]}
-                                        </Badge>
-                                        <Badge
-                                          variant="outline"
-                                          className="text-muted-foreground h-5 max-w-[8rem] truncate px-1.5 text-[11px]"
-                                        >
-                                          {app.location}
-                                        </Badge>
-                                        {app.salaryCtc ? (
-                                          <Badge
-                                            variant="outline"
-                                            className="text-muted-foreground h-5 px-1.5 text-[11px]"
-                                          >
-                                            {app.salaryCtc}
-                                          </Badge>
-                                        ) : null}
-                                      </div>
+                                    <CardFooter className="flex-wrap gap-x-2 gap-y-1 px-3 pb-3 pt-0">
+                                      <p className="text-muted-foreground truncate text-[11px] leading-snug">
+                                        {app.location}
+                                        {app.salaryCtc ? ` · ${app.salaryCtc}` : ""}
+                                      </p>
                                     </CardFooter>
                                   </Card>
                                 </DragDropItem>
@@ -579,7 +561,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
       )}
 
       {filteredApplications.length === 0 && !pending ? (
-        <div className="border-border/70 bg-card/40 text-muted-foreground rounded-2xl border border-dashed px-4 py-10 text-center text-[13px]">
+        <div className="border-border/70 bg-card/40 text-muted-foreground rounded-xl border border-dashed px-4 py-10 text-center text-[13px]">
           {prefs.trackerScope === "archived"
             ? "No archived applications yet."
             : "No applications yet — create one to start your pipeline."}
@@ -610,7 +592,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
               type="button"
               disabled={pending}
               onClick={() => void createApplication(Boolean(warning))}
-              className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
+              className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
             >
               {pending ? "Saving…" : warning ? "Create anyway" : "Create"}
             </button>
@@ -739,7 +721,7 @@ function Field({
 function ListView({ applications }: { applications: ApplicationDto[] }) {
   if (applications.length === 0) return null;
   return (
-    <div className="border-border/80 bg-card/60 overflow-hidden rounded-2xl border">
+    <div className="border-border/80 bg-card/60 overflow-hidden rounded-xl border">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[40rem] text-left text-[12px]">
           <thead className="border-border/60 bg-muted/40 text-muted-foreground border-b">

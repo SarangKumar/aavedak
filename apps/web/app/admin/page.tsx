@@ -8,7 +8,7 @@ import { requireOnboarded } from "@/lib/app-access";
 
 export const metadata: Metadata = {
   title: "Admin",
-  description: "Arambh admin tools (allowlisted emails only).",
+  description: "Aavedak admin tools (allowlisted emails only).",
 };
 
 export default async function AdminPage() {

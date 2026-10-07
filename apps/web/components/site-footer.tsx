@@ -10,18 +10,18 @@ export function SiteFooter({ className }: { className?: string }) {
       <ShellWidth className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:py-8">
         <div className="space-y-1">
           <p className="text-foreground/90 text-[13px] font-medium tracking-tight">
-            Arambh{" "}
+            Aavedak{" "}
             <span className="text-primary/80 font-mono text-[11px] font-normal" lang="hi">
-              आरंभ
+              आवेदक
             </span>{" "}
             <span className="text-muted-foreground/80 font-mono text-[11px] font-normal">
               v{APP_VERSION}
             </span>
           </p>
           <p className="text-muted-foreground max-w-md text-pretty text-[13px] leading-relaxed">
-            Arambh recommends and prepares. The user decides and sends.
+            Aavedak recommends and prepares. The user decides and sends.
           </p>
-          <p className="text-muted-foreground/70 text-[11px]">© 2026 Arambh</p>
+          <p className="text-muted-foreground/70 text-[11px]">© 2026 Aavedak</p>
         </div>
         <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]">
           <Link

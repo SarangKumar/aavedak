@@ -25,7 +25,7 @@ export type ApplicationImportError = {
 
 export const APPLICATION_IMPORT_SCHEMA = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  title: "Arambh applications import",
+  title: "Aavedak applications import",
   description:
     "Either a top-level array of application objects, or an object with an `applications` array.",
   oneOf: [
@@ -296,7 +296,7 @@ export function parseAndValidateApplicationsImport(payload: unknown):
 }
 
 export function getApplicationImportHumanReadable(): string {
-  return `Arambh applications import schema
+  return `Aavedak applications import schema
 =================================
 
 Root: either

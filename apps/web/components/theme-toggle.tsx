@@ -42,7 +42,7 @@ function readStoredTheme(): ThemeMode {
     /* ignore */
   }
   try {
-    const match = document.cookie.match(/(?:^|; )avsar-theme=([^;]+)/);
+    const match = document.cookie.match(/(?:^|; )aavedak-theme=([^;]+)/);
     if (match) return parseThemeMode(decodeURIComponent(match[1]));
   } catch {
     /* ignore */
@@ -145,7 +145,7 @@ export function ThemeToggle({ className }: { className?: string }) {
           )
         }
         trigger={
-          <span key={iconKey} className="avsar-theme-icon inline-flex">
+          <span key={iconKey} className="aavedak-theme-icon inline-flex">
             <ModeIcon mode={ready ? mode : "system"} className="size-3.5" />
           </span>
         }

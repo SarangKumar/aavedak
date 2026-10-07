@@ -26,8 +26,8 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
   const name = displayName(profile);
 
   return (
-    <ShellWidth className="avsar-fade-up space-y-5 py-8 sm:py-10">
-      <div className="border-border/80 bg-card/80 ring-ring/10 relative overflow-hidden rounded-2xl border p-5 shadow-sm ring-1 sm:p-6">
+    <ShellWidth className="aavedak-fade-up space-y-5 py-8 sm:py-10">
+      <div className="border-border/80 bg-card/80 ring-ring/10 relative overflow-hidden rounded-xl border p-5 shadow-sm ring-1 sm:p-6">
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3.5">
             <Avatar className="size-14 sm:size-16">
@@ -37,7 +37,7 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 space-y-1">
-              <h1 className="avsar-display text-foreground text-xl tracking-tight sm:text-2xl">
+              <h1 className="aavedak-display text-foreground text-xl tracking-tight sm:text-2xl">
                 {name}
               </h1>
               <p className="text-muted-foreground text-[13px]">@{profile.username}</p>
@@ -56,7 +56,7 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
           {isOwner ? (
             <Link
               href={`/${profile.username}/settings`}
-              className="avsar-btn border-border bg-background/80 text-foreground hover:bg-muted inline-flex h-8 shrink-0 items-center justify-center rounded-lg border px-3 text-[12px] font-semibold"
+              className="aavedak-btn border-border bg-background/80 text-foreground hover:bg-muted inline-flex h-8 shrink-0 items-center justify-center rounded-lg border px-3 text-[12px] font-semibold"
             >
               Edit profile
             </Link>
@@ -92,7 +92,7 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
         </div>
       </div>
 
-      <div className="border-border/80 bg-card/70 ring-ring/10 rounded-2xl border p-4 shadow-sm ring-1 sm:p-5">
+      <div className="border-border/80 bg-card/70 ring-ring/10 rounded-xl border p-4 shadow-sm ring-1 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Resume</h2>
           {isOwner ? (
@@ -117,7 +117,7 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
               <p className="text-muted-foreground text-[11px]">
                 {isOwner
                   ? "An active resume (download stays private for now). Multiple actives are allowed."
-                  : "Active resume on Arambh."}
+                  : "Active resume on Aavedak."}
               </p>
             </div>
             <span className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">

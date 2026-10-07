@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Dashboard",
-  description: "Your Arambh application summary and today’s focus.",
+  description: "Your Aavedak application summary and today’s focus.",
 };
 
 const quickLinks = [
@@ -39,18 +39,18 @@ export default async function DashboardPage() {
 
   return (
     <div className="relative overflow-hidden">
-      <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-70" aria-hidden />
-      <ShellWidth className="avsar-fade-up relative space-y-8 py-8 sm:py-10">
+      <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-70" aria-hidden />
+      <ShellWidth className="aavedak-fade-up relative space-y-8 py-8 sm:py-10">
         <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="space-y-1">
             <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-              आरंभ
+              आवेदक
             </p>
-            <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">
+            <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">
               Welcome{user.name ? `, ${user.name.split(" ")[0]}` : ""}
             </h1>
             <p className="text-muted-foreground text-[13px] leading-relaxed">
-              Arambh recommends and prepares. You decide and send.
+              Aavedak recommends and prepares. You decide and send.
               {" · "}
               <Link href={`/${profile.username}`} className="text-primary hover:underline">
                 /{profile.username}
@@ -75,12 +75,12 @@ export default async function DashboardPage() {
               <Link
                 key={stat.label}
                 href={stat.href}
-                className="border-border/80 bg-card/80 ring-ring/5 hover:border-primary/30 rounded-2xl border p-3 shadow-sm ring-1 backdrop-blur-sm transition-colors"
+                className="border-border/80 bg-card/80 ring-ring/5 hover:border-primary/30 rounded-xl border p-3 shadow-sm ring-1 backdrop-blur-sm transition-colors"
               >
                 <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
                   {stat.label}
                 </p>
-                <p className="avsar-display text-foreground mt-0.5 text-xl tabular-nums">
+                <p className="aavedak-display text-foreground mt-0.5 text-xl tabular-nums">
                   {stat.value}
                 </p>
               </Link>
@@ -107,12 +107,12 @@ export default async function DashboardPage() {
             {dash.highlightCounts.map((stat) => (
               <div
                 key={stat.status}
-                className="border-border/80 bg-card/80 ring-ring/5 rounded-2xl border p-3 shadow-sm ring-1 backdrop-blur-sm"
+                className="border-border/80 bg-card/80 ring-ring/5 rounded-xl border p-3 shadow-sm ring-1 backdrop-blur-sm"
               >
                 <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
                   {stat.label}
                 </p>
-                <p className="avsar-display text-foreground mt-0.5 text-xl tabular-nums">
+                <p className="aavedak-display text-foreground mt-0.5 text-xl tabular-nums">
                   {stat.count}
                 </p>
               </div>
@@ -123,7 +123,7 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <section
             aria-labelledby="recent-apps-heading"
-            className="border-border/80 bg-card/80 ring-ring/5 space-y-2.5 rounded-2xl border p-4 shadow-sm ring-1 backdrop-blur-sm"
+            className="border-border/80 bg-card/80 ring-ring/5 space-y-2.5 rounded-xl border p-4 shadow-sm ring-1 backdrop-blur-sm"
           >
             <div className="flex items-center justify-between gap-2">
               <h2
@@ -173,7 +173,7 @@ export default async function DashboardPage() {
 
           <section
             aria-labelledby="followups-heading"
-            className="border-border/80 bg-card/80 ring-ring/5 space-y-2.5 rounded-2xl border p-4 shadow-sm ring-1 backdrop-blur-sm"
+            className="border-border/80 bg-card/80 ring-ring/5 space-y-2.5 rounded-xl border p-4 shadow-sm ring-1 backdrop-blur-sm"
           >
             <div className="flex items-center justify-between gap-2">
               <h2
@@ -227,7 +227,7 @@ export default async function DashboardPage() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "avsar-card-lift border-border/80 bg-card/80 ring-ring/5 hover:border-primary/25 group rounded-2xl border p-4 shadow-sm ring-1 backdrop-blur-sm",
+                  "aavedak-card-lift border-border/80 bg-card/80 ring-ring/5 hover:border-primary/25 group rounded-xl border p-4 shadow-sm ring-1 backdrop-blur-sm",
                 )}
               >
                 <p className="text-foreground text-[13px] font-semibold tracking-tight">

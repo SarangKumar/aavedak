@@ -225,13 +225,13 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
   }
 
   return (
-    <ShellWidth className="avsar-fade-up flex flex-col gap-5 py-8 sm:py-10">
+    <ShellWidth className="aavedak-fade-up flex flex-col gap-5 py-8 sm:py-10">
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-            आरंभ
+            आवेदक
           </p>
-          <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Jobs</h1>
+          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Jobs</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Multi-source discovery shell. Save or start tracking without leaving the detail pane.
             Pasted JD analysis stays private to you.
@@ -248,7 +248,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
           <button
             type="button"
             onClick={() => setAddOpen(true)}
-            className="avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold shadow-sm ring-1"
+            className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold shadow-sm ring-1"
           >
             Add job
           </button>
@@ -281,7 +281,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
       {message ? <p className="text-primary text-[13px]">{message}</p> : null}
 
-      <div className="border-border/80 bg-card/40 flex min-h-[28rem] flex-col overflow-hidden rounded-2xl border md:flex-row">
+      <div className="border-border/80 bg-card/40 flex min-h-[28rem] flex-col overflow-hidden rounded-xl border md:flex-row">
         <aside
           className="border-border/60 flex w-full shrink-0 flex-col border-b md:w-auto md:border-b-0 md:border-r"
           style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
@@ -321,7 +321,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
                     </span>
                   ) : null}
                 </div>
-                <h2 className="avsar-display text-foreground text-xl sm:text-2xl">
+                <h2 className="aavedak-display text-foreground text-xl sm:text-2xl">
                   {selected.title}
                 </h2>
                 <p className="text-foreground/90 text-[13px]">
@@ -345,7 +345,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
                   type="button"
                   disabled={pending}
                   onClick={() => void createApplicationFromJob(selected, "bookmarked")}
-                  className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
+                  className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
                 >
                   Save / Bookmark
                 </button>
@@ -455,7 +455,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
               type="button"
               disabled={pending}
               onClick={() => void createJob()}
-              className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
+              className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
             >
               {pending ? "Saving…" : "Create"}
             </button>
@@ -488,7 +488,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
             type="button"
             disabled={pending}
             onClick={() => void pasteJd()}
-            className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
+            className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
           >
             {pending ? "Saving…" : "Save analysis"}
           </button>

@@ -146,12 +146,12 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
   const canContinue = resumes.some((r) => r.status === "active" || r.status === "inactive");
 
   return (
-    <div className="avsar-fade-up mx-auto w-full max-w-lg space-y-5 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="aavedak-fade-up mx-auto w-full max-w-lg space-y-5 px-4 py-8 sm:px-6 sm:py-10">
       <header className="space-y-1.5 text-center sm:text-left">
         <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-          आरंभ
+          आवेदक
         </p>
-        <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Welcome to Arambh</h1>
+        <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Welcome to Aavedak</h1>
         <p className="text-muted-foreground text-[13px] leading-relaxed">
           Signed in as <span className="text-foreground font-medium">{email}</span>
           {" · "}
@@ -165,7 +165,7 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
 
       <form
         onSubmit={onUpload}
-        className="border-border/80 bg-card/70 ring-ring/10 space-y-3 rounded-2xl border p-4 shadow-sm ring-1 backdrop-blur-sm sm:p-5"
+        className="border-border/80 bg-card/70 ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1 backdrop-blur-sm sm:p-5"
       >
         <div className="space-y-1.5">
           <label htmlFor="displayName" className="text-foreground text-[12px] font-medium">
@@ -208,7 +208,7 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
         <button
           type="submit"
           disabled={uploading || !selectedPdf}
-          className="avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90 disabled:opacity-60"
+          className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90 disabled:opacity-60"
         >
           {uploading ? "Uploading…" : "Upload PDF resume"}
         </button>
@@ -255,7 +255,7 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
                     <button
                       type="button"
                       onClick={() => void setActive(resume.id)}
-                      className="avsar-btn text-foreground hover:text-primary border-border inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                      className="aavedak-btn text-foreground hover:text-primary border-border inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                     >
                       Make active
                     </button>
@@ -263,7 +263,7 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
                   <button
                     type="button"
                     onClick={() => void archive(resume.id)}
-                    className="avsar-btn text-muted-foreground hover:text-foreground border-border inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                    className="aavedak-btn text-muted-foreground hover:text-foreground border-border inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                   >
                     Archive
                   </button>
@@ -281,7 +281,7 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
         disabled={!canContinue || continuing}
         onClick={() => void continueToDashboard()}
         className={cn(
-          "avsar-btn inline-flex h-9 w-full items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold ring-1 transition",
+          "aavedak-btn inline-flex h-9 w-full items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold ring-1 transition",
           canContinue
             ? "bg-primary text-primary-foreground ring-primary/30 shadow-md shadow-black/15 hover:opacity-90"
             : "bg-muted text-muted-foreground ring-border cursor-not-allowed",

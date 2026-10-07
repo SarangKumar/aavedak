@@ -63,8 +63,8 @@ export type FollowUpDto = {
 type ColumnId = "applications" | "template" | "people";
 
 const DEFAULT_ORDER: ColumnId[] = ["applications", "template", "people"];
-const STORAGE_KEY = "arambh-referrals-column-order";
-const WIDTHS_KEY = "arambh-referrals-column-widths";
+const STORAGE_KEY = "aavedak-referrals-column-order";
+const WIDTHS_KEY = "aavedak-referrals-column-widths";
 const DEFAULT_WIDTHS: Record<ColumnId, number> = {
   applications: 320,
   template: 420,
@@ -396,7 +396,7 @@ export function ReferralsComposer({
         onDrop={() => onColDrop(id)}
         style={{ width: colWidths[id] ?? DEFAULT_WIDTHS[id] }}
         className={cn(
-          "border-border/80 bg-card/90 relative flex h-[min(70vh,40rem)] shrink-0 flex-col rounded-2xl border shadow-sm",
+          "border-border/80 bg-card/90 relative flex h-[min(70vh,40rem)] shrink-0 flex-col rounded-xl border shadow-sm",
           dragCol === id && "ring-primary/40 opacity-70 ring-2",
         )}
       >
@@ -410,19 +410,22 @@ export function ReferralsComposer({
           }}
           className="hover:bg-primary/40 absolute bottom-2 right-0 top-2 z-10 w-1.5 cursor-col-resize rounded-full bg-transparent"
         />
-        <header
-          draggable
-          onDragStart={() => onColDragStart(id)}
-          onDragEnd={() => setDragCol(null)}
-          className="border-border/60 flex shrink-0 cursor-grab items-start justify-between gap-2 border-b px-3 py-2.5 active:cursor-grabbing"
-        >
+        <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
           <div className="min-w-0">
             <p className="text-foreground text-[13px] font-semibold tracking-tight">{meta.title}</p>
             <p className="text-muted-foreground text-[11px] leading-relaxed">{meta.blurb}</p>
           </div>
-          <Badge variant="outline" className="text-muted-foreground shrink-0 text-[10px]">
-            drag
-          </Badge>
+          <button
+            type="button"
+            draggable
+            onDragStart={() => onColDragStart(id)}
+            onDragEnd={() => setDragCol(null)}
+            className="text-muted-foreground hover:text-foreground inline-flex size-8 shrink-0 cursor-grab items-center justify-center rounded-md active:cursor-grabbing"
+            aria-label={`Drag to reorder ${meta.title} column`}
+            title="Drag to reorder"
+          >
+            <GripVerticalIcon className="size-4" />
+          </button>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3">
@@ -474,18 +477,25 @@ export function ReferralsComposer({
               </label>
               <div className="flex items-end justify-between gap-2">
                 <label className="block min-w-0 flex-1 space-y-1">
-                  <span className="text-muted-foreground text-[11px] font-medium">Template</span>
+                  <span className="text-muted-foreground text-[11px] font-medium">
+                    Cold email template
+                  </span>
                   <Select
                     value={selectedTemplateId ?? undefined}
                     onValueChange={(v) => setSelectedTemplateId(v || null)}
+                    disabled={templates.length === 0}
                   >
                     <SelectTrigger className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2 text-[12px]">
-                      <SelectValue placeholder="Template" />
+                      <SelectValue
+                        placeholder={
+                          templates.length === 0 ? "No saved templates" : "Choose a saved template"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent className="z-[240]">
                       {templates.map((tpl) => (
                         <SelectItem key={tpl.id} value={tpl.id}>
-                          {tpl.title} ({tpl.kind})
+                          {tpl.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -499,6 +509,12 @@ export function ReferralsComposer({
                   Manage templates
                 </button>
               </div>
+              {templates.length === 0 ? (
+                <p className="text-muted-foreground text-[11px] leading-relaxed">
+                  Template options are fixed to your saved templates only. Create one via Manage
+                  templates.
+                </p>
+              ) : null}
               <label className="block space-y-1">
                 <span className="text-muted-foreground text-[11px] font-medium">Subject</span>
                 <input
@@ -599,13 +615,13 @@ export function ReferralsComposer({
   }
 
   return (
-    <ShellWidth className="avsar-fade-up space-y-6 py-8 sm:py-10">
+    <ShellWidth className="aavedak-fade-up space-y-6 py-8 sm:py-10">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-            आरंभ
+            आवेदक
           </p>
-          <h1 className="avsar-display text-foreground text-2xl sm:text-3xl">Referrals</h1>
+          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Referrals</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Compose cold outreach against an application, pick people, confirm, then queue
             follow-ups. No mail is sent yet — From stays your Gmail ({userEmail}).
@@ -637,17 +653,22 @@ export function ReferralsComposer({
         {columnOrder.map((id) => renderColumn(id))}
       </div>
 
-      <section className="border-border/80 bg-card/80 space-y-3 rounded-2xl border p-4 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+      <section className="border-border/80 bg-card/80 space-y-3 rounded-xl border p-4 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1.5">
             <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
               Confirm & queue follow-ups
             </h2>
-            <p className="text-muted-foreground text-[11px] leading-relaxed">
-              Creates pending follow-up tasks (linked to application + person). Does not send Gmail.
-            </p>
+            <div className="border-border/70 bg-muted/40 rounded-lg border px-3 py-2">
+              <p className="text-foreground text-[12px] font-medium leading-relaxed">
+                Creates pending follow-up tasks (linked to application + person).
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-[12px] font-semibold leading-relaxed">
+                Does not send Gmail.
+              </p>
+            </div>
           </div>
-          <label className="text-foreground flex items-center gap-2 text-[12px]">
+          <label className="text-foreground flex shrink-0 items-center gap-2 text-[12px]">
             <input
               type="checkbox"
               checked={confirmed}
@@ -656,17 +677,40 @@ export function ReferralsComposer({
             I confirm these {checkedPeople.size} recipient(s)
           </label>
         </div>
+        <div className="flex flex-wrap gap-1.5">
+          {checkedPeople.size === 0 ? (
+            <p className="text-muted-foreground text-[12px]">No recipients selected yet.</p>
+          ) : (
+            people
+              .filter((p) => checkedPeople.has(p.id))
+              .map((p) => (
+                <Badge
+                  key={p.id}
+                  variant="secondary"
+                  className="h-7 max-w-full truncate px-2.5 text-[11px] font-medium"
+                >
+                  {p.name} | {p.email || "no email"}
+                </Badge>
+              ))
+          )}
+        </div>
         <button
           type="button"
-          disabled={pending || !confirmed || checkedPeople.size === 0 || !selectedAppId}
+          disabled={
+            pending ||
+            !confirmed ||
+            checkedPeople.size === 0 ||
+            !selectedAppId ||
+            !selectedTemplateId
+          }
           onClick={() => void queueFollowUps()}
-          className="avsar-btn bg-primary text-primary-foreground inline-flex h-9 items-center rounded-lg px-4 text-[12px] font-semibold disabled:opacity-50"
+          className="aavedak-btn bg-primary text-primary-foreground inline-flex h-9 items-center rounded-lg px-4 text-[12px] font-semibold disabled:opacity-50"
         >
           {pending ? "Queueing…" : "Queue follow-ups"}
         </button>
       </section>
 
-      <section className="border-border/80 bg-card/70 space-y-2 rounded-2xl border p-4">
+      <section className="border-border/80 bg-card/70 space-y-2 rounded-xl border p-4">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
           Pending follow-ups
         </h2>
@@ -709,7 +753,7 @@ export function ReferralsComposer({
               type="button"
               disabled={pending}
               onClick={() => void addPerson()}
-              className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
+              className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
             >
               {pending ? "Saving…" : "Add"}
             </button>
@@ -761,5 +805,27 @@ export function ReferralsComposer({
         />
       </Modal>
     </ShellWidth>
+  );
+}
+
+function GripVerticalIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <circle cx="9" cy="5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="19" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="19" r="1" fill="currentColor" stroke="none" />
+    </svg>
   );
 }

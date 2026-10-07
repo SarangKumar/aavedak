@@ -61,17 +61,17 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
   ];
 
   return (
-    <ShellWidth className="avsar-fade-up space-y-4 py-7 sm:py-9">
+    <ShellWidth className="aavedak-fade-up space-y-4 py-7 sm:py-9">
       <header className="flex flex-wrap items-end justify-between gap-2">
         <div className="space-y-0.5">
           <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
             Admin · {adminEmail}
           </p>
-          <h1 className="avsar-display text-foreground text-xl tracking-tight sm:text-2xl">
+          <h1 className="aavedak-display text-foreground text-xl tracking-tight sm:text-2xl">
             Ops overview
           </h1>
           <p className="text-muted-foreground max-w-2xl text-[12px] leading-relaxed">
-            Local SQLite snapshot for Arambh. Non-admins are redirected to the dashboard.
+            Local SQLite snapshot for Aavedak. Non-admins are redirected to the dashboard.
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -106,7 +106,7 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
         ))}
       </section>
 
-      <section className="border-border/80 bg-card/80 space-y-2.5 rounded-2xl border p-3.5 shadow-sm">
+      <section className="border-border/80 bg-card/80 space-y-2.5 rounded-xl border p-3.5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
@@ -229,7 +229,7 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
         )}
       </section>
 
-      <section className="border-border/80 bg-card/80 space-y-2 rounded-2xl border p-3.5 shadow-sm">
+      <section className="border-border/80 bg-card/80 space-y-2 rounded-xl border p-3.5 shadow-sm">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
           Person email suggest-corrections
         </h2>
@@ -241,7 +241,7 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
         </div>
       </section>
 
-      <section className="border-border/80 bg-card/70 rounded-2xl border p-3.5">
+      <section className="border-border/80 bg-card/70 rounded-xl border p-3.5">
         <p className="text-foreground text-[12px] font-semibold tracking-tight">
           ADMIN_EMAILS allowlist
         </p>

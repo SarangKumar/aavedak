@@ -142,7 +142,7 @@ export function ImportApplicationsDialog({
             disabled={pending || files.length === 0}
             onClick={() => void runImport()}
             className={cn(
-              "avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90",
+              "aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90",
               (pending || files.length === 0) && "opacity-60",
             )}
           >

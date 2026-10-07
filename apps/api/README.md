@@ -1,6 +1,6 @@
-# Avsar API
+# Aavedak API
 
-FastAPI backend for Avsar.
+FastAPI backend for Aavedak.
 
 ## Structure
 

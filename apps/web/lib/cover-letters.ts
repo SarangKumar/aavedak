@@ -75,6 +75,9 @@ export function createCoverLetter(
     typeof input.applicationId === "string" && input.applicationId.trim()
       ? input.applicationId.trim()
       : null;
+  if (!applicationId) {
+    throw new Error("Cover letters must be linked to a company / application.");
+  }
   const id = randomUUID();
   const now = new Date().toISOString();
   getAppDb()

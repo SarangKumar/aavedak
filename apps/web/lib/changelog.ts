@@ -84,9 +84,9 @@ export function parseChangelog(md: string): ChangelogBlock[] {
 export function blockToHtml(block: ChangelogBlock): string {
   switch (block.type) {
     case "h1":
-      return `<h1 class="avsar-display text-foreground text-3xl">${inlineFormat(block.text)}</h1>`;
+      return `<h1 class="aavedak-display text-foreground text-3xl">${inlineFormat(block.text)}</h1>`;
     case "h2":
-      return `<h2 class="avsar-display text-foreground mt-8 text-xl">${inlineFormat(block.text)}</h2>`;
+      return `<h2 class="aavedak-display text-foreground mt-8 text-xl">${inlineFormat(block.text)}</h2>`;
     case "h3":
       return `<h3 class="text-foreground mt-5 text-[15px] font-semibold tracking-tight">${inlineFormat(block.text)}</h3>`;
     case "p":
