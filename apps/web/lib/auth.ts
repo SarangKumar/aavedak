@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cookies } from "next/headers";
+
 import {
   createNeonAuth,
   type createNeonAuth as CreateNeonAuth,
@@ -12,6 +14,7 @@ import {
   neonJwksUrl,
 } from "@/lib/db-config";
 import { GMAIL_SEND_SCOPE } from "@/lib/google-scopes";
+import { isGoogleAccountAllowed, revokeOverCapAccount } from "@/lib/signup-cap";
 
 /**
  * Neon Auth (Managed Better Auth). Google is the only social provider and is
@@ -104,7 +107,22 @@ export async function getRequestSession(): Promise<AppSession | null> {
       `Neon Auth session lookup failed. Check NEON_AUTH_BASE_URL. ${message}`.trim(),
     );
   }
-  return sessionFromUnknown(data);
+  const session = sessionFromUnknown(data);
+  if (!session) return null;
+  if (await isGoogleAccountAllowed(session.user.id)) return session;
+  await revokeOverCapAccount(session.user.id);
+  try {
+    const jar = await cookies();
+    jar.set("aavedak_signup_closed", "1", { path: "/", maxAge: 180, sameSite: "lax" });
+    for (const cookie of jar.getAll()) {
+      if (cookie.name.includes("neon-auth")) {
+        jar.set(cookie.name, "", { path: "/", maxAge: 0 });
+      }
+    }
+  } catch {
+    /* Cookie writes are unavailable outside a request. The session is still rejected. */
+  }
+  return null;
 }
 
 /** Compat shim so routes can keep calling auth.api.getSession(). */

@@ -1,11 +1,10 @@
-import fs from "node:fs";
-
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { isAdminEmail } from "@/lib/admin";
 import { auth } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
+import { readResumePdf } from "@/lib/resume-storage";
 import { getResume, getResumeById } from "@/lib/resumes";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -37,14 +36,14 @@ export async function GET(_request: Request, ctx: Ctx) {
   return serveResume(resume);
 }
 
-function serveResume(resume: { storagePath: string; originalFilename: string }) {
-  if (!fs.existsSync(resume.storagePath)) {
-    return NextResponse.json({ error: "File missing on disk." }, { status: 404 });
+async function serveResume(resume: { storagePath: string; originalFilename: string }) {
+  const buffer = await readResumePdf(resume.storagePath);
+  if (!buffer) {
+    return NextResponse.json({ error: "Resume file is missing from storage." }, { status: 404 });
   }
 
-  const buffer = fs.readFileSync(resume.storagePath);
   const filename = resume.originalFilename.replace(/[^\w.\- ()]+/g, "_") || "resume.pdf";
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",

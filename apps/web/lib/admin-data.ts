@@ -1,8 +1,7 @@
 import "server-only";
 
-import fs from "node:fs";
-
 import { dbAll, dbGet } from "@/lib/app-db";
+import { resumeFileExists } from "@/lib/resume-storage";
 import type { ResumeStatus } from "@/lib/resumes";
 
 export type AdminOverviewCounts = {
@@ -70,18 +69,20 @@ export async function listRecentResumesForAdmin(limit = 40): Promise<AdminResume
     owner_name: string | null;
   }>;
 
-  return rows.map((row) => ({
-    id: row.id,
-    userId: row.user_id,
-    username: row.username,
-    ownerEmail: row.owner_email,
-    ownerName: row.owner_name,
-    displayName: row.display_name,
-    status: row.status,
-    originalFilename: row.original_filename,
-    byteSize: row.byte_size,
-    fileExists: Boolean(row.storage_path && fs.existsSync(row.storage_path)),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  return Promise.all(
+    rows.map(async (row) => ({
+      id: row.id,
+      userId: row.user_id,
+      username: row.username,
+      ownerEmail: row.owner_email,
+      ownerName: row.owner_name,
+      displayName: row.display_name,
+      status: row.status,
+      originalFilename: row.original_filename,
+      byteSize: row.byte_size,
+      fileExists: await resumeFileExists(row.storage_path),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })),
+  );
 }

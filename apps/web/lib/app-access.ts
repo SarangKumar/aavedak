@@ -1,6 +1,6 @@
 import "server-only";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { auth } from "@/lib/auth";
@@ -19,6 +19,11 @@ export type AppAccess = {
   user: AppSessionUser;
   profile: Profile;
 };
+
+async function redirectIfSignedOut(nextPath: string): Promise<never> {
+  const closed = (await cookies()).get("aavedak_signup_closed")?.value === "1";
+  redirect(closed ? "/sign-in?closed=1" : `/sign-in?next=${encodeURIComponent(nextPath)}`);
+}
 
 async function getSessionUser(): Promise<AppSessionUser | null> {
   const session = await auth.api.getSession({
@@ -42,7 +47,7 @@ function rethrowNavigation(err: unknown): void {
 export async function requireOnboarded(): Promise<AppAccess> {
   try {
     const user = await getSessionUser();
-    if (!user) redirect("/sign-in?next=/dashboard");
+    if (!user) return redirectIfSignedOut("/dashboard");
     const profile = await ensureProfile(user);
     if (!(await hasCompletedOnboardingRequirement(user.id))) {
       redirect("/onboarding");
@@ -58,7 +63,7 @@ export async function requireOnboarded(): Promise<AppAccess> {
 export async function requireOnboardingSession(): Promise<AppAccess> {
   try {
     const user = await getSessionUser();
-    if (!user) redirect("/sign-in?next=/onboarding");
+    if (!user) return redirectIfSignedOut("/onboarding");
     const profile = await ensureProfile(user);
     if (await hasCompletedOnboardingRequirement(user.id)) {
       if (!profile.onboardingComplete) {

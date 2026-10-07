@@ -1,11 +1,8 @@
 import "server-only";
 
-import fs from "node:fs";
-import path from "node:path";
-
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
-import { DatabaseConfigError, isServerlessRuntime, resolvePostgresUrl } from "@/lib/db-config";
+import { DatabaseConfigError, resolvePostgresUrl } from "@/lib/db-config";
 
 export type SqlParam = string | number | null | Buffer;
 
@@ -223,15 +220,6 @@ export function toPostgresSql(sql: string): string {
   return text;
 }
 
-export function getDataRoot(): string {
-  if (isServerlessRuntime()) return path.join("/tmp", "aavedak");
-  return path.join(process.cwd(), ".data");
-}
-
-export function getResumesRoot(): string {
-  return path.join(getDataRoot(), "resumes");
-}
-
 export function getAppDb(): Promise<AppDatabase> {
   if (!opening) {
     opening = openAppDb().catch((err) => {
@@ -249,7 +237,6 @@ async function openAppDb(): Promise<AppDatabase> {
       "DATABASE_URL is missing or is not a postgresql:// Neon connection string. Copy it from the Neon Console.",
     );
   }
-  fs.mkdirSync(getResumesRoot(), { recursive: true });
   const db = wrapPostgres(getSql());
   await migratePostgres(db);
   return db;

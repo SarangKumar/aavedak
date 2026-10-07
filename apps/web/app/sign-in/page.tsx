@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import type { Metadata } from "next";
 
 import { SignInForm } from "@/components/sign-in-form";
@@ -11,7 +12,14 @@ export const metadata: Metadata = {
     "Sign in to Aavedak with Google to manage your job search, applications, and documents.",
 };
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ closed?: string }>;
+}) {
+  const params = await searchParams;
+  const closed =
+    params.closed === "1" || (await cookies()).get("aavedak_signup_closed")?.value === "1";
   return (
     <div className="relative overflow-hidden">
       <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-80" aria-hidden />
@@ -39,7 +47,7 @@ export default function SignInPage() {
           Aavedak recommends and prepares. The user decides and sends.
         </p>
         <div className="border-border/80 bg-card ring-ring/10 mt-6 w-full rounded-xl border p-3.5 shadow-sm ring-1 backdrop-blur-sm sm:p-4">
-          <SignInForm neonConfigured={isNeonSignInConfigured} />
+          <SignInForm neonConfigured={isNeonSignInConfigured} closed={closed} />
         </div>
         <p className="text-muted-foreground mt-6 text-center text-[11px]">
           Google only for now — no email/password.{" "}

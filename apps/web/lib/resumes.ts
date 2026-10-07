@@ -1,11 +1,10 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 
-import { dbAll, dbGet, getAppDb, getResumesRoot } from "@/lib/app-db";
+import { dbAll, dbGet, getAppDb } from "@/lib/app-db";
 import { extractPdfText } from "@/lib/match-score";
+import { saveResumePdf } from "@/lib/resume-storage";
 
 export type ResumeStatus = "active" | "inactive" | "archived";
 
@@ -131,22 +130,11 @@ export async function createResumeFromPdf(opts: {
   await assertUniqueDisplayName(opts.userId, displayName);
 
   const id = randomUUID();
-  const userDir = path.join(getResumesRoot(), opts.userId);
-  fs.mkdirSync(userDir, { recursive: true });
-  const storagePath = path.join(userDir, `${id}.pdf`);
   const buffer = Buffer.from(await opts.file.arrayBuffer());
-  // Basic PDF magic header check
   if (buffer.subarray(0, 4).toString("utf8") !== "%PDF") {
     throw new Error("File does not look like a valid PDF.");
   }
-  try {
-    fs.writeFileSync(storagePath, buffer);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "write failed";
-    throw new Error(
-      `Could not store the resume file (${message}). Serverless disks are ephemeral — durable files need object storage (R2).`,
-    );
-  }
+  const storagePath = await saveResumePdf({ userId: opts.userId, resumeId: id, bytes: buffer });
 
   const now = new Date().toISOString();
   const status: ResumeStatus = opts.makeActive === false ? "inactive" : "active";
@@ -227,7 +215,7 @@ export async function updateResume(
   return (await getResume(userId, resumeId))!;
 }
 
-/** Soft-delete: archive only (v1). Original PDF stays on disk. */
+/** Soft-delete: archive only. The PDF stays in Google Cloud Storage (or local .data in dev). */
 export async function archiveResume(userId: string, resumeId: string): Promise<ResumeRecord> {
   return updateResume(userId, resumeId, { status: "archived" });
 }

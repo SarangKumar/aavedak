@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 type SignInFormProps = {
   neonConfigured: boolean;
+  closed?: boolean;
 };
 
 function GoogleMark({ className }: { className?: string }) {
@@ -33,7 +34,19 @@ function GoogleMark({ className }: { className?: string }) {
   );
 }
 
-export function SignInForm({ neonConfigured }: SignInFormProps) {
+function ClosedNotice() {
+  return (
+    <div className="border-destructive/40 bg-destructive/10 space-y-1 rounded-lg border px-3 py-2.5">
+      <h2 className="text-foreground text-sm font-semibold">Sign-up is closed</h2>
+      <p className="text-muted-foreground text-[13px] leading-relaxed">
+        Aavedak only accepts the first 8 Google accounts. This Google account is not one of them, so
+        it was not added. If you already have one of those accounts, continue with Google below.
+      </p>
+    </div>
+  );
+}
+
+export function SignInForm({ neonConfigured, closed = false }: SignInFormProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +69,7 @@ export function SignInForm({ neonConfigured }: SignInFormProps) {
   if (!neonConfigured) {
     return (
       <div className="space-y-3 text-left">
+        {closed ? <ClosedNotice /> : null}
         <h2 className="text-foreground text-sm font-semibold">Neon Auth not configured</h2>
         <p className="text-muted-foreground text-[13px] leading-relaxed">
           Google sign-in is provided by Neon Auth. Copy the branch Auth values into{" "}
@@ -104,6 +118,7 @@ export function SignInForm({ neonConfigured }: SignInFormProps) {
 
   return (
     <div className="space-y-2.5">
+      {closed ? <ClosedNotice /> : null}
       <button
         type="button"
         onClick={continueWithGoogle}

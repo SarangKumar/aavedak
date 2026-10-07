@@ -179,6 +179,10 @@ if [[ -n "$WEB_ENV" ]]; then
   ensure_env_key "$WEB_ENV" "NEON_AUTH_BASE_URL"
   ensure_env_key "$WEB_ENV" "NEON_AUTH_JWKS_URL"
   ensure_env_key "$WEB_ENV" "NEON_AUTH_COOKIE_SECRET"
+  ensure_env_key "$WEB_ENV" "GCS_BUCKET"
+  ensure_env_key "$WEB_ENV" "GCS_PROJECT_ID"
+  ensure_env_key "$WEB_ENV" "GCS_CLIENT_EMAIL"
+  ensure_env_key "$WEB_ENV" "GCS_PRIVATE_KEY"
   ensure_env_key "$WEB_ENV" "ADMIN_EMAILS"
   if grep -qE '^NEXT_PUBLIC_API_URL=.+' "$WEB_ENV"; then
     ok "NEXT_PUBLIC_API_URL is set (required for local web → API)"
@@ -193,6 +197,7 @@ if [[ -n "$WEB_ENV" ]]; then
     ok "Generated NEON_AUTH_COOKIE_SECRET"
   fi
   warn "Fill DATABASE_URL, NEON_AUTH_BASE_URL, and NEON_AUTH_JWKS_URL from the Neon Console (see apps/web/README.md)"
+  warn "Production resume uploads need GCS_BUCKET, GCS_CLIENT_EMAIL, and GCS_PRIVATE_KEY"
 fi
 
 copy_env_if_missing "$API_DIR/.env.example" "$API_DIR/.env" "API env"

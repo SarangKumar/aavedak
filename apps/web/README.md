@@ -67,6 +67,10 @@ Copy from the template (`cp apps/web/.env.example apps/web/.env.local`) or run `
 | `ADMIN_EMAILS`                         | No                    | Comma-separated (e.g. `sarangkumar1578@gmail.com`)                           |
 | `CRON_SECRET`                          | For Vercel Cron       | Bearer token for `/api/cron/jobs` and `/api/cron/follow-ups`                 |
 | `JOBS_FEED_URL` / `JOBS_INGEST_SAMPLE` | No                    | Remote JSON feed, or `1` to allow the bundled sample                         |
+| `GCS_BUCKET`                           | Required on Vercel    | Bucket for resume PDFs                                                       |
+| `GCS_PROJECT_ID`                       | No                    | Defaults to the project on the service account key                           |
+| `GCS_CLIENT_EMAIL`                     | Required on Vercel    | Service account email with object access on the bucket                       |
+| `GCS_PRIVATE_KEY`                      | Required on Vercel    | PEM private key; newlines may be written as `\n`                             |
 
 Never commit secrets. `apps/web/data/` and `apps/web/.data/` are gitignored.
 
@@ -84,6 +88,9 @@ Frozen stack: **Neon Postgres** and **Neon Auth** with **Google only** (no email
 5. Copy `DATABASE_URL`, `NEON_AUTH_BASE_URL`, and `NEON_AUTH_JWKS_URL` into `apps/web/.env.local`. Generate `NEON_AUTH_COOKIE_SECRET` with `openssl rand -base64 32` (or let `pnpm setup` fill an empty value).
 6. `NEXT_PUBLIC_APP_URL` = `http://localhost:3000` locally, `https://aavedak.vercel.app` on Vercel.
 7. `pnpm --filter web dev` → open `/sign-in` → Continue with Google. App tables migrate on first database connection. Do not run `pnpm dlx auth migrate`.
+8. Only the first 8 Google accounts (earliest `neon_auth."user"."createdAt"`) may sign in. A later account is deleted and `/sign-in?closed=1` explains that sign-up is closed.
+
+Resume PDFs are stored in Google Cloud Storage when `GCS_BUCKET` and a service account are set. That configuration is required on Vercel. Local `next dev` may write `apps/web/.data/resumes` only when those GCS variables are empty. Opening the database does not create that directory.
 
 Key files: `lib/auth.ts`, `lib/auth-client.ts`, `lib/db-config.ts`, `lib/app-db.ts`, `app/api/auth/[...all]/route.ts`, `middleware.ts`, `app/sign-in/page.tsx`.
 

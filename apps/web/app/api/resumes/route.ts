@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
+import { ResumeStorageError } from "@/lib/resume-storage";
 import { createResumeFromPdf, listResumes } from "@/lib/resumes";
 
 async function requireUser() {
@@ -77,6 +78,7 @@ export async function POST(request: Request) {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Upload failed.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const status = err instanceof ResumeStorageError ? 503 : 400;
+    return NextResponse.json({ error: message }, { status });
   }
 }
