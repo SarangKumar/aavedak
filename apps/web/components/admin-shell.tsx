@@ -113,7 +113,7 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
               Recent resumes
             </h2>
             <p className="text-muted-foreground text-[11px]">
-              Metadata from `.data/app.db`. Open PDF when the local file exists.
+              Metadata from Neon. Open PDF when the GCS object key is present.
             </p>
           </div>
           <Select

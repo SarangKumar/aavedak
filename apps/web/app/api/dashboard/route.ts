@@ -1,20 +1,13 @@
 import { NextResponse } from "next/server";
 
 import { applicationToDto } from "@/lib/applications";
-import { auth } from "@/lib/auth";
+import { requireApiUser } from "@/lib/api-session";
 import { getDashboardSnapshot } from "@/lib/dashboard";
-import { ensureProfile } from "@/lib/profile";
 
 export async function GET() {
-  const { data: session } = await auth.getSession();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  await ensureProfile({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-  });
+  const authResult = await requireApiUser();
+  if (authResult.error) return authResult.error;
+  const session = { user: authResult.user };
 
   const snap = await getDashboardSnapshot(session.user.id);
   return NextResponse.json({

@@ -1,27 +1,14 @@
 import "server-only";
 
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import fs from "node:fs";
-import path from "node:path";
 
 /**
  * App data on Neon Postgres (profiles, resumes metadata, applications, etc.).
- * Resume binary files still live under `.data/resumes` locally; object storage later.
+ * Resume PDF bytes live in Google Cloud Storage; DB stores object-key metadata only.
  */
-const dataRoot = path.join(process.cwd(), ".data");
-const resumesRoot = path.join(dataRoot, "resumes");
 
 let sql: NeonQueryFunction<false, false> | null = null;
 let schemaReady: Promise<void> | null = null;
-
-export function getDataRoot() {
-  return dataRoot;
-}
-
-export function getResumesRoot() {
-  fs.mkdirSync(resumesRoot, { recursive: true });
-  return resumesRoot;
-}
 
 export function getSql() {
   if (sql) return sql;

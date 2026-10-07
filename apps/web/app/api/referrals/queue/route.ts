@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
+import { requireApiUser } from "@/lib/api-session";
 import { getApplication } from "@/lib/applications";
 import { createFollowUp } from "@/lib/follow-ups";
 import { getPerson } from "@/lib/people";
-import { ensureProfile } from "@/lib/profile";
 
 function fill(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => vars[key] ?? "");
@@ -18,15 +17,9 @@ function fill(template: string, vars: Record<string, string>): string {
  * Cron/process stub: POST /api/referrals/process-queue marks due queued items as sent_stub.
  */
 export async function POST(request: Request) {
-  const { data: session } = await auth.getSession();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  await ensureProfile({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-  });
+  const authResult = await requireApiUser();
+  if (authResult.error) return authResult.error;
+  const session = { user: authResult.user };
   const userId = session.user.id;
 
   let body: Record<string, unknown>;

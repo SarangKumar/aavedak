@@ -42,8 +42,8 @@ export function SignInForm({ neonAuthConfigured }: SignInFormProps) {
     try {
       await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/dashboard",
-        newUserCallbackURL: "/onboarding",
+        callbackURL: "/auth/continue",
+        newUserCallbackURL: "/auth/continue?next=/onboarding",
       });
     } catch (err) {
       setPending(false);

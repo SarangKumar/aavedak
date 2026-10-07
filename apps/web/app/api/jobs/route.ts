@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
+import { requireApiUser } from "@/lib/api-session";
 import { createJob, ensureDemoJobs, listJobs, type JobSource } from "@/lib/jobs";
-import { ensureProfile } from "@/lib/profile";
 
 async function requireUser() {
-  const { data: session } = await auth.getSession();
-  if (!session?.user?.email) return null;
-  await ensureProfile({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-  });
-  return session.user;
+  const result = await requireApiUser();
+  if (result.error) return { error: result.error };
+  return { user: result.user };
 }
 
 function toDto(row: Awaited<ReturnType<typeof listJobs>>[number]) {
@@ -32,15 +26,17 @@ function toDto(row: Awaited<ReturnType<typeof listJobs>>[number]) {
 }
 
 export async function GET() {
-  const user = await requireUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireUser();
+  if ("error" in authResult) return authResult.error;
+  const user = authResult.user;
   const jobs = (await ensureDemoJobs(user.id)).map(toDto);
   return NextResponse.json({ jobs });
 }
 
 export async function POST(request: Request) {
-  const user = await requireUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireUser();
+  if ("error" in authResult) return authResult.error;
+  const user = authResult.user;
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

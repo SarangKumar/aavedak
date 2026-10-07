@@ -1,25 +1,19 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
+import { requireApiUser } from "@/lib/api-session";
 import {
   archiveCoverLetter,
   getCoverLetter,
   updateCoverLetter,
   type CoverLetterStatus,
 } from "@/lib/cover-letters";
-import { ensureProfile } from "@/lib/profile";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 async function requireUser() {
-  const { data: session } = await auth.getSession();
-  if (!session?.user?.email) return null;
-  await ensureProfile({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-  });
-  return session.user;
+  const result = await requireApiUser();
+  if (result.error) return { error: result.error };
+  return { user: result.user };
 }
 
 function toDto(row: NonNullable<Awaited<ReturnType<typeof getCoverLetter>>>) {
@@ -35,8 +29,9 @@ function toDto(row: NonNullable<Awaited<ReturnType<typeof getCoverLetter>>>) {
 }
 
 export async function PATCH(request: Request, ctx: Ctx) {
-  const user = await requireUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireUser();
+  if ("error" in authResult) return authResult.error;
+  const user = authResult.user;
   const { id } = await ctx.params;
   let body: Record<string, unknown>;
   try {
@@ -70,8 +65,9 @@ export async function PATCH(request: Request, ctx: Ctx) {
 }
 
 export async function DELETE(_request: Request, ctx: Ctx) {
-  const user = await requireUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireUser();
+  if ("error" in authResult) return authResult.error;
+  const user = authResult.user;
   const { id } = await ctx.params;
   try {
     const coverLetter = await archiveCoverLetter(user.id, id);

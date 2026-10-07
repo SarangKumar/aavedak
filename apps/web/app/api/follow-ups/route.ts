@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
+import { requireApiUser } from "@/lib/api-session";
 import { createFollowUp, listFollowUps, type FollowUpStatus } from "@/lib/follow-ups";
-import { ensureProfile } from "@/lib/profile";
 
 async function requireUser() {
-  const { data: session } = await auth.getSession();
-  if (!session?.user?.email) return null;
-  await ensureProfile({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-  });
-  return session.user;
+  const result = await requireApiUser();
+  if (result.error) return { error: result.error };
+  return { user: result.user };
 }
 
 function toDto(row: Awaited<ReturnType<typeof listFollowUps>>[number]) {
@@ -31,8 +25,9 @@ function toDto(row: Awaited<ReturnType<typeof listFollowUps>>[number]) {
 }
 
 export async function GET(request: Request) {
-  const user = await requireUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireUser();
+  if ("error" in authResult) return authResult.error;
+  const user = authResult.user;
   const includeClosed = new URL(request.url).searchParams.get("includeClosed") === "1";
   return NextResponse.json({
     followUps: (await listFollowUps(user.id, { includeClosed })).map(toDto),
@@ -40,8 +35,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const user = await requireUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireUser();
+  if ("error" in authResult) return authResult.error;
+  const user = authResult.user;
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

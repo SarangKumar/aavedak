@@ -146,7 +146,7 @@ apps/web/
 
 - New Google users land on `/onboarding` (`newUserCallbackURL`).
 - Gate: authenticated users need ≥1 non-archived PDF resume before `/dashboard` and other app routes.
-- Resumes store under `apps/web/.data/resumes/{userId}/` with metadata in `apps/web/.data/app.db` (gitignored).
+- Resume PDFs store in Google Cloud Storage (`GCS_BUCKET`); metadata in Neon Postgres `resumes.storage_path` (object key).
 - Delete = archive only. Display names unique per user. Status: `active` | `inactive` | `archived`.
 - Username = email local-part with collision suffix, stored in `profiles` table for `/{username}` links.
 

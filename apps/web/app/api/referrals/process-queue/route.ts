@@ -1,23 +1,16 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
+import { requireApiUser } from "@/lib/api-session";
 import { processDueQueuedFollowUps } from "@/lib/follow-ups";
-import { ensureProfile } from "@/lib/profile";
 
 /**
  * Cron/manual stub: mark due queued outreach as sent_stub.
  * Does not call Gmail. Safe to POST repeatedly.
  */
 export async function POST() {
-  const { data: session } = await auth.getSession();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  await ensureProfile({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-  });
+  const authResult = await requireApiUser();
+  if (authResult.error) return authResult.error;
+  const session = { user: authResult.user };
 
   const result = await processDueQueuedFollowUps(session.user.id);
   return NextResponse.json({

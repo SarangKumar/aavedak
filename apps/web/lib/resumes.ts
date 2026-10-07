@@ -1,10 +1,9 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 
-import { ensureAppSchema, getResumesRoot, getSql } from "@/lib/app-db";
+import { ensureAppSchema, getSql } from "@/lib/app-db";
+import { isGcsConfigured, resumeObjectKey, uploadResumePdf } from "@/lib/gcs";
 
 export type ResumeStatus = "active" | "inactive" | "archived";
 
@@ -13,6 +12,7 @@ export type ResumeRecord = {
   userId: string;
   displayName: string;
   status: ResumeStatus;
+  /** GCS object key (e.g. resumes/{userId}/{id}.pdf). Legacy local paths may still appear. */
   storagePath: string;
   originalFilename: string;
   byteSize: number;
@@ -135,17 +135,22 @@ export async function createResumeFromPdf(opts: {
   if (opts.file.size <= 0) throw new Error("Empty file.");
   if (opts.file.size > 10 * 1024 * 1024) throw new Error("PDF must be 10MB or smaller.");
 
+  if (!isGcsConfigured()) {
+    throw new Error(
+      "Resume upload requires Google Cloud Storage. Set GCS_BUCKET and GCS_CLIENT_EMAIL + GCS_PRIVATE_KEY (or GCS_CREDENTIALS_JSON).",
+    );
+  }
+
   await assertUniqueDisplayName(opts.userId, displayName);
 
   const id = randomUUID();
-  const userDir = path.join(getResumesRoot(), opts.userId);
-  fs.mkdirSync(userDir, { recursive: true });
-  const storagePath = path.join(userDir, `${id}.pdf`);
+  const objectKey = resumeObjectKey(opts.userId, id);
   const buffer = Buffer.from(await opts.file.arrayBuffer());
   if (buffer.subarray(0, 4).toString("utf8") !== "%PDF") {
     throw new Error("File does not look like a valid PDF.");
   }
-  fs.writeFileSync(storagePath, buffer);
+
+  await uploadResumePdf(objectKey, buffer);
 
   const now = new Date().toISOString();
   const status: ResumeStatus = opts.makeActive === false ? "inactive" : "active";
@@ -161,7 +166,7 @@ export async function createResumeFromPdf(opts: {
     INSERT INTO resumes
       (id, user_id, display_name, status, storage_path, original_filename, byte_size, created_at, updated_at)
     VALUES (
-      ${id}, ${opts.userId}, ${displayName}, ${status}, ${storagePath}, ${opts.file.name},
+      ${id}, ${opts.userId}, ${displayName}, ${status}, ${objectKey}, ${opts.file.name},
       ${opts.file.size}, ${now}, ${now}
     )
   `;

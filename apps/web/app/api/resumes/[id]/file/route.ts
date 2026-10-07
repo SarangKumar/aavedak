@@ -1,11 +1,11 @@
-import fs from "node:fs";
-
 import { NextResponse } from "next/server";
 
 import { isAdminEmail } from "@/lib/admin";
 import { auth } from "@/lib/auth";
+import { downloadResumePdf, isGcsObjectKey, toObjectKey } from "@/lib/gcs";
 import { ensureProfile } from "@/lib/profile";
 import { getResume, getResumeById } from "@/lib/resumes";
+import { isUserCapError } from "@/lib/user-cap";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -14,12 +14,19 @@ export async function GET(_request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
 
   if (session?.user?.email) {
-    await ensureProfile({
-      id: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-      image: session.user.image,
-    });
+    try {
+      await ensureProfile({
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+        image: session.user.image,
+      });
+    } catch (err) {
+      if (isUserCapError(err)) {
+        return NextResponse.json({ error: err.message }, { status: 403 });
+      }
+      throw err;
+    }
     const admin = isAdminEmail(session.user.email);
     const resume = admin ? await getResumeById(id) : await getResume(session.user.id, id);
     if (!resume || (resume.status === "archived" && !admin)) {
@@ -36,14 +43,25 @@ export async function GET(_request: Request, ctx: Ctx) {
   return serveResume(resume);
 }
 
-function serveResume(resume: { storagePath: string; originalFilename: string }) {
-  if (!fs.existsSync(resume.storagePath)) {
-    return NextResponse.json({ error: "File missing on disk." }, { status: 404 });
+async function serveResume(resume: { storagePath: string; originalFilename: string }) {
+  if (!isGcsObjectKey(resume.storagePath)) {
+    return NextResponse.json(
+      {
+        error:
+          "This resume was stored on a local disk path and is unavailable. Re-upload the PDF (GCS).",
+      },
+      { status: 404 },
+    );
   }
 
-  const buffer = fs.readFileSync(resume.storagePath);
+  const key = toObjectKey(resume.storagePath);
+  const buffer = await downloadResumePdf(key);
+  if (!buffer) {
+    return NextResponse.json({ error: "File missing in storage." }, { status: 404 });
+  }
+
   const filename = resume.originalFilename.replace(/[^\w.\- ()]+/g, "_") || "resume.pdf";
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",

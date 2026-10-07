@@ -1,8 +1,7 @@
 import "server-only";
 
-import fs from "node:fs";
-
 import { ensureAppSchema, getSql } from "@/lib/app-db";
+import { isGcsObjectKey } from "@/lib/gcs";
 import type { ResumeStatus } from "@/lib/resumes";
 
 export type AdminOverviewCounts = {
@@ -91,7 +90,7 @@ export async function listRecentResumesForAdmin(limit = 40): Promise<AdminResume
     status: row.status,
     originalFilename: row.original_filename,
     byteSize: row.byte_size,
-    fileExists: Boolean(row.storage_path && fs.existsSync(row.storage_path)),
+    fileExists: Boolean(row.storage_path && isGcsObjectKey(row.storage_path)),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));

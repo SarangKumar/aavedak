@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
+import { MAX_APP_USERS, UserCapError } from "@/lib/user-cap";
 import {
   emptyProfileLinks,
   mergeLegacyLinks,
@@ -138,30 +139,24 @@ export async function ensureProfile(user: {
   }
 
   const username = await allocateUsername(user.email, user.id);
-  await sql`
+  // Atomic slot claim: only insert when under the hard user cap.
+  const inserted = (await sql`
     INSERT INTO profiles
       (user_id, username, email, name, bio, portfolio_url, linkedin_url, links_json, image_url,
        onboarding_complete, created_at, updated_at)
-    VALUES (
+    SELECT
       ${user.id}, ${username}, ${user.email}, ${user.name ?? null}, NULL, NULL, NULL, '{}',
       ${imageUrl}, 0, ${now}, ${now}
-    )
-  `;
+    WHERE (SELECT COUNT(*)::int FROM profiles) < ${MAX_APP_USERS}
+    RETURNING user_id, username, email, name, bio, portfolio_url, linkedin_url,
+      links_json, image_url, onboarding_complete, created_at, updated_at
+  `) as ProfileRow[];
 
-  return {
-    userId: user.id,
-    username,
-    email: user.email,
-    name: user.name ?? null,
-    bio: null,
-    portfolioUrl: null,
-    linkedinUrl: null,
-    links: emptyProfileLinks(),
-    imageUrl,
-    onboardingComplete: false,
-    createdAt: now,
-    updatedAt: now,
-  };
+  if (!inserted[0]) {
+    throw new UserCapError();
+  }
+
+  return mapRow(inserted[0]);
 }
 
 export async function setOnboardingComplete(userId: string, complete: boolean) {

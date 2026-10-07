@@ -1,24 +1,19 @@
 import { NextResponse } from "next/server";
 
 import { applicationToDto, seedDemoAppliedApplications } from "@/lib/applications";
-import { auth } from "@/lib/auth";
-import { ensureProfile } from "@/lib/profile";
+import { requireApiUser } from "@/lib/api-session";
 
 async function requireUser() {
-  const { data: session } = await auth.getSession();
-  if (!session?.user?.email) return null;
-  await ensureProfile({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-  });
-  return session.user;
+  const result = await requireApiUser();
+  if (result.error) return { error: result.error };
+  return { user: result.user };
 }
 
 /** Idempotent upsert of Sarang's four applied roles (skip existing company+role). */
 export async function POST() {
-  const user = await requireUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireUser();
+  if ("error" in authResult) return authResult.error;
+  const user = authResult.user;
 
   const result = await seedDemoAppliedApplications(user.id);
   return NextResponse.json({
