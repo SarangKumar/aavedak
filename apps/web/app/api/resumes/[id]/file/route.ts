@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { isAdminEmail } from "@/lib/admin";
-import { auth } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { downloadResumePdf, isGcsObjectKey, toObjectKey } from "@/lib/gcs";
 import { ensureProfile } from "@/lib/profile";
 import { getResume, getResumeById } from "@/lib/resumes";
@@ -10,7 +10,7 @@ import { isUserCapError } from "@/lib/user-cap";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, ctx: Ctx) {
-  const { data: session } = await auth.getSession();
+  const session = await getServerSession();
   const { id } = await ctx.params;
 
   if (session?.user?.email) {

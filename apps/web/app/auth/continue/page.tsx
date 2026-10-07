@@ -1,6 +1,7 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/lib/auth";
+import { auth, getServerSession } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
 import { hasCompletedOnboardingRequirement } from "@/lib/resumes";
 import { isUserCapError, USER_CAP_MESSAGE } from "@/lib/user-cap";
@@ -14,7 +15,7 @@ type Props = {
  */
 export default async function AuthContinuePage({ searchParams }: Props) {
   const params = await searchParams;
-  const { data: session } = await auth.getSession();
+  const session = await getServerSession();
   if (!session?.user?.email) {
     redirect("/sign-in");
   }
@@ -29,7 +30,7 @@ export default async function AuthContinuePage({ searchParams }: Props) {
   } catch (err) {
     if (isUserCapError(err)) {
       try {
-        await auth.signOut();
+        await auth.api.signOut({ headers: await headers() });
       } catch {
         /* ignore */
       }

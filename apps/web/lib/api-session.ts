@@ -2,7 +2,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
 import { isUserCapError } from "@/lib/user-cap";
 
@@ -20,7 +20,7 @@ export type ApiUser = {
 export async function requireApiUser(): Promise<
   { user: ApiUser; error?: undefined } | { user?: undefined; error: NextResponse }
 > {
-  const { data: session } = await auth.getSession();
+  const session = await getServerSession();
   if (!session?.user?.email) {
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }

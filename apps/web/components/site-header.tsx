@@ -1,11 +1,11 @@
 import { SiteHeaderBar } from "@/components/site-header-bar";
-import { auth } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
 import { usernameFromUser } from "@/lib/username";
 import { cn } from "@/lib/utils";
 
 export async function SiteHeader({ className }: { className?: string }) {
-  const { data: session } = await auth.getSession();
+  const session = await getServerSession();
 
   const sessionUser = session?.user;
   let username = "";

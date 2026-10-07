@@ -1,34 +1,19 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
+import { NextRequest, NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
-import { canAcceptUser } from "@/lib/user-cap";
-
-const protect = auth.middleware({
-  loginUrl: "/sign-in",
-});
-
-export default async function middleware(request: NextRequest) {
-  const protectedResponse = await protect(request);
-
-  // Neon Auth redirects unauthenticated users (3xx) — keep that.
-  if (protectedResponse.status >= 300 && protectedResponse.status < 400) {
-    return protectedResponse;
+/**
+ * Cookie existence check only (optimistic redirect).
+ * Real validation + 8-user cap happen via auth.api.getSession / ensureProfile.
+ * See https://www.better-auth.com/docs/integrations/next
+ */
+export function middleware(request: NextRequest) {
+  const sessionCookie = getSessionCookie(request);
+  if (!sessionCookie) {
+    const signIn = new URL("/sign-in", request.url);
+    signIn.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(signIn);
   }
-
-  try {
-    const { data: session } = await auth.getSession();
-    const userId = session?.user?.id;
-    if (userId && !(await canAcceptUser(userId))) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/closed";
-      url.search = "";
-      return NextResponse.redirect(url);
-    }
-  } catch {
-    // DB blip: page-level ensureProfile / auth/continue still enforce the cap.
-  }
-
-  return protectedResponse;
+  return NextResponse.next();
 }
 
 export const config = {

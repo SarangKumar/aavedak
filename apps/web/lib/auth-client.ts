@@ -1,11 +1,13 @@
 "use client";
 
-import { createAuthClient } from "@neondatabase/auth/next";
+import { createAuthClient } from "better-auth/react";
 
-export const authClient = createAuthClient();
+export const authClient = createAuthClient({
+  // same-origin; BETTER_AUTH_URL is for the server
+});
 
 /**
- * Sign out via Neon Auth, then hard-navigate so App Router RSC/session
+ * Sign out via Better Auth, then hard-navigate so App Router RSC/session
  * caches cannot leave a stale signed-in shell.
  */
 export async function signOutAndRedirect(redirectTo = "/sign-in") {

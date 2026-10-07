@@ -1,8 +1,9 @@
 import "server-only";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/lib/auth";
+import { auth, getServerSession } from "@/lib/auth";
 import { ensureProfile, type Profile } from "@/lib/profile";
 import { hasCompletedOnboardingRequirement } from "@/lib/resumes";
 import { isUserCapError, USER_CAP_MESSAGE } from "@/lib/user-cap";
@@ -20,7 +21,7 @@ export type AppAccess = {
 };
 
 async function getSessionUser(): Promise<AppSessionUser | null> {
-  const { data: session } = await auth.getSession();
+  const session = await getServerSession();
   if (!session?.user?.email) return null;
   return {
     id: session.user.id,
@@ -32,7 +33,7 @@ async function getSessionUser(): Promise<AppSessionUser | null> {
 
 async function rejectOverCap(): Promise<never> {
   try {
-    await auth.signOut();
+    await auth.api.signOut({ headers: await headers() });
   } catch {
     // session cookie clear best-effort
   }
@@ -83,7 +84,7 @@ export async function getOptionalAccess(): Promise<AppAccess | null> {
   } catch (err) {
     if (isUserCapError(err)) {
       try {
-        await auth.signOut();
+        await auth.api.signOut({ headers: await headers() });
       } catch {
         /* ignore */
       }

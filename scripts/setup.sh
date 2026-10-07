@@ -175,26 +175,28 @@ fi
 if [[ -n "$WEB_ENV" ]]; then
   ensure_env_key "$WEB_ENV" "NEXT_PUBLIC_APP_URL"
   ensure_env_key "$WEB_ENV" "NEXT_PUBLIC_API_URL"
-  ensure_env_key "$WEB_ENV" "NEON_AUTH_BASE_URL"
-  ensure_env_key "$WEB_ENV" "NEON_AUTH_COOKIE_SECRET"
   ensure_env_key "$WEB_ENV" "DATABASE_URL"
-  ensure_env_key "$WEB_ENV" "AUTH_DATABASE_URL"
+  ensure_env_key "$WEB_ENV" "BETTER_AUTH_SECRET"
+  ensure_env_key "$WEB_ENV" "BETTER_AUTH_URL"
+  ensure_env_key "$WEB_ENV" "GOOGLE_CLIENT_ID"
+  ensure_env_key "$WEB_ENV" "GOOGLE_CLIENT_SECRET"
   ensure_env_key "$WEB_ENV" "ADMIN_EMAILS"
+  ensure_env_key "$WEB_ENV" "GCS_BUCKET"
   if grep -qE '^NEXT_PUBLIC_API_URL=.+' "$WEB_ENV"; then
     ok "NEXT_PUBLIC_API_URL is set (required for local web → API)"
   else
     warn "NEXT_PUBLIC_API_URL is empty — set it (e.g. http://127.0.0.1:8000) before relying on API calls"
   fi
 
-  # Generate NEON_AUTH_COOKIE_SECRET if empty so Neon Auth session cookies work
-  if grep -qE '^NEON_AUTH_COOKIE_SECRET=$' "$WEB_ENV" 2>/dev/null; then
+  # Generate BETTER_AUTH_SECRET if empty
+  if grep -qE '^BETTER_AUTH_SECRET=$' "$WEB_ENV" 2>/dev/null; then
     SECRET="$(openssl rand -base64 32 | tr -d '
 ')"
     tmp="$(mktemp)"
-    sed "s/^NEON_AUTH_COOKIE_SECRET=$/NEON_AUTH_COOKIE_SECRET=${SECRET}/" "$WEB_ENV" >"$tmp" && mv "$tmp" "$WEB_ENV"
-    ok "Generated NEON_AUTH_COOKIE_SECRET for Neon Auth"
+    sed "s/^BETTER_AUTH_SECRET=$/BETTER_AUTH_SECRET=${SECRET}/" "$WEB_ENV" >"$tmp" && mv "$tmp" "$WEB_ENV"
+    ok "Generated BETTER_AUTH_SECRET for Better Auth"
   fi
-  warn "Set DATABASE_URL + NEON_AUTH_* and configure Google in Neon Console (see apps/web/README.md)"
+  warn "Set DATABASE_URL, GOOGLE_CLIENT_ID/SECRET, GCS_* (see apps/web/README.md)"
 fi
 
 copy_env_if_missing "$API_DIR/.env.example" "$API_DIR/.env" "API env"

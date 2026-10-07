@@ -52,38 +52,41 @@ Three files under `apps/web/`:
 | `.env`         | Ignored       | Production-oriented defaults (`https://aavedak.vercel.app` origins). |
 | `.env.local`   | Ignored       | Local overrides (`http://localhost:3000`). Wins over `.env` in Next. |
 
-Shared secrets (Google OAuth, `NEON_AUTH_COOKIE_SECRET`, `ADMIN_EMAILS`, API URL when same) should match in `.env` and `.env.local`; only public origins differ.
+Shared secrets (Google OAuth, `BETTER_AUTH_SECRET`, `ADMIN_EMAILS`, `DATABASE_URL`, GCS, API URL when same) should match in `.env` and `.env.local`; only public origins differ.
 
 Copy from the template (`cp apps/web/.env.example apps/web/.env.local`) or run `pnpm setup`. Fill secrets locally — never commit `.env` / `.env.local`.
 
-| Variable                  | Required for local UI | Notes                                                                        |
-| ------------------------- | --------------------- | ---------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_URL`     | Yes                   | App origin; local `http://localhost:3000`, prod `https://aavedak.vercel.app` |
-| `NEXT_PUBLIC_API_URL`     | Yes                   | Document API; default `http://127.0.0.1:8000`                                |
-| `NEON_AUTH_COOKIE_SECRET` | Yes for auth          | 32+ chars; `setup` / scaffold generates one if empty                         |
-| `NEON_AUTH_BASE_URL`      | Yes for auth          | Must match the browser origin (same as `NEXT_PUBLIC_APP_URL`)                |
-| `DATABASE_URL`            | No (local)            | Reserved for production MySQL; local uses SQLite `data/local.db`             |
-| `ADMIN_EMAILS`            | No                    | Comma-separated (e.g. `sarangkumar1578@gmail.com`)                           |
+| Variable               | Required for local UI | Notes                                                                        |
+| ---------------------- | --------------------- | ---------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_URL`  | Yes                   | App origin; local `http://localhost:3000`, prod `https://aavedak.vercel.app` |
+| `NEXT_PUBLIC_API_URL`  | Yes                   | Document API; default `http://127.0.0.1:8000`                                |
+| `DATABASE_URL`         | Yes                   | Neon Postgres pooled connection string                                       |
+| `BETTER_AUTH_SECRET`   | Yes for auth          | 32+ chars; `setup` generates one if empty                                    |
+| `BETTER_AUTH_URL`      | Yes for auth          | Same as `NEXT_PUBLIC_APP_URL`                                                |
+| `GOOGLE_CLIENT_ID`     | Yes for auth          | Google Cloud OAuth Web client                                                |
+| `GOOGLE_CLIENT_SECRET` | Yes for auth          | Google Cloud OAuth Web client secret                                         |
+| `GCS_BUCKET`           | Yes on Vercel         | Resume PDF bucket                                                            |
+| `ADMIN_EMAILS`         | No                    | Comma-separated (e.g. `sarangkumar1578@gmail.com`)                           |
 
-Never commit secrets. `apps/web/data/` and `apps/web/.data/` are gitignored.
+Never commit secrets. Local SQLite paths are unused; auth + app data are on Neon.
 
 API env (separate): `apps/api/.env.example` → `apps/api/.env` (also gitignored). See repo root README.
 
 ## Auth (Better Auth + Google)
 
-Frozen stack: **Better Auth** with **Google OAuth only** (no email/password).
+Frozen stack: **self-hosted Better Auth** with **Google OAuth only** (no Neon Auth, no email/password).
+App data + auth tables: **Neon Postgres** via `DATABASE_URL`. Resume PDFs: **GCS**.
 
 1. Google Cloud Console → APIs & Services → Credentials → Create OAuth client (Web).
 2. Authorized redirect URIs (add both):
    - `http://localhost:3000/api/auth/callback/google`
    - `https://aavedak.vercel.app/api/auth/callback/google`
-3. Put Client ID / Secret in `apps/web/.env` and `apps/web/.env.local` (same values).
-4. Local: `NEON_AUTH_BASE_URL` / `NEXT_PUBLIC_APP_URL` = `http://localhost:3000` in `.env.local`.
-   Prod defaults: `https://aavedak.vercel.app` in `.env`.
-5. From `apps/web` (first time / schema change): `pnpm dlx auth@latest migrate`
-6. `pnpm --filter web dev` → open `/sign-in` → Continue with Google.
-
-Auth: Neon Auth + Google (Neon Console). App DB: Neon Postgres via `DATABASE_URL`.
+3. Authorized JavaScript origins: `http://localhost:3000` and `https://aavedak.vercel.app`.
+4. Put Client ID / Secret in `apps/web/.env` and `apps/web/.env.local` (same values) as `GOOGLE_CLIENT_*`.
+5. Local: `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL` = `http://localhost:3000` in `.env.local`.
+   Prod: `https://aavedak.vercel.app` in `.env` / Vercel.
+6. From `apps/web` (first time / schema change): `pnpm dlx @better-auth/cli@latest migrate`
+7. `pnpm --filter web dev` → open `/sign-in` → Continue with Google.
 
 Key files: `lib/auth.ts`, `lib/auth-client.ts`, `app/api/auth/[...all]/route.ts`, `middleware.ts`, `app/sign-in/page.tsx`.
 
