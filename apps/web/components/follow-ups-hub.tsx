@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DatePickerField } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
 export type FollowUpDto = {
@@ -294,11 +295,10 @@ export function FollowUpsHub({ initialFollowUps, people, applications }: Props) 
             onChange={(e) => setTitle(e.target.value)}
             aria-label="Follow-up title"
           />
-          <Input
-            type="date"
+          <DatePickerField
             value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            aria-label="Due date"
+            onChange={setDueDate}
+            placeholder="Due date"
           />
           <select
             className="border-input bg-muted text-foreground box-border flex h-9 w-full rounded-md border px-3 text-sm"

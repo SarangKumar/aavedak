@@ -15,12 +15,15 @@ import {
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
 import { ShellWidth } from "@/components/shell-width";
 import { ResizeHandle } from "@/components/ui/resize-handle";
+import { CompanySelect } from "@/components/company-select";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 export type JobDto = {
   id: string;
   title: string;
   company: string;
+  companyId?: string | null;
   location: string;
   source: JobSource;
   url: string | null;
@@ -29,6 +32,8 @@ export type JobDto = {
   status: "active" | "archived";
   createdAt: string;
   updatedAt: string;
+  compatibilityScore?: number | null;
+  atsScore?: number | null;
 };
 
 type JobsHubProps = {
@@ -208,6 +213,24 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
     if (selectedId === id) setSelectedId(null);
   }
 
+  async function ignoreJob(id: string) {
+    setError(null);
+    setMessage(null);
+    setPending(true);
+    try {
+      const res = await fetch(`/api/jobs/${id}/ignore`, { method: "POST" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not ignore.");
+      setJobs((list) => list.filter((j) => j.id !== id));
+      if (selectedId === id) setSelectedId(null);
+      setMessage("Ignored — hidden from your Jobs list.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not ignore.");
+    } finally {
+      setPending(false);
+    }
+  }
+
   async function createApplicationFromJob(
     job: JobDto,
     status: "bookmarked" | "preparing" | "applied",
@@ -257,24 +280,41 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
     }
     setPending(true);
     try {
-      const res = await fetch("/api/analyses", {
+      // Register as a manual job so it can be scored + used for cover letters
+      const lines = pasteText.trim().split(/\n+/).map((l) => l.trim()).filter(Boolean);
+      const titleGuess = lines[0]?.slice(0, 120) || "Pasted role";
+      const companyGuess =
+        lines.find((l) => /^company\s*:/i.test(l))?.split(":").slice(1).join(":").trim() ||
+        "Custom company";
+      const createRes = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: titleGuess,
+          company: companyGuess,
+          location: "Remote",
+          source: "manual",
+          description: pasteText,
+        }),
+      });
+      const createData = (await createRes.json()) as { job?: JobDto; error?: string };
+      if (!createRes.ok) throw new Error(createData.error || "Could not register job.");
+      if (createData.job) {
+        setJobs((list) => [createData.job!, ...list]);
+        setSelectedId(createData.job.id);
+      }
+      await fetch("/api/analyses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           rawText: pasteText,
-          jobId: selected?.id ?? null,
+          jobId: createData.job?.id ?? null,
         }),
       });
-      const data = (await res.json()) as {
-        analysis?: { summary: string | null };
-        error?: string;
-      };
-      if (!res.ok) throw new Error(data.error || "Analysis failed.");
       setPasteOpen(false);
       setPasteText("");
       setMessage(
-        data.analysis?.summary ||
-          "Saved a private JD analysis stub (does not create a global job).",
+        `Registered job · Match ${createData.job?.compatibilityScore ?? "—"}% · ATS ${createData.job?.atsScore ?? "—"}%. Generate a cover letter from Documents.`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed.");
@@ -460,44 +500,54 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
               </div>
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <MetaChip
+                  label="Match"
+                  value={
+                    selected.compatibilityScore != null
+                      ? `${selected.compatibilityScore}%`
+                      : "—"
+                  }
+                />
+                <MetaChip
+                  label="ATS"
+                  value={selected.atsScore != null ? `${selected.atsScore}%` : "—"}
+                />
                 <MetaChip label="Source" value={SOURCE_LABELS[selected.source]} />
-                <MetaChip label="Location" value={selected.location} />
                 <MetaChip label="Comp" value={selected.salary ?? "—"} />
-                <MetaChip label="Added" value={relativeAge(selected.createdAt) || "—"} />
               </div>
 
               <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   disabled={pending}
-                  onClick={() => void createApplicationFromJob(selected, "bookmarked")}
-                  className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-md px-3 text-[12px] font-semibold disabled:opacity-60"
-                >
-                  Save / Bookmark
-                </button>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => void createApplicationFromJob(selected, "preparing")}
-                  className="border-border text-foreground hover:border-primary/40 inline-flex h-8 items-center rounded-md border px-3 text-[12px] disabled:opacity-60"
-                >
-                  Track as preparing
-                </button>
-                <button
-                  type="button"
-                  disabled={pending}
                   onClick={() => void createApplicationFromJob(selected, "applied")}
-                  className="border-border text-foreground hover:border-primary/40 inline-flex h-8 items-center rounded-md border px-3 text-[12px] disabled:opacity-60"
+                  className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[12px] font-semibold disabled:opacity-60"
                 >
-                  Mark applied
+                  {pending ? <Spinner className="size-3.5" /> : null}
+                  Applied
                 </button>
                 <button
                   type="button"
-                  onClick={() => void archiveJob(selected.id)}
-                  className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-md border px-3 text-[12px]"
+                  disabled={pending}
+                  onClick={() => void ignoreJob(selected.id)}
+                  className="border-border text-foreground hover:border-primary/40 inline-flex h-8 items-center rounded-md border px-3 text-[12px] disabled:opacity-60"
                 >
-                  Archive
+                  Ignore
                 </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => void createApplicationFromJob(selected, "bookmarked")}
+                  className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-md border px-3 text-[12px] disabled:opacity-60"
+                >
+                  Bookmark
+                </button>
+                <Link
+                  href={`/documents?tab=cover_letters&jobId=${selected.id}`}
+                  className="border-border text-foreground hover:border-primary/40 inline-flex h-8 items-center rounded-md border px-3 text-[12px]"
+                >
+                  Cover letter
+                </Link>
               </div>
 
               <div className="border-border/70 bg-muted/30 rounded-lg border p-3 sm:p-4">
@@ -520,11 +570,14 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
             value={draft.title}
             onChange={(v) => setDraft((d) => ({ ...d, title: v }))}
           />
-          <Field
-            label="Company *"
-            value={draft.company}
-            onChange={(v) => setDraft((d) => ({ ...d, company: v }))}
-          />
+          <label className="block space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Company *</span>
+            <CompanySelect
+              value={draft.company}
+              onChange={(name) => setDraft((d) => ({ ...d, company: name }))}
+              placeholder="e.g. Stripe"
+            />
+          </label>
           <Field
             label="Location *"
             value={draft.location}
@@ -593,7 +646,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
         open={pasteOpen}
         title="Paste JD (private analysis)"
         onClose={() => setPasteOpen(false)}
-        description="Stores a user-scoped analysis stub. Does not create a global job for other users."
+        description="Registers the JD as a job on your Jobs list, scores resume match + ATS, then you can generate a cover letter."
       >
         <textarea
           value={pasteText}
@@ -683,6 +736,16 @@ function JobList({
                 >
                   {SOURCE_LABELS[job.source]}
                 </span>
+                {job.compatibilityScore != null ? (
+                  <span className="text-foreground/80 text-[10px] font-medium tabular-nums">
+                    Match {job.compatibilityScore}%
+                  </span>
+                ) : null}
+                {job.atsScore != null ? (
+                  <span className="text-muted-foreground text-[10px] tabular-nums">
+                    ATS {job.atsScore}%
+                  </span>
+                ) : null}
                 {job.salary ? (
                   <span className="text-muted-foreground text-[10px]">{job.salary}</span>
                 ) : null}

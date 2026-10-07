@@ -4,6 +4,8 @@ import { JobTrackerBoard } from "@/components/job-tracker-board";
 import { requireOnboarded } from "@/lib/app-access";
 import { listApplications, seedDemoAppliedApplications } from "@/lib/applications";
 import { seedBulkApplications } from "@/lib/applications-bulk-seed";
+import { listCoverLetters } from "@/lib/cover-letters";
+import { getJobById } from "@/lib/jobs";
 import { getPreferences, updatePreferences } from "@/lib/preferences";
 
 export const metadata: Metadata = {
@@ -22,25 +24,55 @@ export default async function JobTrackerPage() {
   }
 
   const applications = await listApplications(user.id, "active");
+  const coverLetters = await listCoverLetters(user.id);
+  const coversById = new Map(coverLetters.map((c) => [c.id, c]));
+
+  const jobCache = new Map<string, { title: string; company: string } | null>();
+  async function jobMeta(jobId: string | null) {
+    if (!jobId) return null;
+    if (jobCache.has(jobId)) return jobCache.get(jobId) ?? null;
+    const job = await getJobById(jobId);
+    const meta = job ? { title: job.title, company: job.company } : null;
+    jobCache.set(jobId, meta);
+    return meta;
+  }
+
+  const initialApplications = [];
+  for (const app of applications) {
+    const cover = app.coverLetterId ? coversById.get(app.coverLetterId) : undefined;
+    const linkedJob = await jobMeta(app.jobId);
+    initialApplications.push({
+      id: app.id,
+      companyName: app.companyName,
+      companyId: app.companyId,
+      role: app.role,
+      location: app.location,
+      salaryCtc: app.salaryCtc,
+      jobLink: app.jobLink,
+      jobId: app.jobId,
+      coverLetterId: app.coverLetterId,
+      coverLetterTitle: cover?.title ?? null,
+      jobTitle: linkedJob?.title ?? null,
+      status: app.status,
+      notes: app.notes,
+      appliedAt: app.appliedAt,
+      createdAt: app.createdAt,
+      updatedAt: app.updatedAt,
+    });
+  }
 
   return (
     <div className="relative overflow-hidden">
       <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-60" aria-hidden />
       <div className="relative">
         <JobTrackerBoard
-          initialApplications={applications.map((app) => ({
-            id: app.id,
-            companyName: app.companyName,
-            role: app.role,
-            location: app.location,
-            salaryCtc: app.salaryCtc,
-            jobLink: app.jobLink,
-            jobId: app.jobId,
-            status: app.status,
-            notes: app.notes,
-            appliedAt: app.appliedAt,
-            createdAt: app.createdAt,
-            updatedAt: app.updatedAt,
+          initialApplications={initialApplications}
+          initialCoverLetters={coverLetters.map((c) => ({
+            id: c.id,
+            title: c.title,
+            companyName: c.companyName,
+            roleTitle: c.roleTitle,
+            jobId: c.jobId,
           }))}
           initialPreferences={{
             trackerView: preferences.trackerView,

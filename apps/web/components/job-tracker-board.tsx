@@ -22,6 +22,13 @@ import {
   type DragDropItems,
 } from "@/components/ui/drag-and-drop";
 import { Modal } from "@/components/ui/modal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { StatusSelect } from "@/components/status-select";
 import {
   APPLICATION_STATUSES,
@@ -39,21 +46,35 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CompanySelect } from "@/components/company-select";
+import { DatePickerField } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
   id: string;
   companyName: string;
+  companyId?: string | null;
   role: string;
   location: string;
   salaryCtc: string | null;
   jobLink: string | null;
   jobId: string | null;
+  coverLetterId?: string | null;
+  coverLetterTitle?: string | null;
+  jobTitle?: string | null;
   status: ApplicationStatus;
   notes: string | null;
   appliedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type CoverLetterOptionDto = {
+  id: string;
+  title: string;
+  companyName: string | null;
+  roleTitle: string | null;
+  jobId: string | null;
 };
 
 export type TrackerPrefsDto = {
@@ -64,6 +85,7 @@ export type TrackerPrefsDto = {
 
 type JobTrackerBoardProps = {
   initialApplications: ApplicationDto[];
+  initialCoverLetters?: CoverLetterOptionDto[];
   initialPreferences: TrackerPrefsDto;
 };
 
@@ -74,6 +96,8 @@ type Draft = {
   salaryCtc: string;
   jobLink: string;
   jobId: string;
+  coverLetterId: string;
+  appliedAt: string;
   status: ApplicationStatus;
   notes: string;
 };
@@ -89,6 +113,8 @@ const emptyDraft = (): Draft => ({
   salaryCtc: "",
   jobLink: "",
   jobId: "",
+  coverLetterId: "",
+  appliedAt: "",
   status: "bookmarked",
   notes: "",
 });
@@ -101,6 +127,8 @@ function draftFromApp(app: ApplicationDto): Draft {
     salaryCtc: app.salaryCtc ?? "",
     jobLink: app.jobLink ?? "",
     jobId: app.jobId ?? "",
+    coverLetterId: app.coverLetterId ?? "",
+    appliedAt: app.appliedAt?.slice(0, 10) ?? "",
     status: app.status,
     notes: app.notes ?? "",
   };
@@ -124,10 +152,15 @@ function buildColumns(
   return next;
 }
 
-export function JobTrackerBoard({ initialApplications, initialPreferences }: JobTrackerBoardProps) {
+export function JobTrackerBoard({
+  initialApplications,
+  initialCoverLetters = [],
+  initialPreferences,
+}: JobTrackerBoardProps) {
   const [applications, setApplications] = useState(() =>
     initialApplications.filter((a) => a.status !== "archived"),
   );
+  const [coverLetters] = useState(initialCoverLetters);
   const [prefs, setPrefs] = useState(initialPreferences);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -225,6 +258,8 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           salaryCtc: draft.salaryCtc || null,
           jobLink: draft.jobLink || null,
           jobId: draft.jobId || null,
+          coverLetterId: draft.coverLetterId || null,
+          appliedAt: draft.appliedAt || null,
           status: draft.status === "archived" ? "bookmarked" : draft.status,
         }),
       });
@@ -317,6 +352,8 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           salaryCtc: draft.salaryCtc || null,
           jobLink: draft.jobLink || null,
           jobId: draft.jobId || null,
+          coverLetterId: draft.coverLetterId || null,
+          appliedAt: draft.appliedAt || null,
           notes: draft.notes || null,
           status: draft.status,
         }),
@@ -676,11 +713,14 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         }
       >
         <div className="space-y-2.5">
-          <Field
-            label="Company name *"
-            value={draft.companyName}
-            onChange={(v) => setDraft((d) => ({ ...d, companyName: v }))}
-          />
+          <label className="block space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Company name *</span>
+            <CompanySelect
+              value={draft.companyName}
+              onChange={(name) => setDraft((d) => ({ ...d, companyName: name }))}
+              placeholder="e.g. Stripe"
+            />
+          </label>
           <Field
             label="Role *"
             value={draft.role}
@@ -701,10 +741,11 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             value={draft.jobLink}
             onChange={(v) => setDraft((d) => ({ ...d, jobLink: v }))}
           />
-          <Field
-            label="Job id"
-            value={draft.jobId}
-            onChange={(v) => setDraft((d) => ({ ...d, jobId: v }))}
+          <DatePickerField
+            label="Applied date"
+            value={draft.appliedAt}
+            onChange={(iso) => setDraft((d) => ({ ...d, appliedAt: iso }))}
+            placeholder="Pick applied date"
           />
           <div className="space-y-1">
             <span className="text-foreground text-[12px] font-medium">Status</span>
@@ -760,11 +801,35 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         }
       >
         <div className="space-y-2.5">
-          <Field
-            label="Company name *"
-            value={draft.companyName}
-            onChange={(v) => setDraft((d) => ({ ...d, companyName: v }))}
-          />
+          {(() => {
+            const current = editingId ? appsById.get(editingId) : null;
+            return (
+              <div className="border-border/70 bg-muted/30 space-y-1 rounded-lg border px-3 py-2.5">
+                <p className="text-foreground text-[11px] font-semibold tracking-tight">
+                  Linked job & cover letter
+                </p>
+                <p className="text-muted-foreground text-[12px]">
+                  Job:{" "}
+                  {current?.jobTitle
+                    ? `${current.jobTitle}${current.jobId ? ` (${current.jobId.slice(0, 8)}…)` : ""}`
+                    : current?.jobId
+                      ? current.jobId
+                      : "—"}
+                </p>
+                <p className="text-muted-foreground text-[12px]">
+                  Cover letter: {current?.coverLetterTitle || "—"}
+                </p>
+              </div>
+            );
+          })()}
+          <label className="block space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Company name *</span>
+            <CompanySelect
+              value={draft.companyName}
+              onChange={(name) => setDraft((d) => ({ ...d, companyName: name }))}
+              placeholder="e.g. Stripe"
+            />
+          </label>
           <Field
             label="Role *"
             value={draft.role}
@@ -785,11 +850,33 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             value={draft.jobLink}
             onChange={(v) => setDraft((d) => ({ ...d, jobLink: v }))}
           />
-          <Field
-            label="Job id"
-            value={draft.jobId}
-            onChange={(v) => setDraft((d) => ({ ...d, jobId: v }))}
+          <DatePickerField
+            label="Applied date"
+            value={draft.appliedAt}
+            onChange={(iso) => setDraft((d) => ({ ...d, appliedAt: iso }))}
           />
+          <div className="space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Cover letter used</span>
+            <Select
+              value={draft.coverLetterId || "__none"}
+              onValueChange={(v) =>
+                setDraft((d) => ({ ...d, coverLetterId: v === "__none" ? "" : v || "" }))
+              }
+            >
+              <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent className="z-[280]">
+                <SelectItem value="__none">None</SelectItem>
+                {coverLetters.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.title}
+                    {c.companyName ? ` · ${c.companyName}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <label className="block space-y-1">
             <span className="text-foreground text-[12px] font-medium">Notes</span>
             <textarea

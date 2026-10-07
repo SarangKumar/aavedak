@@ -5,6 +5,7 @@ import { requireOnboarded } from "@/lib/app-access";
 import { getProfile } from "@/lib/profile";
 import { listApplications } from "@/lib/applications";
 import { listCoverLetters } from "@/lib/cover-letters";
+import { listJobsForUser } from "@/lib/jobs";
 import { listResumes } from "@/lib/resumes";
 import { listTemplates } from "@/lib/templates";
 
@@ -20,6 +21,7 @@ export default async function DocumentsPage() {
   const coverLetters = await listCoverLetters(user.id);
   const templates = await listTemplates(user.id);
   const applications = await listApplications(user.id, "active");
+  const jobs = await listJobsForUser(user.id);
 
   return (
     <DocumentsHub
@@ -27,6 +29,14 @@ export default async function DocumentsPage() {
       userName={user.name}
       profileEmail={profile?.email ?? user.email ?? null}
       profileLinks={profile?.links ?? {}}
+      initialJobs={jobs.map((j) => ({
+        id: j.id,
+        title: j.title,
+        company: j.company,
+        location: j.location,
+        compatibilityScore: null,
+        atsScore: null,
+      }))}
       initialApplications={applications.map((a) => ({
         id: a.id,
         companyName: a.companyName,
@@ -47,6 +57,9 @@ export default async function DocumentsPage() {
         title: c.title,
         body: c.body,
         applicationId: c.applicationId,
+        jobId: c.jobId,
+        companyName: c.companyName,
+        roleTitle: c.roleTitle,
         status: c.status,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,

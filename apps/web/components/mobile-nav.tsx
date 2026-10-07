@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ export type NavItem = {
 export function MobileNav({ items }: { items: readonly NavItem[] }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  const pathname = usePathname() || "";
 
   useEffect(() => {
     if (!open) return;
@@ -75,17 +77,26 @@ export function MobileNav({ items }: { items: readonly NavItem[] }) {
             className="border-border bg-popover text-popover-foreground absolute inset-x-0 top-full z-50 border-b shadow-lg shadow-black/30"
           >
             <ul className="mx-auto flex max-w-5xl flex-col gap-0.5 px-3 py-2.5 sm:px-6">
-              {items.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    className="text-muted-foreground hover:text-foreground flex min-h-10 items-center rounded-lg px-3 text-[13px] font-medium transition-colors"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
+              {items.map((item) => {
+                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex min-h-10 items-center rounded-lg px-3 text-[13px] font-medium transition-colors",
+                        active
+                          ? "text-foreground bg-foreground/5"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </nav>
         </>

@@ -33,6 +33,7 @@ import {
   type ProfileLinks,
 } from "@/lib/profile-links";
 import { renderTemplatePreview } from "@/lib/template-preview";
+import { CompanySelect } from "@/components/company-select";
 import { cn } from "@/lib/utils";
 
 type Tab = "resumes" | "cover_letters" | "templates";
@@ -52,9 +53,21 @@ export type CoverLetterDto = {
   title: string;
   body: string;
   applicationId: string | null;
+  jobId: string | null;
+  companyName: string | null;
+  roleTitle: string | null;
   status: "active" | "archived";
   createdAt: string;
   updatedAt: string;
+};
+
+export type JobOptionDto = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  compatibilityScore?: number | null;
+  atsScore?: number | null;
 };
 
 export type TemplateDto = {
@@ -80,6 +93,7 @@ type DocumentsHubProps = {
   initialCoverLetters: CoverLetterDto[];
   initialTemplates: TemplateDto[];
   initialApplications: ApplicationOptionDto[];
+  initialJobs: JobOptionDto[];
   userEmail?: string;
   userName?: string;
   profileEmail?: string | null;
@@ -142,6 +156,7 @@ export function DocumentsHub({
   initialCoverLetters,
   initialTemplates,
   initialApplications,
+  initialJobs,
   userEmail,
   userName,
   profileEmail,
@@ -161,9 +176,14 @@ export function DocumentsHub({
   const [uploadFiles, setUploadFiles] = useState<FileUploadFile[]>([]);
 
   // Cover / template editors
+  const [jobs] = useState(initialJobs);
   const [clTitle, setClTitle] = useState(DEFAULT_COVER_TITLE);
   const [clBody, setClBody] = useState(DEFAULT_COVER_BODY);
-  const [clApplicationId, setClApplicationId] = useState<string>(initialApplications[0]?.id ?? "");
+  const [clMode, setClMode] = useState<"job" | "custom">(initialJobs[0] ? "job" : "custom");
+  const [clJobId, setClJobId] = useState<string>(initialJobs[0]?.id ?? "");
+  const [clCustomCompany, setClCustomCompany] = useState("");
+  const [clCustomRole, setClCustomRole] = useState("");
+  const [clApplicationId, setClApplicationId] = useState<string>("");
   const [editingClId, setEditingClId] = useState<string | null>(null);
   const [clFooterInclude, setClFooterInclude] = useState<FooterInclude>(() =>
     defaultFooterInclude(profileEmail, profileLinks),
@@ -182,23 +202,46 @@ export function DocumentsHub({
     setEditingClId(null);
     setClTitle(DEFAULT_COVER_TITLE);
     setClBody(DEFAULT_COVER_BODY);
-    setClApplicationId(applications[0]?.id ?? "");
+    setClMode(jobs[0] ? "job" : "custom");
+    setClJobId(jobs[0]?.id ?? "");
+    setClCustomCompany("");
+    setClCustomRole("");
+    setClApplicationId("");
     setClFooterInclude(defaultFooterInclude(profileEmail, profileLinks));
   }
 
-  const selectedApp = clApplicationId ? appsById.get(clApplicationId) : undefined;
+  const jobsById = useMemo(() => new Map(jobs.map((j) => [j.id, j])), [jobs]);
+  const selectedJob = clMode === "job" && clJobId ? jobsById.get(clJobId) : undefined;
+
+  const coverTarget = useMemo(() => {
+    if (selectedJob) {
+      return {
+        company: selectedJob.company,
+        role: selectedJob.title,
+        location: selectedJob.location,
+      };
+    }
+    if (clMode === "custom") {
+      return {
+        company: clCustomCompany.trim() || "Acme Corp",
+        role: clCustomRole.trim() || "Software Engineer",
+        location: "Remote",
+      };
+    }
+    return { company: "Acme Corp", role: "Software Engineer", location: "Remote" };
+  }, [selectedJob, clMode, clCustomCompany, clCustomRole]);
 
   const coverVars = useMemo(() => {
     return {
-      company: selectedApp?.companyName ?? "Acme Corp",
-      role: selectedApp?.role ?? "Software Engineer",
-      location: selectedApp?.location ?? "Remote",
+      company: coverTarget.company,
+      role: coverTarget.role,
+      location: coverTarget.location,
       user_name: "John Doe",
       from_email: "john.doe@example.com",
       person_name: "Jane Smith",
       person_email: "jane.smith@example.com",
     };
-  }, [selectedApp]);
+  }, [coverTarget]);
 
   const clFooter = useMemo(
     () => buildFooterFromProfile(clFooterInclude, profileEmail, profileLinks),
@@ -217,11 +260,14 @@ export function DocumentsHub({
     setError(null);
     setDownloadBusy(`${cl.id}-${format}`);
     try {
-      const app = cl.applicationId ? appsById.get(cl.applicationId) : undefined;
+      const job = cl.jobId ? jobsById.get(cl.jobId) : undefined;
+      const company = cl.companyName || job?.company || "Acme Corp";
+      const role = cl.roleTitle || job?.title || "Software Engineer";
+      const location = job?.location || "Remote";
       const vars = {
-        company: app?.companyName ?? "Acme Corp",
-        role: app?.role ?? "Software Engineer",
-        location: app?.location ?? "Remote",
+        company,
+        role,
+        location,
         user_name: "John Doe",
         from_email: "john.doe@example.com",
         person_name: "Jane Smith",
@@ -230,8 +276,8 @@ export function DocumentsHub({
       const rendered = {
         title: renderTemplatePreview(cl.title, vars),
         body: renderTemplatePreview(cl.body, vars),
-        companyName: app?.companyName,
-        role: app?.role,
+        companyName: company,
+        role,
         footer: footer ?? clFooter,
       };
       if (await coverLetterExceedsOneA4Page(rendered)) {
@@ -264,8 +310,8 @@ export function DocumentsHub({
       const rendered = {
         title: previewTitle || clTitle || "Cover letter",
         body: previewBody,
-        companyName: selectedApp?.companyName,
-        role: selectedApp?.role,
+        companyName: coverTarget.company,
+        role: coverTarget.role,
         footer: clFooter,
       };
       if (format === "pdf") await downloadCoverLetterPdf(rendered);
@@ -349,8 +395,12 @@ export function DocumentsHub({
       setError("Cover letter body is required.");
       return;
     }
-    if (!clApplicationId) {
-      setError("Pick a company / application — cover letters are always company-specific.");
+    if (clMode === "job" && !clJobId) {
+      setError("Pick a job from the Jobs list, or switch to custom company + role.");
+      return;
+    }
+    if (clMode === "custom" && (!clCustomCompany.trim() || !clCustomRole.trim())) {
+      setError("Enter both company and role for a custom cover letter.");
       return;
     }
     if (clOverflowsPage) {
@@ -366,7 +416,10 @@ export function DocumentsHub({
           body: JSON.stringify({
             title: clTitle,
             body: clBody,
-            applicationId: clApplicationId,
+            jobId: clMode === "job" ? clJobId || null : null,
+            companyName: clMode === "custom" ? clCustomCompany.trim() : coverTarget.company,
+            roleTitle: clMode === "custom" ? clCustomRole.trim() : coverTarget.role,
+            applicationId: clApplicationId || null,
           }),
         });
         const data = (await res.json()) as { coverLetter?: CoverLetterDto; error?: string };
@@ -383,7 +436,10 @@ export function DocumentsHub({
           body: JSON.stringify({
             title: clTitle,
             body: clBody,
-            applicationId: clApplicationId,
+            jobId: clMode === "job" ? clJobId || null : null,
+            companyName: clMode === "custom" ? clCustomCompany.trim() : coverTarget.company,
+            roleTitle: clMode === "custom" ? clCustomRole.trim() : coverTarget.role,
+            applicationId: clApplicationId || null,
           }),
         });
         const data = (await res.json()) as { coverLetter?: CoverLetterDto; error?: string };
@@ -584,9 +640,9 @@ export function DocumentsHub({
       {tab === "cover_letters" ? (
         <section className="space-y-4 px-0">
           <p className="aavedak-meta text-muted-foreground leading-relaxed">
-            Cover letters are always company-specific and limited to one A4 page. New letters start
-            from scratch — pick an application, write with {"{{role}}"} / {"{{company}}"} variables,
-            preview the PDF layout, then download PDF or DOCX.
+            Cover letters are tied to a Jobs listing or a custom company + role (for external JDs you
+            registered). Limited to one A4 page. Use {"{{role}}"} / {"{{company}}"} variables, preview,
+            then download PDF or DOCX.
           </p>
 
           <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.18fr)] xl:items-stretch">
@@ -594,36 +650,80 @@ export function DocumentsHub({
               <p className="aavedak-section-title text-foreground">
                 {editingClId ? "Edit cover letter" : "New cover letter"}
               </p>
-              <label className="block space-y-1">
-                <span className="text-muted-foreground text-[11px] font-medium">
-                  Company / application *
-                </span>
-                <Select
-                  value={clApplicationId || undefined}
-                  onValueChange={(v) => setClApplicationId(v || "")}
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setClMode("job")}
+                  className={
+                    clMode === "job"
+                      ? "bg-primary/15 text-primary inline-flex h-7 items-center rounded-full px-2.5 text-[11px] font-medium"
+                      : "border-border text-muted-foreground inline-flex h-7 items-center rounded-full border px-2.5 text-[11px]"
+                  }
                 >
-                  <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
-                    <SelectValue placeholder="Search applications…" />
-                  </SelectTrigger>
-                  <SelectContent
-                    className="z-[280]"
-                    searchable
-                    searchPlaceholder="Search company or role…"
+                  From Jobs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClMode("custom")}
+                  className={
+                    clMode === "custom"
+                      ? "bg-primary/15 text-primary inline-flex h-7 items-center rounded-full px-2.5 text-[11px] font-medium"
+                      : "border-border text-muted-foreground inline-flex h-7 items-center rounded-full border px-2.5 text-[11px]"
+                  }
+                >
+                  Custom company + role
+                </button>
+              </div>
+              {clMode === "job" ? (
+                <label className="block space-y-1">
+                  <span className="text-muted-foreground text-[11px] font-medium">Job *</span>
+                  <Select
+                    value={clJobId || undefined}
+                    onValueChange={(v) => setClJobId(v || "")}
                   >
-                    {applications.length === 0 ? (
-                      <SelectItem value="__none" disabled>
-                        No applications yet — add one in Job tracker
-                      </SelectItem>
-                    ) : (
-                      applications.map((app) => (
-                        <SelectItem key={app.id} value={app.id}>
-                          {app.companyName} · {app.role}
+                    <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
+                      <SelectValue placeholder="Pick a job from Jobs…" />
+                    </SelectTrigger>
+                    <SelectContent
+                      className="z-[280]"
+                      searchable
+                      searchPlaceholder="Search title or company…"
+                    >
+                      {jobs.length === 0 ? (
+                        <SelectItem value="__none" disabled>
+                          No jobs yet — add or paste a JD on Jobs
                         </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </label>
+                      ) : (
+                        jobs.map((job) => (
+                          <SelectItem key={job.id} value={job.id}>
+                            {job.company} · {job.title}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </label>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="block space-y-1">
+                    <span className="text-muted-foreground text-[11px] font-medium">Company *</span>
+                    <CompanySelect
+                      value={clCustomCompany}
+                      onChange={(name) => setClCustomCompany(name)}
+                      placeholder="e.g. Stripe"
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-muted-foreground text-[11px] font-medium">Role *</span>
+                    <input
+                      value={clCustomRole}
+                      onChange={(e) => setClCustomRole(e.target.value)}
+                      placeholder="e.g. Software Engineer"
+                      className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
+                    />
+                  </label>
+                </div>
+              )}
               <input
                 value={clTitle}
                 onChange={(e) => setClTitle(e.target.value)}
@@ -736,8 +836,8 @@ export function DocumentsHub({
               <CoverLetterPdfPreview
                 title={previewTitle}
                 body={previewBody}
-                companyName={selectedApp?.companyName}
-                role={selectedApp?.role}
+                companyName={coverTarget.company}
+                role={coverTarget.role}
                 footerRow={footerRow}
                 onOverflowChange={onClOverflowChange}
                 className="min-h-[32rem] xl:min-h-0"
@@ -756,14 +856,19 @@ export function DocumentsHub({
             ) : (
               <ul className="space-y-2">
                 {coverLetters.map((cl) => {
+                  const job = cl.jobId ? jobsById.get(cl.jobId) : undefined;
                   const app = cl.applicationId ? appsById.get(cl.applicationId) : undefined;
+                  const linkedCompany = cl.companyName || job?.company || app?.companyName;
+                  const linkedRole = cl.roleTitle || job?.title || app?.role;
                   return (
                     <li key={cl.id} className="border-border/80 bg-card rounded-lg border p-3">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <p className="text-foreground text-[13px] font-medium">{cl.title}</p>
                           <p className="text-muted-foreground mt-0.5 text-[11px]">
-                            {app ? `${app.companyName} · ${app.role}` : "No company linked"}
+                            {linkedCompany
+                              ? `${linkedCompany} · ${linkedRole}`
+                              : "No company linked"}
                           </p>
                           <p className="text-muted-foreground mt-1 line-clamp-2 text-[12px] leading-relaxed">
                             {cl.body || "Empty body"}
@@ -792,7 +897,15 @@ export function DocumentsHub({
                               setEditingClId(cl.id);
                               setClTitle(cl.title);
                               setClBody(cl.body);
-                              setClApplicationId(cl.applicationId ?? applications[0]?.id ?? "");
+                              setClApplicationId(cl.applicationId ?? "");
+                              if (cl.jobId) {
+                                setClMode("job");
+                                setClJobId(cl.jobId);
+                              } else {
+                                setClMode("custom");
+                                setClCustomCompany(cl.companyName ?? "");
+                                setClCustomRole(cl.roleTitle ?? "");
+                              }
                             }}
                             className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                           >

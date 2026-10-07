@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { AuthHeaderActions, type HeaderUser } from "@/components/auth-header-actions";
 import { MobileNav } from "@/components/mobile-nav";
@@ -21,7 +22,13 @@ type SiteHeaderBarProps = {
   user: HeaderUser | null;
 };
 
+function isActivePath(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function SiteHeaderBar({ user }: SiteHeaderBarProps) {
+  const pathname = usePathname() || "";
+
   return (
     <div
       className={cn(
@@ -48,15 +55,24 @@ export function SiteHeaderBar({ user }: SiteHeaderBarProps) {
       </Link>
 
       <nav className="ml-1 hidden items-center gap-0.5 md:flex" aria-label="Main">
-        {nav.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="text-muted-foreground hover:text-foreground rounded-lg px-2 py-1 text-[13px] transition-colors"
-          >
-            {item.label}
-          </Link>
-        ))}
+        {nav.map((item) => {
+          const active = isActivePath(pathname, item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "rounded-lg px-2 py-1 text-[13px] font-medium transition-colors",
+                active
+                  ? "text-foreground bg-foreground/5"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">

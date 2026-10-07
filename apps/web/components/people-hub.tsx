@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CompanySelect } from "@/components/company-select";
 import { cn } from "@/lib/utils";
 
 export type PersonDto = {
@@ -356,10 +357,10 @@ export function PeopleHub({ initialPeople, applications }: Props) {
             <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
               Company
             </span>
-            <Input
+            <CompanySelect
               value={draft.company}
-              onChange={(e) => setDraft((d) => ({ ...d, company: e.target.value }))}
-              placeholder="Acme"
+              onChange={(name) => setDraft((d) => ({ ...d, company: name }))}
+              placeholder="e.g. Acme"
             />
           </label>
           <label className="block space-y-1.5">
