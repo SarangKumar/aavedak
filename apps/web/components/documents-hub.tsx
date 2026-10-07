@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -43,6 +44,7 @@ export type ResumeDto = {
   status: "active" | "inactive" | "archived";
   originalFilename: string;
   byteSize: number;
+  atsScore?: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -531,14 +533,15 @@ export function DocumentsHub({
                 maxLength={120}
               />
               <p className="text-muted-foreground text-[11px]">
-                Display name must be unique. Activating a resume makes it the sole profile showcase.
+                Display name must be unique. Max 5MB, 20 uploads per day. Activating a resume makes
+                it the sole profile showcase. Each upload gets an ATS readiness score.
               </p>
             </div>
 
             <FileUpload
               accept="application/pdf,.pdf"
               multiple={false}
-              maxSize={10 * 1024 * 1024}
+              maxSize={5 * 1024 * 1024}
               files={uploadFiles}
               onFilesChange={setUploadFiles}
               disabled={pending}
@@ -560,9 +563,17 @@ export function DocumentsHub({
           </div>
 
           <div className="space-y-2">
-            <h2 className="aavedak-section-title text-foreground">
-              Your resumes ({resumes.length})
-            </h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="aavedak-section-title text-foreground">
+                Your resumes ({resumes.length})
+              </h2>
+              <Link
+                href="/ats"
+                className="text-primary text-[12px] font-medium underline underline-offset-2"
+              >
+                ATS scores
+              </Link>
+            </div>
             {resumes.length === 0 ? (
               <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-[13px]">
                 No resumes yet — upload a PDF to get started.
@@ -587,6 +598,11 @@ export function DocumentsHub({
                         >
                           {resume.status}
                         </span>
+                        {resume.atsScore != null ? (
+                          <span className="bg-primary/10 text-primary ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">
+                            ATS {resume.atsScore}
+                          </span>
+                        ) : null}
                       </p>
                       <p className="text-muted-foreground truncate text-[11px]">
                         {resume.originalFilename} · {formatBytes(resume.byteSize)}

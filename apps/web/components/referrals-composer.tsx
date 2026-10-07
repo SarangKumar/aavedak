@@ -146,6 +146,14 @@ export function ReferralsComposer({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [resumeId, setResumeId] = useState<string | null>(null);
+  const [resumeOptions, setResumeOptions] = useState<
+    Array<{ id: string; displayName: string; status: string }>
+  >([]);
+  const [resumePickerOpen, setResumePickerOpen] = useState(false);
+  const [countdownOpen, setCountdownOpen] = useState(false);
+  const [countdown, setCountdown] = useState(20);
+  const [countdownArmed, setCountdownArmed] = useState(false);
   const [dueDate, setDueDate] = useState(() => {
     const due = new Date();
     due.setDate(due.getDate() + 3);
@@ -167,6 +175,32 @@ export function ReferralsComposer({
   useEffect(() => {
     setColumnOrder(loadColumnOrder());
   }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/resumes");
+        const data = (await res.json()) as {
+          resumes?: Array<{ id: string; displayName: string; status: string }>;
+        };
+        if (res.ok) setResumeOptions(data.resumes ?? []);
+      } catch {
+        /* optional */
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!countdownOpen || !countdownArmed) return;
+    if (countdown <= 0) {
+      setCountdownArmed(false);
+      void finalizeQueuedSend();
+      return;
+    }
+    const timer = window.setTimeout(() => setCountdown((value) => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- countdown tick only
+  }, [countdownOpen, countdown, countdownArmed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -318,16 +352,17 @@ export function ReferralsComposer({
       setError("Confirm recipients before queueing.");
       return;
     }
+    setCountdown(20);
+    setCountdownArmed(true);
+    setCountdownOpen(true);
+  }
+
+  async function finalizeQueuedSend() {
+    if (!selectedAppId) return;
     setPending(true);
+    setCountdownOpen(false);
     try {
       const personIds = Array.from(checkedPeople);
-      // Render per-person body into notes via server using raw template + we send already-rendered with person vars
-      // Send subject/body with company/role filled; person_name left for notes per person on server from people table
-      // Actually server stores subject/body as-is; better fill person on client per-request — API takes one body.
-      // Fill person_name as "{{person_name}}" still in body; server uses people names in title only.
-      // For richer notes, render each on client and batch — API currently one body. Keep one body with company vars;
-      // person_name in preview empty; follow-up notes still useful with subject/body.
-
       const res = await fetch("/api/referrals/queue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -338,7 +373,8 @@ export function ReferralsComposer({
           body,
           dueDate,
           confirmed: true,
-          sendAfterMinutes: 10,
+          sendAfterSeconds: 0,
+          resumeId,
         }),
       });
       const data = (await res.json()) as {
@@ -350,9 +386,20 @@ export function ReferralsComposer({
       if (data.followUps?.length) {
         setFollowUps((list) => [...data.followUps!, ...list]);
       }
+      const sendRes = await fetch("/api/referrals/process-queue", { method: "POST" });
+      const sendData = (await sendRes.json()) as {
+        error?: string;
+        sent?: number;
+        failed?: number;
+        code?: string;
+      };
+      if (!sendRes.ok) throw new Error(sendData.error || "Could not send queued mail.");
       setNotice(
-        `Queued ${data.count ?? personIds.length} follow-up(s). Gmail sends them after the delay when you choose Send due now.`,
+        `Batch ready after the 20s wait. Gmail sent ${sendData.sent ?? 0}. Failed ${sendData.failed ?? 0}.`,
       );
+      if (sendData.code === "gmail_reconnect") {
+        setGmail({ linked: true, hasSendScope: false });
+      }
       setCheckedPeople(new Set());
       setConfirmed(false);
     } catch (err) {
@@ -646,7 +693,7 @@ export function ReferralsComposer({
           <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Referrals</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Compose cold outreach against an application, pick people at that company, confirm, then
-            queue follow-ups (~10 min delay). Due mail sends from {userEmail} through Gmail.
+            wait 20 seconds on screen before the batch sends from {userEmail} through Gmail.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -700,11 +747,12 @@ export function ReferralsComposer({
             </h2>
             <div className="border-border/70 bg-muted/40 rounded-lg border px-3 py-2">
               <p className="text-foreground text-[12px] font-medium leading-relaxed">
-                Creates pending follow-up tasks (linked to application + person).
+                Creates follow-up tasks (linked to application + person), then shows a 20 second
+                countdown before Gmail sends the batch.
               </p>
               <p className="text-muted-foreground mt-0.5 text-[12px] font-semibold leading-relaxed">
-                Queued sends wait ~10 minutes (send_after), then Gmail sends them when you choose
-                Send due now or when the follow-up cron runs.
+                Optional: attach one of your uploaded resumes as a PDF. Prefer a different file?
+                Upload it on Documents first.
               </p>
             </div>
           </div>
@@ -713,6 +761,50 @@ export function ReferralsComposer({
             confirm these {checkedPeople.size} recipient(s)
           </label>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setResumePickerOpen((open) => !open)}
+            className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+          >
+            {resumeId ? "Change resume attachment" : "Add resume"}
+          </button>
+          {resumeId ? (
+            <span className="text-muted-foreground text-[11px]">
+              Attached:{" "}
+              {resumeOptions.find((resume) => resume.id === resumeId)?.displayName || "resume"}
+            </span>
+          ) : null}
+        </div>
+        {resumePickerOpen ? (
+          <div className="border-border/70 bg-muted/30 space-y-2 rounded-lg border p-3">
+            <p className="text-muted-foreground text-[11px] leading-relaxed">
+              Select a resume you already uploaded. If you want a different PDF, upload the new
+              resume on Documents first, then return here.
+            </p>
+            <Select value={resumeId ?? ""} onValueChange={(value) => setResumeId(value || null)}>
+              <SelectTrigger className="h-9 w-full max-w-md text-[12px]">
+                <SelectValue placeholder="Choose a resume" />
+              </SelectTrigger>
+              <SelectContent>
+                {resumeOptions.map((resume) => (
+                  <SelectItem key={resume.id} value={resume.id}>
+                    {resume.displayName} ({resume.status})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {resumeId ? (
+              <button
+                type="button"
+                className="text-muted-foreground text-[11px] underline"
+                onClick={() => setResumeId(null)}
+              >
+                Remove attachment
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-1.5">
           {checkedPeople.size === 0 ? (
             <p className="text-muted-foreground text-[12px]">No recipients selected yet.</p>
@@ -737,12 +829,13 @@ export function ReferralsComposer({
             !confirmed ||
             checkedPeople.size === 0 ||
             !selectedAppId ||
-            !selectedTemplateId
+            !selectedTemplateId ||
+            countdownOpen
           }
           onClick={() => void queueFollowUps()}
           className="aavedak-btn bg-primary text-primary-foreground inline-flex h-9 items-center rounded-lg px-4 text-[12px] font-semibold disabled:opacity-50"
         >
-          {pending ? "Queueing…" : "Queue follow-ups"}
+          {pending ? "Sending…" : "Queue & send (20s)"}
         </button>
         <button
           type="button"
@@ -782,6 +875,40 @@ export function ReferralsComposer({
           </ul>
         )}
       </section>
+
+      <Modal
+        open={countdownOpen}
+        onClose={() => {
+          setCountdownOpen(false);
+          setCountdownArmed(false);
+          setCountdown(20);
+        }}
+        title="Sending batch in…"
+        description="Stay on this screen. Gmail sends after the countdown."
+        footer={
+          <button
+            type="button"
+            onClick={() => {
+              setCountdownOpen(false);
+              setCountdownArmed(false);
+              setCountdown(20);
+              setNotice("Send cancelled. Nothing was queued.");
+            }}
+            className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+          >
+            Cancel
+          </button>
+        }
+      >
+        <div className="flex flex-col items-center gap-2 py-4">
+          <p className="aavedak-display text-foreground text-5xl tabular-nums">{countdown}</p>
+          <p className="text-muted-foreground text-center text-[13px]">
+            seconds before this batch goes out to {checkedPeople.size} recipient
+            {checkedPeople.size === 1 ? "" : "s"}
+            {resumeId ? " with your resume attached" : ""}.
+          </p>
+        </div>
+      </Modal>
 
       <Modal
         open={manageOpen}

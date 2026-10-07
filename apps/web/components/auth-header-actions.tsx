@@ -91,6 +91,22 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
           >
             Settings
           </Link>
+          <Link
+            href="/friends"
+            role="menuitem"
+            onClick={close}
+            className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
+          >
+            Friends
+          </Link>
+          <Link
+            href="/ats"
+            role="menuitem"
+            onClick={close}
+            className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
+          >
+            ATS score
+          </Link>
           <div className="border-border border-t" />
           <button
             type="button"

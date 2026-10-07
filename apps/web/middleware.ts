@@ -33,5 +33,7 @@ export const config = {
     "/referrals/:path*",
     "/onboarding/:path*",
     "/admin/:path*",
+    "/friends/:path*",
+    "/ats/:path*",
   ],
 };

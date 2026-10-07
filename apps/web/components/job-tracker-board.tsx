@@ -436,6 +436,10 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             Status changes by dragging cards between columns only. Bookmarked means saved interest —
             not applied yet.
           </p>
+          <p className="text-muted-foreground max-w-2xl text-[12px] leading-relaxed">
+            Testing feature: periodically download a JSON backup of your applications (toolbar
+            download). You can re-upload that file with Import to restore rows.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <div
@@ -494,6 +498,17 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             className={cn(toolbarBtn, "size-8")}
           >
             <ImportGlyph className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.assign("/api/applications/export");
+            }}
+            title="Download applications JSON backup"
+            aria-label="Download applications JSON backup"
+            className={cn(toolbarBtn, "size-8")}
+          >
+            <DownloadGlyph className="size-3.5" />
           </button>
           <button
             type="button"
@@ -912,6 +927,21 @@ function ImportGlyph({ className }: { className?: string }) {
         strokeWidth="1.5"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function DownloadGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M8 2.5v7M5.5 7.5 8 10l2.5-2.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M3 12.5h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }

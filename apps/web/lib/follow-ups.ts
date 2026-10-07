@@ -5,6 +5,8 @@ import { randomUUID } from "node:crypto";
 import { dbAll, dbGet, dbRun } from "@/lib/app-db";
 import { sendGmailMessage } from "@/lib/gmail";
 import { getProfile } from "@/lib/profile";
+import { readResumePdf } from "@/lib/resume-storage";
+import { getResume } from "@/lib/resumes";
 
 export type FollowUpStatus =
   "pending" | "queued" | "sent_stub" | "sent" | "failed" | "done" | "dismissed";
@@ -22,6 +24,7 @@ export type FollowUpRecord = {
   toEmail: string | null;
   subject: string | null;
   bodyText: string | null;
+  resumeId: string | null;
   gmailMessageId: string | null;
   lastError: string | null;
   createdAt: string;
@@ -41,6 +44,7 @@ function mapRow(row: {
   to_email?: string | null;
   subject?: string | null;
   body_text?: string | null;
+  resume_id?: string | null;
   gmail_message_id?: string | null;
   last_error?: string | null;
   created_at: string;
@@ -59,6 +63,7 @@ function mapRow(row: {
     toEmail: row.to_email ?? null,
     subject: row.subject ?? null,
     bodyText: row.body_text ?? null,
+    resumeId: row.resume_id ?? null,
     gmailMessageId: row.gmail_message_id ?? null,
     lastError: row.last_error ?? null,
     createdAt: row.created_at,
@@ -132,6 +137,7 @@ export async function createFollowUp(
     toEmail?: string | null;
     subject?: string | null;
     bodyText?: string | null;
+    resumeId?: string | null;
   },
 ): Promise<FollowUpRecord> {
   const title = requireTitle(input.title);
@@ -141,8 +147,8 @@ export async function createFollowUp(
   await dbRun(
     `INSERT INTO follow_up_tasks
         (id, user_id, title, due_date, send_after, status, person_id, application_id, notes,
-         to_email, subject, body_text, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         to_email, subject, body_text, resume_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     userId,
     title,
@@ -155,6 +161,7 @@ export async function createFollowUp(
     optional(input.toEmail),
     optional(input.subject),
     optional(input.bodyText),
+    optional(input.resumeId),
     now,
     now,
   );
@@ -270,6 +277,21 @@ export async function processDueQueuedFollowUps(userId?: string): Promise<{
       if (!fromEmail) throw new Error("Your profile has no email to send from.");
       if (!payload.to) throw new Error("Recipient has no email address.");
       if (!payload.body) throw new Error("Follow-up has no message body.");
+      let attachment: { filename: string; mimeType: string; bytes: Buffer } | null = null;
+      const mapped = mapRow(row);
+      if (mapped.resumeId) {
+        const resume = await getResume(row.user_id, mapped.resumeId);
+        if (resume) {
+          const bytes = await readResumePdf(resume.storagePath);
+          if (bytes) {
+            attachment = {
+              filename: resume.originalFilename || `${resume.displayName}.pdf`,
+              mimeType: "application/pdf",
+              bytes,
+            };
+          }
+        }
+      }
       const result = await sendGmailMessage({
         userId: row.user_id,
         fromEmail,
@@ -277,6 +299,7 @@ export async function processDueQueuedFollowUps(userId?: string): Promise<{
         to: payload.to,
         subject: payload.subject,
         body: payload.body,
+        attachment,
       });
       status = "sent";
       gmailMessageId = result.messageId;

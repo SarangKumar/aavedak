@@ -10,8 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Data and auth** — App data is Neon Postgres (`DATABASE_URL` via `@neondatabase/serverless`). Sign-in is Neon Auth with Google configured in the Neon Console. Local SQLite, `better-sqlite3`, and self-hosted Better Auth (`BETTER_AUTH_*`, `GOOGLE_CLIENT_*`) are removed.
-- **Resumes** — PDF bytes go to Google Cloud Storage (`GCS_BUCKET`, `GCS_CLIENT_EMAIL`, `GCS_PRIVATE_KEY`). Production does not create `.data/resumes`.
+- **Resumes** — PDF bytes go to Google Cloud Storage (`GCS_BUCKET`, `GCS_CLIENT_EMAIL`, `GCS_PRIVATE_KEY`). Production does not create `.data/resumes`. Max 5MB, 20 uploads per day, ATS readiness score on each card, dedicated `/ats` page.
 - **Sign-up cap** — Only the first 8 Google accounts may sign in. Later accounts are removed server-side and see a closed message on `/sign-in`.
+- **Referrals** — 20s on-screen countdown before batch Gmail send; optional resume PDF attachment from uploaded resumes.
+- **Onboarding** — One resume upload, then automatic redirect to the dashboard.
+- **Friends** — Shared friend graph (you vs friends colors, max 10, hover legend, duration bottom-right); bidirectional invite copy.
+- **Tracker** — Download applications as JSON backup (testing feature; re-import supported).
 - **Follow-ups** — Due queued mail sends through Gmail (`gmail.send`) using the Neon Auth Google token. Missing scope shows a reconnect action.
 - **Jobs** — Cron and optional feed ingestion, ATS and resume match scores, Apply / Ignore.
 - **Documents** — Cover letters can link to an application, a job, or a custom company and role. A pasted or uploaded JD scores against the active resume and can draft a cover letter.

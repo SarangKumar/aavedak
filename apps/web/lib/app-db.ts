@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS resumes (
   original_filename TEXT NOT NULL,
   byte_size INTEGER NOT NULL,
   text_excerpt TEXT,
+  ats_score INTEGER,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   UNIQUE (user_id, display_name)
@@ -149,6 +150,7 @@ CREATE TABLE IF NOT EXISTS follow_up_tasks (
   to_email TEXT,
   subject TEXT,
   body_text TEXT,
+  resume_id TEXT,
   gmail_message_id TEXT,
   last_error TEXT,
   created_at TEXT NOT NULL,
@@ -157,6 +159,19 @@ CREATE TABLE IF NOT EXISTS follow_up_tasks (
 
 CREATE INDEX IF NOT EXISTS follow_up_tasks_user_id_idx ON follow_up_tasks (user_id);
 CREATE INDEX IF NOT EXISTS follow_up_tasks_user_status_idx ON follow_up_tasks (user_id, status);
+
+CREATE TABLE IF NOT EXISTS friendships (
+  id TEXT PRIMARY KEY NOT NULL,
+  requester_id TEXT NOT NULL,
+  addressee_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'declined')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (requester_id, addressee_id)
+);
+
+CREATE INDEX IF NOT EXISTS friendships_requester_idx ON friendships (requester_id, status);
+CREATE INDEX IF NOT EXISTS friendships_addressee_idx ON friendships (addressee_id, status);
 
 CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY NOT NULL,
@@ -297,6 +312,8 @@ async function migratePostgres(db: AppDatabase): Promise<void> {
   await db.exec(SQLITE_SCHEMA);
   const columns: Array<[string, string, string]> = [
     ["resumes", "text_excerpt", "TEXT"],
+    ["resumes", "ats_score", "INTEGER"],
+    ["follow_up_tasks", "resume_id", "TEXT"],
     ["applications", "applied_at", "TEXT"],
     ["profiles", "bio", "TEXT"],
     ["profiles", "portfolio_url", "TEXT"],

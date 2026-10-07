@@ -3,8 +3,11 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { dbAll, dbGet, getAppDb } from "@/lib/app-db";
-import { extractPdfText } from "@/lib/match-score";
+import { extractPdfText, scoreResumeAtsReadiness } from "@/lib/match-score";
 import { saveResumePdf } from "@/lib/resume-storage";
+
+export const RESUME_MAX_BYTES = 5 * 1024 * 1024;
+export const RESUME_DAILY_UPLOAD_CAP = 20;
 
 export type ResumeStatus = "active" | "inactive" | "archived";
 
@@ -17,6 +20,7 @@ export type ResumeRecord = {
   originalFilename: string;
   byteSize: number;
   textExcerpt: string | null;
+  atsScore: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -30,6 +34,7 @@ function mapRow(row: {
   original_filename: string;
   byte_size: number;
   text_excerpt?: string | null;
+  ats_score?: number | string | null;
   created_at: string;
   updated_at: string;
 }): ResumeRecord {
@@ -42,6 +47,10 @@ function mapRow(row: {
     originalFilename: row.original_filename,
     byteSize: Number(row.byte_size) || 0,
     textExcerpt: row.text_excerpt ?? null,
+    atsScore:
+      row.ats_score === null || row.ats_score === undefined || row.ats_score === ""
+        ? null
+        : Number(row.ats_score),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -63,6 +72,17 @@ export async function countUsableResumes(userId: string): Promise<number> {
   const row = await dbGet<{ n: number | string }>(
     `SELECT COUNT(*) AS n FROM resumes WHERE user_id = ? AND status IN ('active', 'inactive')`,
     userId,
+  );
+  return Number(row?.n ?? 0);
+}
+
+export async function countResumesUploadedToday(userId: string): Promise<number> {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  const row = await dbGet<{ n: number | string }>(
+    `SELECT COUNT(*) AS n FROM resumes WHERE user_id = ? AND created_at >= ?`,
+    userId,
+    start.toISOString(),
   );
   return Number(row?.n ?? 0);
 }
@@ -125,7 +145,14 @@ export async function createResumeFromPdf(opts: {
     throw new Error("Only PDF resumes are allowed.");
   }
   if (opts.file.size <= 0) throw new Error("Empty file.");
-  if (opts.file.size > 10 * 1024 * 1024) throw new Error("PDF must be 10MB or smaller.");
+  if (opts.file.size > RESUME_MAX_BYTES) {
+    throw new Error("PDF must be 5MB or smaller.");
+  }
+
+  const uploadedToday = await countResumesUploadedToday(opts.userId);
+  if (uploadedToday >= RESUME_DAILY_UPLOAD_CAP) {
+    throw new Error("You can upload at most 20 resumes per day. Try again tomorrow.");
+  }
 
   await assertUniqueDisplayName(opts.userId, displayName);
 
@@ -140,6 +167,7 @@ export async function createResumeFromPdf(opts: {
   const status: ResumeStatus = opts.makeActive === false ? "inactive" : "active";
   const db = await getAppDb();
   const excerpt = extractPdfText(buffer);
+  const atsScore = scoreResumeAtsReadiness(excerpt).atsScore;
 
   if (status === "active") {
     await db
@@ -151,8 +179,8 @@ export async function createResumeFromPdf(opts: {
   await db
     .prepare(
       `INSERT INTO resumes
-        (id, user_id, display_name, status, storage_path, original_filename, byte_size, text_excerpt, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, user_id, display_name, status, storage_path, original_filename, byte_size, text_excerpt, ats_score, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -163,11 +191,14 @@ export async function createResumeFromPdf(opts: {
       opts.file.name,
       opts.file.size,
       excerpt || null,
+      atsScore,
       now,
       now,
     );
 
-  return (await getResume(opts.userId, id))!;
+  const created = await getResume(opts.userId, id);
+  if (!created) throw new Error("Resume was not saved.");
+  return created;
 }
 
 export async function updateResume(
@@ -177,9 +208,6 @@ export async function updateResume(
 ): Promise<ResumeRecord> {
   const existing = await getResume(userId, resumeId);
   if (!existing) throw new Error("Resume not found.");
-  if (existing.status === "archived" && patch.status !== "inactive" && patch.status !== "active") {
-    // allow restore to inactive/active; block other ops on archived without restore
-  }
 
   const now = new Date().toISOString();
   let displayName = existing.displayName;
@@ -212,7 +240,9 @@ export async function updateResume(
     )
     .run(displayName, status, now, resumeId, userId);
 
-  return (await getResume(userId, resumeId))!;
+  const updated = await getResume(userId, resumeId);
+  if (!updated) throw new Error("Resume not found.");
+  return updated;
 }
 
 /** Soft-delete: archive only. The PDF stays in Google Cloud Storage (or local .data in dev). */

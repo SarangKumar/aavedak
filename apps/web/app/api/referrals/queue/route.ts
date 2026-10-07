@@ -5,6 +5,7 @@ import { getApplication } from "@/lib/applications";
 import { createFollowUp } from "@/lib/follow-ups";
 import { getPerson } from "@/lib/people";
 import { ensureProfile } from "@/lib/profile";
+import { getResume } from "@/lib/resumes";
 
 function fill(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => vars[key] ?? "");
@@ -12,10 +13,10 @@ function fill(template: string, vars: Record<string, string>): string {
 
 /**
  * Queue outreach follow-ups for confirmed recipients.
- * Schedules send_after ≈ now + sendAfterMinutes (default 10). Sending happens in
- * POST /api/referrals/process-queue (and the follow-up cron) via Gmail.
- * Body: { applicationId, personIds, subject, body, dueDate?, sendAfterMinutes?, confirmed: true }
- * subject/body may still contain {{person_name}} / {{person_email}} — filled per person.
+ * Default delay is 20 seconds (sendAfterSeconds). Sending happens after the
+ * on-screen countdown finishes (process-queue) or via cron.
+ * Body: { applicationId, personIds, subject, body, dueDate?, sendAfterSeconds?,
+ *         resumeId?, confirmed: true }
  */
 export async function POST(request: Request) {
   const session = await auth.api.getSession();
@@ -44,12 +45,18 @@ export async function POST(request: Request) {
   const bodyTpl = typeof body.body === "string" ? body.body : "";
   const dueDate =
     typeof body.dueDate === "string" && body.dueDate.trim() ? body.dueDate.trim() : null;
-  const sendAfterMinutesRaw = body.sendAfterMinutes;
-  const sendAfterMinutes =
-    typeof sendAfterMinutesRaw === "number" && Number.isFinite(sendAfterMinutesRaw)
-      ? Math.min(24 * 60, Math.max(1, Math.round(sendAfterMinutesRaw)))
-      : 10;
-  const sendAfter = new Date(Date.now() + sendAfterMinutes * 60_000).toISOString();
+  const resumeId =
+    typeof body.resumeId === "string" && body.resumeId.trim() ? body.resumeId.trim() : null;
+  const sendAfterSecondsRaw = body.sendAfterSeconds ?? body.sendAfterMinutes;
+  let sendAfterSeconds = 20;
+  if (typeof sendAfterSecondsRaw === "number" && Number.isFinite(sendAfterSecondsRaw)) {
+    // Legacy clients may still send minutes; values ≤ 120 are treated as seconds.
+    sendAfterSeconds =
+      body.sendAfterSeconds !== undefined
+        ? Math.min(3600, Math.max(0, Math.round(sendAfterSecondsRaw)))
+        : Math.min(3600, Math.max(0, Math.round(sendAfterSecondsRaw * 60)));
+  }
+  const sendAfter = new Date(Date.now() + sendAfterSeconds * 1000).toISOString();
   const confirmed = body.confirmed === true;
 
   if (!confirmed) {
@@ -63,6 +70,12 @@ export async function POST(request: Request) {
   }
   if (personIds.length === 0) {
     return NextResponse.json({ error: "Select at least one recipient." }, { status: 400 });
+  }
+  if (resumeId) {
+    const resume = await getResume(userId, resumeId);
+    if (!resume || resume.status === "archived") {
+      return NextResponse.json({ error: "Resume not found." }, { status: 400 });
+    }
   }
 
   const application = await getApplication(userId, applicationId);
@@ -95,6 +108,7 @@ export async function POST(request: Request) {
       subject ? `Subject: ${subject}` : null,
       `To: ${person.email ?? "(no email)"}`,
       `From: ${session.user.email}`,
+      resumeId ? `Resume: ${resumeId}` : null,
       "",
       renderedBody.trim() || "(empty body)",
     ]
@@ -112,6 +126,7 @@ export async function POST(request: Request) {
       toEmail: person.email,
       subject,
       bodyText: renderedBody.trim() || null,
+      resumeId,
     });
     created.push({
       id: followUp.id,
@@ -121,6 +136,7 @@ export async function POST(request: Request) {
       status: followUp.status,
       personId: followUp.personId,
       applicationId: followUp.applicationId,
+      resumeId: followUp.resumeId,
       notes: followUp.notes,
       createdAt: followUp.createdAt,
       updatedAt: followUp.updatedAt,
@@ -131,9 +147,9 @@ export async function POST(request: Request) {
     {
       followUps: created,
       count: created.length,
-      sendAfterMinutes,
+      sendAfterSeconds,
       gmail: "queued",
-      note: "Queued with send_after delay. Due items are sent through Gmail from /api/referrals/process-queue.",
+      note: "Queued with a 20s on-screen delay before Gmail send.",
     },
     { status: 201 },
   );

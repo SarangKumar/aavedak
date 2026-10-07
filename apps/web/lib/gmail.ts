@@ -162,6 +162,7 @@ export async function sendGmailMessage(input: {
   to: string;
   subject: string;
   body: string;
+  attachment?: { filename: string; mimeType: string; bytes: Buffer } | null;
 }): Promise<{ messageId: string }> {
   const to = input.to.trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
@@ -178,18 +179,48 @@ export async function sendGmailMessage(input: {
     );
   }
   const accessToken = await accessTokenFor(account);
-  const raw = toBase64Url(
-    [
+  const subject = encodeHeader(input.subject.trim() || "(no subject)");
+  const bodyText = input.body.replace(/\r?\n/g, "\r\n");
+  let mime = "";
+  if (input.attachment) {
+    const boundary = `aavedak_${Date.now().toString(36)}`;
+    const filename = input.attachment.filename.replace(/"/g, "");
+    const b64 = input.attachment.bytes.toString("base64").replace(/(.{76})/g, "$1\r\n");
+    mime = [
       `From: ${encodeAddress(input.fromName, input.fromEmail)}`,
       `To: ${to}`,
-      `Subject: ${encodeHeader(input.subject.trim() || "(no subject)")}`,
+      `Subject: ${subject}`,
+      "MIME-Version: 1.0",
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      "",
+      `--${boundary}`,
+      'Content-Type: text/plain; charset="UTF-8"',
+      "Content-Transfer-Encoding: 8bit",
+      "",
+      bodyText,
+      "",
+      `--${boundary}`,
+      `Content-Type: ${input.attachment.mimeType || "application/pdf"}; name="${filename}"`,
+      "Content-Transfer-Encoding: base64",
+      `Content-Disposition: attachment; filename="${filename}"`,
+      "",
+      b64,
+      "",
+      `--${boundary}--`,
+    ].join("\r\n");
+  } else {
+    mime = [
+      `From: ${encodeAddress(input.fromName, input.fromEmail)}`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
       "MIME-Version: 1.0",
       "Content-Type: text/plain; charset=UTF-8",
       "Content-Transfer-Encoding: 8bit",
       "",
-      input.body.replace(/\r?\n/g, "\r\n"),
-    ].join("\r\n"),
-  );
+      bodyText,
+    ].join("\r\n");
+  }
+  const raw = toBase64Url(mime);
   const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
     method: "POST",
     headers: {

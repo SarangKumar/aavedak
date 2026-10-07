@@ -81,6 +81,64 @@ function unique(list: string[]): string[] {
   return [...new Set(list)];
 }
 
+/** Heuristic ATS readiness for a resume PDF's extracted text (no JD required). */
+export function scoreResumeAtsReadiness(resumeText: string): {
+  atsScore: number;
+  signals: string[];
+  gaps: string[];
+} {
+  const text = resumeText.trim();
+  const lower = text.toLowerCase();
+  const signals: string[] = [];
+  const gaps: string[] = [];
+  let score = 0;
+
+  if (text.length >= 400) {
+    score += 20;
+    signals.push("Enough text for parsers to read");
+  } else {
+    gaps.push("Add more readable text (PDF may be image-only)");
+  }
+  if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)) {
+    score += 15;
+    signals.push("Email address found");
+  } else {
+    gaps.push("Include a plain-text email");
+  }
+  if (/(\+?\d[\d\s().-]{7,}\d)/.test(text)) {
+    score += 10;
+    signals.push("Phone number found");
+  } else {
+    gaps.push("Include a phone number in plain text");
+  }
+  const sections = ["experience", "education", "skills", "projects", "summary", "work"];
+  const foundSections = sections.filter((section) => lower.includes(section));
+  score += Math.min(25, foundSections.length * 6);
+  if (foundSections.length) signals.push(`Sections: ${foundSections.join(", ")}`);
+  else gaps.push("Use clear section headings (Experience, Education, Skills)");
+
+  const skillHits = tokens(text).length;
+  if (skillHits >= 40) {
+    score += 20;
+    signals.push("Dense keyword coverage");
+  } else if (skillHits >= 15) {
+    score += 12;
+    signals.push("Moderate keyword coverage");
+  } else {
+    gaps.push("Spell out tools and skills as plain text");
+  }
+  if (/\b(linkedin|github|portfolio)\b/i.test(text)) {
+    score += 10;
+    signals.push("Profile or portfolio link present");
+  }
+
+  return {
+    atsScore: Math.max(0, Math.min(100, score)),
+    signals: signals.slice(0, 8),
+    gaps: gaps.slice(0, 8),
+  };
+}
+
 export function scoreResumeAgainstJd(resumeText: string, jdText: string): MatchScore {
   const resume = new Set(tokens(resumeText));
   const jd = unique(tokens(jdText));
