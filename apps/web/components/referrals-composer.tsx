@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
+import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
 
@@ -163,12 +163,6 @@ export function ReferralsComposer({
   const [manageOpen, setManageOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [colWidths, setColWidths] = useState<Record<ColumnId, number>>(DEFAULT_WIDTHS);
-  const [tplDraft, setTplDraft] = useState({
-    id: null as string | null,
-    title: "",
-    body: "",
-    kind: "outreach" as "outreach" | "cover" | "other",
-  });
   const [personDraft, setPersonDraft] = useState({
     name: "",
     email: "",
@@ -243,77 +237,6 @@ export function ReferralsComposer({
     }
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  }
-
-  async function saveManagedTemplate() {
-    if (!tplDraft.title.trim()) {
-      setError("Template title is required.");
-      return;
-    }
-    setPending(true);
-    setError(null);
-    try {
-      if (tplDraft.id) {
-        const res = await fetch(`/api/templates/${tplDraft.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: tplDraft.title.trim(),
-            body: tplDraft.body,
-            kind: tplDraft.kind,
-          }),
-        });
-        const data = (await res.json()) as { template?: TemplateDto; error?: string };
-        if (!res.ok) throw new Error(data.error || "Could not update template.");
-        if (data.template) {
-          setTemplates((list) =>
-            list.map((t) => (t.id === data.template!.id ? data.template! : t)),
-          );
-        }
-      } else {
-        const res = await fetch("/api/templates", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: tplDraft.title.trim(),
-            body: tplDraft.body,
-            kind: tplDraft.kind,
-          }),
-        });
-        const data = (await res.json()) as { template?: TemplateDto; error?: string };
-        if (!res.ok) throw new Error(data.error || "Could not create template.");
-        if (data.template) {
-          setTemplates((list) => [data.template!, ...list]);
-          setSelectedTemplateId(data.template.id);
-        }
-      }
-      setTplDraft({ id: null, title: "", body: "", kind: "outreach" });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save template.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function archiveManagedTemplate(id: string) {
-    setPending(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/templates/${id}`, { method: "DELETE" });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || "Could not archive template.");
-      setTemplates((list) => list.filter((t) => t.id !== id));
-      if (selectedTemplateId === id) {
-        setSelectedTemplateId(null);
-      }
-      if (tplDraft.id === id) {
-        setTplDraft({ id: null, title: "", body: "", kind: "outreach" });
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not archive template.");
-    } finally {
-      setPending(false);
-    }
   }
 
   function onColDragStart(id: ColumnId) {
@@ -570,10 +493,7 @@ export function ReferralsComposer({
                 </label>
                 <button
                   type="button"
-                  onClick={() => {
-                    setTplDraft({ id: null, title: "", body: "", kind: "outreach" });
-                    setTemplatesOpen(true);
-                  }}
+                  onClick={() => setTemplatesOpen(true)}
                   className="text-primary mb-0.5 shrink-0 text-[11px] font-medium hover:underline"
                 >
                   Manage templates
@@ -820,124 +740,25 @@ export function ReferralsComposer({
       <Modal
         open={templatesOpen}
         onClose={() => setTemplatesOpen(false)}
-        title="Mail templates"
-        description="Add, edit, or archive cold-email templates. Also available under Documents → Templates."
+        title="Manage templates"
+        description="Same editor as Documents → Cold email templates. Preview uses a dummy application."
+        size="xl"
         footer={
-          <>
-            <Link
-              href="/documents"
-              className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-            >
-              Open Documents
-            </Link>
-            <button
-              type="button"
-              onClick={() => setTemplatesOpen(false)}
-              className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-            >
-              Close
-            </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => void saveManagedTemplate()}
-              className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
-            >
-              {pending ? "Saving…" : tplDraft.id ? "Update template" : "Add template"}
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={() => setTemplatesOpen(false)}
+            className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+          >
+            Close
+          </button>
         }
       >
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <input
-              value={tplDraft.title}
-              onChange={(e) => setTplDraft((d) => ({ ...d, title: e.target.value }))}
-              placeholder="Title"
-              className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px]"
-            />
-            <Select
-              value={tplDraft.kind}
-              onValueChange={(v) =>
-                setTplDraft((d) => ({
-                  ...d,
-                  kind: (v as "outreach" | "cover" | "other") || "outreach",
-                }))
-              }
-            >
-              <SelectTrigger className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2 text-[12px]">
-                <SelectValue placeholder="Kind" />
-              </SelectTrigger>
-              <SelectContent className="z-[260]">
-                <SelectItem value="outreach">Outreach</SelectItem>
-                <SelectItem value="cover">Cover</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-            <textarea
-              value={tplDraft.body}
-              onChange={(e) => setTplDraft((d) => ({ ...d, body: e.target.value }))}
-              placeholder="Body — use {{company}}, {{role}}, {{person_name}}, …"
-              rows={6}
-              className="border-border bg-background text-foreground w-full rounded-lg border px-2.5 py-2 font-mono text-[11px] leading-relaxed"
-            />
-            {tplDraft.id ? (
-              <button
-                type="button"
-                onClick={() => setTplDraft({ id: null, title: "", body: "", kind: "outreach" })}
-                className="text-muted-foreground text-[11px] hover:underline"
-              >
-                Cancel edit — start new
-              </button>
-            ) : null}
-          </div>
-
-          <ul className="border-border/70 max-h-48 space-y-1.5 overflow-y-auto rounded-xl border p-2">
-            {templates.length === 0 ? (
-              <li className="text-muted-foreground px-1 py-3 text-center text-[12px]">
-                No templates yet.
-              </li>
-            ) : (
-              templates.map((tpl) => (
-                <li
-                  key={tpl.id}
-                  className="border-border/60 bg-muted/30 flex items-start justify-between gap-2 rounded-lg border px-2 py-1.5"
-                >
-                  <div className="min-w-0">
-                    <p className="text-foreground truncate text-[12px] font-medium">
-                      {tpl.title}
-                      <span className="text-muted-foreground ml-1 text-[10px]">({tpl.kind})</span>
-                    </p>
-                    <p className="text-muted-foreground line-clamp-1 text-[10px]">{tpl.body}</p>
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTplDraft({
-                          id: tpl.id,
-                          title: tpl.title,
-                          body: tpl.body,
-                          kind: tpl.kind,
-                        })
-                      }
-                      className="border-border text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void archiveManagedTemplate(tpl.id)}
-                      className="border-border text-muted-foreground hover:text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
-                    >
-                      Archive
-                    </button>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
+        <ColdEmailTemplatesPanel
+          templates={templates}
+          onTemplatesChange={(next) => setTemplates(next)}
+          fromEmail={userEmail}
+          userName={userName}
+        />
       </Modal>
     </ShellWidth>
   );

@@ -8,13 +8,7 @@ import {
   FileUploadList,
   type FileUploadFile,
 } from "@/components/ui/file-upload";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +48,8 @@ type DocumentsHubProps = {
   initialResumes: ResumeDto[];
   initialCoverLetters: CoverLetterDto[];
   initialTemplates: TemplateDto[];
+  userEmail?: string;
+  userName?: string;
 };
 
 function formatBytes(n: number) {
@@ -62,26 +58,12 @@ function formatBytes(n: number) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Sample application + person for cold-email template preview. */
-const SAMPLE_TEMPLATE_VARS: Record<string, string> = {
-  company: "Northwind Labs",
-  role: "Software Engineer",
-  location: "Bangalore",
-  person_name: "Priya Sharma",
-  person_email: "priya.sharma@example.com",
-  user_name: "Sarang",
-};
-
-function renderTemplatePreview(text: string, vars: Record<string, string>): string {
-  return text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => {
-    return vars[key] ?? "";
-  });
-}
-
 export function DocumentsHub({
   initialResumes,
   initialCoverLetters,
   initialTemplates,
+  userEmail,
+  userName,
 }: DocumentsHubProps) {
   const [tab, setTab] = useState<Tab>("resumes");
   const [resumes, setResumes] = useState(initialResumes);
@@ -98,12 +80,6 @@ export function DocumentsHub({
   const [clTitle, setClTitle] = useState("");
   const [clBody, setClBody] = useState("");
   const [editingClId, setEditingClId] = useState<string | null>(null);
-
-  const [tplTitle, setTplTitle] = useState("");
-  const [tplBody, setTplBody] = useState("");
-  const [tplKind, setTplKind] = useState<"outreach" | "cover" | "other">("outreach");
-  const [editingTplId, setEditingTplId] = useState<string | null>(null);
-  const [previewTplId, setPreviewTplId] = useState<string | null>(initialTemplates[0]?.id ?? null);
 
   const selectedPdf = useMemo(() => {
     const item = uploadFiles.find((f) => !f.error);
@@ -221,70 +197,6 @@ export function DocumentsHub({
       setEditingClId(null);
       setClTitle("");
       setClBody("");
-    }
-  }
-
-  async function saveTemplate() {
-    setError(null);
-    if (!tplTitle.trim()) {
-      setError("Template title is required.");
-      return;
-    }
-    setPending(true);
-    try {
-      if (editingTplId) {
-        const res = await fetch(`/api/templates/${editingTplId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: tplTitle, body: tplBody, kind: tplKind }),
-        });
-        const data = (await res.json()) as { template?: TemplateDto; error?: string };
-        if (!res.ok) throw new Error(data.error || "Update failed.");
-        if (data.template) {
-          setTemplates((list) => list.map((t) => (t.id === editingTplId ? data.template! : t)));
-          setPreviewTplId(data.template.id);
-        }
-      } else {
-        const res = await fetch("/api/templates", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: tplTitle, body: tplBody, kind: tplKind }),
-        });
-        const data = (await res.json()) as { template?: TemplateDto; error?: string };
-        if (!res.ok) throw new Error(data.error || "Create failed.");
-        if (data.template) {
-          setTemplates((list) => [data.template!, ...list]);
-          setPreviewTplId(data.template.id);
-        }
-      }
-      setTplTitle("");
-      setTplBody("");
-      setTplKind("outreach");
-      setEditingTplId(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function archiveTemplate(id: string) {
-    setError(null);
-    const res = await fetch(`/api/templates/${id}`, { method: "DELETE" });
-    const data = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      setError(data.error || "Could not archive.");
-      return;
-    }
-    setTemplates((list) => {
-      const next = list.filter((t) => t.id !== id);
-      if (previewTplId === id) setPreviewTplId(next[0]?.id ?? null);
-      return next;
-    });
-    if (editingTplId === id) {
-      setEditingTplId(null);
-      setTplTitle("");
-      setTplBody("");
     }
   }
 
@@ -540,183 +452,16 @@ export function DocumentsHub({
       ) : null}
 
       {tab === "templates" ? (
-        <section className="space-y-4">
+        <section className="space-y-3">
           <p className="text-muted-foreground text-[12px] leading-relaxed">
-            Cold-email templates for Referrals. Add, edit, or archive here. Preview uses a sample
-            job application (Northwind Labs · Software Engineer · Bangalore) and sample person.
+            Cold-email templates for Referrals. Live preview uses the dummy application strip.
           </p>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="border-border/80 bg-card/70 space-y-2.5 rounded-2xl border p-4">
-              <p className="text-foreground text-[12px] font-medium">
-                {editingTplId ? "Edit template" : "New template"}
-              </p>
-              <input
-                value={tplTitle}
-                onChange={(e) => setTplTitle(e.target.value)}
-                placeholder="Title"
-                className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
-              />
-              <Select
-                value={tplKind}
-                onValueChange={(v) =>
-                  setTplKind((v as "outreach" | "cover" | "other") || "outreach")
-                }
-              >
-                <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-2.5 text-[13px]">
-                  <SelectValue placeholder="Kind" />
-                </SelectTrigger>
-                <SelectContent className="z-[240]">
-                  <SelectItem value="outreach">Outreach</SelectItem>
-                  <SelectItem value="cover">Cover</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              <textarea
-                value={tplBody}
-                onChange={(e) => setTplBody(e.target.value)}
-                placeholder="Body — {{company}} {{role}} {{location}} {{person_name}} {{person_email}} {{user_name}}"
-                rows={10}
-                className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
-              />
-              <div className="flex gap-2">
-                {editingTplId ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingTplId(null);
-                      setTplTitle("");
-                      setTplBody("");
-                      setTplKind("outreach");
-                    }}
-                    className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-                  >
-                    Cancel
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => void saveTemplate()}
-                  className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px] font-semibold disabled:opacity-60"
-                >
-                  {pending ? "Saving…" : editingTplId ? "Update" : "Create"}
-                </button>
-              </div>
-
-              <div className="border-border/70 space-y-1.5 border-t pt-3">
-                <p className="text-foreground text-[12px] font-medium">
-                  Your templates ({templates.length})
-                </p>
-                {templates.length === 0 ? (
-                  <div className="border-border/70 text-muted-foreground rounded-xl border border-dashed px-3 py-6 text-center text-[12px]">
-                    No templates yet — create one above.
-                  </div>
-                ) : (
-                  <ul className="max-h-64 space-y-1.5 overflow-y-auto">
-                    {templates.map((tpl) => {
-                      const selected = previewTplId === tpl.id;
-                      return (
-                        <li key={tpl.id}>
-                          <button
-                            type="button"
-                            onClick={() => setPreviewTplId(tpl.id)}
-                            className={cn(
-                              "w-full rounded-xl border px-2.5 py-2 text-left transition-colors",
-                              selected
-                                ? "border-primary/40 bg-primary/10"
-                                : "border-border/70 bg-muted/30 hover:bg-muted/50",
-                            )}
-                          >
-                            <p className="text-foreground truncate text-[12px] font-medium">
-                              {tpl.title}
-                              <span className="text-muted-foreground ml-1 text-[10px]">
-                                ({tpl.kind})
-                              </span>
-                            </p>
-                            <p className="text-muted-foreground line-clamp-1 text-[11px]">
-                              {tpl.body || "Empty body"}
-                            </p>
-                          </button>
-                          <div className="mt-1 flex gap-1.5 px-0.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingTplId(tpl.id);
-                                setTplTitle(tpl.title);
-                                setTplBody(tpl.body);
-                                setTplKind(tpl.kind);
-                                setPreviewTplId(tpl.id);
-                              }}
-                              className="border-border text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void archiveTemplate(tpl.id)}
-                              className="border-border text-muted-foreground hover:text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
-                            >
-                              Archive
-                            </button>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            </div>
-
-            <div className="border-border/80 bg-card/70 flex min-h-[24rem] flex-col rounded-2xl border p-4">
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-foreground text-[12px] font-semibold tracking-tight">
-                    Preview
-                  </p>
-                  <p className="text-muted-foreground text-[11px]">
-                    Sample app: {SAMPLE_TEMPLATE_VARS.company} · {SAMPLE_TEMPLATE_VARS.role} ·{" "}
-                    {SAMPLE_TEMPLATE_VARS.location}
-                  </p>
-                  <p className="text-muted-foreground text-[11px]">
-                    Sample person: {SAMPLE_TEMPLATE_VARS.person_name} (
-                    {SAMPLE_TEMPLATE_VARS.person_email})
-                  </p>
-                </div>
-              </div>
-              {(() => {
-                const source =
-                  editingTplId && editingTplId === previewTplId
-                    ? tplBody
-                    : (templates.find((t) => t.id === previewTplId)?.body ??
-                      (editingTplId ? tplBody : ""));
-                const title =
-                  templates.find((t) => t.id === previewTplId)?.title ??
-                  (editingTplId ? tplTitle : null);
-                if (!previewTplId && !editingTplId) {
-                  return (
-                    <div className="border-border/70 text-muted-foreground flex flex-1 items-center justify-center rounded-xl border border-dashed text-[12px]">
-                      Select or create a template to preview.
-                    </div>
-                  );
-                }
-                const rendered = renderTemplatePreview(
-                  source || "(empty body)",
-                  SAMPLE_TEMPLATE_VARS,
-                );
-                return (
-                  <div className="border-border/70 bg-background/50 min-h-0 flex-1 overflow-y-auto rounded-xl border p-3">
-                    {title ? (
-                      <p className="text-foreground mb-2 text-[12px] font-medium">{title}</p>
-                    ) : null}
-                    <pre className="text-foreground/90 whitespace-pre-wrap font-sans text-[12px] leading-relaxed">
-                      {rendered}
-                    </pre>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
+          <ColdEmailTemplatesPanel
+            templates={templates}
+            onTemplatesChange={(next) => setTemplates(next)}
+            fromEmail={userEmail}
+            userName={userName}
+          />
         </section>
       ) : null}
     </ShellWidth>

@@ -1,0 +1,427 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
+import { Modal } from "@/components/ui/modal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DEFAULT_DUMMY_APPLICATION,
+  DEFAULT_TEMPLATE_SUBJECT,
+  TEMPLATE_PREVIEW_VAR_DOCS,
+  dummyApplicationToVars,
+  renderTemplatePreview,
+  type DummyApplication,
+} from "@/lib/template-preview";
+import { cn } from "@/lib/utils";
+
+export type ColdEmailTemplateDto = {
+  id: string;
+  title: string;
+  body: string;
+  kind: "outreach" | "cover" | "other";
+  status: "active" | "archived";
+  createdAt: string;
+  updatedAt: string;
+};
+
+type Props = {
+  templates: ColdEmailTemplateDto[];
+  onTemplatesChange: (next: ColdEmailTemplateDto[]) => void;
+  /** Signed-in email for {{from_email}} in the dummy strip / preview. */
+  fromEmail?: string;
+  /** Display name for {{user_name}}. */
+  userName?: string;
+  className?: string;
+};
+
+function normalizeTemplate(
+  tpl: Partial<ColdEmailTemplateDto> &
+    Pick<ColdEmailTemplateDto, "id" | "title" | "body" | "kind" | "status">,
+  fallback?: ColdEmailTemplateDto,
+): ColdEmailTemplateDto {
+  const now = new Date().toISOString();
+  return {
+    id: tpl.id,
+    title: tpl.title,
+    body: tpl.body,
+    kind: tpl.kind,
+    status: tpl.status,
+    createdAt: tpl.createdAt ?? fallback?.createdAt ?? now,
+    updatedAt: tpl.updatedAt ?? now,
+  };
+}
+
+const emptyDraft = () => ({
+  id: null as string | null,
+  title: "",
+  subject: DEFAULT_TEMPLATE_SUBJECT,
+  body: "",
+  kind: "outreach" as "outreach" | "cover" | "other",
+});
+
+export function ColdEmailTemplatesPanel({
+  templates,
+  onTemplatesChange,
+  fromEmail,
+  userName,
+  className,
+}: Props) {
+  const [draft, setDraft] = useState(emptyDraft);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
+
+  const dummy: DummyApplication = useMemo(
+    () => ({
+      ...DEFAULT_DUMMY_APPLICATION,
+      fromEmail: fromEmail?.trim() || DEFAULT_DUMMY_APPLICATION.fromEmail,
+      userName: userName?.trim() || DEFAULT_DUMMY_APPLICATION.userName,
+    }),
+    [fromEmail, userName],
+  );
+
+  const vars = useMemo(() => dummyApplicationToVars(dummy), [dummy]);
+  const previewSubject = renderTemplatePreview(draft.subject || "", vars);
+  const previewBody = renderTemplatePreview(draft.body || "", vars);
+
+  function startNew() {
+    setDraft(emptyDraft());
+    setError(null);
+  }
+
+  function loadTemplate(tpl: ColdEmailTemplateDto) {
+    setDraft({
+      id: tpl.id,
+      title: tpl.title,
+      subject: DEFAULT_TEMPLATE_SUBJECT,
+      body: tpl.body,
+      kind: tpl.kind,
+    });
+    setError(null);
+  }
+
+  async function save() {
+    if (!draft.title.trim()) {
+      setError("Template title is required.");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      if (draft.id) {
+        const res = await fetch(`/api/templates/${draft.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: draft.title.trim(),
+            body: draft.body,
+            kind: draft.kind,
+          }),
+        });
+        const data = (await res.json()) as { template?: ColdEmailTemplateDto; error?: string };
+        if (!res.ok) throw new Error(data.error || "Could not update template.");
+        if (data.template) {
+          const prev = templates.find((x) => x.id === data.template!.id);
+          const updated = normalizeTemplate(data.template, prev);
+          onTemplatesChange(templates.map((x) => (x.id === updated.id ? updated : x)));
+          setDraft((d) => ({ ...d, id: updated.id, title: updated.title }));
+        }
+      } else {
+        const res = await fetch("/api/templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: draft.title.trim(),
+            body: draft.body,
+            kind: draft.kind,
+          }),
+        });
+        const data = (await res.json()) as { template?: ColdEmailTemplateDto; error?: string };
+        if (!res.ok) throw new Error(data.error || "Could not create template.");
+        if (data.template) {
+          const created = normalizeTemplate(data.template);
+          onTemplatesChange([created, ...templates]);
+          setDraft((d) => ({
+            ...d,
+            id: created.id,
+            title: created.title,
+            body: created.body,
+            kind: created.kind,
+          }));
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save template.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function archive(id: string) {
+    setPending(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/templates/${id}`, { method: "DELETE" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not archive template.");
+      const next = templates.filter((t) => t.id !== id);
+      onTemplatesChange(next);
+      if (draft.id === id) startNew();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not archive template.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const field =
+    "border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]";
+
+  return (
+    <div className={cn("space-y-3", className)}>
+      {/* 1) Dummy application strip */}
+      <div className="border-border/80 bg-card/80 flex flex-wrap items-start justify-between gap-2 rounded-2xl border px-3 py-2.5 shadow-sm">
+        <div className="min-w-0 space-y-1">
+          <div className="flex items-center gap-1.5">
+            <p className="text-foreground text-[12px] font-semibold tracking-tight">
+              Dummy application
+            </p>
+            <button
+              type="button"
+              onClick={() => setInfoOpen(true)}
+              className="border-border text-muted-foreground hover:text-foreground inline-flex size-6 items-center justify-center rounded-full border text-[11px] font-semibold"
+              aria-label="Template variable info"
+              title="Template variables"
+            >
+              ⓘ
+            </button>
+          </div>
+          <p className="text-muted-foreground text-[11px] leading-relaxed">
+            Preview substitutes placeholders from this sample job + person.
+          </p>
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            <Chip label="Company" value={dummy.company} />
+            <Chip label="Role" value={dummy.role} />
+            <Chip label="Location" value={dummy.location} />
+            <Chip label="Person" value={dummy.personName} />
+            <Chip label="Person email" value={dummy.personEmail} />
+            <Chip label="From" value={dummy.fromEmail} />
+            <Chip label="You" value={dummy.userName} />
+          </div>
+        </div>
+      </div>
+
+      {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
+
+      {/* 2) Create/edit | live preview */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="border-border/80 bg-card/80 space-y-2 rounded-2xl border p-3 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-foreground text-[12px] font-semibold tracking-tight">
+              {draft.id ? "Edit template" : "New template"}
+            </p>
+            {draft.id ? (
+              <button
+                type="button"
+                onClick={startNew}
+                className="text-muted-foreground hover:text-foreground text-[11px] hover:underline"
+              >
+                New blank
+              </button>
+            ) : null}
+          </div>
+          <input
+            value={draft.title}
+            onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+            placeholder="Title"
+            className={field}
+          />
+          <Select
+            value={draft.kind}
+            onValueChange={(v) =>
+              setDraft((d) => ({
+                ...d,
+                kind: (v as "outreach" | "cover" | "other") || "outreach",
+              }))
+            }
+          >
+            <SelectTrigger className={cn(field, "px-2")}>
+              <SelectValue placeholder="Kind" />
+            </SelectTrigger>
+            <SelectContent className="z-[280]">
+              <SelectItem value="outreach">Outreach</SelectItem>
+              <SelectItem value="cover">Cover</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <label className="block space-y-1">
+            <span className="text-muted-foreground text-[11px] font-medium">Subject</span>
+            <input
+              value={draft.subject}
+              onChange={(e) => setDraft((d) => ({ ...d, subject: e.target.value }))}
+              placeholder={DEFAULT_TEMPLATE_SUBJECT}
+              className={field}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-muted-foreground text-[11px] font-medium">Body</span>
+            <textarea
+              value={draft.body}
+              onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))}
+              placeholder="Hi {{person_name}}, …"
+              rows={10}
+              className={cn(field, "h-auto py-2 font-mono text-[11px] leading-relaxed")}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => void save()}
+            className="avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold shadow-sm ring-1 disabled:opacity-60"
+          >
+            {pending ? "Saving…" : draft.id ? "Update template" : "Create template"}
+          </button>
+        </div>
+
+        <div className="border-border/80 bg-card/80 flex min-h-[22rem] flex-col rounded-2xl border p-3 shadow-sm">
+          <p className="text-foreground text-[12px] font-semibold tracking-tight">Live preview</p>
+          <p className="text-muted-foreground mb-2 text-[11px]">
+            Updates as you type subject and body.
+          </p>
+          <div className="border-border/70 bg-background/50 min-h-0 flex-1 overflow-y-auto rounded-xl border p-3">
+            <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
+              Subject
+            </p>
+            <p className="text-foreground mt-0.5 text-[12px] font-medium">
+              {previewSubject || "(empty subject)"}
+            </p>
+            <p className="text-muted-foreground mt-3 text-[10px] font-medium uppercase tracking-wide">
+              Body
+            </p>
+            <pre className="text-foreground/90 mt-0.5 whitespace-pre-wrap font-sans text-[12px] leading-relaxed">
+              {previewBody || "(empty body)"}
+            </pre>
+          </div>
+        </div>
+      </div>
+
+      {/* 3) Your templates list */}
+      <div className="border-border/80 bg-card/80 space-y-2 rounded-2xl border p-3 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-foreground text-[12px] font-semibold tracking-tight">
+            Your templates ({templates.length})
+          </p>
+          <button
+            type="button"
+            onClick={startNew}
+            className="border-border text-foreground hover:text-primary inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
+          >
+            Add new
+          </button>
+        </div>
+        {templates.length === 0 ? (
+          <div className="border-border/70 text-muted-foreground rounded-xl border border-dashed px-3 py-6 text-center text-[12px]">
+            No templates yet — create one above.
+          </div>
+        ) : (
+          <ul className="max-h-56 space-y-1.5 overflow-y-auto">
+            {templates.map((tpl) => {
+              const selected = draft.id === tpl.id;
+              return (
+                <li
+                  key={tpl.id}
+                  className={cn(
+                    "border-border/70 flex flex-col gap-1.5 rounded-xl border px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between",
+                    selected ? "border-primary/40 bg-primary/10" : "bg-muted/30",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => loadTemplate(tpl)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <p className="text-foreground truncate text-[12px] font-medium">
+                      {tpl.title}
+                      <span className="text-muted-foreground ml-1 text-[10px]">({tpl.kind})</span>
+                    </p>
+                    <p className="text-muted-foreground line-clamp-1 text-[11px]">
+                      {tpl.body || "Empty body"}
+                    </p>
+                  </button>
+                  <div className="flex shrink-0 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => loadTemplate(tpl)}
+                      className="border-border text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => void archive(tpl.id)}
+                      className="border-border text-muted-foreground hover:text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px] disabled:opacity-50"
+                    >
+                      Archive
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      <Modal
+        open={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        title="Template variables"
+        description="Placeholders are replaced from the dummy application strip when previewing."
+        size="lg"
+        footer={
+          <button
+            type="button"
+            onClick={() => setInfoOpen(false)}
+            className="avsar-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold"
+          >
+            Got it
+          </button>
+        }
+      >
+        <ul className="space-y-2">
+          {TEMPLATE_PREVIEW_VAR_DOCS.map((doc) => (
+            <li key={doc.key} className="border-border/70 bg-muted/30 rounded-xl border px-3 py-2">
+              <p className="text-foreground font-mono text-[12px] font-semibold">
+                {`{{${doc.key}}}`}
+                <span className="text-muted-foreground ml-2 font-sans text-[11px] font-medium">
+                  {doc.label}
+                </span>
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
+                {doc.description}
+              </p>
+              <p className="text-foreground/90 mt-1 font-mono text-[11px]">
+                → {vars[doc.key] || "(empty)"}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </Modal>
+    </div>
+  );
+}
+
+function Chip({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="border-border/70 bg-background/60 text-muted-foreground inline-flex max-w-full items-center gap-1 truncate rounded-full border px-2 py-0.5 text-[10px]">
+      <span className="font-medium">{label}</span>
+      <span className="text-foreground truncate">{value}</span>
+    </span>
+  );
+}

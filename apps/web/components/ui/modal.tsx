@@ -16,7 +16,7 @@ type ModalProps = {
   footer?: React.ReactNode;
   className?: string;
   /** Max width of the panel. Default max-w-md. */
-  size?: "md" | "lg";
+  size?: "md" | "lg" | "xl";
 };
 
 /**
@@ -78,7 +78,7 @@ export function Modal({
           // `dark` forces dark theme tokens for dialog content (dark-first surfaces).
           "dark relative z-10 flex max-h-[min(90vh,52rem)] w-full flex-col rounded-2xl border shadow-xl shadow-black/40",
           "border-border bg-card text-card-foreground",
-          size === "lg" ? "max-w-lg" : "max-w-md",
+          size === "xl" ? "max-w-4xl" : size === "lg" ? "max-w-lg" : "max-w-md",
           className,
         )}
       >

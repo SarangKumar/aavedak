@@ -18,39 +18,36 @@ export default async function DocumentsPage() {
   const templates = listTemplates(user.id);
 
   return (
-    <div className="relative overflow-hidden">
-      <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-60" aria-hidden />
-      <div className="relative">
-        <DocumentsHub
-          initialResumes={resumes.map((r) => ({
-            id: r.id,
-            displayName: r.displayName,
-            status: r.status,
-            originalFilename: r.originalFilename,
-            byteSize: r.byteSize,
-            createdAt: r.createdAt,
-            updatedAt: r.updatedAt,
-          }))}
-          initialCoverLetters={coverLetters.map((c) => ({
-            id: c.id,
-            title: c.title,
-            body: c.body,
-            applicationId: c.applicationId,
-            status: c.status,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt,
-          }))}
-          initialTemplates={templates.map((t) => ({
-            id: t.id,
-            title: t.title,
-            body: t.body,
-            kind: t.kind,
-            status: t.status,
-            createdAt: t.createdAt,
-            updatedAt: t.updatedAt,
-          }))}
-        />
-      </div>
-    </div>
+    <DocumentsHub
+      userEmail={user.email}
+      userName={user.name}
+      initialResumes={resumes.map((r) => ({
+        id: r.id,
+        displayName: r.displayName,
+        status: r.status,
+        originalFilename: r.originalFilename,
+        byteSize: r.byteSize,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      }))}
+      initialCoverLetters={coverLetters.map((c) => ({
+        id: c.id,
+        title: c.title,
+        body: c.body,
+        applicationId: c.applicationId,
+        status: c.status,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+      }))}
+      initialTemplates={templates.map((t) => ({
+        id: t.id,
+        title: t.title,
+        body: t.body,
+        kind: t.kind,
+        status: t.status,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      }))}
+    />
   );
 }
