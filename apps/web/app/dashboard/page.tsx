@@ -17,6 +17,8 @@ const quickLinks = [
   { href: "/job-tracker", title: "Job tracker", blurb: "Pipeline by stage" },
   { href: "/documents", title: "Documents", blurb: "Resumes & cover letters" },
   { href: "/referrals", title: "Referrals", blurb: "Warm paths & asks" },
+  { href: "/friends", title: "Friends", blurb: "Shared graph & history" },
+  { href: "/ats", title: "ATS", blurb: "Resume ATS readiness & JD match" },
 ] as const;
 
 function formatDue(dueDate: string | null): string {
@@ -265,7 +267,7 @@ export default async function DashboardPage() {
           >
             Workspace
           </h2>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {quickLinks.map((link) => (
               <Link
                 key={link.href}

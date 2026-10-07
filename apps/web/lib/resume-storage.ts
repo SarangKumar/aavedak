@@ -186,3 +186,22 @@ export async function resumeFileExists(storagePath: string): Promise<boolean> {
   if (isProductionRuntime()) return false;
   return Boolean(storagePath && fs.existsSync(storagePath));
 }
+
+export async function deleteResumePdf(storagePath: string): Promise<void> {
+  const parsed = parseGcsPath(storagePath);
+  if (parsed) {
+    try {
+      await gcsClient().bucket(parsed.bucket).file(parsed.object).delete({ ignoreNotFound: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "GCS delete failed";
+      throw new ResumeStorageError(
+        `Could not delete the resume from Google Cloud Storage. ${message}`,
+      );
+    }
+    return;
+  }
+  if (isProductionRuntime()) return;
+  if (storagePath && fs.existsSync(storagePath)) {
+    fs.unlinkSync(storagePath);
+  }
+}

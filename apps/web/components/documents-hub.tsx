@@ -348,6 +348,24 @@ export function DocumentsHub({
     await refreshResumes();
   }
 
+  async function deleteInactiveResume(id: string) {
+    setError(null);
+    if (
+      !window.confirm(
+        "Permanently delete this inactive resume and its PDF? You must keep at least one active resume.",
+      )
+    ) {
+      return;
+    }
+    const res = await fetch(`/api/resumes/${id}?permanent=1`, { method: "DELETE" });
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) {
+      setError(data.error || "Could not delete resume.");
+      return;
+    }
+    await refreshResumes();
+  }
+
   async function scoreJd(file: File) {
     setError(null);
     setJdNote(null);
@@ -476,8 +494,8 @@ export function DocumentsHub({
         <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Documents</h1>
         <p className="text-muted-foreground text-[13px] leading-relaxed">
           Resumes (PDF), company-specific cover letters (PDF/DOCX download), and cold-email
-          templates. Only one resume can be the active profile showcase. Resume delete archives
-          only.
+          templates. Only one resume can be the active profile showcase — keep at least one active.
+          Inactive resumes can be permanently deleted.
         </p>
       </header>
 
@@ -634,13 +652,23 @@ export function DocumentsHub({
                           Unset showcase
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => void archiveResume(resume.id)}
-                        className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-                      >
-                        Archive
-                      </button>
+                      {resume.status === "active" ? (
+                        <button
+                          type="button"
+                          onClick={() => void archiveResume(resume.id)}
+                          className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                        >
+                          Archive
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void deleteInactiveResume(resume.id)}
+                          className="border-border text-destructive hover:bg-destructive/10 inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))}

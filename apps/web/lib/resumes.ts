@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { dbAll, dbGet, getAppDb } from "@/lib/app-db";
 import { extractPdfText, scoreResumeAtsReadiness } from "@/lib/match-score";
-import { saveResumePdf } from "@/lib/resume-storage";
+import { deleteResumePdf, saveResumePdf } from "@/lib/resume-storage";
 
 export const RESUME_MAX_BYTES = 5 * 1024 * 1024;
 export const RESUME_DAILY_UPLOAD_CAP = 20;
@@ -71,6 +71,14 @@ export async function listResumes(
 export async function countUsableResumes(userId: string): Promise<number> {
   const row = await dbGet<{ n: number | string }>(
     `SELECT COUNT(*) AS n FROM resumes WHERE user_id = ? AND status IN ('active', 'inactive')`,
+    userId,
+  );
+  return Number(row?.n ?? 0);
+}
+
+export async function countActiveResumes(userId: string): Promise<number> {
+  const row = await dbGet<{ n: number | string }>(
+    `SELECT COUNT(*) AS n FROM resumes WHERE user_id = ? AND status = 'active'`,
     userId,
   );
   return Number(row?.n ?? 0);
@@ -225,6 +233,16 @@ export async function updateResume(
     status = patch.status;
   }
 
+  if (
+    existing.status === "active" &&
+    status !== "active" &&
+    (await countActiveResumes(userId)) <= 1
+  ) {
+    throw new Error(
+      "Keep at least one active resume. Activate another resume before changing this one.",
+    );
+  }
+
   const db = await getAppDb();
   if (status === "active") {
     await db
@@ -245,7 +263,31 @@ export async function updateResume(
   return updated;
 }
 
-/** Soft-delete: archive only. The PDF stays in Google Cloud Storage (or local .data in dev). */
+/** Soft-delete: archive only. The PDF stays in storage. Requires another active resume. */
 export async function archiveResume(userId: string, resumeId: string): Promise<ResumeRecord> {
   return updateResume(userId, resumeId, { status: "archived" });
+}
+
+/**
+ * Permanently delete an inactive (or archived) resume and its PDF.
+ * Active resumes cannot be deleted — keep at least one active.
+ */
+export async function deleteInactiveResume(userId: string, resumeId: string): Promise<void> {
+  const existing = await getResume(userId, resumeId);
+  if (!existing) throw new Error("Resume not found.");
+  if (existing.status === "active") {
+    throw new Error(
+      "Active resumes cannot be deleted. Unset showcase first, and keep at least one active.",
+    );
+  }
+  if ((await countActiveResumes(userId)) < 1) {
+    throw new Error("Keep at least one active resume.");
+  }
+  try {
+    await deleteResumePdf(existing.storagePath);
+  } catch {
+    /* Row still removed if the object is already gone. */
+  }
+  const db = await getAppDb();
+  await db.prepare(`DELETE FROM resumes WHERE id = ? AND user_id = ?`).run(resumeId, userId);
 }
