@@ -1,7 +1,7 @@
 import "server-only";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
-import { MAX_APP_USERS, UserCapError } from "@/lib/user-cap";
+import { countAppUsers, MAX_APP_USERS, UserCapError } from "@/lib/user-cap";
 import {
   emptyCareerProfile,
   isCareerProfileComplete,
@@ -195,29 +195,45 @@ export async function ensureProfile(user: {
     };
   }
 
-  const username = await allocateUsername(user.email, user.id);
-  // Atomic slot claim: only insert when under the hard user cap.
-  const inserted = (await sql`
-    INSERT INTO profiles
-      (user_id, username, email, name, bio, portfolio_url, linkedin_url, links_json, image_url,
-       onboarding_complete, created_at, updated_at)
-    SELECT
-      ${user.id}, ${username}, ${user.email}, ${user.name ?? null}, NULL, NULL, NULL, '{}',
-      ${imageUrl}, 0, ${now}, ${now}
-    WHERE (SELECT COUNT(*)::int FROM profiles) < ${MAX_APP_USERS}
-    RETURNING user_id, username, email, name, bio, portfolio_url, linkedin_url,
-      links_json, image_url, onboarding_complete,
-      experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
-      salary_currency, preferred_locations_json, remote_preference, work_authorization,
-      skills_json, job_search_status, company_size_preference, industry_preference,
-      created_at, updated_at
-  `) as ProfileRow[];
+  /*
+   * Concurrent first renders (layout SiteHeader + page guard + /auth/continue) all call
+   * ensureProfile for a brand-new user. A plain INSERT raced → profiles_pkey violation.
+   * ON CONFLICT DO NOTHING makes the claim idempotent; the loser re-reads the winner's row.
+   */
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const base = await allocateUsername(user.email, user.id);
+    const username = attempt < 3 ? base : `${base}-${user.id.slice(0, 6).toLowerCase()}`;
+    // Atomic slot claim: only insert when under the hard user cap.
+    const inserted = (await sql`
+      INSERT INTO profiles
+        (user_id, username, email, name, bio, portfolio_url, linkedin_url, links_json, image_url,
+         onboarding_complete, created_at, updated_at)
+      SELECT
+        ${user.id}, ${username}, ${user.email}, ${user.name ?? null}, NULL, NULL, NULL, '{}',
+        ${imageUrl}, 0, ${now}, ${now}
+      WHERE (SELECT COUNT(*)::int FROM profiles) < ${MAX_APP_USERS}
+      ON CONFLICT DO NOTHING
+      RETURNING user_id, username, email, name, bio, portfolio_url, linkedin_url,
+        links_json, image_url, onboarding_complete,
+        experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
+        salary_currency, preferred_locations_json, remote_preference, work_authorization,
+        skills_json, job_search_status, company_size_preference, industry_preference,
+        created_at, updated_at
+    `) as ProfileRow[];
 
-  if (!inserted[0]) {
-    throw new UserCapError();
+    if (inserted[0]) return mapRow(inserted[0]);
+
+    // Another request for this same user won the race.
+    const raced = await getProfile(user.id);
+    if (raced) return raced;
+
+    // No row and not ours: either the cap is full, or the username was taken concurrently.
+    if ((await countAppUsers()) >= MAX_APP_USERS) {
+      throw new UserCapError();
+    }
   }
 
-  return mapRow(inserted[0]);
+  throw new Error("Could not create profile (username allocation kept colliding).");
 }
 
 export async function setOnboardingComplete(userId: string, complete: boolean) {

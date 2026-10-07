@@ -5,9 +5,16 @@ Queued referral follow-ups send from the **user's Gmail** via the Gmail API (`us
 ## GCP setup
 
 1. Same project as OAuth client (`production-510916` or yours) → **APIs & Services** → enable **Gmail API**.
-2. **OAuth consent screen**:
-   - Add scope: `https://www.googleapis.com/auth/gmail.send` (Send email on your behalf).
-   - Keep app in **Testing** and add test users while unverified (sensitive scope).
+2. **OAuth consent screen** (Google Auth Platform → Audience / Data access):
+   - Data access → add scope `https://www.googleapis.com/auth/gmail.send` (sensitive).
+   - **Sign-in only requests `openid email profile`** (non-sensitive). `gmail.send` is asked later via
+     **Authorize Gmail send** (`linkSocial`).
+   - Audience: either
+     - **Testing** → every user must be in **Test users** (else Google shows
+       `Error 403: access_denied … has not completed the Google verification process`), or
+     - **Publish app** (In production) → anyone can sign in with no verification (basic scopes).
+       Authorize Gmail send then shows "Google hasn't verified this app" → Advanced → Continue
+       (unverified sensitive-scope cap: 100 users; Aavedak caps at 8 anyway).
 3. **Credentials** → your Web OAuth client:
    - Authorized JavaScript origins: `http://localhost:3000`, `https://aavedak.vercel.app`
    - Redirect URIs:
@@ -26,9 +33,18 @@ Queued referral follow-ups send from the **user's Gmail** via the Gmail API (`us
 
 Better Auth Google provider is configured with:
 
-- `scope`: `gmail.send` (plus default openid/email/profile)
+- sign-in scopes: default openid/email/profile only
+- `gmail.send` via `authClient.linkSocial({ scopes: [gmail.send] })`; Better Auth sends
+  `include_granted_scopes=true`, so later sign-ins keep the granted scope
 - `accessType`: `offline`
 - `prompt`: `select_account consent` (so refresh tokens are issued)
+
+## Troubleshooting
+
+- `Error 403: access_denied` / "has not completed the Google verification process": consent screen is
+  in Testing and that Google account is not a test user. Add it under Audience → Test users (or
+  publish the app). This happens on Google's side; the app never receives the request.
+- `redirect_uri_mismatch`: the Web client is missing the exact callback URI above.
 
 ## Re-consent (existing users)
 

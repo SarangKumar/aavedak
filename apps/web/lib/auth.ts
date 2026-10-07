@@ -3,14 +3,14 @@ import { nextCookies } from "better-auth/next-js";
 import { Pool } from "@neondatabase/serverless";
 import { headers } from "next/headers";
 
-import { GMAIL_SEND_SCOPE } from "@/lib/gmail-scopes";
-
 /**
  * Self-hosted Better Auth + Google OAuth.
  * Session/user tables live on Neon Postgres (DATABASE_URL).
  * Google OAuth client lives in this app (GOOGLE_CLIENT_*), not Neon Auth.
  *
- * Offline access + gmail.send so queued follow-ups can send from the user's Gmail.
+ * Sign-in requests only openid/email/profile (non-sensitive → no Google verification needed
+ * once the consent screen is "In production"). gmail.send is requested incrementally via
+ * linkSocial from GmailConnectBanner; include_granted_scopes keeps it on later sign-ins.
  */
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
@@ -37,8 +37,7 @@ export const auth = betterAuth({
           google: {
             clientId: googleClientId,
             clientSecret: googleClientSecret,
-            // Request Gmail send + force refresh token on consent
-            scope: [GMAIL_SEND_SCOPE],
+            // Basic scopes only at sign-in; offline + consent so linkSocial(gmail.send) gets a refresh token
             accessType: "offline",
             prompt: "select_account consent",
           },
