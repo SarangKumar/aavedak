@@ -3,8 +3,7 @@ import Link from "next/link";
 
 import { blockToHtml, parseChangelog, readChangelogMarkdown } from "@/lib/changelog";
 import { APP_VERSION } from "@/lib/version";
-import { SHELL_X } from "@/lib/layout";
-import { cn } from "@/lib/utils";
+import { ShellWidth } from "@/components/shell-width";
 
 export const metadata: Metadata = {
   title: "Changelog",
@@ -19,7 +18,7 @@ export default function ChangelogPage() {
   return (
     <div className="relative overflow-hidden">
       <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-50" aria-hidden />
-      <div className={cn("avsar-fade-up relative mx-auto w-full space-y-6 py-8 sm:py-12", SHELL_X)}>
+      <ShellWidth className="avsar-fade-up relative space-y-6 py-8 sm:py-12">
         <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
           आरंभ
         </p>
@@ -31,7 +30,7 @@ export default function ChangelogPage() {
             Home
           </Link>
         </p>
-      </div>
+      </ShellWidth>
     </div>
   );
 }

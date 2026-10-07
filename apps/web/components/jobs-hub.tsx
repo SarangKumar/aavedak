@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
-import { SHELL_X } from "@/lib/layout";
+import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
 
 export type JobDto = {
@@ -225,7 +225,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
   }
 
   return (
-    <div className={cn("avsar-fade-up mx-auto flex w-full flex-col gap-5 py-8 sm:py-10", SHELL_X)}>
+    <ShellWidth className="avsar-fade-up flex flex-col gap-5 py-8 sm:py-10">
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
@@ -494,7 +494,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
           </button>
         </div>
       </Modal>
-    </div>
+    </ShellWidth>
   );
 }
 

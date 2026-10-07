@@ -4,8 +4,8 @@ import Link from "next/link";
 import { requireOnboarded } from "@/lib/app-access";
 import { STATUS_LABELS } from "@/lib/application-status";
 import { getDashboardSnapshot } from "@/lib/dashboard";
+import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
-import { SHELL_X } from "@/lib/layout";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -40,7 +40,7 @@ export default async function DashboardPage() {
   return (
     <div className="relative overflow-hidden">
       <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-70" aria-hidden />
-      <div className={cn("avsar-fade-up relative mx-auto w-full space-y-8 py-8 sm:py-10", SHELL_X)}>
+      <ShellWidth className="avsar-fade-up relative space-y-8 py-8 sm:py-10">
         <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="space-y-1">
             <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
@@ -240,7 +240,7 @@ export default async function DashboardPage() {
             ))}
           </div>
         </section>
-      </div>
+      </ShellWidth>
     </div>
   );
 }

@@ -27,7 +27,7 @@ import {
   STATUS_LABELS,
   type ApplicationStatus,
 } from "@/lib/application-status";
-import { SHELL_X } from "@/lib/layout";
+import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -359,7 +359,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
       : [...DEFAULT_KANBAN_STATUSES, "archived" as const];
 
   return (
-    <div className={cn("avsar-fade-up mx-auto w-full space-y-6 py-8 sm:py-10", SHELL_X)}>
+    <ShellWidth className="avsar-fade-up space-y-6 py-8 sm:py-10">
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
@@ -375,16 +375,16 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           <Segmented
             value={prefs.trackerView}
             options={[
-              { value: "kanban", label: "Kanban" },
-              { value: "list", label: "List" },
+              { value: "kanban", label: "Kanban", shortLabel: "K" },
+              { value: "list", label: "List", shortLabel: "L" },
             ]}
             onChange={(v) => void setView(v)}
           />
           <Segmented
             value={prefs.trackerScope}
             options={[
-              { value: "active", label: "Active" },
-              { value: "archived", label: "Archived" },
+              { value: "active", label: "Active", shortLabel: "A" },
+              { value: "archived", label: "Archived", shortLabel: "Arch" },
             ]}
             onChange={(v) => void setScope(v)}
           />
@@ -397,23 +397,20 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
               Columns
             </button>
           ) : null}
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search company, role, location…"
-            aria-label="Search applications"
-            className="border-border bg-card/70 text-foreground placeholder:text-muted-foreground h-8 w-44 rounded-lg border px-2.5 text-[12px] sm:w-56"
-          />
           <button
             type="button"
             onClick={() => {
               setImportOpen(true);
               setError(null);
             }}
-            className="border-border bg-card/70 text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+            title="Import applications"
+            aria-label="Import applications"
+            className="border-border bg-card/70 text-muted-foreground hover:text-foreground inline-flex h-8 items-center justify-center rounded-lg border px-2 text-[12px] md:px-2.5"
           >
-            Import applications
+            <span className="md:hidden" aria-hidden>
+              ⇩
+            </span>
+            <span className="hidden md:inline">Import</span>
           </button>
           <button
             type="button"
@@ -422,9 +419,14 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
               setWarning(null);
               setError(null);
             }}
-            className="avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90"
+            title="New application"
+            aria-label="New application"
+            className="avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center justify-center rounded-lg px-2 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90 md:px-3"
           >
-            New application
+            <span className="md:hidden" aria-hidden>
+              +
+            </span>
+            <span className="hidden md:inline">New application</span>
           </button>
         </div>
       </header>
@@ -456,6 +458,20 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
       ) : null}
 
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+
+      <div className="space-y-2">
+        <label className="sr-only" htmlFor="tracker-search">
+          Search applications
+        </label>
+        <input
+          id="tracker-search"
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search company, role, location…"
+          className="border-border bg-card/80 text-foreground placeholder:text-muted-foreground h-9 w-full rounded-xl border px-3 text-[13px]"
+        />
+      </div>
 
       {prefs.trackerView === "kanban" ? (
         <div className="border-border bg-card/40 overflow-hidden rounded-2xl border">
@@ -676,7 +692,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           });
         }}
       />
-    </div>
+    </ShellWidth>
   );
 }
 
@@ -686,7 +702,7 @@ function Segmented<T extends string>({
   onChange,
 }: {
   value: T;
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; shortLabel?: string }[];
   onChange: (value: T) => void;
 }) {
   return (
@@ -695,15 +711,18 @@ function Segmented<T extends string>({
         <button
           key={opt.value}
           type="button"
+          title={opt.label}
+          aria-label={opt.label}
           onClick={() => onChange(opt.value)}
           className={cn(
-            "inline-flex h-7 items-center rounded-md px-2.5 text-[12px] font-medium transition-colors",
+            "inline-flex h-7 items-center rounded-md px-2 text-[12px] font-medium transition-colors md:px-2.5",
             value === opt.value
               ? "bg-primary/15 text-primary"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          {opt.label}
+          <span className="md:hidden">{opt.shortLabel ?? opt.label.slice(0, 1)}</span>
+          <span className="hidden md:inline">{opt.label}</span>
         </button>
       ))}
     </div>

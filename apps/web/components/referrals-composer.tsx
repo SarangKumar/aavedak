@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
-import { SHELL_X } from "@/lib/layout";
+import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -520,7 +520,7 @@ export function ReferralsComposer({
   }
 
   return (
-    <div className={cn("avsar-fade-up mx-auto w-full space-y-6 py-8 sm:py-10", SHELL_X)}>
+    <ShellWidth className="avsar-fade-up space-y-6 py-8 sm:py-10">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
@@ -654,6 +654,6 @@ export function ReferralsComposer({
           ))}
         </div>
       </Modal>
-    </div>
+    </ShellWidth>
   );
 }

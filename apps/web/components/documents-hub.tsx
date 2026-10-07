@@ -8,7 +8,6 @@ import {
   FileUploadList,
   type FileUploadFile,
 } from "@/components/ui/file-upload";
-import { SHELL_X } from "@/lib/layout";
 import {
   Select,
   SelectContent,
@@ -16,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
 
 type Tab = "resumes" | "cover_letters" | "templates";
@@ -264,7 +264,7 @@ export function DocumentsHub({
   }
 
   return (
-    <div className={cn("avsar-fade-up mx-auto w-full space-y-6 py-8 sm:py-10", SHELL_X)}>
+    <ShellWidth className="avsar-fade-up space-y-6 py-8 sm:py-10">
       <header className="space-y-1">
         <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
           आरंभ
@@ -619,6 +619,6 @@ export function DocumentsHub({
           )}
         </section>
       ) : null}
-    </div>
+    </ShellWidth>
   );
 }

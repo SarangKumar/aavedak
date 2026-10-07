@@ -285,6 +285,41 @@ export function setApplicationStatus(
   return updateApplication(userId, id, { status });
 }
 
+export function hasApplicationOnDay(
+  userId: string,
+  companyName: string,
+  role: string,
+  appliedAt: string | null | undefined,
+): boolean {
+  ensureApplicationsSchema();
+  const day = appliedAt?.slice(0, 10);
+  if (!day) {
+    const row = getAppDb()
+      .prepare(
+        `SELECT id FROM applications
+         WHERE user_id = ?
+           AND company_name = ? COLLATE NOCASE
+           AND role = ? COLLATE NOCASE
+         LIMIT 1`,
+      )
+      .get(userId, companyName.trim(), role.trim());
+    return Boolean(row);
+  }
+  const row = getAppDb()
+    .prepare(
+      `SELECT id FROM applications
+       WHERE user_id = ?
+         AND company_name = ? COLLATE NOCASE
+         AND role = ? COLLATE NOCASE
+         AND (
+           substr(COALESCE(applied_at, created_at), 1, 10) = ?
+         )
+       LIMIT 1`,
+    )
+    .get(userId, companyName.trim(), role.trim(), day);
+  return Boolean(row);
+}
+
 /** Sarang's already-applied roles — upsert by company+role (skip if present). */
 export const SARANG_DEMO_APPLIED = [
   {

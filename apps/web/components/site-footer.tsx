@@ -1,18 +1,13 @@
 import Link from "next/link";
 
-import { SHELL_X } from "@/lib/layout";
+import { ShellWidth } from "@/components/shell-width";
 import { APP_VERSION } from "@/lib/version";
 import { cn } from "@/lib/utils";
 
 export function SiteFooter({ className }: { className?: string }) {
   return (
     <footer className={cn("border-border/60 mt-auto border-t", className)}>
-      <div
-        className={cn(
-          "mx-auto flex w-full flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:py-8",
-          SHELL_X,
-        )}
-      >
+      <ShellWidth className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:py-8">
         <div className="space-y-1">
           <p className="text-foreground/90 text-[13px] font-medium tracking-tight">
             Arambh{" "}
@@ -58,7 +53,7 @@ export function SiteFooter({ className }: { className?: string }) {
             Design system: Vinyaas
           </Link>
         </div>
-      </div>
+      </ShellWidth>
     </footer>
   );
 }
