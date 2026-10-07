@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ImportApplicationsDialog } from "@/components/import-applications-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardAction,
@@ -121,20 +122,6 @@ function buildColumns(
     next[status] = [...kept, ...extras];
   }
   return next;
-}
-
-function Spinner({ className }: { className?: string }) {
-  return (
-    <svg
-      className={cn("size-3.5 animate-spin", className)}
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden
-    >
-      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
-      <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 export function JobTrackerBoard({ initialApplications, initialPreferences }: JobTrackerBoardProps) {

@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 
   const created = [];
   for (const personId of personIds) {
-    const person = await getPerson(userId, personId);
+    const person = await getPerson(personId);
     if (!person || person.status === "archived") {
       return NextResponse.json({ error: `Person not found: ${personId}` }, { status: 400 });
     }

@@ -4,11 +4,22 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  CareerProfileFields,
+  careerToFormState,
+  formStateToCareerPatch,
+  type CareerFormState,
+} from "@/components/career-profile-fields";
+import {
   FileUpload,
   FileUploadDropzone,
   FileUploadList,
   type FileUploadFile,
 } from "@/components/ui/file-upload";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { emptyCareerProfile, type CareerProfile } from "@/lib/career-profile";
 import { cn } from "@/lib/utils";
 
 type ResumeDto = {
@@ -25,6 +36,9 @@ type OnboardingFormProps = {
   username: string;
   email: string;
   name: string;
+  initialCareer?: CareerProfile;
+  careerComplete?: boolean;
+  hasResume?: boolean;
 };
 
 function formatBytes(n: number) {
@@ -33,8 +47,22 @@ function formatBytes(n: number) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
+export function OnboardingForm({
+  username,
+  email,
+  name,
+  initialCareer,
+  careerComplete = false,
+  hasResume = false,
+}: OnboardingFormProps) {
   const router = useRouter();
+  const [step, setStep] = useState<1 | 2>(
+    careerComplete && !hasResume ? 2 : careerComplete ? 2 : 1,
+  );
+  const [career, setCareer] = useState<CareerFormState>(() =>
+    careerToFormState(initialCareer ?? emptyCareerProfile()),
+  );
+  const [careerSaved, setCareerSaved] = useState(careerComplete);
   const [resumes, setResumes] = useState<ResumeDto[]>([]);
   const [displayName, setDisplayName] = useState(name ? `${name} Resume` : "Primary Resume");
   const [uploadFiles, setUploadFiles] = useState<FileUploadFile[]>([]);
@@ -44,6 +72,7 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
   }, [uploadFiles]);
   const [loadingList, setLoadingList] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [savingCareer, setSavingCareer] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +93,27 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  async function saveCareerAndNext() {
+    setError(null);
+    setSavingCareer(true);
+    try {
+      const patch = formStateToCareerPatch(career);
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ career: patch }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not save career preferences.");
+      setCareerSaved(true);
+      setStep(2);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save career preferences.");
+    } finally {
+      setSavingCareer(false);
+    }
+  }
 
   async function onUpload(event: React.FormEvent) {
     event.preventDefault();
@@ -128,6 +178,19 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
     setError(null);
     setContinuing(true);
     try {
+      if (!careerSaved) {
+        const patch = formStateToCareerPatch(career);
+        const careerRes = await fetch("/api/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ career: patch }),
+        });
+        const careerData = (await careerRes.json()) as { error?: string };
+        if (!careerRes.ok) {
+          throw new Error(careerData.error || "Complete career preferences first.");
+        }
+        setCareerSaved(true);
+      }
       const res = await fetch("/api/onboarding/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -143,10 +206,11 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
     }
   }
 
-  const canContinue = resumes.some((r) => r.status === "active" || r.status === "inactive");
+  const canContinue =
+    careerSaved && resumes.some((r) => r.status === "active" || r.status === "inactive");
 
   return (
-    <div className="aavedak-fade-up mx-auto w-full max-w-lg space-y-5 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="aavedak-fade-up mx-auto w-full max-w-2xl space-y-5 px-4 py-8 sm:px-6 sm:py-10">
       <header className="space-y-1.5 text-center sm:text-left">
         <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
           आवेदक
@@ -158,137 +222,215 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
           profile <span className="text-foreground font-medium">/{username}</span>
         </p>
         <p className="text-muted-foreground text-[13px] leading-relaxed">
-          Upload at least one PDF resume to unlock your dashboard. Deletes archive only — nothing is
-          hard-deleted in v1.
+          Set up career preferences for job matching, then upload at least one PDF resume.
         </p>
       </header>
 
-      <form
-        onSubmit={onUpload}
-        className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1 backdrop-blur-sm sm:p-5"
-      >
-        <div className="space-y-1.5">
-          <label htmlFor="displayName" className="text-foreground text-[12px] font-medium">
-            Display name
-          </label>
-          <input
-            id="displayName"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-ring/50 h-9 w-full rounded-lg border px-3 text-[13px] outline-none focus-visible:ring-2"
-            placeholder="e.g. Primary Resume"
-            maxLength={120}
-            required
-          />
-          <p className="text-muted-foreground text-[11px]">Must be unique among your resumes.</p>
-        </div>
-
-        <div className="space-y-1.5">
-          <p className="text-foreground text-[12px] font-medium">Resume PDF</p>
-          <FileUpload
-            accept="application/pdf,.pdf"
-            multiple={false}
-            maxSize={10 * 1024 * 1024}
-            files={uploadFiles}
-            onFilesChange={setUploadFiles}
-            disabled={uploading}
-          >
-            <FileUploadDropzone className="min-h-40 rounded-xl text-[13px]">
-              Drop a PDF resume here, or browse
-            </FileUploadDropzone>
-            <FileUploadList />
-          </FileUpload>
-          {selectedPdf ? (
-            <p className="text-muted-foreground text-[11px]">
-              {selectedPdf.name} · {formatBytes(selectedPdf.size)}
-            </p>
-          ) : null}
-        </div>
-
+      <div className="flex items-center gap-2 text-[12px]">
         <button
-          type="submit"
-          disabled={uploading || !selectedPdf}
-          className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90 disabled:opacity-60"
+          type="button"
+          onClick={() => setStep(1)}
+          className={cn(
+            "rounded-full px-3 py-1 font-medium",
+            step === 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+          )}
         >
-          {uploading ? "Uploading…" : "Upload PDF resume"}
+          1 · Career
         </button>
-      </form>
+        <span className="text-border">→</span>
+        <button
+          type="button"
+          onClick={() => careerSaved && setStep(2)}
+          disabled={!careerSaved}
+          className={cn(
+            "rounded-full px-3 py-1 font-medium",
+            step === 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+            !careerSaved && "cursor-not-allowed opacity-60",
+          )}
+        >
+          2 · Resume
+        </button>
+      </div>
 
-      <section className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Your resumes</h2>
-          <span className="text-muted-foreground text-[11px]">
-            {loadingList ? "Loading…" : `${resumes.length} on file`}
-          </span>
-        </div>
-
-        {resumes.length === 0 && !loadingList ? (
-          <div className="border-border/70 bg-card text-muted-foreground rounded-xl border border-dashed px-4 py-6 text-center text-[13px]">
-            No resumes yet — upload a PDF to continue.
+      {step === 1 ? (
+        <section className="border-border/80 bg-card ring-ring/10 space-y-4 rounded-xl border p-4 shadow-sm ring-1 sm:p-5">
+          <div>
+            <h2 className="text-foreground text-[14px] font-semibold tracking-tight">
+              Career preferences
+            </h2>
+            <p className="text-muted-foreground text-[12px] leading-relaxed">
+              YC-style basics so we can match roles, package, and locations. You can edit these
+              later on your profile.
+            </p>
           </div>
-        ) : (
-          <ul className="space-y-2">
-            {resumes.map((resume) => (
-              <li
-                key={resume.id}
-                className="border-border/80 bg-card flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"
+          <CareerProfileFields value={career} onChange={setCareer} idPrefix="onboarding" />
+          {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+          <Button
+            type="button"
+            loading={savingCareer}
+            onClick={() => void saveCareerAndNext()}
+            className="w-full sm:w-auto"
+          >
+            {savingCareer ? "Saving…" : "Save & continue to resume"}
+          </Button>
+        </section>
+      ) : (
+        <>
+          <form
+            onSubmit={onUpload}
+            className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1 backdrop-blur-sm sm:p-5"
+          >
+            <div className="space-y-1.5">
+              <label htmlFor="displayName" className="text-foreground text-[12px] font-medium">
+                Display name
+              </label>
+              <Input
+                id="displayName"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Primary Resume"
+                maxLength={120}
+                required
+                className="h-9 rounded-lg text-[13px]"
+              />
+              <p className="text-muted-foreground text-[11px]">
+                Must be unique among your resumes.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="text-foreground text-[12px] font-medium">Resume PDF</p>
+              <FileUpload
+                accept="application/pdf,.pdf"
+                multiple={false}
+                maxSize={10 * 1024 * 1024}
+                files={uploadFiles}
+                onFilesChange={setUploadFiles}
+                disabled={uploading}
               >
-                <div className="min-w-0">
-                  <p className="text-foreground truncate text-[13px] font-medium">
-                    {resume.displayName}
-                    {resume.status === "active" ? (
-                      <span className="bg-primary/15 text-primary ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                        Active
-                      </span>
-                    ) : (
-                      <span className="bg-muted text-muted-foreground ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                        Inactive
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-muted-foreground truncate text-[11px]">
-                    {resume.originalFilename} · {formatBytes(resume.byteSize)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {resume.status !== "active" ? (
-                    <button
-                      type="button"
-                      onClick={() => void setActive(resume.id)}
-                      className="aavedak-btn text-foreground hover:text-primary border-border inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-                    >
-                      Make active
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => void archive(resume.id)}
-                    className="aavedak-btn text-muted-foreground hover:text-foreground border-border inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                <FileUploadDropzone className="min-h-40 rounded-xl text-[13px]">
+                  Drop a PDF resume here, or browse
+                </FileUploadDropzone>
+                <FileUploadList />
+              </FileUpload>
+              {selectedPdf ? (
+                <p className="text-muted-foreground text-[11px]">
+                  {selectedPdf.name} · {formatBytes(selectedPdf.size)}
+                </p>
+              ) : null}
+            </div>
+
+            <Button type="submit" loading={uploading} disabled={!selectedPdf} className="w-full">
+              {uploading ? "Uploading…" : "Upload PDF resume"}
+            </Button>
+          </form>
+
+          <section className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
+                Your resumes
+              </h2>
+              <span className="text-muted-foreground text-[11px]">
+                {loadingList ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Spinner className="size-3" /> Loading…
+                  </span>
+                ) : (
+                  `${resumes.length} on file`
+                )}
+              </span>
+            </div>
+
+            {loadingList ? (
+              <ul className="space-y-2" aria-busy="true" aria-label="Loading resumes">
+                {[0, 1].map((i) => (
+                  <li
+                    key={i}
+                    className="border-border/80 bg-card flex items-center justify-between gap-3 rounded-xl border p-3"
                   >
-                    Archive
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-56 max-w-full" />
+                    </div>
+                    <Skeleton className="h-8 w-20" />
+                  </li>
+                ))}
+              </ul>
+            ) : resumes.length === 0 ? (
+              <div className="border-border/70 bg-card text-muted-foreground rounded-xl border border-dashed px-4 py-6 text-center text-[13px]">
+                No resumes yet — upload a PDF to continue.
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {resumes.map((resume) => (
+                  <li
+                    key={resume.id}
+                    className="border-border/80 bg-card flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-foreground truncate text-[13px] font-medium">
+                        {resume.displayName}
+                        {resume.status === "active" ? (
+                          <span className="bg-primary/15 text-primary ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                            Active
+                          </span>
+                        ) : (
+                          <span className="bg-muted text-muted-foreground ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                            Inactive
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-muted-foreground truncate text-[11px]">
+                        {resume.originalFilename} · {formatBytes(resume.byteSize)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {resume.status !== "active" ? (
+                        <button
+                          type="button"
+                          onClick={() => void setActive(resume.id)}
+                          className="aavedak-btn text-foreground hover:text-primary border-border inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                        >
+                          Make active
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => void archive(resume.id)}
+                        className="aavedak-btn text-muted-foreground hover:text-foreground border-border inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                      >
+                        Archive
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-      {error ? <p className="text-destructive text-center text-[13px]">{error}</p> : null}
+          {error ? <p className="text-destructive text-center text-[13px]">{error}</p> : null}
 
-      <button
-        type="button"
-        disabled={!canContinue || continuing}
-        onClick={() => void continueToDashboard()}
-        className={cn(
-          "aavedak-btn inline-flex h-9 w-full items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold ring-1 transition",
-          canContinue
-            ? "bg-primary text-primary-foreground ring-primary/30 shadow-md shadow-black/15 hover:opacity-90"
-            : "bg-muted text-muted-foreground ring-border cursor-not-allowed",
-        )}
-      >
-        {continuing ? "Opening dashboard…" : "Continue to dashboard"}
-      </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStep(1)}
+              className="sm:w-auto"
+            >
+              Back to career
+            </Button>
+            <Button
+              type="button"
+              loading={continuing}
+              disabled={!canContinue}
+              onClick={() => void continueToDashboard()}
+              className="flex-1"
+            >
+              {continuing ? "Opening dashboard…" : "Continue to dashboard"}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

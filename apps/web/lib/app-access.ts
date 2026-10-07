@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { auth, getServerSession } from "@/lib/auth";
 import { ensureProfile, type Profile } from "@/lib/profile";
-import { hasCompletedOnboardingRequirement } from "@/lib/resumes";
+import { hasFullyOnboarded } from "@/lib/onboarding";
 import { isUserCapError, USER_CAP_MESSAGE } from "@/lib/user-cap";
 
 export type AppSessionUser = {
@@ -49,23 +49,23 @@ async function ensureAllowedProfile(user: AppSessionUser): Promise<Profile> {
   }
 }
 
-/** Authenticated + ≥1 non-archived resume. Otherwise redirect to onboarding / sign-in. */
+/** Authenticated + career preferences + ≥1 resume. Otherwise redirect to onboarding / sign-in. */
 export async function requireOnboarded(): Promise<AppAccess> {
   const user = await getSessionUser();
   if (!user) redirect("/sign-in?next=/dashboard");
   const profile = await ensureAllowedProfile(user);
-  if (!(await hasCompletedOnboardingRequirement(user.id))) {
+  if (!(await hasFullyOnboarded(user.id))) {
     redirect("/onboarding");
   }
   return { user, profile };
 }
 
-/** Authenticated user for onboarding. If already has a usable resume → dashboard. */
+/** Authenticated user for onboarding. If fully onboarded → dashboard. */
 export async function requireOnboardingSession(): Promise<AppAccess> {
   const user = await getSessionUser();
   if (!user) redirect("/sign-in?next=/onboarding");
   const profile = await ensureAllowedProfile(user);
-  if (await hasCompletedOnboardingRequirement(user.id)) {
+  if (await hasFullyOnboarded(user.id)) {
     if (!profile.onboardingComplete) {
       const { setOnboardingComplete } = await import("@/lib/profile");
       await setOnboardingComplete(user.id, true);

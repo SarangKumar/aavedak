@@ -112,7 +112,7 @@ async function runSchema() {
   await db`
     CREATE TABLE IF NOT EXISTS people (
       id TEXT PRIMARY KEY NOT NULL,
-      user_id TEXT NOT NULL,
+      user_id TEXT,
       name TEXT NOT NULL,
       email TEXT,
       company TEXT,
@@ -124,6 +124,8 @@ async function runSchema() {
       updated_at TEXT NOT NULL
     )`;
   await db`CREATE INDEX IF NOT EXISTS people_user_id_idx ON people (user_id)`;
+  // Global shared directory: keep rows after account delete (user_id = who added, nullable).
+  await db`ALTER TABLE people ALTER COLUMN user_id DROP NOT NULL`;
 
   await db`
     CREATE TABLE IF NOT EXISTS follow_up_tasks (
@@ -172,6 +174,20 @@ async function runSchema() {
       updated_at TEXT NOT NULL
     )`;
   await db`CREATE INDEX IF NOT EXISTS job_analyses_user_id_idx ON job_analyses (user_id)`;
+
+  // Career preferences (YC-style) for onboarding + job matching
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS experience_level TEXT`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS preferred_roles_json TEXT NOT NULL DEFAULT '[]'`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS expected_salary_min INTEGER`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS expected_salary_max INTEGER`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS salary_currency TEXT NOT NULL DEFAULT 'INR'`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS preferred_locations_json TEXT NOT NULL DEFAULT '[]'`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS remote_preference TEXT`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS work_authorization TEXT`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS skills_json TEXT NOT NULL DEFAULT '[]'`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS job_search_status TEXT`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS company_size_preference TEXT`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS industry_preference TEXT`;
 }
 
 /** Ensure Postgres app schema exists (idempotent). */

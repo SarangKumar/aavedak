@@ -1,6 +1,8 @@
 import React from "react";
 
 import { cva, type VariantProps } from "class-variance-authority";
+
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 // Default height is h-9 and matches Input. xs is h-7, sm is h-8, lg is h-10.
@@ -8,7 +10,7 @@ import { cn } from "@/lib/utils";
 // Every non-link variant shares the same height for a given size — borders
 // stay inside the box (box-border) so outline and solid buttons align.
 export const buttonVariants = cva(
-  "inline-flex box-border shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent text-sm leading-none font-medium whitespace-nowrap transition-[color,background-color,border-color,transform] duration-200 ease-[cubic-bezier(0.22,1.25,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px active:duration-75 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0",
+  "inline-flex box-border shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-transparent text-sm leading-none font-medium whitespace-nowrap transition-[color,background-color,border-color,transform] duration-200 ease-[cubic-bezier(0.22,1.25,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px active:duration-75 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0",
   {
     variants: {
       variant: {
@@ -62,10 +64,13 @@ export const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {}
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
+  /** Shows a spinner and forces disabled while true. */
+  loading?: boolean;
+}
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, children, variant, size, ...props },
+  { className, children, variant, size, loading = false, disabled, ...props },
   ref,
 ) {
   return (
@@ -73,8 +78,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
       ref={ref}
       type="button"
       className={cn(buttonVariants({ variant, size }), className)}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
       {...props}
     >
+      {loading ? <Spinner className="size-3.5" /> : null}
       {children}
     </button>
   );

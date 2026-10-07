@@ -191,6 +191,10 @@ export function PeopleHub({ initialPeople, applications }: Props) {
           <p className="text-primary/90 font-mono text-[12px] tracking-wide">CRM</p>
           <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">People</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
+            Shared referral directory — contacts stay available even if the person who added them
+            deletes their account.
+          </p>
+          <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Contacts for warm intros and cold outreach. Use them from{" "}
             <Link href="/referrals" className="text-primary hover:underline">
               Referrals

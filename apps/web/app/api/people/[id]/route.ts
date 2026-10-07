@@ -29,7 +29,6 @@ function toDto(row: NonNullable<Awaited<ReturnType<typeof getPerson>>>) {
 export async function PATCH(request: Request, ctx: Ctx) {
   const authResult = await requireUser();
   if ("error" in authResult) return authResult.error;
-  const user = authResult.user;
   const { id } = await ctx.params;
   let body: Record<string, unknown>;
   try {
@@ -38,7 +37,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
   try {
-    const patch: Parameters<typeof updatePerson>[2] = {};
+    const patch: Parameters<typeof updatePerson>[1] = {};
     if ("name" in body) patch.name = String(body.name ?? "");
     if ("email" in body) patch.email = (body.email as string | null) ?? null;
     if ("company" in body) patch.company = (body.company as string | null) ?? null;
@@ -54,7 +53,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
       }
       patch.status = status;
     }
-    const person = await updatePerson(user.id, id, patch);
+    const person = await updatePerson(id, patch);
     return NextResponse.json({ person: toDto(person) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed.";
@@ -68,10 +67,9 @@ export async function PATCH(request: Request, ctx: Ctx) {
 export async function DELETE(_request: Request, ctx: Ctx) {
   const authResult = await requireUser();
   if ("error" in authResult) return authResult.error;
-  const user = authResult.user;
   const { id } = await ctx.params;
   try {
-    const person = await archivePerson(user.id, id);
+    const person = await archivePerson(id);
     return NextResponse.json({ person: toDto(person) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Archive failed.";

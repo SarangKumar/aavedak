@@ -27,8 +27,7 @@ function toDto(row: Awaited<ReturnType<typeof listPeople>>[number]) {
 export async function GET() {
   const authResult = await requireUser();
   if ("error" in authResult) return authResult.error;
-  const user = authResult.user;
-  return NextResponse.json({ people: (await listPeople(user.id)).map(toDto) });
+  return NextResponse.json({ people: (await listPeople()).map(toDto) });
 }
 
 export async function POST(request: Request) {

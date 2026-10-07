@@ -3,6 +3,21 @@ import "server-only";
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 import { MAX_APP_USERS, UserCapError } from "@/lib/user-cap";
 import {
+  emptyCareerProfile,
+  isCareerProfileComplete,
+  normalizeCareerPatch,
+  parseStringList,
+  serializeStringList,
+  type CareerProfile,
+  type CareerProfilePatch,
+  type CompanySizePreference,
+  type ExperienceLevel,
+  type JobSearchStatus,
+  type RemotePreference,
+  type SalaryCurrency,
+  type WorkAuthorization,
+} from "@/lib/career-profile";
+import {
   emptyProfileLinks,
   mergeLegacyLinks,
   parseProfileLinksJson,
@@ -10,6 +25,8 @@ import {
   type ProfileLinks,
 } from "@/lib/profile-links";
 import { usernameFromUser } from "@/lib/username";
+
+export type { CareerProfile, CareerProfilePatch };
 
 export type Profile = {
   userId: string;
@@ -24,6 +41,7 @@ export type Profile = {
   links: ProfileLinks;
   imageUrl: string | null;
   onboardingComplete: boolean;
+  career: CareerProfile;
   createdAt: string;
   updatedAt: string;
 };
@@ -39,9 +57,39 @@ type ProfileRow = {
   links_json: string | null;
   image_url: string | null;
   onboarding_complete: number | boolean;
+  experience_level: string | null;
+  preferred_roles_json: string | null;
+  expected_salary_min: number | null;
+  expected_salary_max: number | null;
+  salary_currency: string | null;
+  preferred_locations_json: string | null;
+  remote_preference: string | null;
+  work_authorization: string | null;
+  skills_json: string | null;
+  job_search_status: string | null;
+  company_size_preference: string | null;
+  industry_preference: string | null;
   created_at: string;
   updated_at: string;
 };
+
+function mapCareer(row: ProfileRow): CareerProfile {
+  const base = emptyCareerProfile();
+  return {
+    experienceLevel: (row.experience_level as ExperienceLevel | null) ?? null,
+    preferredRoles: parseStringList(row.preferred_roles_json),
+    expectedSalaryMin: row.expected_salary_min == null ? null : Number(row.expected_salary_min),
+    expectedSalaryMax: row.expected_salary_max == null ? null : Number(row.expected_salary_max),
+    salaryCurrency: (row.salary_currency as SalaryCurrency | null) || base.salaryCurrency,
+    preferredLocations: parseStringList(row.preferred_locations_json),
+    remotePreference: (row.remote_preference as RemotePreference | null) ?? null,
+    workAuthorization: (row.work_authorization as WorkAuthorization | null) ?? null,
+    skills: parseStringList(row.skills_json),
+    jobSearchStatus: (row.job_search_status as JobSearchStatus | null) ?? null,
+    companySizePreference: (row.company_size_preference as CompanySizePreference | null) ?? null,
+    industryPreference: row.industry_preference?.trim() || null,
+  };
+}
 
 function mapRow(row: ProfileRow): Profile {
   const links = mergeLegacyLinks(
@@ -60,6 +108,7 @@ function mapRow(row: ProfileRow): Profile {
     links,
     imageUrl: row.image_url,
     onboardingComplete: Boolean(row.onboarding_complete),
+    career: mapCareer(row),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -93,7 +142,11 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   await ensureAppSchema();
   const rows = (await getSql()`
     SELECT user_id, username, email, name, bio, portfolio_url, linkedin_url,
-      links_json, image_url, onboarding_complete, created_at, updated_at
+      links_json, image_url, onboarding_complete,
+      experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
+      salary_currency, preferred_locations_json, remote_preference, work_authorization,
+      skills_json, job_search_status, company_size_preference, industry_preference,
+      created_at, updated_at
     FROM profiles WHERE user_id = ${userId}
   `) as ProfileRow[];
   return rows[0] ? mapRow(rows[0]) : null;
@@ -103,7 +156,11 @@ export async function getProfileByUsername(username: string): Promise<Profile | 
   await ensureAppSchema();
   const rows = (await getSql()`
     SELECT user_id, username, email, name, bio, portfolio_url, linkedin_url,
-      links_json, image_url, onboarding_complete, created_at, updated_at
+      links_json, image_url, onboarding_complete,
+      experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
+      salary_currency, preferred_locations_json, remote_preference, work_authorization,
+      skills_json, job_search_status, company_size_preference, industry_preference,
+      created_at, updated_at
     FROM profiles WHERE lower(username) = lower(${username})
   `) as ProfileRow[];
   return rows[0] ? mapRow(rows[0]) : null;
@@ -149,7 +206,11 @@ export async function ensureProfile(user: {
       ${imageUrl}, 0, ${now}, ${now}
     WHERE (SELECT COUNT(*)::int FROM profiles) < ${MAX_APP_USERS}
     RETURNING user_id, username, email, name, bio, portfolio_url, linkedin_url,
-      links_json, image_url, onboarding_complete, created_at, updated_at
+      links_json, image_url, onboarding_complete,
+      experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
+      salary_currency, preferred_locations_json, remote_preference, work_authorization,
+      skills_json, job_search_status, company_size_preference, industry_preference,
+      created_at, updated_at
   `) as ProfileRow[];
 
   if (!inserted[0]) {
@@ -270,6 +331,76 @@ export async function updateProfilePublic(
   const updated = await getProfile(userId);
   if (!updated) throw new Error("Profile not found after update.");
   return updated;
+}
+
+export async function updateCareerProfile(
+  userId: string,
+  patch: CareerProfilePatch,
+): Promise<Profile> {
+  const existing = await getProfile(userId);
+  if (!existing) throw new Error("Profile not found.");
+
+  const normalized = normalizeCareerPatch(patch);
+  const next: CareerProfile = { ...existing.career };
+
+  if (normalized.experienceLevel !== undefined) next.experienceLevel = normalized.experienceLevel;
+  if (normalized.preferredRoles !== undefined) next.preferredRoles = normalized.preferredRoles;
+  if (normalized.expectedSalaryMin !== undefined)
+    next.expectedSalaryMin = normalized.expectedSalaryMin;
+  if (normalized.expectedSalaryMax !== undefined)
+    next.expectedSalaryMax = normalized.expectedSalaryMax;
+  if (normalized.salaryCurrency !== undefined) next.salaryCurrency = normalized.salaryCurrency;
+  if (normalized.preferredLocations !== undefined) {
+    next.preferredLocations = normalized.preferredLocations;
+  }
+  if (normalized.remotePreference !== undefined)
+    next.remotePreference = normalized.remotePreference;
+  if (normalized.workAuthorization !== undefined) {
+    next.workAuthorization = normalized.workAuthorization;
+  }
+  if (normalized.skills !== undefined) next.skills = normalized.skills;
+  if (normalized.jobSearchStatus !== undefined) next.jobSearchStatus = normalized.jobSearchStatus;
+  if (normalized.companySizePreference !== undefined) {
+    next.companySizePreference = normalized.companySizePreference;
+  }
+  if (normalized.industryPreference !== undefined) {
+    next.industryPreference = normalized.industryPreference;
+  }
+
+  if (
+    next.expectedSalaryMin != null &&
+    next.expectedSalaryMax != null &&
+    next.expectedSalaryMin > next.expectedSalaryMax
+  ) {
+    throw new Error("Expected package minimum cannot exceed maximum.");
+  }
+
+  const now = new Date().toISOString();
+  await getSql()`
+    UPDATE profiles SET
+      experience_level = ${next.experienceLevel},
+      preferred_roles_json = ${serializeStringList(next.preferredRoles)},
+      expected_salary_min = ${next.expectedSalaryMin},
+      expected_salary_max = ${next.expectedSalaryMax},
+      salary_currency = ${next.salaryCurrency},
+      preferred_locations_json = ${serializeStringList(next.preferredLocations)},
+      remote_preference = ${next.remotePreference},
+      work_authorization = ${next.workAuthorization},
+      skills_json = ${serializeStringList(next.skills)},
+      job_search_status = ${next.jobSearchStatus},
+      company_size_preference = ${next.companySizePreference},
+      industry_preference = ${next.industryPreference},
+      updated_at = ${now}
+    WHERE user_id = ${userId}
+  `;
+
+  const updated = await getProfile(userId);
+  if (!updated) throw new Error("Profile not found after update.");
+  return updated;
+}
+
+export function profileHasCompleteCareer(profile: Profile): boolean {
+  return isCareerProfileComplete(profile.career);
 }
 
 /** Display portfolio URL as stored — no placeholder defaults. */

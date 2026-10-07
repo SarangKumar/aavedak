@@ -20,7 +20,7 @@ export default async function ReferralsPage() {
   await ensureDefaultOutreachTemplate(user.id);
 
   const applications = await listApplications(user.id, "active");
-  const people = await listPeople(user.id);
+  const people = await listPeople();
   const templates = await listTemplates(user.id);
   const followUps = await listFollowUps(user.id, { includeClosed: false });
 

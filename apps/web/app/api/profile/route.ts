@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
-import { getProfile, updateProfilePublic, type ProfilePublicPatch } from "@/lib/profile";
+import type { CareerProfilePatch } from "@/lib/career-profile";
+import {
+  getProfile,
+  updateCareerProfile,
+  updateProfilePublic,
+  type ProfilePublicPatch,
+} from "@/lib/profile";
 import type { ProfileLinks } from "@/lib/profile-links";
 
 async function requireUser() {
@@ -22,6 +28,7 @@ function serialize(profile: NonNullable<Awaited<ReturnType<typeof getProfile>>>)
     links: profile.links,
     imageUrl: profile.imageUrl,
     onboardingComplete: profile.onboardingComplete,
+    career: profile.career,
     updatedAt: profile.updatedAt,
   };
 }
@@ -42,21 +49,43 @@ export async function PATCH(request: Request) {
   if ("error" in authResult) return authResult.error;
   const user = authResult.user;
 
-  let body: ProfilePublicPatch & { links?: ProfileLinks };
+  let body: ProfilePublicPatch & { links?: ProfileLinks; career?: CareerProfilePatch };
   try {
-    body = (await request.json()) as ProfilePublicPatch;
+    body = (await request.json()) as ProfilePublicPatch & {
+      links?: ProfileLinks;
+      career?: CareerProfilePatch;
+    };
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
   try {
-    const profile = await updateProfilePublic(user.id, {
-      name: body.name,
-      bio: body.bio,
-      portfolioUrl: body.portfolioUrl,
-      linkedinUrl: body.linkedinUrl,
-      links: body.links,
-    });
+    let profile = await getProfile(user.id);
+    if (!profile) {
+      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+    }
+
+    const hasPublic =
+      body.name !== undefined ||
+      body.bio !== undefined ||
+      body.portfolioUrl !== undefined ||
+      body.linkedinUrl !== undefined ||
+      body.links !== undefined;
+
+    if (hasPublic) {
+      profile = await updateProfilePublic(user.id, {
+        name: body.name,
+        bio: body.bio,
+        portfolioUrl: body.portfolioUrl,
+        linkedinUrl: body.linkedinUrl,
+        links: body.links,
+      });
+    }
+
+    if (body.career !== undefined) {
+      profile = await updateCareerProfile(user.id, body.career);
+    }
+
     return NextResponse.json({ profile: serialize(profile) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed.";

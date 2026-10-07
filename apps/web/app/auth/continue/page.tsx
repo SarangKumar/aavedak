@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { auth, getServerSession } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
-import { hasCompletedOnboardingRequirement } from "@/lib/resumes";
+import { hasFullyOnboarded } from "@/lib/onboarding";
 import { isUserCapError, USER_CAP_MESSAGE } from "@/lib/user-cap";
 
 type Props = {
@@ -42,7 +42,7 @@ export default async function AuthContinuePage({ searchParams }: Props) {
   const next = params.next?.startsWith("/") ? params.next : null;
   if (next) redirect(next);
 
-  if (await hasCompletedOnboardingRequirement(session.user.id)) {
+  if (await hasFullyOnboarded(session.user.id)) {
     redirect("/dashboard");
   }
   redirect("/onboarding");

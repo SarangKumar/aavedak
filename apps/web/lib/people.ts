@@ -6,9 +6,14 @@ import { ensureAppSchema, getSql } from "@/lib/app-db";
 
 export type PersonStatus = "active" | "archived";
 
+/**
+ * Global shared people directory (referrals).
+ * `userId` is who added the contact (nullable after account delete) — not ownership.
+ */
 export type PersonRecord = {
   id: string;
-  userId: string;
+  /** Who added this person; null if adder deleted their account. */
+  userId: string | null;
   name: string;
   email: string | null;
   company: string | null;
@@ -22,7 +27,7 @@ export type PersonRecord = {
 
 type Row = {
   id: string;
-  user_id: string;
+  user_id: string | null;
   name: string;
   email: string | null;
   company: string | null;
@@ -64,33 +69,31 @@ function optional(value: unknown): string | null {
   return t || null;
 }
 
-export async function listPeople(
-  userId: string,
-  opts?: { includeArchived?: boolean },
-): Promise<PersonRecord[]> {
+/** List the shared people directory (all users). */
+export async function listPeople(opts?: { includeArchived?: boolean }): Promise<PersonRecord[]> {
   await ensureAppSchema();
   const includeArchived = opts?.includeArchived ?? false;
   const rows = includeArchived
     ? ((await getSql()`
-        SELECT * FROM people WHERE user_id = ${userId} ORDER BY updated_at DESC
+        SELECT * FROM people ORDER BY updated_at DESC
       `) as Row[])
     : ((await getSql()`
-        SELECT * FROM people WHERE user_id = ${userId} AND status != 'archived'
+        SELECT * FROM people WHERE status != 'archived'
         ORDER BY updated_at DESC
       `) as Row[]);
   return rows.map(mapRow);
 }
 
-export async function getPerson(userId: string, id: string): Promise<PersonRecord | null> {
+export async function getPerson(id: string): Promise<PersonRecord | null> {
   await ensureAppSchema();
   const rows = (await getSql()`
-    SELECT * FROM people WHERE id = ${id} AND user_id = ${userId}
+    SELECT * FROM people WHERE id = ${id}
   `) as Row[];
   return rows[0] ? mapRow(rows[0]) : null;
 }
 
 export async function createPerson(
-  userId: string,
+  addedByUserId: string,
   input: {
     name: string;
     email?: string | null;
@@ -113,17 +116,16 @@ export async function createPerson(
     INSERT INTO people
       (id, user_id, name, email, company, role_title, notes, application_id, status, created_at, updated_at)
     VALUES (
-      ${id}, ${userId}, ${name}, ${email}, ${company}, ${roleTitle}, ${notes}, ${applicationId},
+      ${id}, ${addedByUserId}, ${name}, ${email}, ${company}, ${roleTitle}, ${notes}, ${applicationId},
       'active', ${now}, ${now}
     )
   `;
-  const created = await getPerson(userId, id);
+  const created = await getPerson(id);
   if (!created) throw new Error("Failed to create person.");
   return created;
 }
 
 export async function updatePerson(
-  userId: string,
   id: string,
   patch: Partial<{
     name: string;
@@ -136,7 +138,7 @@ export async function updatePerson(
   }>,
 ): Promise<PersonRecord> {
   await ensureAppSchema();
-  const existing = await getPerson(userId, id);
+  const existing = await getPerson(id);
   if (!existing) throw new Error("Person not found.");
 
   const name = patch.name !== undefined ? requireName(patch.name) : existing.name;
@@ -154,13 +156,27 @@ export async function updatePerson(
     UPDATE people SET
       name = ${name}, email = ${email}, company = ${company}, role_title = ${roleTitle},
       notes = ${notes}, application_id = ${applicationId}, status = ${status}, updated_at = ${now}
-    WHERE id = ${id} AND user_id = ${userId}
+    WHERE id = ${id}
   `;
-  const updated = await getPerson(userId, id);
+  const updated = await getPerson(id);
   if (!updated) throw new Error("Person not found after update.");
   return updated;
 }
 
-export async function archivePerson(userId: string, id: string): Promise<PersonRecord> {
-  return updatePerson(userId, id, { status: "archived" });
+export async function archivePerson(id: string): Promise<PersonRecord> {
+  return updatePerson(id, { status: "archived" });
+}
+
+/** Keep people rows; clear adder + application links for a deleted account. */
+export async function detachPeopleForDeletedUser(userId: string): Promise<void> {
+  await ensureAppSchema();
+  const now = new Date().toISOString();
+  await getSql()`
+    UPDATE people
+    SET user_id = NULL,
+        application_id = NULL,
+        updated_at = ${now}
+    WHERE user_id = ${userId}
+       OR application_id IN (SELECT id FROM applications WHERE user_id = ${userId})
+  `;
 }

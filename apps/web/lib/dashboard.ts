@@ -124,7 +124,7 @@ export async function getDashboardSnapshot(userId: string): Promise<DashboardSna
 
   const resumeCount = await countUsableResumes(userId);
   const coverLetterCount = (await listCoverLetters(userId)).length;
-  const peopleCount = (await listPeople(userId)).length;
+  const peopleCount = (await listPeople()).length;
   const resumes = await listResumes(userId);
   const activeResume = resumes.find((r) => r.status === "active") ?? null;
 
