@@ -14,7 +14,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
-import { authClient } from "@/lib/auth-client";
+import { authClient, signOutAndRedirect } from "@/lib/auth-client";
 import { themeCookieString, THEME_KEY, type ThemeMode } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -76,8 +76,12 @@ export function CommandPalette() {
 
   async function signOut() {
     setOpen(false);
-    await authClient.signOut();
-    router.push("/sign-in");
+    try {
+      await signOutAndRedirect("/sign-in");
+    } catch (err) {
+      console.error(err);
+      window.alert(err instanceof Error ? err.message : "Sign out failed");
+    }
   }
 
   if (!mounted || !open) return null;

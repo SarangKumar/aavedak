@@ -2,11 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { HeaderMenu } from "@/components/header-menu";
-import { authClient } from "@/lib/auth-client";
+import { signOutAndRedirect } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 export type HeaderUser = {
@@ -17,8 +16,8 @@ export type HeaderUser = {
 };
 
 export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
-  const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!user) {
     return (
@@ -36,13 +35,13 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
 
   async function signOut(close: () => void) {
     setPending(true);
+    setError(null);
     close();
     try {
-      await authClient.signOut();
-      router.push("/");
-      router.refresh();
-    } finally {
+      await signOutAndRedirect("/sign-in");
+    } catch (err) {
       setPending(false);
+      setError(err instanceof Error ? err.message : "Sign out failed");
     }
   }
 
@@ -108,12 +107,17 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
             Follow-ups
           </Link>
           <div className="border-border border-t" />
+          {error ? (
+            <p className="text-destructive px-3 py-1.5 text-[11px]" role="alert">
+              {error}
+            </p>
+          ) : null}
           <button
             type="button"
             role="menuitem"
-            onClick={() => signOut(close)}
+            onClick={() => void signOut(close)}
             disabled={pending}
-            className="hover:text-foreground text-muted-foreground w-full px-3 py-2 text-left text-[13px] transition-colors disabled:opacity-60"
+            className="hover:text-foreground text-muted-foreground w-full cursor-pointer px-3 py-2 text-left text-[13px] transition-colors disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? "Signing out…" : "Sign out"}
           </button>
