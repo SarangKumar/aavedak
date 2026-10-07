@@ -1,8 +1,17 @@
+import type { Metadata } from "next";
+
+import { PageStub } from "@/components/page-stub";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+};
+
 export default function Page() {
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="mt-2 text-sm text-neutral-400">Application summary and what to do today.</p>
-    </main>
+    <PageStub
+      title="Dashboard"
+      description="Application summary and what to do today."
+      hint="Metrics, queues, and daily focus will appear here."
+    />
   );
 }

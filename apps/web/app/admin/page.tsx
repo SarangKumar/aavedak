@@ -1,8 +1,17 @@
+import type { Metadata } from "next";
+
+import { PageStub } from "@/components/page-stub";
+
+export const metadata: Metadata = {
+  title: "Admin",
+};
+
 export default function Page() {
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-2xl font-semibold">Admin</h1>
-      <p className="mt-2 text-sm text-neutral-400">Global catalog and system ops.</p>
-    </main>
+    <PageStub
+      title="Admin"
+      description="Global catalog and system ops."
+      hint="Catalog sync and ops tools are reserved for admins."
+    />
   );
 }

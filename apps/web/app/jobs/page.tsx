@@ -1,8 +1,17 @@
+import type { Metadata } from "next";
+
+import { PageStub } from "@/components/page-stub";
+
+export const metadata: Metadata = {
+  title: "Jobs",
+};
+
 export default function Page() {
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-2xl font-semibold">Jobs</h1>
-      <p className="mt-2 text-sm text-neutral-400">Multi-source jobs as cards with resizable list/detail.</p>
-    </main>
+    <PageStub
+      title="Jobs"
+      description="Multi-source jobs as cards with resizable list and detail."
+      hint="Ingested roles and filters will land in this workspace."
+    />
   );
 }

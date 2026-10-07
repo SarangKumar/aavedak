@@ -1,46 +1,123 @@
 # Avsar
 
-Personal job-search OS. **Avsar recommends and prepares. The user decides and sends.**
+Personal job-search operating system.
 
-## Monorepo
+> **Avsar recommends and prepares. The user decides and sends.**
 
-- `apps/web` — Next.js (App Router) + TypeScript + Tailwind + Vinyaas
-- `apps/api` — FastAPI
-- `apps/extension` — stub (Chrome later)
+अवसर — opportunity.
 
-## Scripts (root)
+## Prerequisites
+
+| Tool    | Version                              |
+| ------- | ------------------------------------ |
+| Node.js | **20+** (LTS recommended)            |
+| pnpm    | **12.6.0** (via Corepack or install) |
+| Python  | **3.11+** preferred (`python3`)      |
+
+## Quick start (fresh clone)
 
 ```bash
-pnpm install
-pnpm dev          # web
-pnpm build
-pnpm lint
-pnpm format
-pnpm --filter extension build
+./scripts/setup.sh
+# or: bash scripts/setup.sh
+# or: pnpm setup
 ```
 
-## Env loading
+The script installs JS deps, creates the API venv, copies env examples when missing, and prints next commands.
 
-- Web: `.env.local` then `.env` under `apps/web` (never commit secrets)
-- API: `apps/api/.env`
-- Copy from each `.env.example`
-- Generators/scripts must read the **app-specific** env file, not mix web/api keys
-
-## API local
+Then in two terminals:
 
 ```bash
+pnpm dev
+# → http://localhost:3000
+
+source apps/api/.venv/bin/activate
+cd apps/api && uvicorn app.main:app --reload --port 8000
+# → http://127.0.0.1:8000/health
+```
+
+## Manual setup
+
+If you prefer not to use the script:
+
+```bash
+# 1. Install JS workspace
+pnpm install
+
+# 2. Web env
+cp apps/web/.env.example apps/web/.env.local
+# Ensure NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+
+# 3. API env + venv
+cp apps/api/.env.example apps/api/.env
 cd apps/api
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --port 8000
+pip install -r requirements.txt -r requirements-dev.txt
+cd ../..
+
+# 4. Run
+pnpm dev
+# + uvicorn as above
 ```
+
+## Scripts
+
+| Command                           | What it does                     |
+| --------------------------------- | -------------------------------- |
+| `pnpm setup`                      | Run `scripts/setup.sh` bootstrap |
+| `pnpm dev`                        | Next.js web app (port 3000)      |
+| `pnpm build`                      | Production build for web         |
+| `pnpm start`                      | Start production web server      |
+| `pnpm lint`                       | ESLint for web                   |
+| `pnpm format`                     | Prettier write                   |
+| `pnpm format:check`               | Prettier check                   |
+| `pnpm dev:web` / `pnpm build:web` | Same as `dev` / `build`          |
+| `pnpm --filter extension build`   | Extension stub (no-op for now)   |
+
+## Monorepo map
+
+```
+avsar/
+├── apps/
+│   ├── web/          Next.js App Router + TS + Tailwind v4
+│   ├── api/          FastAPI (uvicorn)
+│   └── extension/    Chrome extension stub
+├── docs/             Product & architecture notes
+├── scripts/          Bootstrap and tooling
+└── package.json      Workspace root
+```
+
+### App routes (no username prefix)
+
+`/dashboard` · `/jobs` · `/job-tracker` · `/documents` · `/referrals` · `/onboarding` · `/admin`
+
+### Shareable profile only
+
+`/{username}` · `/{username}/settings`
+
+## Environment files
+
+| App | File(s)                                        | Notes                                                        |
+| --- | ---------------------------------------------- | ------------------------------------------------------------ |
+| Web | `apps/web/.env.local` (preferred), then `.env` | Copy from `apps/web/.env.example`. **Never commit secrets.** |
+| API | `apps/api/.env`                                | Copy from `apps/api/.env.example`.                           |
+
+**Local scaffold**
+
+- Web needs `NEXT_PUBLIC_API_URL` (default `http://127.0.0.1:8000`) for `pnpm dev`.
+- Auth/Google keys (`BETTER_AUTH_*`, `GOOGLE_*`) are optional until login is wired.
+- API starts with an empty `DATABASE_URL`; DB-backed features won’t work until you set it. `CRON_SECRET` and R2 keys are optional for the health stub.
+
+Generators and scripts must read the **app-specific** env file — never mix web and API keys.
+
+## UI / design
+
+Web theme tokens and fonts follow [Vinyaas](https://vinyaas.vercel.app) (oklch CSS variables, Geist, dark default). Brand icon: `apps/web/public/brand/icon.png`.
 
 ## Git
 
-Local git only for now. Do **not** push to GitHub unless explicitly requested.
+**Local git only** for now. Do **not** add remotes or push to GitHub unless explicitly requested.
 
-## Product docs
+## Docs
 
-See `docs/`.
+See [`docs/`](./docs/) for IA, domain glossary, API resources, and decisions.

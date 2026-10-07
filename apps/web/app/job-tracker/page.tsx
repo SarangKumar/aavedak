@@ -1,8 +1,17 @@
+import type { Metadata } from "next";
+
+import { PageStub } from "@/components/page-stub";
+
+export const metadata: Metadata = {
+  title: "Job tracker",
+};
+
 export default function Page() {
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-2xl font-semibold">Job tracker</h1>
-      <p className="mt-2 text-sm text-neutral-400">Applications Kanban/list with resizable columns.</p>
-    </main>
+    <PageStub
+      title="Job tracker"
+      description="Applications as Kanban or list with resizable columns."
+      hint="Stages, notes, and status changes will live here."
+    />
   );
 }
