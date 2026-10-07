@@ -11,6 +11,7 @@ Next.js (App Router) + TypeScript + Tailwind CSS v4 front end for Avsar — the 
 | Path           | Purpose                           |
 | -------------- | --------------------------------- |
 | `/`            | Landing                           |
+| `/sign-in`     | Google OAuth (Better Auth)        |
 | `/dashboard`   | Today's summary and next actions  |
 | `/jobs`        | Multi-source job cards            |
 | `/job-tracker` | Application Kanban / list         |
@@ -43,17 +44,36 @@ pnpm --filter web build
 
 ## Env
 
-Copy `apps/web/.env.example` → `apps/web/.env.local`.
+Copy `apps/web/.env.example` → `apps/web/.env.local` (or run `pnpm setup`).
 
-| Variable                                    | Required for local UI | Notes                           |
-| ------------------------------------------- | --------------------- | ------------------------------- |
-| `NEXT_PUBLIC_API_URL`                       | Yes                   | Default `http://127.0.0.1:8000` |
-| `BETTER_AUTH_SECRET`                        | No (until auth)       |                                 |
-| `BETTER_AUTH_URL`                           | No                    | e.g. `http://localhost:3000`    |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No                    | OAuth later                     |
-| `ADMIN_EMAILS`                              | No                    | Comma-separated                 |
+| Variable                                    | Required for local UI | Notes                                                            |
+| ------------------------------------------- | --------------------- | ---------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL`                       | Yes                   | Default `http://127.0.0.1:8000`                                  |
+| `BETTER_AUTH_SECRET`                        | Yes for auth          | 32+ chars; `setup` / scaffold generates one if empty             |
+| `BETTER_AUTH_URL`                           | Yes for auth          | `http://localhost:3000` locally                                  |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | For Google sign-in    | Leave empty → `/sign-in` shows setup help (build still succeeds) |
+| `AUTH_DATABASE_URL`                         | No (local)            | Reserved for production MySQL; local uses SQLite `data/local.db` |
+| `ADMIN_EMAILS`                              | No                    | Comma-separated                                                  |
 
-Never commit secrets.
+Never commit secrets. `apps/web/data/` (SQLite file) is gitignored.
+
+## Auth (Better Auth + Google)
+
+Frozen stack: **Better Auth** with **Google OAuth only** (no email/password).
+
+1. Google Cloud Console → APIs & Services → Credentials → Create OAuth client (Web).
+2. Authorized redirect URI:
+   `http://localhost:3000/api/auth/callback/google`
+3. Put Client ID / Secret in `apps/web/.env.local` as `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
+4. Ensure `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL=http://localhost:3000` are set.
+5. From `apps/web` (first time / schema change): `pnpm dlx auth@latest migrate`
+6. `pnpm --filter web dev` → open `/sign-in` → Continue with Google.
+
+Local DB: SQLite via Better Auth (Kysely + `better-sqlite3`) at `apps/web/data/local.db`. Production will swap to MySQL (Aiven) using `AUTH_DATABASE_URL` — see comments in `lib/auth.ts`.
+
+Key files: `lib/auth.ts`, `lib/auth-client.ts`, `app/api/auth/[...all]/route.ts`, `middleware.ts`, `app/sign-in/page.tsx`.
+
+Protected routes (cookie check in middleware → `/sign-in`): `/dashboard`, `/jobs`, `/job-tracker`, `/documents`, `/referrals`, `/onboarding`, `/admin`. Public: `/`, `/sign-in`, `/{username}`.
 
 ## Vinyaas alignment
 
@@ -73,6 +93,11 @@ apps/web/
 │   ├── site-header.tsx
 │   ├── site-footer.tsx
 │   └── page-stub.tsx    # Shared empty-state for stubs
-├── lib/utils.ts         # cn()
+├── lib/
+│   ├── auth.ts          # Better Auth server (SQLite + Google)
+│   ├── auth-client.ts   # React client
+│   └── utils.ts         # cn()
+├── middleware.ts        # Optimistic session-cookie gate
+├── data/                # local.db (gitignored)
 └── public/brand/icon.png
 ```

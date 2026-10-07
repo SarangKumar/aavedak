@@ -33,3 +33,6 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# local Better Auth SQLite (scaffold)
+apps/web/data/

@@ -3,3 +3,4 @@ packages:
 
 allowBuilds:
   unrs-resolver: true
+  better-sqlite3: true

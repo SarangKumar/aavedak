@@ -1,6 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
+import { headers } from "next/headers";
 
+import { AuthHeaderActions } from "@/components/auth-header-actions";
+import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -11,7 +14,18 @@ const nav = [
   { href: "/referrals", label: "Referrals" },
 ] as const;
 
-export function SiteHeader({ className }: { className?: string }) {
+export async function SiteHeader({ className }: { className?: string }) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  const user = session?.user
+    ? {
+        name: session.user.name,
+        email: session.user.email,
+        image: session.user.image,
+      }
+    : null;
+
   return (
     <header
       className={cn(
@@ -43,12 +57,7 @@ export function SiteHeader({ className }: { className?: string }) {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <Link
-            href="/onboarding"
-            className="bg-primary text-primary-foreground rounded-lg px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-90"
-          >
-            Get started
-          </Link>
+          <AuthHeaderActions user={user} />
         </div>
       </div>
     </header>

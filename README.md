@@ -105,10 +105,22 @@ avsar/
 **Local scaffold**
 
 - Web needs `NEXT_PUBLIC_API_URL` (default `http://127.0.0.1:8000`) for `pnpm dev`.
-- Auth/Google keys (`BETTER_AUTH_*`, `GOOGLE_*`) — see Auth section below / `apps/web/README.md`.
+- Auth/Google keys (`BETTER_AUTH_*`, `GOOGLE_*`, optional `AUTH_DATABASE_URL`) — see Auth section / `apps/web/README.md`.
 - API starts with an empty `DATABASE_URL`; DB-backed features won’t work until you set it. `CRON_SECRET` and R2 keys are optional for the health stub.
 
 Generators and scripts must read the **app-specific** env file — never mix web and API keys.
+
+## Auth (web)
+
+Better Auth + **Google only**. Local SQLite at `apps/web/data/local.db` (gitignored); production will use MySQL via `AUTH_DATABASE_URL`.
+
+1. Create a Google OAuth Web client; redirect URI:
+   `http://localhost:3000/api/auth/callback/google`
+2. Fill `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in `apps/web/.env.local`
+   (`BETTER_AUTH_SECRET` + `BETTER_AUTH_URL` required; scaffold generates a secret if empty).
+3. `pnpm --filter web dev` → `/sign-in`
+
+Without Google keys the app still builds; `/sign-in` shows setup help. Details: `apps/web/README.md`.
 
 ## UI / design
 
