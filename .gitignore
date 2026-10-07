@@ -36,3 +36,6 @@ coverage/
 
 # local Better Auth SQLite (scaffold)
 apps/web/data/
+
+# local app data (resumes + app.db)
+apps/web/.data/

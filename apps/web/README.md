@@ -102,6 +102,14 @@ apps/web/
 └── public/brand/icon.png
 ```
 
+## Onboarding & resumes (local v1)
+
+- New Google users land on `/onboarding` (`newUserCallbackURL`).
+- Gate: authenticated users need ≥1 non-archived PDF resume before `/dashboard` and other app routes.
+- Resumes store under `apps/web/.data/resumes/{userId}/` with metadata in `apps/web/.data/app.db` (gitignored).
+- Delete = archive only. Display names unique per user. Status: `active` | `inactive` | `archived`.
+- Username = email local-part with collision suffix, stored in `profiles` table for `/{username}` links.
+
 ## Theme (FOUC)
 
 Theme preference is stored in both `localStorage` and the `avsar-theme` cookie (`light` | `dark` | `system`). The root layout reads the cookie on the server so `<html class="dark">` and `color-scheme` match on first paint. A blocking inline script in `<head>` is the client backup. Dark is the brand default when preference is unknown.

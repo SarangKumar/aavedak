@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 
 import { PageStub } from "@/components/page-stub";
+import { requireOnboarded } from "@/lib/app-access";
 
 export const metadata: Metadata = {
   title: "Job tracker",
 };
 
-export default function Page() {
+export default async function Page() {
+  await requireOnboarded();
   return (
     <PageStub
       title="Job tracker"
-      description="Applications as Kanban or list with resizable columns."
-      hint="Stages, notes, and status changes will live here."
+      description="Kanban and list views for every application stage."
+      hint="Pipeline columns and status updates will appear here."
     />
   );
 }

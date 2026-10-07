@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 
 import { PageStub } from "@/components/page-stub";
+import { requireOnboarded } from "@/lib/app-access";
 
 export const metadata: Metadata = {
   title: "Referrals",
 };
 
-export default function Page() {
+export default async function Page() {
+  await requireOnboarded();
   return (
     <PageStub
       title="Referrals"
-      description="Referral tracker and follow-ups."
-      hint="Contacts, asks, and reminders will show up here."
+      description="Track asks, follow-ups, and introductions."
+      hint="Referral CRM features will land here."
     />
   );
 }

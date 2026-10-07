@@ -1,17 +1,22 @@
 import type { Metadata } from "next";
 
-import { PageStub } from "@/components/page-stub";
+import { OnboardingForm } from "@/components/onboarding-form";
+import { requireOnboardingSession } from "@/lib/app-access";
 
 export const metadata: Metadata = {
   title: "Onboarding",
+  description: "Upload your PDF resume to start using Avsar.",
 };
 
-export default function Page() {
+export default async function OnboardingPage() {
+  const { user, profile } = await requireOnboardingSession();
+
   return (
-    <PageStub
-      title="Onboarding"
-      description="Google sign-in, resume upload, and preferences."
-      hint="Guided setup steps will walk you through first-run config."
-    />
+    <div className="relative overflow-hidden">
+      <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-80" aria-hidden />
+      <div className="relative">
+        <OnboardingForm username={profile.username} email={user.email} name={user.name} />
+      </div>
+    </div>
   );
 }

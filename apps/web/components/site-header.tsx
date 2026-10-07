@@ -6,6 +6,7 @@ import { AuthHeaderActions } from "@/components/auth-header-actions";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { auth } from "@/lib/auth";
+import { ensureProfile } from "@/lib/profile";
 import { usernameFromUser } from "@/lib/username";
 import { cn } from "@/lib/utils";
 
@@ -23,19 +24,33 @@ export async function SiteHeader({ className }: { className?: string }) {
   });
 
   const sessionUser = session?.user;
+  let username = "";
+  if (sessionUser?.email) {
+    try {
+      username = ensureProfile({
+        id: sessionUser.id,
+        email: sessionUser.email,
+        name: sessionUser.name,
+      }).username;
+    } catch {
+      username = usernameFromUser({
+        email: sessionUser.email,
+        name: sessionUser.name,
+      });
+    }
+  }
+
   const user = sessionUser
     ? {
         name: sessionUser.name,
         email: sessionUser.email,
         image: sessionUser.image,
-        username: usernameFromUser({
-          email: sessionUser.email,
-          name: sessionUser.name,
-          username:
-            "username" in sessionUser
-              ? (sessionUser.username as string | null | undefined)
-              : undefined,
-        }),
+        username:
+          username ||
+          usernameFromUser({
+            email: sessionUser.email,
+            name: sessionUser.name,
+          }),
       }
     : null;
 
