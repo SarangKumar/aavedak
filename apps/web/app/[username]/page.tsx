@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { PageStub } from "@/components/page-stub";
+import { ProfileView } from "@/components/profile-view";
+import { getOptionalAccess } from "@/lib/app-access";
 import { getProfileByUsername } from "@/lib/profile";
+import { getActiveResume } from "@/lib/resumes";
 
 type Props = { params: Promise<{ username: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params;
   const profile = getProfileByUsername(username);
-  return { title: profile ? `@${profile.username}` : `@${username}` };
+  if (!profile) return { title: `@${username}` };
+  const titleName = profile.name?.trim() || `@${profile.username}`;
+  return {
+    title: titleName,
+    description: profile.bio?.trim() || `${titleName} on Arambh`,
+  };
 }
 
 export default async function ProfilePage({ params }: Props) {
@@ -17,15 +24,15 @@ export default async function ProfilePage({ params }: Props) {
   const profile = getProfileByUsername(username);
   if (!profile) notFound();
 
+  const access = await getOptionalAccess();
+  const isOwner = access?.user.id === profile.userId;
+  const active = getActiveResume(profile.userId);
+
   return (
-    <PageStub
-      title={`@${profile.username}`}
-      description={
-        profile.name
-          ? `${profile.name}'s shareable Arambh profile.`
-          : "Shareable public profile. App routes stay at the root — only profiles use a username prefix."
-      }
-      hint="Bio, links, and active resume will appear when this profile is published."
+    <ProfileView
+      profile={profile}
+      isOwner={Boolean(isOwner)}
+      activeResumeTitle={active?.displayName ?? null}
     />
   );
 }

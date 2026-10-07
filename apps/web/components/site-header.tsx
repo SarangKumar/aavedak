@@ -19,6 +19,7 @@ export async function SiteHeader({ className }: { className?: string }) {
         id: sessionUser.id,
         email: sessionUser.email,
         name: sessionUser.name,
+        image: sessionUser.image,
       }).username;
     } catch {
       username = usernameFromUser({

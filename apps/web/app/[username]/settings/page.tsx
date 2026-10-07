@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
-import { PageStub } from "@/components/page-stub";
+import { ProfileSettings } from "@/components/profile-settings";
+import { getOptionalAccess } from "@/lib/app-access";
 import { getProfileByUsername } from "@/lib/profile";
+import { listResumes } from "@/lib/resumes";
 
 type Props = { params: Promise<{ username: string }> };
 
@@ -17,11 +19,32 @@ export default async function ProfileSettingsPage({ params }: Props) {
   const profile = getProfileByUsername(username);
   if (!profile) notFound();
 
+  const access = await getOptionalAccess();
+  if (!access) {
+    redirect(`/sign-in?next=/${profile.username}/settings`);
+  }
+  if (access.user.id !== profile.userId) {
+    notFound();
+  }
+
+  const resumes = listResumes(profile.userId, { includeArchived: false }).map((r) => ({
+    id: r.id,
+    displayName: r.displayName,
+    status: r.status,
+    originalFilename: r.originalFilename,
+    byteSize: r.byteSize,
+  }));
+
   return (
-    <PageStub
-      title={`@${profile.username} / settings`}
-      description="Profile settings including resume upload, activate, and deactivate."
-      hint="Visibility, documents, and account prefs for this profile will be managed here."
+    <ProfileSettings
+      profile={{
+        username: profile.username,
+        name: profile.name,
+        bio: profile.bio,
+        portfolioUrl: profile.portfolioUrl,
+        linkedinUrl: profile.linkedinUrl,
+      }}
+      initialResumes={resumes}
     />
   );
 }

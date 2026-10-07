@@ -23,7 +23,9 @@ const siteDescription =
   "Arambh (आरंभ) — job discovery, application & career platform. Discover roles, prepare documents, track applications. Arambh recommends and prepares. You decide and send.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  ),
   title: {
     default: "Arambh · Job-search OS",
     template: "%s · Arambh",

@@ -44,28 +44,43 @@ pnpm --filter web build
 
 ## Env
 
-Copy `apps/web/.env.example` → `apps/web/.env.local` (or run `pnpm setup`).
+Three files under `apps/web/`:
 
-| Variable                                    | Required for local UI | Notes                                                            |
-| ------------------------------------------- | --------------------- | ---------------------------------------------------------------- |
-| `NEXT_PUBLIC_API_URL`                       | Yes                   | Default `http://127.0.0.1:8000`                                  |
-| `BETTER_AUTH_SECRET`                        | Yes for auth          | 32+ chars; `setup` / scaffold generates one if empty             |
-| `BETTER_AUTH_URL`                           | Yes for auth          | `http://localhost:3000` locally                                  |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | For Google sign-in    | Leave empty → `/sign-in` shows setup help (build still succeeds) |
-| `AUTH_DATABASE_URL`                         | No (local)            | Reserved for production MySQL; local uses SQLite `data/local.db` |
-| `ADMIN_EMAILS`                              | No                    | Comma-separated                                                  |
+| File           | Git           | Role                                                                 |
+| -------------- | ------------- | -------------------------------------------------------------------- |
+| `.env.example` | **Committed** | Template listing every variable (placeholders only, no secrets).     |
+| `.env`         | Ignored       | Production-oriented defaults (`https://arambh.vercel.app` origins).  |
+| `.env.local`   | Ignored       | Local overrides (`http://localhost:3000`). Wins over `.env` in Next. |
 
-Never commit secrets. `apps/web/data/` (SQLite file) is gitignored.
+Shared secrets (Google OAuth, `BETTER_AUTH_SECRET`, `ADMIN_EMAILS`, API URL when same) should match in `.env` and `.env.local`; only public origins differ.
+
+Copy from the template (`cp apps/web/.env.example apps/web/.env.local`) or run `pnpm setup`. Fill secrets locally — never commit `.env` / `.env.local`.
+
+| Variable                                    | Required for local UI | Notes                                                                       |
+| ------------------------------------------- | --------------------- | --------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_URL`                       | Yes                   | App origin; local `http://localhost:3000`, prod `https://arambh.vercel.app` |
+| `NEXT_PUBLIC_API_URL`                       | Yes                   | Document API; default `http://127.0.0.1:8000`                               |
+| `BETTER_AUTH_SECRET`                        | Yes for auth          | 32+ chars; `setup` / scaffold generates one if empty                        |
+| `BETTER_AUTH_URL`                           | Yes for auth          | Must match the browser origin (same as `NEXT_PUBLIC_APP_URL`)               |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | For Google sign-in    | Leave empty → `/sign-in` shows setup help (build still succeeds)            |
+| `AUTH_DATABASE_URL`                         | No (local)            | Reserved for production MySQL; local uses SQLite `data/local.db`            |
+| `ADMIN_EMAILS`                              | No                    | Comma-separated (e.g. `sarangkumar1578@gmail.com`)                          |
+
+Never commit secrets. `apps/web/data/` and `apps/web/.data/` are gitignored.
+
+API env (separate): `apps/api/.env.example` → `apps/api/.env` (also gitignored). See repo root README.
 
 ## Auth (Better Auth + Google)
 
 Frozen stack: **Better Auth** with **Google OAuth only** (no email/password).
 
 1. Google Cloud Console → APIs & Services → Credentials → Create OAuth client (Web).
-2. Authorized redirect URI:
-   `http://localhost:3000/api/auth/callback/google`
-3. Put Client ID / Secret in `apps/web/.env.local` as `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
-4. Ensure `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL=http://localhost:3000` are set.
+2. Authorized redirect URIs (add both):
+   - `http://localhost:3000/api/auth/callback/google`
+   - `https://arambh.vercel.app/api/auth/callback/google`
+3. Put Client ID / Secret in `apps/web/.env` and `apps/web/.env.local` (same values).
+4. Local: `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL` = `http://localhost:3000` in `.env.local`.
+   Prod defaults: `https://arambh.vercel.app` in `.env`.
 5. From `apps/web` (first time / schema change): `pnpm dlx auth@latest migrate`
 6. `pnpm --filter web dev` → open `/sign-in` → Continue with Google.
 

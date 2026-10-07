@@ -10,6 +10,8 @@ apps/web/out/
 .env
 .env.local
 .env.*.local
+apps/web/.env
+apps/web/.env.local
 !.env.example
 !**/.env.example
 

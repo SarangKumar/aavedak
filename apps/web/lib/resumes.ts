@@ -73,6 +73,13 @@ export function getResume(userId: string, resumeId: string): ResumeRecord | null
   return row ? mapRow(row) : null;
 }
 
+export function getActiveResume(userId: string): ResumeRecord | null {
+  const row = getAppDb()
+    .prepare(`SELECT * FROM resumes WHERE user_id = ? AND status = 'active' LIMIT 1`)
+    .get(userId) as Parameters<typeof mapRow>[0] | undefined;
+  return row ? mapRow(row) : null;
+}
+
 function normalizeDisplayName(name: string): string {
   return name.trim().replace(/\s+/g, " ");
 }

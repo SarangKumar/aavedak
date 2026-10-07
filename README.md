@@ -43,8 +43,10 @@ If you prefer not to use the script:
 # 1. Install JS workspace
 pnpm install
 
-# 2. Web env
+# 2. Web env (see apps/web/README.md → Env)
 cp apps/web/.env.example apps/web/.env.local
+# Optional prod-oriented defaults: cp apps/web/.env.example apps/web/.env
+# .env.local overrides with localhost; .env uses https://arambh.vercel.app
 # Ensure NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 
 # 3. API env + venv
