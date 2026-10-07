@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import {
   CareerProfileFields,
   careerToFormState,
@@ -405,6 +406,17 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
             })}
           </ul>
         )}
+      </section>
+
+      <section className="border-border/80 bg-card space-y-3 rounded-lg border p-4 shadow-sm">
+        <div>
+          <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Gmail send</h2>
+          <p className="text-muted-foreground text-[11px] leading-relaxed">
+            Queued referral follow-ups send from your Google inbox after ~10 minutes. Re-authorize
+            if send fails or you previously signed in without the gmail.send scope.
+          </p>
+        </div>
+        <GmailConnectBanner callbackURL={`/${profile.username}/settings`} />
       </section>
 
       <section className="border-destructive/40 bg-card ring-destructive/10 space-y-3 rounded-lg border p-4 shadow-sm ring-1">

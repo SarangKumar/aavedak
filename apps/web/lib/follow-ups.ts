@@ -3,8 +3,10 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
+import { getGmailAuthStatus, parseQueuedMailNotes, sendGmailMessage } from "@/lib/gmail";
 
-export type FollowUpStatus = "pending" | "queued" | "sent_stub" | "done" | "dismissed";
+export type FollowUpStatus =
+  "pending" | "queued" | "sent" | "sent_stub" | "failed" | "done" | "dismissed";
 
 export type FollowUpRecord = {
   id: string;
@@ -16,6 +18,11 @@ export type FollowUpRecord = {
   personId: string | null;
   applicationId: string | null;
   notes: string | null;
+  mailTo: string | null;
+  mailSubject: string | null;
+  mailBody: string | null;
+  gmailMessageId: string | null;
+  sendError: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -30,6 +37,11 @@ type Row = {
   person_id: string | null;
   application_id: string | null;
   notes: string | null;
+  mail_to: string | null;
+  mail_subject: string | null;
+  mail_body: string | null;
+  gmail_message_id: string | null;
+  send_error: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -45,6 +57,11 @@ function mapRow(row: Row): FollowUpRecord {
     personId: row.person_id,
     applicationId: row.application_id,
     notes: row.notes,
+    mailTo: row.mail_to ?? null,
+    mailSubject: row.mail_subject ?? null,
+    mailBody: row.mail_body ?? null,
+    gmailMessageId: row.gmail_message_id ?? null,
+    sendError: row.send_error ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -68,7 +85,9 @@ function parseStatus(value: unknown, fallback: FollowUpStatus = "pending"): Foll
   if (
     value === "pending" ||
     value === "queued" ||
+    value === "sent" ||
     value === "sent_stub" ||
+    value === "failed" ||
     value === "done" ||
     value === "dismissed"
   ) {
@@ -86,12 +105,20 @@ export async function listFollowUps(
   const rows = includeClosed
     ? ((await getSql()`
         SELECT * FROM follow_up_tasks WHERE user_id = ${userId} ORDER BY
-          CASE status WHEN 'queued' THEN 0 WHEN 'pending' THEN 1 WHEN 'sent_stub' THEN 2 WHEN 'done' THEN 3 ELSE 4 END,
+          CASE status
+            WHEN 'queued' THEN 0
+            WHEN 'pending' THEN 1
+            WHEN 'failed' THEN 2
+            WHEN 'sent' THEN 3
+            WHEN 'sent_stub' THEN 4
+            WHEN 'done' THEN 5
+            ELSE 6
+          END,
           send_after IS NULL, send_after ASC, due_date IS NULL, due_date ASC, updated_at DESC
       `) as Row[])
     : ((await getSql()`
         SELECT * FROM follow_up_tasks
-        WHERE user_id = ${userId} AND status IN ('pending', 'queued')
+        WHERE user_id = ${userId} AND status IN ('pending', 'queued', 'failed')
         ORDER BY send_after IS NULL, send_after ASC, due_date IS NULL, due_date ASC, updated_at DESC
       `) as Row[]);
   return rows.map(mapRow);
@@ -115,6 +142,9 @@ export async function createFollowUp(
     applicationId?: string | null;
     notes?: string | null;
     status?: FollowUpStatus;
+    mailTo?: string | null;
+    mailSubject?: string | null;
+    mailBody?: string | null;
   },
 ): Promise<FollowUpRecord> {
   await ensureAppSchema();
@@ -127,12 +157,16 @@ export async function createFollowUp(
   const personId = optional(input.personId);
   const applicationId = optional(input.applicationId);
   const notes = optional(input.notes);
+  const mailTo = optional(input.mailTo);
+  const mailSubject = optional(input.mailSubject);
+  const mailBody = optional(input.mailBody);
   await getSql()`
     INSERT INTO follow_up_tasks
-      (id, user_id, title, due_date, send_after, status, person_id, application_id, notes, created_at, updated_at)
+      (id, user_id, title, due_date, send_after, status, person_id, application_id, notes,
+       mail_to, mail_subject, mail_body, created_at, updated_at)
     VALUES (
       ${id}, ${userId}, ${title}, ${dueDate}, ${sendAfter}, ${status}, ${personId},
-      ${applicationId}, ${notes}, ${now}, ${now}
+      ${applicationId}, ${notes}, ${mailTo}, ${mailSubject}, ${mailBody}, ${now}, ${now}
     )
   `;
   const created = await getFollowUp(userId, id);
@@ -177,10 +211,18 @@ export async function updateFollowUp(
   return updated;
 }
 
-export async function processDueQueuedFollowUps(userId?: string): Promise<{
+export type ProcessQueueResult = {
   processed: FollowUpRecord[];
-  skippedGmail: true;
-}> {
+  sent: number;
+  failed: number;
+  skipped: number;
+};
+
+/**
+ * Send due queued follow-ups via the user's Gmail API.
+ * Cron-safe (no session). Items without Gmail auth / recipient stay queued or become failed.
+ */
+export async function processDueQueuedFollowUps(userId?: string): Promise<ProcessQueueResult> {
   await ensureAppSchema();
   const now = new Date().toISOString();
   const rows = (
@@ -190,25 +232,123 @@ export async function processDueQueuedFollowUps(userId?: string): Promise<{
           WHERE user_id = ${userId} AND status = 'queued'
             AND send_after IS NOT NULL AND send_after <= ${now}
           ORDER BY send_after ASC
+          LIMIT 50
         `
       : await getSql()`
           SELECT * FROM follow_up_tasks
           WHERE status = 'queued'
             AND send_after IS NOT NULL AND send_after <= ${now}
           ORDER BY send_after ASC
+          LIMIT 100
         `
   ) as Row[];
 
   const processed: FollowUpRecord[] = [];
+  let sent = 0;
+  let failed = 0;
+
+  // Cache Gmail readiness per user for this run
+  const gmailReady = new Map<string, Awaited<ReturnType<typeof getGmailAuthStatus>>>();
+
   for (const row of rows) {
-    const noteSuffix = "\n\n[scheduled send due — Gmail API not wired; marked sent_stub]";
-    const notes = (row.notes ?? "") + noteSuffix;
-    await getSql()`
-      UPDATE follow_up_tasks SET status = 'sent_stub', notes = ${notes}, updated_at = ${now}
-      WHERE id = ${row.id}
-    `;
-    const updated = await getFollowUp(row.user_id, row.id);
-    if (updated) processed.push(updated);
+    const uid = row.user_id;
+    let statusInfo = gmailReady.get(uid);
+    if (!statusInfo) {
+      statusInfo = await getGmailAuthStatus(uid);
+      gmailReady.set(uid, statusInfo);
+    }
+
+    const parsed = parseQueuedMailNotes(row.notes);
+    const mailTo = (row.mail_to || parsed.to || "").trim();
+    const mailSubject = (row.mail_subject || parsed.subject || row.title || "").trim();
+    const mailBody = (row.mail_body || parsed.body || "").trim();
+    const mailFrom = (parsed.from || "").trim();
+
+    if (!statusInfo.ready) {
+      const err = statusInfo.reason || "Gmail not authorized.";
+      await getSql()`
+        UPDATE follow_up_tasks SET
+          status = 'failed',
+          send_error = ${err},
+          updated_at = ${now}
+        WHERE id = ${row.id}
+      `;
+      const updated = await getFollowUp(uid, row.id);
+      if (updated) processed.push(updated);
+      failed += 1;
+      continue;
+    }
+
+    if (!mailTo || !mailTo.includes("@")) {
+      const err = "Missing recipient email — cannot send.";
+      await getSql()`
+        UPDATE follow_up_tasks SET
+          status = 'failed',
+          send_error = ${err},
+          updated_at = ${now}
+        WHERE id = ${row.id}
+      `;
+      const updated = await getFollowUp(uid, row.id);
+      if (updated) processed.push(updated);
+      failed += 1;
+      continue;
+    }
+
+    if (!mailBody) {
+      const err = "Empty email body — cannot send.";
+      await getSql()`
+        UPDATE follow_up_tasks SET
+          status = 'failed',
+          send_error = ${err},
+          updated_at = ${now}
+        WHERE id = ${row.id}
+      `;
+      const updated = await getFollowUp(uid, row.id);
+      if (updated) processed.push(updated);
+      failed += 1;
+      continue;
+    }
+
+    try {
+      const result = await sendGmailMessage({
+        userId: uid,
+        to: mailTo,
+        from: mailFrom || "me",
+        subject: mailSubject || row.title,
+        body: mailBody,
+      });
+      const noteSuffix = `\n\n[sent via Gmail ${now} · id ${result.id}]`;
+      const notes = (row.notes ?? "") + noteSuffix;
+      await getSql()`
+        UPDATE follow_up_tasks SET
+          status = 'sent',
+          notes = ${notes},
+          mail_to = ${mailTo},
+          mail_subject = ${mailSubject},
+          mail_body = ${mailBody},
+          gmail_message_id = ${result.id},
+          send_error = NULL,
+          updated_at = ${now}
+        WHERE id = ${row.id}
+      `;
+      const updated = await getFollowUp(uid, row.id);
+      if (updated) processed.push(updated);
+      sent += 1;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Gmail send failed.";
+      // Auth problems → failed so UI can prompt re-consent; transient keep queued? Use failed.
+      await getSql()`
+        UPDATE follow_up_tasks SET
+          status = 'failed',
+          send_error = ${message.slice(0, 500)},
+          updated_at = ${now}
+        WHERE id = ${row.id}
+      `;
+      const updated = await getFollowUp(uid, row.id);
+      if (updated) processed.push(updated);
+      failed += 1;
+    }
   }
-  return { processed, skippedGmail: true };
+
+  return { processed, sent, failed, skipped: 0 };
 }

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
+import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +57,7 @@ export type FollowUpDto = {
   title: string;
   dueDate: string | null;
   sendAfter: string | null;
-  status: "pending" | "done" | "dismissed" | "queued" | "sent_stub";
+  status: "pending" | "done" | "dismissed" | "queued" | "sent" | "sent_stub" | "failed";
   personId: string | null;
   applicationId: string | null;
   notes: string | null;
@@ -297,13 +298,19 @@ export function ReferralsComposer({
         followUps?: FollowUpDto[];
         count?: number;
         error?: string;
+        code?: string;
       };
-      if (!res.ok) throw new Error(data.error || "Queue failed.");
+      if (!res.ok) {
+        if (data.code === "gmail_not_authorized") {
+          throw new Error(data.error || "Authorize Gmail send before queueing.");
+        }
+        throw new Error(data.error || "Queue failed.");
+      }
       if (data.followUps?.length) {
         setFollowUps((list) => [...data.followUps!, ...list]);
       }
       setNotice(
-        `Queued ${data.count ?? personIds.length} follow-up(s) for ~10 min. Gmail not sent yet.`,
+        `Queued ${data.count ?? personIds.length} follow-up(s) for ~10 min — Gmail will send when due.`,
       );
       setCheckedPeople(new Set());
       setConfirmed(false);
@@ -590,7 +597,8 @@ export function ReferralsComposer({
           <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Referrals</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Compose cold outreach against an application, pick people at that company, confirm, then
-            queue follow-ups (~10 min delay). Gmail is not sent yet — From stays ({userEmail}).
+            queue follow-ups (~10 min delay). Mail sends from your Gmail ({userEmail}) after the
+            delay.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -608,6 +616,8 @@ export function ReferralsComposer({
           </button>
         </div>
       </header>
+
+      <GmailConnectBanner callbackURL="/referrals" />
 
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
       {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
@@ -627,8 +637,8 @@ export function ReferralsComposer({
                 Creates pending follow-up tasks (linked to application + person).
               </p>
               <p className="text-muted-foreground mt-0.5 text-[12px] font-semibold leading-relaxed">
-                Queued sends wait ~10 minutes (send_after). Gmail API is not wired yet — the
-                processor stub only marks due items; nothing leaves your mailbox.
+                Queued sends wait ~10 minutes, then the cron (or Process due queue) sends each
+                message via your Gmail. Authorize Gmail above if the banner asks for consent.
               </p>
             </div>
           </div>

@@ -1,0 +1,141 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { authClient } from "@/lib/auth-client";
+import { GMAIL_REAUTH_SCOPES, GMAIL_SEND_SCOPE } from "@/lib/gmail-scopes";
+import { cn } from "@/lib/utils";
+
+export type GmailStatusDto = {
+  connected: boolean;
+  hasRefreshToken: boolean;
+  hasSendScope: boolean;
+  ready: boolean;
+  reason: string | null;
+  requiredScope?: string;
+};
+
+type Props = {
+  className?: string;
+  /** Where to return after Google re-consent. */
+  callbackURL?: string;
+  compact?: boolean;
+};
+
+export function GmailConnectBanner({
+  className,
+  callbackURL = "/referrals",
+  compact = false,
+}: Props) {
+  const [status, setStatus] = useState<GmailStatusDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/gmail/status");
+      const data = (await res.json()) as GmailStatusDto & { error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not check Gmail status.");
+      setStatus(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not check Gmail status.");
+      setStatus(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  async function connectGmail() {
+    setPending(true);
+    setError(null);
+    try {
+      await authClient.linkSocial({
+        provider: "google",
+        scopes: [...GMAIL_REAUTH_SCOPES],
+        callbackURL,
+      });
+    } catch (err) {
+      setPending(false);
+      setError(err instanceof Error ? err.message : "Google re-authorization failed.");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div
+        className={cn(
+          "border-border/70 bg-card flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px]",
+          className,
+        )}
+      >
+        <Spinner className="text-muted-foreground size-3.5" label="Checking Gmail" />
+        <span className="text-muted-foreground">Checking Gmail authorization…</span>
+      </div>
+    );
+  }
+
+  if (status?.ready) {
+    if (compact) {
+      return (
+        <p className={cn("text-muted-foreground text-[11px]", className)}>
+          Gmail send ready · From your Google inbox
+        </p>
+      );
+    }
+    return (
+      <div
+        className={cn(
+          "border-primary/25 bg-primary/10 text-foreground rounded-lg border px-3 py-2 text-[12px]",
+          className,
+        )}
+        role="status"
+      >
+        Gmail is authorized — queued follow-ups will send from your Google account after the delay.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-3",
+        className,
+      )}
+      role="alert"
+    >
+      <p className="text-foreground text-[12px] font-semibold">Gmail send not authorized</p>
+      <p className="text-muted-foreground text-[12px] leading-relaxed">
+        {status?.reason ||
+          error ||
+          "Allow Aavedak to send email as you (gmail.send + offline access) so queued outreach can leave your inbox."}
+      </p>
+      <p className="text-muted-foreground break-all font-mono text-[10px]">
+        Scope: {status?.requiredScope || GMAIL_SEND_SCOPE}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" size="sm" loading={pending} onClick={() => void connectGmail()}>
+          {pending ? "Opening Google…" : "Authorize Gmail send"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={pending}
+          onClick={() => void refresh()}
+        >
+          Recheck
+        </Button>
+      </div>
+      {error ? <p className="text-destructive text-[11px]">{error}</p> : null}
+    </div>
+  );
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ShellWidth } from "@/components/shell-width";
 
 export const metadata: Metadata = {
+  robots: { index: true, follow: true },
   title: "About",
   description: "What Aavedak is — and what it is not.",
 };
@@ -15,11 +16,11 @@ const principles = [
   },
   {
     title: "You decide and send",
-    body: "Queued follow-ups never auto-send Gmail for you. Review, edit, and send on your terms.",
+    body: "You confirm recipients before queueing. Mail leaves your Gmail after a short delay — revoke or re-authorize anytime.",
   },
   {
-    title: "Local-first today",
-    body: "Your workspace data lives in a local SQLite store while the product hardens. Production storage comes later.",
+    title: "Privacy-minded",
+    body: "App data lives on Neon Postgres; resume PDFs in your GCS bucket; mail sends as you via Google OAuth.",
   },
 ] as const;
 

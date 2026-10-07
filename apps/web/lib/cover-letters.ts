@@ -121,8 +121,8 @@ export async function createCoverLetter(
   await ensureAppSchema();
   const title = requireTitle(input.title);
   const body = typeof input.body === "string" ? input.body : "";
-  let jobId = optionalId(input.jobId);
-  let applicationId = optionalId(input.applicationId);
+  const jobId = optionalId(input.jobId);
+  const applicationId = optionalId(input.applicationId);
   let companyName = optionalId(input.companyName);
   let roleTitle = optionalId(input.roleTitle);
 
@@ -174,8 +174,8 @@ export async function updateCoverLetter(
 
   const title = patch.title !== undefined ? requireTitle(patch.title) : existing.title;
   const body = patch.body !== undefined ? patch.body : existing.body;
-  let jobId = patch.jobId !== undefined ? optionalId(patch.jobId) : existing.jobId;
-  let applicationId =
+  const jobId = patch.jobId !== undefined ? optionalId(patch.jobId) : existing.jobId;
+  const applicationId =
     patch.applicationId !== undefined ? optionalId(patch.applicationId) : existing.applicationId;
   let companyName =
     patch.companyName !== undefined ? optionalId(patch.companyName) : existing.companyName;

@@ -7,6 +7,7 @@ import { getAdminOverviewCounts, listRecentResumesForAdmin } from "@/lib/admin-d
 import { requireOnboarded } from "@/lib/app-access";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: "Admin",
   description: "Aavedak admin tools (allowlisted emails only).",
 };

@@ -100,13 +100,16 @@ export function CompanySelect({
         autoComplete="off"
         role="combobox"
         aria-expanded={open}
+        aria-controls="company-select-listbox"
         aria-autocomplete="list"
       />
       {open ? (
-        <div className="border-border bg-popover absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border shadow-md">
-          {loading ? (
-            <p className="text-muted-foreground px-3 py-2 text-[12px]">Loading…</p>
-          ) : null}
+        <div
+          id="company-select-listbox"
+          role="listbox"
+          className="border-border bg-popover absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border shadow-md"
+        >
+          {loading ? <p className="text-muted-foreground px-3 py-2 text-[12px]">Loading…</p> : null}
           {options.map((opt) => (
             <button
               key={opt.id}

@@ -7,6 +7,7 @@ import { listFollowUps } from "@/lib/follow-ups";
 import { listPeople } from "@/lib/people";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: "Follow-ups",
   description: "Pending asks and queued outreach for your applications.",
 };

@@ -6,6 +6,7 @@ import { listApplications } from "@/lib/applications";
 import { listPeople } from "@/lib/people";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: "People",
   description: "Contacts for warm intros and cold outreach.",
 };

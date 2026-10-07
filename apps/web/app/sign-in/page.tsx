@@ -6,6 +6,7 @@ import { SignInForm } from "@/components/sign-in-form";
 import { isGoogleAuthConfigured } from "@/lib/auth";
 
 export const metadata: Metadata = {
+  robots: { index: true, follow: true },
   title: "Sign in",
   description:
     "Sign in to Aavedak with Google to manage your job search, applications, and documents.",

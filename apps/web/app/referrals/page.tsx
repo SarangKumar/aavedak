@@ -11,6 +11,7 @@ import { listPeople } from "@/lib/people";
 import { ensureDefaultOutreachTemplate, listTemplates } from "@/lib/templates";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: "Referrals",
   description: "Compose cold outreach, pick recipients, and queue follow-ups.",
 };

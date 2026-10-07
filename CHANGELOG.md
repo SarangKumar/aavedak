@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Real Gmail send** — Follow-up queue uses Gmail API (`gmail.send` + offline refresh); cron every 10m; re-consent banner on Referrals / Follow-ups / Profile.
+- **SEO** — `sitemap.xml`, `robots.ts`, OG/Twitter image route, public index vs app `noindex`, JSON-LD retained.
+
 - **Follow-ups** — Dedicated `/follow-ups` list: open/all/closed filters, create, mark done/dismiss/reopen, process due queue (Gmail stub).
 - **People CRM** — Dedicated `/people` shell: search, add/edit drawer, archive/restore, link to applications.
 - **About** — Public `/about` page with product principles and workspace map.

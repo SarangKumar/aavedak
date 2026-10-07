@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  robots: { index: true, follow: true },
   title: "Aavedak · Discover · Apply · Grow",
   description:
     "Aavedak (आवेदक) is your personal job-search OS — discover roles, prepare documents, track applications, and grow your career. Aavedak recommends and prepares. You decide and send.",

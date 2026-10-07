@@ -134,8 +134,7 @@ async function runSchema() {
       title TEXT NOT NULL,
       due_date TEXT,
       send_after TEXT,
-      status TEXT NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'queued', 'sent_stub', 'done', 'dismissed')),
+      status TEXT NOT NULL DEFAULT 'pending',
       person_id TEXT,
       application_id TEXT,
       notes TEXT,
@@ -144,6 +143,23 @@ async function runSchema() {
     )`;
   await db`CREATE INDEX IF NOT EXISTS follow_up_tasks_user_id_idx ON follow_up_tasks (user_id)`;
   await db`CREATE INDEX IF NOT EXISTS follow_up_tasks_user_status_idx ON follow_up_tasks (user_id, status)`;
+  // Widen status check for real Gmail send + failures (keep sent_stub for legacy rows)
+  await db`ALTER TABLE follow_up_tasks DROP CONSTRAINT IF EXISTS follow_up_tasks_status_check`;
+  await db`
+    DO $$ BEGIN
+      ALTER TABLE follow_up_tasks ADD CONSTRAINT follow_up_tasks_status_check
+        CHECK (status IN ('pending', 'queued', 'sent', 'sent_stub', 'failed', 'done', 'dismissed'));
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+    END $$
+  `;
+  await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS mail_to TEXT`;
+  await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS mail_subject TEXT`;
+  await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS mail_body TEXT`;
+  await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS gmail_message_id TEXT`;
+  await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS send_error TEXT`;
+  await db`CREATE INDEX IF NOT EXISTS follow_up_tasks_queued_due_idx
+    ON follow_up_tasks (status, send_after) WHERE status = 'queued'`;
 
   await db`
     CREATE TABLE IF NOT EXISTS jobs (

@@ -201,18 +201,6 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
     }
   }
 
-  async function archiveJob(id: string) {
-    setError(null);
-    const res = await fetch(`/api/jobs/${id}`, { method: "DELETE" });
-    const data = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      setError(data.error || "Could not archive.");
-      return;
-    }
-    setJobs((list) => list.filter((j) => j.id !== id));
-    if (selectedId === id) setSelectedId(null);
-  }
-
   async function ignoreJob(id: string) {
     setError(null);
     setMessage(null);
@@ -281,11 +269,19 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
     setPending(true);
     try {
       // Register as a manual job so it can be scored + used for cover letters
-      const lines = pasteText.trim().split(/\n+/).map((l) => l.trim()).filter(Boolean);
+      const lines = pasteText
+        .trim()
+        .split(/\n+/)
+        .map((l) => l.trim())
+        .filter(Boolean);
       const titleGuess = lines[0]?.slice(0, 120) || "Pasted role";
       const companyGuess =
-        lines.find((l) => /^company\s*:/i.test(l))?.split(":").slice(1).join(":").trim() ||
-        "Custom company";
+        lines
+          .find((l) => /^company\s*:/i.test(l))
+          ?.split(":")
+          .slice(1)
+          .join(":")
+          .trim() || "Custom company";
       const createRes = await fetch("/api/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -503,9 +499,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
                 <MetaChip
                   label="Match"
                   value={
-                    selected.compatibilityScore != null
-                      ? `${selected.compatibilityScore}%`
-                      : "—"
+                    selected.compatibilityScore != null ? `${selected.compatibilityScore}%` : "—"
                   }
                 />
                 <MetaChip

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/api-session";
 import { getApplication } from "@/lib/applications";
 import { createFollowUp } from "@/lib/follow-ups";
+import { getGmailAuthStatus } from "@/lib/gmail";
 import { getPerson } from "@/lib/people";
 
 function fill(template: string, vars: Record<string, string>): string {
@@ -11,10 +12,8 @@ function fill(template: string, vars: Record<string, string>): string {
 
 /**
  * Queue outreach follow-ups for confirmed recipients.
- * Schedules send_after ≈ now + sendAfterMinutes (default 10). Does not send Gmail.
+ * Schedules send_after ≈ now + sendAfterMinutes (default 10). Cron sends via Gmail.
  * Body: { applicationId, personIds, subject, body, dueDate?, sendAfterMinutes?, confirmed: true }
- * subject/body may still contain {{person_name}} / {{person_email}} — filled per person.
- * Cron/process stub: POST /api/referrals/process-queue marks due queued items as sent_stub.
  */
 export async function POST(request: Request) {
   const authResult = await requireApiUser();
@@ -58,6 +57,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Select at least one recipient." }, { status: 400 });
   }
 
+  const gmail = await getGmailAuthStatus(userId);
+  if (!gmail.ready) {
+    return NextResponse.json(
+      {
+        error: gmail.reason || "Authorize Gmail send before queueing outreach.",
+        gmail,
+        code: "gmail_not_authorized",
+      },
+      { status: 403 },
+    );
+  }
+
   const application = await getApplication(userId, applicationId);
   if (!application) {
     return NextResponse.json({ error: "Application not found." }, { status: 404 });
@@ -76,6 +87,12 @@ export async function POST(request: Request) {
     if (!person || person.status === "archived") {
       return NextResponse.json({ error: `Person not found: ${personId}` }, { status: 400 });
     }
+    if (!person.email?.trim()) {
+      return NextResponse.json(
+        { error: `${person.name} has no email — add one before queueing.` },
+        { status: 400 },
+      );
+    }
     const vars = {
       ...baseVars,
       person_name: person.name,
@@ -86,7 +103,7 @@ export async function POST(request: Request) {
     const title = `Outreach: ${person.name} · ${application.companyName}`;
     const notes = [
       subject ? `Subject: ${subject}` : null,
-      `To: ${person.email ?? "(no email)"}`,
+      `To: ${person.email}`,
       `From: ${session.user.email}`,
       "",
       renderedBody.trim() || "(empty body)",
@@ -102,6 +119,9 @@ export async function POST(request: Request) {
       applicationId: application.id,
       notes,
       status: "queued",
+      mailTo: person.email,
+      mailSubject: subject,
+      mailBody: renderedBody.trim(),
     });
     created.push({
       id: followUp.id,
@@ -112,6 +132,8 @@ export async function POST(request: Request) {
       personId: followUp.personId,
       applicationId: followUp.applicationId,
       notes: followUp.notes,
+      mailTo: followUp.mailTo,
+      mailSubject: followUp.mailSubject,
       createdAt: followUp.createdAt,
       updatedAt: followUp.updatedAt,
     });
@@ -122,8 +144,8 @@ export async function POST(request: Request) {
       followUps: created,
       count: created.length,
       sendAfterMinutes,
-      gmail: "not_wired",
-      note: "Queued with send_after delay. Process via /api/referrals/process-queue; Gmail is not sent.",
+      gmail: "queued",
+      note: `Queued with ~${sendAfterMinutes} min delay. Cron / process-queue will send via your Gmail.`,
     },
     { status: 201 },
   );

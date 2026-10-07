@@ -8,6 +8,7 @@ import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: "Dashboard",
   description: "Your Aavedak application summary and today’s focus.",
 };

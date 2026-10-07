@@ -9,6 +9,7 @@ import { getJobById } from "@/lib/jobs";
 import { getPreferences, updatePreferences } from "@/lib/preferences";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: "Job tracker",
   description: "Kanban and list views for every application stage.",
 };

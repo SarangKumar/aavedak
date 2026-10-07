@@ -5,6 +5,7 @@ import { cookies, headers } from "next/headers";
 import { AppShell } from "@/components/app-shell";
 import { themeInitScript } from "@/lib/theme-script";
 import { parseThemeMode, serverPrefersDark, THEME_KEY } from "@/lib/theme";
+import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
@@ -19,11 +20,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteDescription =
-  "Aavedak (आवेदक) — job discovery, application & career platform. Discover roles, prepare documents, track applications. Aavedak recommends and prepares. You decide and send.";
+const siteDescription = SITE_DESCRIPTION;
+const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Aavedak · Job-search OS",
     template: "%s · Aavedak",
@@ -57,20 +58,11 @@ export const metadata: Metadata = {
     siteName: "Aavedak",
     title: "Aavedak · Discover · Apply · Grow",
     description: siteDescription,
-    images: [
-      {
-        url: "/brand/logo-icon.png",
-        width: 1051,
-        height: 1051,
-        alt: "Aavedak logo — stylized golden A",
-      },
-    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Aavedak · Job-search OS",
     description: siteDescription,
-    images: ["/brand/logo-icon.png"],
   },
   icons: {
     icon: [
@@ -98,17 +90,18 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "WebSite",
-      name: "Aavedak",
+      name: SITE_NAME,
       alternateName: "आवेदक",
-      url: "/",
+      url: siteUrl,
       description: siteDescription,
     },
     {
       "@type": "SoftwareApplication",
-      name: "Aavedak",
+      name: SITE_NAME,
       alternateName: "आवेदक",
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
+      url: siteUrl,
       description: siteDescription,
       offers: {
         "@type": "Offer",

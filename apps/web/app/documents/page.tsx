@@ -10,6 +10,7 @@ import { listResumes } from "@/lib/resumes";
 import { listTemplates } from "@/lib/templates";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: "Documents",
   description: "Resumes, cover letters, and reusable templates.",
 };

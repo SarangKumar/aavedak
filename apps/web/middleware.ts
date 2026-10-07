@@ -13,7 +13,9 @@ export function middleware(request: NextRequest) {
     signIn.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(signIn);
   }
-  return NextResponse.next();
+  const res = NextResponse.next();
+  res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return res;
 }
 
 export const config = {

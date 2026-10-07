@@ -6,6 +6,7 @@ import { APP_VERSION } from "@/lib/version";
 import { ShellWidth } from "@/components/shell-width";
 
 export const metadata: Metadata = {
+  robots: { index: true, follow: true },
   title: "Changelog",
   description: `Release notes for Aavedak v${APP_VERSION} — what shipped and when.`,
 };

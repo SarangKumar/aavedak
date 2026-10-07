@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
+import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ export type FollowUpDto = {
   title: string;
   dueDate: string | null;
   sendAfter: string | null;
-  status: "pending" | "queued" | "sent_stub" | "done" | "dismissed";
+  status: "pending" | "queued" | "sent" | "sent_stub" | "failed" | "done" | "dismissed";
   personId: string | null;
   applicationId: string | null;
   notes: string | null;
@@ -49,7 +50,9 @@ type Filter = "open" | "all" | "closed";
 const STATUS_LABEL: Record<FollowUpDto["status"], string> = {
   pending: "Pending",
   queued: "Queued",
-  sent_stub: "Sent (stub)",
+  sent: "Sent",
+  sent_stub: "Sent (legacy stub)",
+  failed: "Failed",
   done: "Done",
   dismissed: "Dismissed",
 };
@@ -73,7 +76,9 @@ function statusVariant(
 ): "default" | "secondary" | "destructive" | "outline" {
   if (status === "queued") return "default";
   if (status === "pending") return "secondary";
+  if (status === "sent") return "outline";
   if (status === "sent_stub") return "outline";
+  if (status === "failed") return "destructive";
   if (status === "dismissed") return "destructive";
   return "outline";
 }
@@ -104,8 +109,18 @@ export function FollowUpsHub({ initialFollowUps, people, applications }: Props) 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((f) => {
-      if (filter === "open" && f.status !== "pending" && f.status !== "queued") return false;
-      if (filter === "closed" && (f.status === "pending" || f.status === "queued")) return false;
+      if (
+        filter === "open" &&
+        f.status !== "pending" &&
+        f.status !== "queued" &&
+        f.status !== "failed"
+      )
+        return false;
+      if (
+        filter === "closed" &&
+        (f.status === "pending" || f.status === "queued" || f.status === "failed")
+      )
+        return false;
       if (!q) return true;
       const person = f.personId ? peopleById.get(f.personId) : null;
       const app = f.applicationId ? appsById.get(f.applicationId) : null;
@@ -129,7 +144,7 @@ export function FollowUpsHub({ initialFollowUps, people, applications }: Props) 
     let open = 0;
     let closed = 0;
     for (const f of items) {
-      if (f.status === "pending" || f.status === "queued") open += 1;
+      if (f.status === "pending" || f.status === "queued" || f.status === "failed") open += 1;
       else closed += 1;
     }
     return { open, closed, all: items.length };
@@ -209,9 +224,10 @@ export function FollowUpsHub({ initialFollowUps, people, applications }: Props) 
       const res = await fetch("/api/referrals/process-queue", { method: "POST" });
       const data = (await res.json()) as {
         processed?: number;
+        sent?: number;
+        failed?: number;
         followUps?: Array<Partial<FollowUpDto> & { id: string; status?: FollowUpDto["status"] }>;
         error?: string;
-        skippedGmail?: boolean;
       };
       if (!res.ok) throw new Error(data.error || "Process failed.");
       const followUps = data.followUps ?? [];
@@ -222,7 +238,7 @@ export function FollowUpsHub({ initialFollowUps, people, applications }: Props) 
             if (!hit) return f;
             return {
               ...f,
-              status: hit.status ?? "sent_stub",
+              status: hit.status ?? f.status,
               notes: hit.notes ?? f.notes,
               updatedAt: hit.updatedAt ?? f.updatedAt,
             };
@@ -230,9 +246,11 @@ export function FollowUpsHub({ initialFollowUps, people, applications }: Props) 
         );
       }
       const n = typeof data.processed === "number" ? data.processed : followUps.length;
+      const sent = typeof data.sent === "number" ? data.sent : 0;
+      const failed = typeof data.failed === "number" ? data.failed : 0;
       setNotice(
         n > 0
-          ? `Processed ${n} due item${n === 1 ? "" : "s"} (Gmail not wired — marked sent stub).`
+          ? `Processed ${n}: ${sent} sent via Gmail, ${failed} failed.`
           : "No queued items are due yet.",
       );
     } catch (err) {
@@ -249,8 +267,8 @@ export function FollowUpsHub({ initialFollowUps, people, applications }: Props) 
           <p className="text-primary/90 font-mono text-[12px] tracking-wide">Follow-ups</p>
           <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Follow-ups</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-            Pending asks and queued outreach. Queued mail waits ~10 minutes, then can be marked sent
-            (stub until Gmail is connected). Compose outreach on{" "}
+            Pending asks and queued outreach. Queued mail waits ~10 minutes, then sends via your
+            Gmail (cron every 10 min, or Process due queue). Compose on{" "}
             <Link href="/referrals" className="text-primary hover:underline">
               Referrals
             </Link>
@@ -271,6 +289,8 @@ export function FollowUpsHub({ initialFollowUps, people, applications }: Props) 
           </Link>
         </div>
       </header>
+
+      <GmailConnectBanner callbackURL="/follow-ups" />
 
       {(error || notice) && (
         <p
@@ -295,11 +315,7 @@ export function FollowUpsHub({ initialFollowUps, people, applications }: Props) 
             onChange={(e) => setTitle(e.target.value)}
             aria-label="Follow-up title"
           />
-          <DatePickerField
-            value={dueDate}
-            onChange={setDueDate}
-            placeholder="Due date"
-          />
+          <DatePickerField value={dueDate} onChange={setDueDate} placeholder="Due date" />
           <select
             className="border-input bg-muted text-foreground box-border flex h-9 w-full rounded-md border px-3 text-sm"
             value={personId}

@@ -6,6 +6,7 @@ import { profileHasCompleteCareer } from "@/lib/profile";
 import { hasCompletedOnboardingRequirement } from "@/lib/resumes";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: "Onboarding",
   description: "Set career preferences and upload your PDF resume to start using Aavedak.",
 };

@@ -6,6 +6,7 @@ import { ensureDemoJobs, listJobsForUser } from "@/lib/jobs";
 import { listJobScores, scoreJobForUser } from "@/lib/job-scoring";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: "Jobs",
   description: "Multi-source job cards with master-detail view.",
 };
