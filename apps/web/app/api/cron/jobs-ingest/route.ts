@@ -33,7 +33,7 @@ async function handle(request: Request) {
     const users = (await getSql()`SELECT user_id FROM profiles`) as Array<{ user_id: string }>;
     const jobs = (await getSql()`
       SELECT id FROM jobs WHERE user_id IS NULL AND status = 'active'
-      ORDER BY updated_at DESC LIMIT 40
+      ORDER BY updated_at DESC LIMIT 50
     `) as Array<{ id: string }>;
     let scored = 0;
     for (const jobRow of jobs) {

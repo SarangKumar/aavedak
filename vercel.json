@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/jobs-ingest",
-      "schedule": "0 * * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/process-follow-ups",
-      "schedule": "*/10 * * * *"
+      "schedule": "0 7 * * *"
     }
   ]
 }

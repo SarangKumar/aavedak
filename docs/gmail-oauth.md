@@ -16,13 +16,13 @@ Queued referral follow-ups send from the **user's Gmail** via the Gmail API (`us
 
 ## App env (no secrets in git)
 
-| Key                                       | Purpose                                                                  |
-| ----------------------------------------- | ------------------------------------------------------------------------ |
-| `GOOGLE_CLIENT_ID`                        | OAuth Web client ID                                                      |
-| `GOOGLE_CLIENT_SECRET`                    | OAuth Web client secret                                                  |
-| `BETTER_AUTH_SECRET`                      | ≥32 chars; encrypts stored tokens                                        |
-| `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL` | Canonical app URL                                                        |
-| `CRON_SECRET`                             | Bearer for `/api/cron/process-follow-ups` (every 10 min) and jobs ingest |
+| Key                                       | Purpose                                                           |
+| ----------------------------------------- | ----------------------------------------------------------------- |
+| `GOOGLE_CLIENT_ID`                        | OAuth Web client ID                                               |
+| `GOOGLE_CLIENT_SECRET`                    | OAuth Web client secret                                           |
+| `BETTER_AUTH_SECRET`                      | ≥32 chars; encrypts stored tokens                                 |
+| `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL` | Canonical app URL                                                 |
+| `CRON_SECRET`                             | Bearer for `/api/cron/process-follow-ups` (daily) and jobs ingest |
 
 Better Auth Google provider is configured with:
 
@@ -42,7 +42,7 @@ Users who signed in **before** `gmail.send` was added must re-authorize:
 
 - Queue: `POST /api/referrals/queue` (requires Gmail ready; ~10 min `send_after`).
 - Process (user): `POST /api/referrals/process-queue`
-- Process (cron): `GET/POST /api/cron/process-follow-ups` every 10 minutes (`vercel.json`)
+- Process (cron): `GET/POST /api/cron/process-follow-ups` daily `0 7 * * *` (07:00 UTC ≈ 12:30 IST; Hobby once/day). In-app **Process due queue** anytime.
 - Statuses: `queued` → `sent` (Gmail message id stored) or `failed` (see `send_error`)
 
 ## Local smoke
