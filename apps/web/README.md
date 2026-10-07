@@ -102,6 +102,12 @@ apps/web/
 └── public/brand/icon.png
 ```
 
+## Documents hub (local v1)
+
+- `/documents`: Resumes | Cover letters | Templates.
+- Resumes reuse `/api/resumes` (+ `GET /api/resumes/[id]/file`). PDF uploads use Vinyaas `FileUpload`.
+- Cover letters / templates in `.data/app.db` (`cover_letters`, `templates`); archive-not-delete.
+
 ## Job tracker (local v1)
 
 - `/job-tracker`: Kanban + list, Active / Archived scopes.

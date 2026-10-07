@@ -1,8 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import {
+  FileUpload,
+  FileUploadDropzone,
+  FileUploadList,
+  type FileUploadFile,
+} from "@/components/ui/file-upload";
 import { cn } from "@/lib/utils";
 
 type ResumeDto = {
@@ -31,7 +37,11 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
   const router = useRouter();
   const [resumes, setResumes] = useState<ResumeDto[]>([]);
   const [displayName, setDisplayName] = useState(name ? `${name} Resume` : "Primary Resume");
-  const [file, setFile] = useState<File | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<FileUploadFile[]>([]);
+  const selectedPdf = useMemo(() => {
+    const item = uploadFiles.find((entry) => !entry.error);
+    return item?.file ?? null;
+  }, [uploadFiles]);
   const [loadingList, setLoadingList] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [continuing, setContinuing] = useState(false);
@@ -58,11 +68,14 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
   async function onUpload(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    if (!file) {
+    if (!selectedPdf) {
       setError("Choose a PDF resume to upload.");
       return;
     }
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    if (
+      selectedPdf.type !== "application/pdf" &&
+      !selectedPdf.name.toLowerCase().endsWith(".pdf")
+    ) {
       setError("Only PDF files are accepted.");
       return;
     }
@@ -70,13 +83,13 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
     setUploading(true);
     try {
       const body = new FormData();
-      body.set("file", file);
-      body.set("displayName", displayName.trim() || file.name.replace(/\.pdf$/i, ""));
+      body.set("file", selectedPdf);
+      body.set("displayName", displayName.trim() || selectedPdf.name.replace(/\.pdf$/i, ""));
       body.set("makeActive", "true");
       const res = await fetch("/api/resumes", { method: "POST", body });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Upload failed.");
-      setFile(null);
+      setUploadFiles([]);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
@@ -171,26 +184,30 @@ export function OnboardingForm({ username, email, name }: OnboardingFormProps) {
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="resume" className="text-foreground text-[12px] font-medium">
-            Resume PDF
-          </label>
-          <input
-            id="resume"
-            type="file"
+          <p className="text-foreground text-[12px] font-medium">Resume PDF</p>
+          <FileUpload
             accept="application/pdf,.pdf"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="border-border bg-background text-foreground file:bg-primary/15 file:text-primary hover:file:bg-primary/25 block w-full cursor-pointer rounded-lg border text-[12px] file:mr-3 file:rounded-md file:border-0 file:px-2.5 file:py-1.5 file:text-[12px] file:font-semibold"
-          />
-          {file ? (
+            multiple={false}
+            maxSize={10 * 1024 * 1024}
+            files={uploadFiles}
+            onFilesChange={setUploadFiles}
+            disabled={uploading}
+          >
+            <FileUploadDropzone className="min-h-24 rounded-xl text-[13px]">
+              Drop a PDF resume here, or browse
+            </FileUploadDropzone>
+            <FileUploadList />
+          </FileUpload>
+          {selectedPdf ? (
             <p className="text-muted-foreground text-[11px]">
-              {file.name} · {formatBytes(file.size)}
+              {selectedPdf.name} · {formatBytes(selectedPdf.size)}
             </p>
           ) : null}
         </div>
 
         <button
           type="submit"
-          disabled={uploading || !file}
+          disabled={uploading || !selectedPdf}
           className="avsar-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90 disabled:opacity-60"
         >
           {uploading ? "Uploading…" : "Upload PDF resume"}

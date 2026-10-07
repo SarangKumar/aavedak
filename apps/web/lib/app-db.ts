@@ -77,6 +77,32 @@ export function getAppDb() {
       hidden_columns TEXT NOT NULL DEFAULT '[]',
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS cover_letters (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL DEFAULT '',
+      application_id TEXT,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS cover_letters_user_id_idx ON cover_letters (user_id);
+
+    CREATE TABLE IF NOT EXISTS templates (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL DEFAULT '',
+      kind TEXT NOT NULL DEFAULT 'other' CHECK (kind IN ('outreach', 'cover', 'other')),
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS templates_user_id_idx ON templates (user_id);
   `);
   db = instance;
   return instance;
