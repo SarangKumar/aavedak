@@ -222,3 +222,95 @@ export async function listFriendApplications(
     friendUserId,
   );
 }
+
+export type ApplicationSeriesPoint = {
+  date: string;
+  cumulative: number;
+};
+
+export type FriendApplicationSeries = {
+  userId: string;
+  name: string;
+  username?: string;
+  isMe: boolean;
+  color: string;
+  points: ApplicationSeriesPoint[];
+};
+
+/** Distinct hues: you first (primary teal), then friends. */
+const SERIES_COLORS = [
+  "oklch(0.62 0.14 155)", // you — green primary
+  "oklch(0.68 0.14 230)", // friend — blue
+  "oklch(0.70 0.14 40)", // amber
+  "oklch(0.66 0.15 320)", // magenta
+  "oklch(0.65 0.12 100)", // olive
+  "oklch(0.68 0.13 280)", // violet
+  "oklch(0.70 0.12 20)", // coral
+  "oklch(0.64 0.11 180)", // cyan
+  "oklch(0.67 0.13 60)", // gold
+  "oklch(0.63 0.12 300)", // purple
+  "oklch(0.69 0.11 140)", // mint
+] as const;
+
+async function applicationDayKeys(userId: string): Promise<string[]> {
+  const rows = (await dbAll(
+    `SELECT substr(COALESCE(applied_at, created_at), 1, 10) AS day
+       FROM applications
+      WHERE user_id = ? AND status != 'archived'
+        AND COALESCE(applied_at, created_at) IS NOT NULL
+      ORDER BY day ASC`,
+    userId,
+  )) as Array<{ day: string | null }>;
+  return rows
+    .map((row) => row.day)
+    .filter((day): day is string => Boolean(day && /^\d{4}-\d{2}-\d{2}/.test(day)));
+}
+
+function buildCumulativeSeries(dayKeys: string[]): ApplicationSeriesPoint[] {
+  const counts = new Map<string, number>();
+  for (const day of dayKeys) {
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+  const sorted = [...counts.keys()].sort();
+  let running = 0;
+  return sorted.map((date) => {
+    running += counts.get(date) ?? 0;
+    return { date, cumulative: running };
+  });
+}
+
+/**
+ * One series per person (you + up to MAX_FRIENDS_ON_GRAPH friends) for a shared
+ * multi-line application-history chart.
+ */
+export async function buildFriendGraphSeries(
+  viewerId: string,
+  viewerName: string,
+): Promise<FriendApplicationSeries[]> {
+  const friends = (await listAcceptedFriends(viewerId)).slice(0, MAX_FRIENDS_ON_GRAPH);
+  const meDays = await applicationDayKeys(viewerId);
+  const series: FriendApplicationSeries[] = [
+    {
+      userId: viewerId,
+      name: viewerName || "You",
+      isMe: true,
+      color: SERIES_COLORS[0],
+      points: buildCumulativeSeries(meDays),
+    },
+  ];
+
+  for (let i = 0; i < friends.length; i++) {
+    const friend = friends[i]!;
+    const days = await applicationDayKeys(friend.userId);
+    series.push({
+      userId: friend.userId,
+      name: friend.name,
+      username: friend.username,
+      isMe: false,
+      color: SERIES_COLORS[(i + 1) % SERIES_COLORS.length]!,
+      points: buildCumulativeSeries(days),
+    });
+  }
+
+  return series;
+}

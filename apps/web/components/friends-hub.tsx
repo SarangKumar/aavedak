@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { FriendGraph } from "@/components/friend-graph";
+import { FriendGraph, type ChartSeries } from "@/components/friend-graph";
 import { ShellWidth } from "@/components/shell-width";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -28,6 +28,7 @@ type FriendsHubProps = {
 export function FriendsHub({ initialMe }: FriendsHubProps) {
   const [loading, setLoading] = useState(true);
   const [friends, setFriends] = useState<FriendDto[]>([]);
+  const [series, setSeries] = useState<ChartSeries[]>([]);
   const [incoming, setIncoming] = useState<InviteRow[]>([]);
   const [outgoing, setOutgoing] = useState<InviteRow[]>([]);
   const [username, setUsername] = useState("");
@@ -42,12 +43,14 @@ export function FriendsHub({ initialMe }: FriendsHubProps) {
       const res = await fetch("/api/friends");
       const data = (await res.json()) as {
         friends?: FriendDto[];
+        series?: ChartSeries[];
         incoming?: InviteRow[];
         outgoing?: InviteRow[];
         error?: string;
       };
       if (!res.ok) throw new Error(data.error || "Could not load friends.");
       setFriends(data.friends ?? []);
+      setSeries(data.series ?? []);
       setIncoming(data.incoming ?? []);
       setOutgoing(data.outgoing ?? []);
     } catch (err) {
@@ -60,11 +63,6 @@ export function FriendsHub({ initialMe }: FriendsHubProps) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
-  const visibleFriends =
-    duration === "all"
-      ? friends
-      : friends.filter((friend) => Date.now() - Date.parse(friend.since) <= 30 * 86_400_000);
 
   async function sendInvite() {
     setError(null);
@@ -119,8 +117,9 @@ export function FriendsHub({ initialMe }: FriendsHubProps) {
       <header className="space-y-1.5">
         <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Friends</h1>
         <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-          One shared graph for you and your friends. Up to 10 friends appear at once. Friendship is
-          bidirectional — both of you can see each other’s application history.
+          One shared chart for you and your friends — each person is a colored line of cumulative
+          applications. Up to 10 friends appear at once. Friendship is bidirectional — both of you
+          can see each other’s application history.
         </p>
       </header>
 
@@ -145,34 +144,30 @@ export function FriendsHub({ initialMe }: FriendsHubProps) {
         >
           Send invite
         </Button>
-        <div className="ml-auto flex items-center gap-1.5 text-[12px]">
-          <button
-            type="button"
-            className={`rounded-md border px-2 py-1 ${duration === "30d" ? "border-primary text-foreground" : "border-border text-muted-foreground"}`}
-            onClick={() => setDuration("30d")}
-          >
-            30 days
-          </button>
-          <button
-            type="button"
-            className={`rounded-md border px-2 py-1 ${duration === "all" ? "border-primary text-foreground" : "border-border text-muted-foreground"}`}
-            onClick={() => setDuration("all")}
-          >
-            All time
-          </button>
-        </div>
+        {friends.length > 0 ? (
+          <p className="text-muted-foreground ml-auto text-[12px]">
+            {friends.length} friend{friends.length === 1 ? "" : "s"} on the chart
+          </p>
+        ) : null}
       </div>
 
       <FriendGraph
-        me={{ userId: initialMe.userId, name: initialMe.name }}
-        friends={visibleFriends.map((friend) => ({
-          userId: friend.userId,
-          name: friend.name,
-          username: friend.username,
-          since: friend.since,
-        }))}
+        series={
+          series.length > 0
+            ? series
+            : [
+                {
+                  userId: initialMe.userId,
+                  name: initialMe.name || "You",
+                  isMe: true,
+                  color: "oklch(0.62 0.14 155)",
+                  points: [],
+                },
+              ]
+        }
         loading={loading}
-        durationLabel={duration === "30d" ? "Last 30 days" : "All time"}
+        duration={duration}
+        onDurationChange={setDuration}
       />
 
       <section className="space-y-2">

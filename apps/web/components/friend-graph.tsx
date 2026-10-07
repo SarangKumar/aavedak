@@ -4,60 +4,118 @@ import { useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-export type GraphPerson = {
+export type ChartSeriesPoint = {
+  date: string;
+  cumulative: number;
+};
+
+export type ChartSeries = {
   userId: string;
   name: string;
   username?: string;
-  since?: string;
+  isMe: boolean;
+  color: string;
+  points: ChartSeriesPoint[];
 };
 
+type DurationKey = "30d" | "all";
+
 type FriendGraphProps = {
-  me: GraphPerson;
-  friends: GraphPerson[];
+  series: ChartSeries[];
   loading?: boolean;
-  durationLabel: string;
+  duration: DurationKey;
+  onDurationChange: (value: DurationKey) => void;
   className?: string;
 };
 
-const WIDTH = 640;
-const HEIGHT = 420;
-const CX = WIDTH / 2;
-const CY = HEIGHT / 2;
+const WIDTH = 720;
+const HEIGHT = 400;
+const PAD = { top: 28, right: 20, bottom: 52, left: 44 };
 
-function layoutFriends(count: number) {
-  const radius = Math.min(WIDTH, HEIGHT) * 0.32;
-  return Array.from({ length: count }, (_, index) => {
-    const angle = -Math.PI / 2 + (index / Math.max(count, 1)) * Math.PI * 2;
+function dayMs(iso: string): number {
+  return Date.parse(`${iso.slice(0, 10)}T00:00:00.000Z`);
+}
+
+function formatTick(iso: string): string {
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00.000Z`);
+  if (!Number.isFinite(d.getTime())) return iso.slice(5, 10);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function filterSeries(series: ChartSeries[], duration: DurationKey): ChartSeries[] {
+  if (duration === "all") return series;
+  const cutoff = Date.now() - 30 * 86_400_000;
+  return series.map((s) => {
+    const inWindow = s.points.filter((p) => dayMs(p.date) >= cutoff);
+    if (inWindow.length > 0) return { ...s, points: inWindow };
+    // Keep a flat baseline at the last known cumulative before the window
+    const before = [...s.points].reverse().find((p) => dayMs(p.date) < cutoff);
+    if (!before) return { ...s, points: [] };
+    const startIso = new Date(cutoff).toISOString().slice(0, 10);
     return {
-      x: CX + Math.cos(angle) * radius,
-      y: CY + Math.sin(angle) * radius,
+      ...s,
+      points: [
+        { date: startIso, cumulative: before.cumulative },
+        { date: new Date().toISOString().slice(0, 10), cumulative: before.cumulative },
+      ],
     };
   });
 }
 
-function daysSince(iso?: string): string {
-  if (!iso) return "—";
-  const ms = Date.now() - Date.parse(iso);
-  if (!Number.isFinite(ms) || ms < 0) return "—";
-  const days = Math.max(0, Math.floor(ms / 86_400_000));
-  if (days === 0) return "today";
-  if (days === 1) return "1 day";
-  return `${days} days`;
+function buildPath(
+  points: ChartSeriesPoint[],
+  xOf: (d: string) => number,
+  yOf: (v: number) => number,
+): string {
+  if (points.length === 0) return "";
+  return points
+    .map(
+      (p, i) => `${i === 0 ? "M" : "L"} ${xOf(p.date).toFixed(1)} ${yOf(p.cumulative).toFixed(1)}`,
+    )
+    .join(" ");
 }
 
 export function FriendGraph({
-  me,
-  friends,
+  series,
   loading = false,
-  durationLabel,
+  duration,
+  onDurationChange,
   className,
 }: FriendGraphProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const positions = useMemo(
-    () => layoutFriends(Math.max(friends.length, loading ? 6 : 0)),
-    [friends.length, loading],
-  );
-  const hovered = friends.find((friend) => friend.userId === hoveredId) ?? null;
+
+  const visible = useMemo(() => filterSeries(series, duration), [series, duration]);
+
+  const { xTicks, yTicks, xOf, yOf, plotW, plotH } = useMemo(() => {
+    const plotW = WIDTH - PAD.left - PAD.right;
+    const plotH = HEIGHT - PAD.top - PAD.bottom;
+    const allDates = visible.flatMap((s) => s.points.map((p) => p.date));
+    const allValues = visible.flatMap((s) => s.points.map((p) => p.cumulative));
+
+    const minT =
+      allDates.length > 0
+        ? Math.min(...allDates.map(dayMs))
+        : Date.now() - (duration === "30d" ? 30 : 90) * 86_400_000;
+    let maxT = allDates.length > 0 ? Math.max(...allDates.map(dayMs)) : Date.now();
+    if (maxT <= minT) maxT = minT + 86_400_000;
+
+    const maxY = Math.max(4, ...(allValues.length ? allValues : [0]));
+    const yMax = Math.ceil(maxY / 2) * 2;
+
+    const xOf = (iso: string) => PAD.left + ((dayMs(iso) - minT) / (maxT - minT)) * plotW;
+    const yOf = (v: number) => PAD.top + plotH - (v / yMax) * plotH;
+
+    const yTicks = Array.from({ length: 5 }, (_, i) => Math.round((yMax * i) / 4));
+    const span = maxT - minT;
+    const xTicks = [0, 0.33, 0.66, 1].map((t) =>
+      new Date(minT + span * t).toISOString().slice(0, 10),
+    );
+
+    return { xTicks, yTicks, xOf, yOf, plotW, plotH, yMax };
+  }, [visible, duration]);
+
+  const hovered = visible.find((s) => s.userId === hoveredId) ?? null;
+  const lastOf = (s: ChartSeries) => s.points[s.points.length - 1] ?? null;
 
   return (
     <div
@@ -70,108 +128,181 @@ export function FriendGraph({
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="text-foreground block h-auto w-full"
         role="img"
-        aria-label="Friend graph"
+        aria-label="Shared application history chart for you and your friends"
       >
         <rect width={WIDTH} height={HEIGHT} className="fill-background/40" />
-        {(loading ? positions : friends.map((_, i) => positions[i]!)).map((pos, index) => (
-          <line
-            key={`edge-${index}`}
-            x1={CX}
-            y1={CY}
-            x2={pos.x}
-            y2={pos.y}
-            className="stroke-border"
-            strokeWidth={1.5}
-            strokeDasharray={loading ? "4 4" : undefined}
-          />
+
+        {/* Grid */}
+        {yTicks.map((tick) => (
+          <g key={`y-${tick}`}>
+            <line
+              x1={PAD.left}
+              x2={PAD.left + plotW}
+              y1={yOf(tick)}
+              y2={yOf(tick)}
+              className="stroke-border/60"
+              strokeWidth={1}
+              strokeDasharray="3 4"
+            />
+            <text
+              x={PAD.left - 8}
+              y={yOf(tick) + 3}
+              textAnchor="end"
+              className="fill-muted-foreground text-[10px]"
+            >
+              {tick}
+            </text>
+          </g>
+        ))}
+        {xTicks.map((iso) => (
+          <text
+            key={`x-${iso}`}
+            x={xOf(iso)}
+            y={HEIGHT - 18}
+            textAnchor="middle"
+            className="fill-muted-foreground text-[10px]"
+          >
+            {formatTick(iso)}
+          </text>
         ))}
 
-        {loading
-          ? positions.map((pos, index) => (
-              <g key={`sk-${index}`}>
-                <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={18}
-                  className="fill-muted stroke-border"
-                  strokeWidth={1}
-                />
-              </g>
-            ))
-          : friends.map((friend, index) => {
-              const pos = positions[index]!;
-              const active = hoveredId === friend.userId;
-              return (
-                <g
-                  key={friend.userId}
-                  onMouseEnter={() => setHoveredId(friend.userId)}
-                  onMouseLeave={() => setHoveredId(null)}
-                  className="cursor-pointer"
-                >
-                  <circle
-                    cx={pos.x}
-                    cy={pos.y}
-                    r={active ? 20 : 18}
-                    fill="color-mix(in oklch, oklch(0.72 0.12 200) 55%, transparent)"
-                    stroke="oklch(0.72 0.12 200)"
-                    strokeWidth={2}
-                  />
-                  <text
-                    x={pos.x}
-                    y={pos.y + 32}
-                    textAnchor="middle"
-                    className="fill-muted-foreground text-[11px]"
-                  >
-                    {(friend.name || friend.username || "Friend").slice(0, 14)}
-                  </text>
-                </g>
-              );
-            })}
+        {/* Y axis label */}
+        <text
+          x={14}
+          y={PAD.top + plotH / 2}
+          textAnchor="middle"
+          transform={`rotate(-90 14 ${PAD.top + plotH / 2})`}
+          className="fill-muted-foreground text-[10px]"
+        >
+          Applications
+        </text>
 
-        <circle cx={CX} cy={CY} r={26} className="fill-primary stroke-primary" strokeWidth={2} />
-        <text
-          x={CX}
-          y={CY + 4}
-          textAnchor="middle"
-          className="fill-primary-foreground text-[12px] font-semibold"
-        >
-          You
-        </text>
-        <text
-          x={CX}
-          y={CY + 44}
-          textAnchor="middle"
-          className="fill-foreground text-[12px] font-medium"
-        >
-          {(me.name || "You").slice(0, 18)}
-        </text>
+        {loading ? (
+          <text
+            x={WIDTH / 2}
+            y={HEIGHT / 2}
+            textAnchor="middle"
+            className="fill-muted-foreground text-[13px]"
+          >
+            Loading chart…
+          </text>
+        ) : visible.every((s) => s.points.length === 0) ? (
+          <text
+            x={WIDTH / 2}
+            y={HEIGHT / 2}
+            textAnchor="middle"
+            className="fill-muted-foreground text-[13px]"
+          >
+            No application history in this range yet
+          </text>
+        ) : (
+          visible.map((s) => {
+            const path = buildPath(s.points, xOf, yOf);
+            if (!path) return null;
+            const active = !hoveredId || hoveredId === s.userId;
+            const last = lastOf(s);
+            return (
+              <g
+                key={s.userId}
+                onMouseEnter={() => setHoveredId(s.userId)}
+                onMouseLeave={() => setHoveredId(null)}
+                className="cursor-pointer"
+                opacity={active ? 1 : 0.22}
+              >
+                <path
+                  d={path}
+                  fill="none"
+                  stroke={s.color}
+                  strokeWidth={s.isMe ? 3 : 2.25}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {/* Invisible wider hit path */}
+                <path
+                  d={path}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={14}
+                  strokeLinecap="round"
+                />
+                {last ? (
+                  <circle
+                    cx={xOf(last.date)}
+                    cy={yOf(last.cumulative)}
+                    r={s.isMe ? 5 : 4}
+                    fill={s.color}
+                    stroke="oklch(0.98 0 0)"
+                    strokeWidth={1.5}
+                  />
+                ) : null}
+              </g>
+            );
+          })
+        )}
       </svg>
 
-      <div className="border-border/70 bg-background/90 absolute left-3 top-3 rounded-lg border px-2.5 py-1.5 text-[11px] shadow-sm">
+      {/* Legend — top left, hover details */}
+      <div className="border-border/70 bg-background/90 absolute left-3 top-3 max-w-[220px] rounded-lg border px-2.5 py-1.5 text-[11px] shadow-sm">
         <p className="text-foreground font-medium">Legend</p>
-        <p className="text-muted-foreground mt-1 flex items-center gap-1.5">
-          <span className="bg-primary inline-block size-2.5 rounded-full" /> You (main)
-        </p>
-        <p className="text-muted-foreground mt-0.5 flex items-center gap-1.5">
-          <span
-            className="inline-block size-2.5 rounded-full"
-            style={{ background: "oklch(0.72 0.12 200)" }}
-          />{" "}
-          Friends
-        </p>
+        <ul className="mt-1 space-y-0.5">
+          {visible.map((s) => (
+            <li key={s.userId}>
+              <button
+                type="button"
+                className={cn(
+                  "text-muted-foreground flex w-full items-center gap-1.5 text-left",
+                  hoveredId === s.userId && "text-foreground",
+                )}
+                onMouseEnter={() => setHoveredId(s.userId)}
+                onMouseLeave={() => setHoveredId(null)}
+              >
+                <span
+                  className="inline-block size-2.5 shrink-0 rounded-full"
+                  style={{ background: s.color }}
+                />
+                <span className="truncate">
+                  {s.isMe ? `${s.name} (you)` : s.name}
+                  {s.username && !s.isMe ? ` · /${s.username}` : ""}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
         {hovered ? (
           <p className="text-foreground border-border/60 mt-1.5 border-t pt-1.5">
-            {hovered.name}
-            {hovered.username ? ` · /${hovered.username}` : ""}
-            <span className="text-muted-foreground block">Together {daysSince(hovered.since)}</span>
+            {hovered.isMe ? "You" : hovered.name}: {lastOf(hovered)?.cumulative ?? 0} applications
           </p>
         ) : (
-          <p className="text-muted-foreground mt-1.5">Hover a friend for details</p>
+          <p className="text-muted-foreground mt-1.5">Hover a line for totals</p>
         )}
       </div>
 
-      <div className="border-border/70 bg-background/90 text-muted-foreground absolute bottom-3 right-3 rounded-lg border px-2.5 py-1.5 text-[11px] shadow-sm">
-        Duration · {durationLabel}
+      {/* Duration interval — bottom right of the chart */}
+      <div className="border-border/70 bg-background/90 absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border p-1 text-[11px] shadow-sm">
+        <button
+          type="button"
+          className={cn(
+            "rounded-md px-2 py-1",
+            duration === "30d"
+              ? "bg-primary/15 text-foreground font-medium"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          onClick={() => onDurationChange("30d")}
+        >
+          30 days
+        </button>
+        <button
+          type="button"
+          className={cn(
+            "rounded-md px-2 py-1",
+            duration === "all"
+              ? "bg-primary/15 text-foreground font-medium"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          onClick={() => onDurationChange("all")}
+        >
+          All time
+        </button>
       </div>
     </div>
   );

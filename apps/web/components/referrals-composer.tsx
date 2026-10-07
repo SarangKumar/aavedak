@@ -528,7 +528,7 @@ export function ReferralsComposer({
                 <div className="border-border bg-background flex min-h-8 flex-wrap gap-1 rounded-lg border px-2 py-1.5">
                   {checkedPeople.size === 0 ? (
                     <span className="text-muted-foreground text-[12px]">
-                      Select people to fill recipients
+                      Select people in the People column — emails appear here.
                     </span>
                   ) : (
                     people
@@ -601,7 +601,7 @@ export function ReferralsComposer({
                   in Manage templates / Documents.
                 </p>
               )}
-              <div className="border-border/60 bg-muted/30 space-y-2 rounded-xl border p-2.5">
+              <div className="border-border/60 bg-muted/30 space-y-2.5 rounded-xl border p-2.5">
                 <div>
                   <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
                     Subject
@@ -621,6 +621,68 @@ export function ReferralsComposer({
                       ? previewBody || "(empty body)"
                       : "Choose a template to preview filled subject and body."}
                   </pre>
+                </div>
+                <div className="border-border/50 space-y-2 border-t pt-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setResumePickerOpen((open) => !open)}
+                      className="border-border bg-background text-foreground hover:bg-muted/60 inline-flex h-8 items-center rounded-lg border px-3 text-[12px] font-medium"
+                    >
+                      {resumeId ? "Change resume" : "Attach resume"}
+                    </button>
+                    {resumeId ? (
+                      <span className="text-muted-foreground truncate text-[11px]">
+                        {resumeOptions.find((resume) => resume.id === resumeId)?.displayName ||
+                          "resume"}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-[11px]">
+                        Optional · pick one uploaded resume
+                      </span>
+                    )}
+                  </div>
+                  {resumePickerOpen ? (
+                    <div className="space-y-2">
+                      <p className="text-muted-foreground text-[11px] leading-relaxed">
+                        Attach one of your uploaded resumes as a PDF. Prefer a different file?
+                        Upload it on Documents first.
+                      </p>
+                      {resumeOptions.length === 0 ? (
+                        <p className="text-muted-foreground text-[11px]">
+                          No resumes uploaded yet — add one on Documents.
+                        </p>
+                      ) : (
+                        <Select
+                          value={resumeId ?? ""}
+                          onValueChange={(value) => {
+                            setResumeId(value || null);
+                            setResumePickerOpen(false);
+                          }}
+                        >
+                          <SelectTrigger className="h-9 w-full text-[12px]">
+                            <SelectValue placeholder="Choose a resume" />
+                          </SelectTrigger>
+                          <SelectContent className="z-[240]">
+                            {resumeOptions.map((resume) => (
+                              <SelectItem key={resume.id} value={resume.id}>
+                                {resume.displayName} ({resume.status})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {resumeId ? (
+                        <button
+                          type="button"
+                          className="text-muted-foreground text-[11px] underline"
+                          onClick={() => setResumeId(null)}
+                        >
+                          Remove attachment
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -750,10 +812,19 @@ export function ReferralsComposer({
                 Creates follow-up tasks (linked to application + person), then shows a 20 second
                 countdown before Gmail sends the batch.
               </p>
-              <p className="text-muted-foreground mt-0.5 text-[12px] font-semibold leading-relaxed">
-                Optional: attach one of your uploaded resumes as a PDF. Prefer a different file?
-                Upload it on Documents first.
-              </p>
+              {resumeId ? (
+                <p className="text-muted-foreground mt-0.5 text-[12px] leading-relaxed">
+                  Resume attached from Cold email:{" "}
+                  <span className="text-foreground font-medium">
+                    {resumeOptions.find((resume) => resume.id === resumeId)?.displayName ||
+                      "resume"}
+                  </span>
+                </p>
+              ) : (
+                <p className="text-muted-foreground mt-0.5 text-[12px] leading-relaxed">
+                  Attach a resume in the Cold email preview if you want a PDF on the send.
+                </p>
+              )}
             </div>
           </div>
           <label className="text-foreground flex shrink-0 items-center gap-2 text-[12px]">
@@ -761,50 +832,6 @@ export function ReferralsComposer({
             confirm these {checkedPeople.size} recipient(s)
           </label>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setResumePickerOpen((open) => !open)}
-            className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-          >
-            {resumeId ? "Change resume attachment" : "Add resume"}
-          </button>
-          {resumeId ? (
-            <span className="text-muted-foreground text-[11px]">
-              Attached:{" "}
-              {resumeOptions.find((resume) => resume.id === resumeId)?.displayName || "resume"}
-            </span>
-          ) : null}
-        </div>
-        {resumePickerOpen ? (
-          <div className="border-border/70 bg-muted/30 space-y-2 rounded-lg border p-3">
-            <p className="text-muted-foreground text-[11px] leading-relaxed">
-              Select a resume you already uploaded. If you want a different PDF, upload the new
-              resume on Documents first, then return here.
-            </p>
-            <Select value={resumeId ?? ""} onValueChange={(value) => setResumeId(value || null)}>
-              <SelectTrigger className="h-9 w-full max-w-md text-[12px]">
-                <SelectValue placeholder="Choose a resume" />
-              </SelectTrigger>
-              <SelectContent>
-                {resumeOptions.map((resume) => (
-                  <SelectItem key={resume.id} value={resume.id}>
-                    {resume.displayName} ({resume.status})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {resumeId ? (
-              <button
-                type="button"
-                className="text-muted-foreground text-[11px] underline"
-                onClick={() => setResumeId(null)}
-              >
-                Remove attachment
-              </button>
-            ) : null}
-          </div>
-        ) : null}
         <div className="flex flex-wrap gap-1.5">
           {checkedPeople.size === 0 ? (
             <p className="text-muted-foreground text-[12px]">No recipients selected yet.</p>

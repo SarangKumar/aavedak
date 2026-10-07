@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import {
+  buildFriendGraphSeries,
   inviteFriendByUsername,
   listAcceptedFriends,
   listIncomingInvites,
@@ -26,10 +27,11 @@ export async function GET() {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [friends, incoming, outgoing] = await Promise.all([
+  const [friends, incoming, outgoing, series] = await Promise.all([
     listAcceptedFriends(user.id),
     listIncomingInvites(user.id),
     listOutgoingInvites(user.id),
+    buildFriendGraphSeries(user.id, user.name || "You"),
   ]);
 
   return NextResponse.json({
@@ -40,6 +42,7 @@ export async function GET() {
       image: user.image ?? null,
     },
     friends: friends.slice(0, MAX_FRIENDS_ON_GRAPH),
+    series,
     friendCount: friends.length,
     maxOnGraph: MAX_FRIENDS_ON_GRAPH,
     incoming,
