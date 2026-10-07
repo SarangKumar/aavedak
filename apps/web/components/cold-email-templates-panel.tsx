@@ -220,42 +220,44 @@ export function ColdEmailTemplatesPanel({ templates, onTemplatesChange, classNam
       <div className="grid gap-3 lg:grid-cols-2">
         <div
           ref={editorRef}
-          className="border-border/80 bg-card relative space-y-2 rounded-xl border p-3 shadow-sm"
+          className="border-border/80 bg-card space-y-2 rounded-xl border p-3 shadow-sm"
         >
-          <button
-            type="button"
-            onClick={() => setInfoOpen(true)}
-            className="group/info bg-foreground text-background absolute right-2 top-2 z-10 inline-flex size-4 items-center justify-center rounded-full shadow-sm"
-            aria-label="Template variable meanings"
-            aria-describedby="template-vars-tooltip"
-            title="Variable meanings"
-          >
-            <span className="text-[10px] font-bold leading-none" aria-hidden>
-              i
-            </span>
-            <span
-              id="template-vars-tooltip"
-              role="tooltip"
-              className="border-border bg-popover text-popover-foreground pointer-events-none absolute right-0 top-[calc(100%+6px)] z-30 w-52 rounded-md border px-2 py-1.5 text-left text-[11px] font-normal leading-snug opacity-0 shadow-md transition-opacity group-hover/info:opacity-100 group-focus-visible/info:opacity-100"
-            >
-              Placeholders like {"{{company}}"} fill from the dummy application. Click for the full
-              variable list.
-            </span>
-          </button>
-          <div className="flex items-center justify-between gap-2 pr-6">
+          <div className="flex items-center justify-between gap-2">
             <p className="text-foreground text-[12px] font-semibold tracking-tight">
               {draft.id ? "Edit template" : "New template"}
             </p>
-            {draft.id ? (
+            <div className="flex shrink-0 items-center gap-2">
+              {draft.id ? (
+                <button
+                  type="button"
+                  onClick={startNew}
+                  className="text-muted-foreground hover:text-foreground text-[11px] hover:underline"
+                  title="Clear the editor and start a new blank template"
+                >
+                  New blank
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={startNew}
-                className="text-muted-foreground hover:text-foreground text-[11px] hover:underline"
-                title="Clear the editor and start a new blank template"
+                onClick={() => setInfoOpen(true)}
+                className="group/info bg-foreground text-background relative inline-flex size-4 items-center justify-center rounded-full shadow-sm"
+                aria-label="Template variable meanings"
+                aria-describedby="template-vars-tooltip"
+                title="Variable meanings"
               >
-                New blank
+                <span className="text-[10px] font-bold leading-none" aria-hidden>
+                  i
+                </span>
+                <span
+                  id="template-vars-tooltip"
+                  role="tooltip"
+                  className="border-border bg-popover text-popover-foreground pointer-events-none absolute right-0 top-[calc(100%+6px)] z-30 w-52 rounded-md border px-2 py-1.5 text-left text-[11px] font-normal leading-snug opacity-0 shadow-md transition-opacity group-hover/info:opacity-100 group-focus-visible/info:opacity-100"
+                >
+                  Placeholders like {"{{company}}"} fill from the dummy application. Click for the
+                  full variable list.
+                </span>
               </button>
-            ) : null}
+            </div>
           </div>
           <input
             ref={titleRef}

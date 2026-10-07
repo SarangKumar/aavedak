@@ -5,6 +5,7 @@ export type CoverLetterFooter = {
   email?: string;
   linkedin?: string;
   github?: string;
+  leetcode?: string;
 };
 
 export type CoverLetterDownloadOpts = {
@@ -14,6 +15,36 @@ export type CoverLetterDownloadOpts = {
   role?: string;
   footer?: CoverLetterFooter;
 };
+
+export type FooterRowItem = {
+  key: keyof CoverLetterFooter;
+  label: string;
+  href: string;
+};
+
+const FOOTER_ROW_KEYS: Array<{ key: keyof CoverLetterFooter; label: string }> = [
+  { key: "email", label: "email" },
+  { key: "github", label: "github" },
+  { key: "linkedin", label: "linkedin" },
+  { key: "portfolio", label: "portfolio" },
+  { key: "leetcode", label: "leetcode" },
+];
+
+/** One-row footer items: email shows address; links show short labels. */
+export function coverFooterRowItems(footer?: CoverLetterFooter): FooterRowItem[] {
+  if (!footer) return [];
+  const items: FooterRowItem[] = [];
+  for (const { key, label } of FOOTER_ROW_KEYS) {
+    const raw = footer[key]?.trim();
+    if (!raw) continue;
+    if (key === "email") {
+      items.push({ key, label: raw, href: `mailto:${raw}` });
+    } else {
+      items.push({ key, label, href: raw });
+    }
+  }
+  return items;
+}
 
 function safeFilename(title: string, ext: string) {
   const base = title
@@ -36,14 +67,10 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function footerLines(footer?: CoverLetterFooter): string[] {
-  if (!footer) return [];
-  const lines: string[] = [];
-  if (footer.email?.trim()) lines.push(footer.email.trim());
-  if (footer.portfolio?.trim()) lines.push(footer.portfolio.trim());
-  if (footer.linkedin?.trim()) lines.push(footer.linkedin.trim());
-  if (footer.github?.trim()) lines.push(footer.github.trim());
-  return lines;
+function footerRowText(footer?: CoverLetterFooter): string {
+  return coverFooterRowItems(footer)
+    .map((i) => i.label)
+    .join(" ⋅ ");
 }
 
 export async function downloadCoverLetterPdf(opts: CoverLetterDownloadOpts): Promise<void> {
@@ -89,10 +116,10 @@ export async function downloadCoverLetterPdf(opts: CoverLetterDownloadOpts): Pro
     y += lineHeight;
   }
 
-  const foot = footerLines(opts.footer);
-  if (foot.length) {
+  const rowItems = coverFooterRowItems(opts.footer);
+  if (rowItems.length) {
     y += 18;
-    if (y + foot.length * 14 > pageHeight - margin) {
+    if (y + 20 > pageHeight - margin) {
       doc.addPage();
       y = margin;
     }
@@ -102,14 +129,18 @@ export async function downloadCoverLetterPdf(opts: CoverLetterDownloadOpts): Pro
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(80);
-    for (const line of foot) {
-      if (y + 14 > pageHeight - margin) {
-        doc.addPage();
-        y = margin;
+    let x = margin;
+    rowItems.forEach((item, idx) => {
+      const sep = idx === 0 ? "" : " ⋅ ";
+      if (sep) {
+        doc.setTextColor(140);
+        doc.text(sep, x, y);
+        x += doc.getTextWidth(sep);
       }
-      doc.text(line, margin, y);
-      y += 14;
-    }
+      doc.setTextColor(40, 80, 160);
+      doc.textWithLink(item.label, x, y, { url: item.href });
+      x += doc.getTextWidth(item.label);
+    });
     doc.setTextColor(0);
   }
 
@@ -117,7 +148,8 @@ export async function downloadCoverLetterPdf(opts: CoverLetterDownloadOpts): Pro
 }
 
 export async function downloadCoverLetterDocx(opts: CoverLetterDownloadOpts): Promise<void> {
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import("docx");
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, ExternalHyperlink } =
+    await import("docx");
   const paragraphs: InstanceType<typeof Paragraph>[] = [
     new Paragraph({
       heading: HeadingLevel.HEADING_1,
@@ -157,22 +189,31 @@ export async function downloadCoverLetterDocx(opts: CoverLetterDownloadOpts): Pr
     );
   }
 
-  const foot = footerLines(opts.footer);
-  if (foot.length) {
+  const rowItems = coverFooterRowItems(opts.footer);
+  if (rowItems.length) {
     paragraphs.push(new Paragraph({ children: [] }));
-    paragraphs.push(
-      new Paragraph({
-        children: [new TextRun({ text: "—", size: 20, color: "888888", font: "Arial" })],
-      }),
-    );
-    for (const line of foot) {
-      paragraphs.push(
-        new Paragraph({
-          children: [new TextRun({ text: line, size: 18, color: "555555", font: "Arial" })],
-          spacing: { after: 40 },
+    const children: Array<InstanceType<typeof TextRun> | InstanceType<typeof ExternalHyperlink>> =
+      [];
+    rowItems.forEach((item, idx) => {
+      if (idx > 0) {
+        children.push(new TextRun({ text: " ⋅ ", size: 18, color: "888888", font: "Arial" }));
+      }
+      children.push(
+        new ExternalHyperlink({
+          children: [
+            new TextRun({
+              text: item.label,
+              size: 18,
+              color: "2563EB",
+              font: "Arial",
+              underline: {},
+            }),
+          ],
+          link: item.href,
         }),
       );
-    }
+    });
+    paragraphs.push(new Paragraph({ children }));
   }
 
   const doc = new Document({
@@ -180,4 +221,9 @@ export async function downloadCoverLetterDocx(opts: CoverLetterDownloadOpts): Pr
   });
   const blob = await Packer.toBlob(doc);
   triggerBlobDownload(blob, safeFilename(opts.title, "docx"));
+}
+
+/** @deprecated Prefer coverFooterRowItems — kept for callers that need plain text. */
+export function footerRowPlainText(footer?: CoverLetterFooter): string {
+  return footerRowText(footer);
 }

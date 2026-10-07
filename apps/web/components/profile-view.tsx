@@ -3,7 +3,12 @@ import Link from "next/link";
 import { ShellWidth } from "@/components/shell-width";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Profile } from "@/lib/profile";
-import { profileLinkEntries } from "@/lib/profile-links";
+import {
+  FOOTER_ROW_ORDER,
+  footerLinkShortLabel,
+  profileLinkEntries,
+  type ProfileLinkKey,
+} from "@/lib/profile-links";
 import { cn } from "@/lib/utils";
 
 export type ProfileViewProps = {
@@ -21,9 +26,31 @@ function initial(profile: Profile) {
   return base.slice(0, 1).toUpperCase();
 }
 
+type RowItem = { key: string; label: string; href: string };
+
+function buildProfileFooterRow(profile: Profile): RowItem[] {
+  const items: RowItem[] = [];
+  const byKey = new Map(profileLinkEntries(profile.links).map((e) => [e.key, e]));
+  for (const key of FOOTER_ROW_ORDER) {
+    if (key === "email") {
+      const email = profile.email?.trim();
+      if (email) items.push({ key: "email", label: email, href: `mailto:${email}` });
+      continue;
+    }
+    const entry = byKey.get(key as ProfileLinkKey);
+    if (!entry) continue;
+    items.push({
+      key: entry.key,
+      label: footerLinkShortLabel(entry.key),
+      href: entry.url,
+    });
+  }
+  return items;
+}
+
 export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileViewProps) {
   const name = displayName(profile);
-  const linkEntries = profileLinkEntries(profile.links);
+  const rowItems = buildProfileFooterRow(profile);
 
   return (
     <ShellWidth className="aavedak-fade-up space-y-5 py-8 sm:py-10">
@@ -63,23 +90,32 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
           ) : null}
         </div>
 
-        <div className="relative mt-5 flex flex-wrap gap-2">
-          {linkEntries.map((entry) => (
-            <a
-              key={entry.key}
-              href={entry.url}
-              target="_blank"
-              rel="noreferrer"
-              className="border-border/80 bg-background/60 text-foreground hover:border-primary/40 inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] font-medium"
-            >
-              {entry.label}
-            </a>
-          ))}
-          {linkEntries.length === 0 ? (
+        <div className="relative mt-5">
+          {rowItems.length > 0 ? (
+            <p className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] leading-relaxed">
+              {rowItems.map((item, idx) => (
+                <span key={item.key} className="inline-flex items-center gap-x-1.5">
+                  {idx > 0 ? (
+                    <span className="text-border" aria-hidden>
+                      ⋅
+                    </span>
+                  ) : null}
+                  <a
+                    href={item.href}
+                    target={item.key === "email" ? undefined : "_blank"}
+                    rel={item.key === "email" ? undefined : "noreferrer"}
+                    className="text-foreground/90 hover:text-primary underline-offset-2 hover:underline"
+                  >
+                    {item.label}
+                  </a>
+                </span>
+              ))}
+            </p>
+          ) : (
             <span className="text-muted-foreground text-[12px]">
               {isOwner ? "Add portfolio, LinkedIn, GitHub, and more in settings." : "No links yet."}
             </span>
-          ) : null}
+          )}
         </div>
       </div>
 

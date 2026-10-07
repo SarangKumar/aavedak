@@ -28,7 +28,7 @@ import {
   type ApplicationStatus,
 } from "@/lib/application-status";
 import { ShellWidth } from "@/components/shell-width";
-import { ResizeHandle } from "@/components/ui/resize-handle";
+import { Sheet } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -65,6 +65,7 @@ type Draft = {
   jobLink: string;
   jobId: string;
   status: ApplicationStatus;
+  notes: string;
 };
 
 type ColumnMap = Record<string, string[]>;
@@ -77,7 +78,21 @@ const emptyDraft = (): Draft => ({
   jobLink: "",
   jobId: "",
   status: "bookmarked",
+  notes: "",
 });
+
+function draftFromApp(app: ApplicationDto): Draft {
+  return {
+    companyName: app.companyName,
+    role: app.role,
+    location: app.location,
+    salaryCtc: app.salaryCtc ?? "",
+    jobLink: app.jobLink ?? "",
+    jobId: app.jobId ?? "",
+    status: app.status,
+    notes: app.notes ?? "",
+  };
+}
 
 function buildColumns(
   applications: ApplicationDto[],
@@ -101,6 +116,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
   const [applications, setApplications] = useState(initialApplications);
   const [prefs, setPrefs] = useState(initialPreferences);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [columnsOpen, setColumnsOpen] = useState(false);
@@ -118,41 +134,6 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
   const [columns, setColumns] = useState<ColumnMap>(() =>
     buildColumns(initialApplications, visibleStatuses),
   );
-
-  const [colWidths, setColWidths] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("aavedak-tracker-col-widths");
-      if (raw) setColWidths(JSON.parse(raw) as Record<string, number>);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  function persistWidth(status: string, width: number) {
-    setColWidths((prev) => {
-      const next = { ...prev, [status]: Math.min(480, Math.max(220, width)) };
-      try {
-        localStorage.setItem("aavedak-tracker-col-widths", JSON.stringify(next));
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }
-
-  function startResize(status: string, startX: number, startW: number) {
-    function onMove(e: MouseEvent) {
-      persistWidth(status, startW + (e.clientX - startX));
-    }
-    function onUp() {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    }
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }
 
   useEffect(() => {
     setColumns((prev) => buildColumns(applications, visibleStatuses, prev));
@@ -309,6 +290,83 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         const without = list.filter((a) => a.id !== id);
         return belongs ? [app, ...without] : without;
       });
+    }
+  }
+
+  function openEdit(app: ApplicationDto) {
+    setEditingId(app.id);
+    setDraft(draftFromApp(app));
+    setError(null);
+    setWarning(null);
+  }
+
+  function closeEdit() {
+    setEditingId(null);
+    setDraft(emptyDraft());
+    setWarning(null);
+  }
+
+  async function saveEdit() {
+    if (!editingId) return;
+    setError(null);
+    if (!draft.companyName.trim() || !draft.role.trim() || !draft.location.trim()) {
+      setError("Company name, role, and location are required.");
+      return;
+    }
+    setPending(true);
+    try {
+      const res = await fetch(`/api/applications/${editingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName: draft.companyName,
+          role: draft.role,
+          location: draft.location,
+          salaryCtc: draft.salaryCtc || null,
+          jobLink: draft.jobLink || null,
+          jobId: draft.jobId || null,
+          notes: draft.notes || null,
+          status: draft.status,
+        }),
+      });
+      const data = (await res.json()) as { application?: ApplicationDto; error?: string };
+      if (!res.ok) throw new Error(data.error || "Update failed.");
+      if (data.application) {
+        const app = data.application;
+        const belongs =
+          (prefs.trackerScope === "active" && app.status !== "archived") ||
+          (prefs.trackerScope === "archived" && app.status === "archived");
+        setApplications((list) => {
+          const without = list.filter((a) => a.id !== editingId);
+          return belongs ? [app, ...without] : without;
+        });
+      }
+      closeEdit();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Update failed.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function deleteApplication() {
+    if (!editingId) return;
+    setError(null);
+    setPending(true);
+    try {
+      const res = await fetch(`/api/applications/${editingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "archived" }),
+      });
+      const data = (await res.json()) as { application?: ApplicationDto; error?: string };
+      if (!res.ok) throw new Error(data.error || "Delete failed.");
+      setApplications((list) => list.filter((a) => a.id !== editingId));
+      closeEdit();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed.");
+    } finally {
+      setPending(false);
     }
   }
 
@@ -501,17 +559,8 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                   return (
                     <section
                       key={status}
-                      style={{ width: colWidths[status] ?? 288 }}
-                      className="border-border/60 bg-card relative flex h-[min(75vh,46rem)] shrink-0 flex-col overflow-hidden rounded-lg border"
+                      className="border-border/60 bg-muted/25 flex h-[min(75vh,46rem)] w-[18rem] shrink-0 flex-col overflow-hidden rounded-lg border"
                     >
-                      <ResizeHandle
-                        aria-label={`Resize ${STATUS_LABELS[status]} column`}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          startResize(status, e.clientX, colWidths[status] ?? 288);
-                        }}
-                        className="absolute inset-y-2 right-0 z-20 translate-x-1/2"
-                      />
                       <div className="mb-0 flex shrink-0 items-center justify-between gap-2 px-2.5 pb-2 pt-2.5">
                         <h2 className="text-foreground truncate text-[12px] font-semibold tracking-tight">
                           {STATUS_LABELS[status]}
@@ -538,11 +587,20 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                                 <DragDropItem
                                   key={id}
                                   id={id}
-                                  className="border-border/70 bg-card hover:border-border shrink-0 overflow-visible rounded-lg p-0 shadow-none"
+                                  className="border-border/70 bg-background hover:border-border shrink-0 overflow-visible rounded-lg p-0 shadow-sm"
                                 >
                                   <Card
                                     size="sm"
-                                    className="shrink-0 gap-0 border-0 bg-transparent p-0 shadow-none"
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => openEdit(app)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        openEdit(app);
+                                      }
+                                    }}
+                                    className="bg-background shrink-0 cursor-pointer gap-0 border-0 p-0 shadow-none"
                                   >
                                     <CardHeader className="gap-0.5 p-3 pb-2">
                                       <CardTitle className="text-foreground pr-8 text-[13px] font-semibold leading-snug tracking-tight">
@@ -555,6 +613,8 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                                         <DragDropHandle
                                           aria-label={`Move ${app.companyName}`}
                                           className="text-muted-foreground size-7"
+                                          onClick={(e) => e.stopPropagation()}
+                                          onPointerDown={(e) => e.stopPropagation()}
                                         />
                                       </CardAction>
                                     </CardHeader>
@@ -578,7 +638,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           </div>
         </div>
       ) : (
-        <ListView applications={filteredApplications} />
+        <ListView applications={filteredApplications} onSelect={openEdit} />
       )}
 
       {filteredApplications.length === 0 && !pending ? (
@@ -665,6 +725,94 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           {warning ? <p className="text-primary text-[12px] leading-relaxed">{warning}</p> : null}
         </div>
       </Modal>
+
+      <Sheet
+        open={Boolean(editingId)}
+        onClose={closeEdit}
+        title="Edit application"
+        description="Update details or archive (delete) this application."
+        footer={
+          <>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => void deleteApplication()}
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 mr-auto inline-flex h-8 items-center rounded-lg border px-3 text-[12px] disabled:opacity-60"
+            >
+              {pending ? "…" : "Delete"}
+            </button>
+            <button
+              type="button"
+              onClick={closeEdit}
+              className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => void saveEdit()}
+              className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
+            >
+              {pending ? "Saving…" : "Save"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-2.5">
+          <Field
+            label="Company name *"
+            value={draft.companyName}
+            onChange={(v) => setDraft((d) => ({ ...d, companyName: v }))}
+          />
+          <Field
+            label="Role *"
+            value={draft.role}
+            onChange={(v) => setDraft((d) => ({ ...d, role: v }))}
+          />
+          <Field
+            label="Location *"
+            value={draft.location}
+            onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
+          />
+          <Field
+            label="CTC / salary"
+            value={draft.salaryCtc}
+            onChange={(v) => setDraft((d) => ({ ...d, salaryCtc: v }))}
+          />
+          <Field
+            label="Job link"
+            value={draft.jobLink}
+            onChange={(v) => setDraft((d) => ({ ...d, jobLink: v }))}
+          />
+          <Field
+            label="Job id"
+            value={draft.jobId}
+            onChange={(v) => setDraft((d) => ({ ...d, jobId: v }))}
+          />
+          <label className="block space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Notes</span>
+            <textarea
+              value={draft.notes}
+              onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
+              rows={3}
+              className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+            />
+          </label>
+          <div className="space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Status</span>
+            <StatusSelect
+              value={draft.status}
+              options={APPLICATION_STATUSES}
+              onChange={(s) => setDraft((d) => ({ ...d, status: s }))}
+              triggerClassName="h-9 w-full text-[13px]"
+            />
+          </div>
+          <p className="text-muted-foreground text-[11px] leading-relaxed">
+            Delete archives the application (moves it to Archived). It does not hard-delete.
+          </p>
+        </div>
+      </Sheet>
 
       <ImportApplicationsDialog
         open={importOpen}
@@ -797,7 +945,13 @@ function Field({
   );
 }
 
-function ListView({ applications }: { applications: ApplicationDto[] }) {
+function ListView({
+  applications,
+  onSelect,
+}: {
+  applications: ApplicationDto[];
+  onSelect: (app: ApplicationDto) => void;
+}) {
   if (applications.length === 0) return null;
   return (
     <div className="border-border/80 bg-card/60 overflow-hidden rounded-xl border">
@@ -814,7 +968,11 @@ function ListView({ applications }: { applications: ApplicationDto[] }) {
           </thead>
           <tbody>
             {applications.map((app) => (
-              <tr key={app.id} className="border-border/40 border-b last:border-0">
+              <tr
+                key={app.id}
+                className="border-border/40 hover:bg-muted/30 cursor-pointer border-b last:border-0"
+                onClick={() => onSelect(app)}
+              >
                 <td className="text-foreground px-3 py-2 font-medium">{app.companyName}</td>
                 <td className="text-foreground/90 px-3 py-2">{app.role}</td>
                 <td className="text-muted-foreground px-3 py-2">{app.location}</td>
@@ -826,7 +984,7 @@ function ListView({ applications }: { applications: ApplicationDto[] }) {
         </table>
       </div>
       <p className="text-muted-foreground border-border/60 border-t px-3 py-2 text-[11px]">
-        Switch to Kanban and drag cards to change status.
+        Click a row to edit. Switch to Kanban and drag cards to change status.
       </p>
     </div>
   );

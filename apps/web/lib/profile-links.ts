@@ -21,7 +21,7 @@ export const PROFILE_LINK_META: Record<ProfileLinkKey, { label: string; placehol
   },
   linkedin: {
     label: "LinkedIn",
-    placeholder: "https://www.linkedin.com/in/sarangkumar4/",
+    placeholder: "https://www.linkedin.com/in/username/",
   },
   github: {
     label: "GitHub",
@@ -46,7 +46,7 @@ export const PROFILE_LINK_META: Record<ProfileLinkKey, { label: string; placehol
 };
 
 /** Cover-letter footer can include these from profile (+ email). */
-export const COVER_FOOTER_LINK_KEYS = ["portfolio", "linkedin", "github"] as const;
+export const COVER_FOOTER_LINK_KEYS = ["portfolio", "linkedin", "github", "leetcode"] as const;
 export type CoverFooterLinkKey = (typeof COVER_FOOTER_LINK_KEYS)[number];
 
 export function emptyProfileLinks(): ProfileLinks {
@@ -108,3 +108,22 @@ export function profileLinkEntries(links: ProfileLinks): Array<{
   }
   return entries;
 }
+
+/** Short lowercase label for one-row footers (github, linkedin, …). */
+export function footerLinkShortLabel(key: ProfileLinkKey | "email"): string {
+  if (key === "email") return "email";
+  if (key === "twitter") return "x";
+  return key;
+}
+
+/** Preferred order for public / cover footer rows. */
+export const FOOTER_ROW_ORDER: Array<ProfileLinkKey | "email"> = [
+  "email",
+  "github",
+  "linkedin",
+  "portfolio",
+  "leetcode",
+  "hackerrank",
+  "twitter",
+  "website",
+];

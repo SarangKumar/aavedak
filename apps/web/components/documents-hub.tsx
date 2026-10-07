@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  coverFooterRowItems,
   downloadCoverLetterDocx,
   downloadCoverLetterPdf,
   type CoverLetterFooter,
@@ -97,12 +98,14 @@ function defaultFooterInclude(
   profileLinks: ProfileLinks | undefined,
 ): FooterInclude {
   const links = profileLinks ?? {};
-  return {
+  const out = {
     email: Boolean(profileEmail?.trim()),
     portfolio: Boolean(links.portfolio?.trim()),
     linkedin: Boolean(links.linkedin?.trim()),
     github: Boolean(links.github?.trim()),
-  };
+    leetcode: Boolean(links.leetcode?.trim()),
+  } as FooterInclude;
+  return out;
 }
 
 function buildFooterFromProfile(
@@ -116,6 +119,7 @@ function buildFooterFromProfile(
     portfolio: include.portfolio ? links.portfolio?.trim() || undefined : undefined,
     linkedin: include.linkedin ? links.linkedin?.trim() || undefined : undefined,
     github: include.github ? links.github?.trim() || undefined : undefined,
+    leetcode: include.leetcode ? links.leetcode?.trim() || undefined : undefined,
   };
 }
 
@@ -189,12 +193,7 @@ export function DocumentsHub({
 
   const previewTitle = renderTemplatePreview(clTitle || "", coverVars);
   const previewBody = renderTemplatePreview(clBody || "", coverVars);
-  const footerLines = [
-    clFooter.email?.trim(),
-    clFooter.portfolio?.trim(),
-    clFooter.linkedin?.trim(),
-    clFooter.github?.trim(),
-  ].filter(Boolean) as string[];
+  const footerRow = coverFooterRowItems(clFooter);
 
   function applyCoverTemplate(tpl: TemplateDto) {
     setClTemplateId(tpl.id);
@@ -762,33 +761,50 @@ export function DocumentsHub({
                   Live PDF preview
                 </p>
                 <p className="text-muted-foreground mb-2 text-[11px]">
-                  Variables resolve from the selected application. Footer appears below the body.
+                  Light page preview (PDF-style). Variables resolve from the selected application.
                 </p>
-                <div className="border-border/70 bg-background min-h-0 flex-1 overflow-y-auto rounded-lg border p-5 shadow-inner">
-                  <div className="mx-auto max-w-[36rem] space-y-3">
-                    <p className="text-foreground text-[15px] font-semibold tracking-tight">
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-md bg-[#e8e8e8] p-4 dark:bg-[#2a2a2a]">
+                  <div
+                    className="mx-auto min-h-[20rem] max-w-[36rem] rounded-[2px] bg-white px-10 py-12 text-black shadow-[0_8px_30px_rgba(0,0,0,0.18)] ring-1 ring-black/5"
+                    style={{ fontFamily: "Helvetica, Arial, ui-sans-serif, system-ui, sans-serif" }}
+                  >
+                    <p className="text-[15px] font-bold tracking-tight text-black">
                       {previewTitle || "(untitled cover letter)"}
                     </p>
                     {selectedApp ? (
-                      <p className="text-muted-foreground text-[11px]">
+                      <p className="mt-2 text-[11px] text-neutral-500">
                         Company: {selectedApp.companyName}
                         {selectedApp.role ? ` · Role: ${selectedApp.role}` : ""}
                       </p>
                     ) : (
-                      <p className="text-muted-foreground text-[11px]">
+                      <p className="mt-2 text-[11px] text-neutral-500">
                         Pick an application to fill {"{{company}}"} / {"{{role}}"}.
                       </p>
                     )}
-                    <pre className="text-foreground/90 whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
+                    <pre className="mt-5 whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-neutral-900">
                       {previewBody || "(empty body)"}
                     </pre>
-                    {footerLines.length > 0 ? (
-                      <div className="border-border/60 mt-4 space-y-0.5 border-t pt-3">
-                        {footerLines.map((line) => (
-                          <p key={line} className="text-muted-foreground text-[11px]">
-                            {line}
-                          </p>
-                        ))}
+                    {footerRow.length > 0 ? (
+                      <div className="mt-8 border-t border-neutral-200 pt-3">
+                        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-neutral-600">
+                          {footerRow.map((item, idx) => (
+                            <span key={item.key} className="inline-flex items-center gap-x-1.5">
+                              {idx > 0 ? (
+                                <span className="text-neutral-400" aria-hidden>
+                                  ⋅
+                                </span>
+                              ) : null}
+                              <a
+                                href={item.href}
+                                target={item.key === "email" ? undefined : "_blank"}
+                                rel={item.key === "email" ? undefined : "noreferrer"}
+                                className="text-blue-700 underline-offset-2 hover:underline"
+                              >
+                                {item.label}
+                              </a>
+                            </span>
+                          ))}
+                        </p>
                       </div>
                     ) : null}
                   </div>
