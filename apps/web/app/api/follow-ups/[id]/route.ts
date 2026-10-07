@@ -23,6 +23,7 @@ function toDto(row: NonNullable<ReturnType<typeof getFollowUp>>) {
     id: row.id,
     title: row.title,
     dueDate: row.dueDate,
+    sendAfter: row.sendAfter,
     status: row.status,
     personId: row.personId,
     applicationId: row.applicationId,
@@ -53,7 +54,13 @@ export async function PATCH(request: Request, ctx: Ctx) {
     if ("notes" in body) patch.notes = (body.notes as string | null) ?? null;
     if ("status" in body) {
       const status = body.status as FollowUpStatus;
-      if (status !== "pending" && status !== "done" && status !== "dismissed") {
+      if (
+        status !== "pending" &&
+        status !== "done" &&
+        status !== "dismissed" &&
+        status !== "queued" &&
+        status !== "sent_stub"
+      ) {
         return NextResponse.json({ error: "Invalid status." }, { status: 400 });
       }
       patch.status = status;

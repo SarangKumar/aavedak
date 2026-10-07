@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Follow-ups** — Dedicated `/follow-ups` list: open/all/closed filters, create, mark done/dismiss/reopen, process due queue (Gmail stub).
+- **People CRM** — Dedicated `/people` shell: search, add/edit drawer, archive/restore, link to applications.
+- **About** — Public `/about` page with product principles and workspace map.
+
 ### Changed
 
 - **Profile links** — Portfolio, LinkedIn, GitHub, LeetCode, HackerRank, X/Twitter, Website (persisted in `links_json`; legacy portfolio/linkedin columns kept in sync).

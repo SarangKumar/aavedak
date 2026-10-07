@@ -21,6 +21,7 @@ function toDto(row: ReturnType<typeof listFollowUps>[number]) {
     id: row.id,
     title: row.title,
     dueDate: row.dueDate,
+    sendAfter: row.sendAfter,
     status: row.status,
     personId: row.personId,
     applicationId: row.applicationId,

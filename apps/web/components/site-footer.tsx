@@ -25,6 +25,15 @@ export function SiteFooter({ className }: { className?: string }) {
         </div>
         <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]">
           <Link
+            href="/about"
+            className="hover:text-foreground inline-flex min-h-8 items-center transition-colors"
+          >
+            About
+          </Link>
+          <span className="text-border hidden sm:inline" aria-hidden>
+            ·
+          </span>
+          <Link
             href="/changelog"
             className="hover:text-foreground inline-flex min-h-8 items-center transition-colors"
           >

@@ -49,7 +49,7 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
   return (
     <HeaderMenu
       label="Account menu"
-      menuClassName="w-40"
+      menuClassName="w-44"
       triggerClassName={(open) =>
         cn(
           "ring-border hover:ring-primary/40 focus-visible:ring-primary/50 flex size-8 items-center justify-center overflow-hidden rounded-full ring-1 transition focus-visible:outline-none focus-visible:ring-2",
@@ -90,6 +90,22 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
             className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
           >
             Settings
+          </Link>
+          <Link
+            href="/people"
+            role="menuitem"
+            onClick={close}
+            className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
+          >
+            People
+          </Link>
+          <Link
+            href="/follow-ups"
+            role="menuitem"
+            onClick={close}
+            className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
+          >
+            Follow-ups
           </Link>
           <div className="border-border border-t" />
           <button

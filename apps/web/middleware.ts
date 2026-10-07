@@ -23,6 +23,8 @@ export const config = {
     "/job-tracker/:path*",
     "/documents/:path*",
     "/referrals/:path*",
+    "/follow-ups/:path*",
+    "/people/:path*",
     "/onboarding/:path*",
     "/admin/:path*",
   ],

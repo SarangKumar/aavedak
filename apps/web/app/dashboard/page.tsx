@@ -17,6 +17,8 @@ const quickLinks = [
   { href: "/job-tracker", title: "Job tracker", blurb: "Pipeline by stage" },
   { href: "/documents", title: "Documents", blurb: "Resumes & cover letters" },
   { href: "/referrals", title: "Referrals", blurb: "Warm paths & asks" },
+  { href: "/people", title: "People", blurb: "Contacts CRM" },
+  { href: "/follow-ups", title: "Follow-ups", blurb: "Pending & queued asks" },
 ] as const;
 
 function formatDue(dueDate: string | null): string {
@@ -30,12 +32,12 @@ export default async function DashboardPage() {
 
   const metaStats = [
     { label: "Active apps", value: dash.activeApplicationCount, href: "/job-tracker" },
-    { label: "Follow-ups", value: dash.pendingFollowUpCount, href: "/referrals" },
-    { label: "Due ≤7d", value: dash.dueSoonFollowUpCount, href: "/referrals" },
+    { label: "Follow-ups", value: dash.pendingFollowUpCount, href: "/follow-ups" },
+    { label: "Due ≤7d", value: dash.dueSoonFollowUpCount, href: "/follow-ups" },
     { label: "Jobs", value: dash.jobCount, href: "/jobs" },
     { label: "Resumes", value: dash.resumeCount, href: "/documents" },
     { label: "Covers", value: dash.coverLetterCount, href: "/documents" },
-    { label: "People", value: dash.peopleCount, href: "/referrals" },
+    { label: "People", value: dash.peopleCount, href: "/people" },
   ] as const;
 
   return (
@@ -218,13 +220,17 @@ export default async function DashboardPage() {
               >
                 Upcoming follow-ups
               </h2>
-              <Link href="/referrals" className="text-primary text-[11px] hover:underline">
-                Referrals
+              <Link href="/follow-ups" className="text-primary text-[11px] hover:underline">
+                View all
               </Link>
             </div>
             {dash.upcomingFollowUps.length === 0 ? (
               <p className="text-muted-foreground text-[12px] leading-relaxed">
                 No pending follow-ups. Track asks on{" "}
+                <Link href="/follow-ups" className="text-primary hover:underline">
+                  Follow-ups
+                </Link>{" "}
+                or compose on{" "}
                 <Link href="/referrals" className="text-primary hover:underline">
                   Referrals
                 </Link>
@@ -265,7 +271,7 @@ export default async function DashboardPage() {
           >
             Workspace
           </h2>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {quickLinks.map((link) => (
               <Link
                 key={link.href}
