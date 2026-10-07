@@ -1,45 +1,118 @@
-import { betterAuth } from "better-auth";
-import { nextCookies } from "better-auth/next-js";
-import Database from "better-sqlite3";
-import fs from "node:fs";
-import path from "node:path";
+import "server-only";
+
+import {
+  createNeonAuth,
+  type createNeonAuth as CreateNeonAuth,
+} from "@neondatabase/auth/next/server";
+
+import {
+  DatabaseConfigError,
+  isNeonAuthConfigured,
+  neonAuthOptions,
+  neonJwksUrl,
+} from "@/lib/db-config";
+import { GMAIL_SEND_SCOPE } from "@/lib/google-scopes";
 
 /**
- * Local auth DB: SQLite via Better Auth's built-in Kysely adapter.
- * Production target is MySQL (Aiven). When ready, swap `database` for
- * mysql2 createPool(...) using AUTH_DATABASE_URL (or DATABASE_URL) —
- * keep socialProviders / plugins the same.
+ * Neon Auth (Managed Better Auth). Google is the only social provider and is
+ * configured in the Neon Console, not with GOOGLE_CLIENT_* in this app.
+ * gmail.send is requested at sign-in and again via linkSocial when the first
+ * grant omitted it.
  */
-function createSqliteDatabase() {
-  const dataDir = path.join(process.cwd(), "data");
-  fs.mkdirSync(dataDir, { recursive: true });
-  const dbPath = path.join(dataDir, "local.db");
-  return new Database(dbPath);
+
+export const isNeonSignInConfigured = isNeonAuthConfigured();
+
+export { GMAIL_SEND_SCOPE };
+
+export type AppSessionUser = {
+  id: string;
+  name: string;
+  email: string;
+  image?: string | null;
+};
+
+export type AppSession = {
+  user: AppSessionUser;
+};
+
+type NeonAuth = ReturnType<typeof CreateNeonAuth>;
+
+let neonAuth: NeonAuth | null = null;
+let jwksCheck: Promise<void> | null = null;
+
+export function getNeonAuth(): NeonAuth {
+  if (!isNeonAuthConfigured()) {
+    throw new DatabaseConfigError(
+      "Set NEON_AUTH_BASE_URL, NEON_AUTH_JWKS_URL, and NEON_AUTH_COOKIE_SECRET (32+ characters) from the Neon Console.",
+    );
+  }
+  if (!neonAuth) neonAuth = createNeonAuth(neonAuthOptions());
+  return neonAuth;
 }
 
-const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
+/** Confirm the configured JWKS URL returns a key set. Cached for the process. */
+export function ensureNeonJwks(): Promise<void> {
+  if (!jwksCheck) {
+    jwksCheck = (async () => {
+      const url = neonJwksUrl();
+      if (!url) {
+        throw new DatabaseConfigError(
+          "NEON_AUTH_JWKS_URL is missing. Copy it from the Neon Console (branch → Auth).",
+        );
+      }
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new DatabaseConfigError(
+          `NEON_AUTH_JWKS_URL returned ${response.status}. Check the URL from the Neon Console.`,
+        );
+      }
+      const body = (await response.json()) as { keys?: unknown };
+      if (!body || !Array.isArray(body.keys)) {
+        throw new DatabaseConfigError("NEON_AUTH_JWKS_URL did not return a JWKS document.");
+      }
+    })().catch((err) => {
+      jwksCheck = null;
+      throw err;
+    });
+  }
+  return jwksCheck;
+}
 
-/** True when Google OAuth env is present — used to degrade UI without crashing. */
-export const isGoogleAuthConfigured = Boolean(googleClientId && googleClientSecret);
+function sessionFromUnknown(value: unknown): AppSession | null {
+  if (!value || typeof value !== "object") return null;
+  const user = (
+    value as { user?: { id?: string; email?: string; name?: string | null; image?: string | null } }
+  ).user;
+  if (!user?.id || !user.email) return null;
+  return {
+    user: {
+      id: String(user.id),
+      email: user.email,
+      name: user.name ?? "",
+      image: user.image ?? null,
+    },
+  };
+}
 
-export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
-  secret: process.env.BETTER_AUTH_SECRET,
-  database: createSqliteDatabase(),
-  socialProviders: {
-    ...(isGoogleAuthConfigured
-      ? {
-          google: {
-            clientId: googleClientId,
-            clientSecret: googleClientSecret,
-            prompt: "select_account",
-          },
-        }
-      : {}),
+/** Session for the current request via Neon Auth. */
+export async function getRequestSession(): Promise<AppSession | null> {
+  await ensureNeonJwks();
+  const { data, error } = await getNeonAuth().getSession();
+  if (error) {
+    const message = "message" in error && typeof error.message === "string" ? error.message : "";
+    throw new DatabaseConfigError(
+      `Neon Auth session lookup failed. Check NEON_AUTH_BASE_URL. ${message}`.trim(),
+    );
+  }
+  return sessionFromUnknown(data);
+}
+
+/** Compat shim so routes can keep calling auth.api.getSession(). */
+export const auth = {
+  api: {
+    getSession: async (input?: { headers?: Headers }): Promise<AppSession | null> => {
+      void input;
+      return getRequestSession();
+    },
   },
-  // last plugin — sets cookies from server actions / RSC flows
-  plugins: [nextCookies()],
-});
-
-export type Session = typeof auth.$Infer.Session;
+};

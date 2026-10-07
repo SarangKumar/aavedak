@@ -25,7 +25,9 @@ export function TableFooter({ className, ...props }: React.ComponentProps<"tfoot
 }
 
 export function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
-  return <tr className={cn("border-border hover:bg-accent border-b", className)} {...props} />;
+  return (
+    <tr className={cn("border-border bg-card/40 hover:bg-accent border-b", className)} {...props} />
+  );
 }
 
 export function TableHead({ className, ...props }: React.ComponentProps<"th">) {

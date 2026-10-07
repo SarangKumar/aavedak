@@ -107,22 +107,22 @@ aavedak/
 **Local scaffold**
 
 - Web needs `NEXT_PUBLIC_API_URL` (default `http://127.0.0.1:8000`) for `pnpm dev`.
-- Auth/Google keys (`BETTER_AUTH_*`, `GOOGLE_*`, optional `AUTH_DATABASE_URL`) — see Auth section / `apps/web/README.md`.
+- Neon keys (`DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_JWKS_URL`, `NEON_AUTH_COOKIE_SECRET`) — see Auth section / `apps/web/README.md`.
 - API starts with an empty `DATABASE_URL`; DB-backed features won’t work until you set it. `CRON_SECRET` and R2 keys are optional for the health stub.
 
 Generators and scripts must read the **app-specific** env file — never mix web and API keys.
 
 ## Auth (web)
 
-Better Auth + **Google only**. Local SQLite at `apps/web/data/local.db` (gitignored); production will use MySQL via `AUTH_DATABASE_URL`.
+**Neon Postgres** + **Neon Auth** (Google only). There is no local SQLite database and no self-hosted Better Auth.
 
-1. Create a Google OAuth Web client; redirect URI:
-   `http://localhost:3000/api/auth/callback/google`
-2. Fill `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in `apps/web/.env.local`
-   (`BETTER_AUTH_SECRET` + `BETTER_AUTH_URL` required; scaffold generates a secret if empty).
-3. `pnpm --filter web dev` → `/sign-in`
+1. In the Neon Console, enable Auth and add the Google provider. The OAuth client lives in Neon, not in app env.
+2. Authorized redirect URI (Google Cloud and Neon): `{NEON_AUTH_BASE_URL}/callback/google`.
+3. Copy `DATABASE_URL`, `NEON_AUTH_BASE_URL`, and `NEON_AUTH_JWKS_URL` into `apps/web/.env.local`. `setup` generates `NEON_AUTH_COOKIE_SECRET` when it is empty (32+ characters).
+4. Add `http://localhost:3000` (and `https://aavedak.vercel.app` in production) as a trusted domain.
+5. `pnpm --filter web dev` → `/sign-in`
 
-Without Google keys the app still builds; `/sign-in` shows setup help. Details: `apps/web/README.md`.
+Without those Neon values, protected routes redirect to `/setup-required` and `/sign-in` shows setup help. Details: `apps/web/README.md`.
 
 ## UI / design
 

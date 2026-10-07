@@ -1,19 +1,27 @@
-import { getSessionCookie } from "better-auth/cookies";
+import { createNeonAuth } from "@neondatabase/auth/next/server";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Cookie existence check only (optimistic redirect).
- * Real validation happens via auth.api.getSession in server code / API.
- * See https://www.better-auth.com/docs/integrations/next
+ * Neon Auth validates and refreshes the session.
+ * Missing Neon env sends protected routes to /setup-required.
  */
+const neonBaseUrl = process.env.NEON_AUTH_BASE_URL?.trim() ?? "";
+const neonJwksUrl = process.env.NEON_AUTH_JWKS_URL?.trim() ?? "";
+const neonCookieSecret = process.env.NEON_AUTH_COOKIE_SECRET?.trim() ?? "";
+const neonReady = Boolean(neonBaseUrl && neonJwksUrl && neonCookieSecret.length >= 32);
+
+const neonMiddleware = neonReady
+  ? createNeonAuth({
+      baseUrl: neonBaseUrl,
+      cookies: { secret: neonCookieSecret },
+    }).middleware({ loginUrl: "/sign-in" })
+  : null;
+
 export function middleware(request: NextRequest) {
-  const sessionCookie = getSessionCookie(request);
-  if (!sessionCookie) {
-    const signIn = new URL("/sign-in", request.url);
-    signIn.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(signIn);
+  if (!neonMiddleware) {
+    return NextResponse.redirect(new URL("/setup-required", request.url));
   }
-  return NextResponse.next();
+  return neonMiddleware(request);
 }
 
 export const config = {

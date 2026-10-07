@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { CompanySelect } from "@/components/company-select";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import {
@@ -27,6 +28,9 @@ export type JobDto = {
   description: string;
   salary: string | null;
   status: "active" | "archived";
+  atsScore?: number | null;
+  resumeMatchScore?: number | null;
+  decision?: "applied" | "ignored" | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -191,6 +195,27 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
       setMessage("Job added.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function decide(id: string, decision: "applied" | "ignored") {
+    setError(null);
+    setMessage(null);
+    setPending(true);
+    try {
+      const res = await fetch(`/api/jobs/${id}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not update this job.");
+      setJobs((list) => list.map((job) => (job.id === id ? { ...job, decision } : job)));
+      setMessage(decision === "applied" ? "Marked applied and added to the tracker." : "Ignored.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update this job.");
     } finally {
       setPending(false);
     }
@@ -464,6 +489,17 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
                 <MetaChip label="Location" value={selected.location} />
                 <MetaChip label="Comp" value={selected.salary ?? "—"} />
                 <MetaChip label="Added" value={relativeAge(selected.createdAt) || "—"} />
+                <MetaChip
+                  label="ATS"
+                  value={selected.atsScore == null ? "—" : String(selected.atsScore)}
+                />
+                <MetaChip
+                  label="Resume match"
+                  value={
+                    selected.resumeMatchScore == null ? "—" : String(selected.resumeMatchScore)
+                  }
+                />
+                <MetaChip label="Decision" value={selected.decision ?? "—"} />
               </div>
 
               <div className="flex flex-wrap gap-1.5">
@@ -486,10 +522,18 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
                 <button
                   type="button"
                   disabled={pending}
-                  onClick={() => void createApplicationFromJob(selected, "applied")}
+                  onClick={() => void decide(selected.id, "applied")}
                   className="border-border text-foreground hover:border-primary/40 inline-flex h-8 items-center rounded-md border px-3 text-[12px] disabled:opacity-60"
                 >
-                  Mark applied
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => void decide(selected.id, "ignored")}
+                  className="border-border text-foreground hover:border-primary/40 inline-flex h-8 items-center rounded-md border px-3 text-[12px] disabled:opacity-60"
+                >
+                  Ignore
                 </button>
                 <button
                   type="button"
@@ -520,8 +564,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
             value={draft.title}
             onChange={(v) => setDraft((d) => ({ ...d, title: v }))}
           />
-          <Field
-            label="Company *"
+          <CompanySelect
             value={draft.company}
             onChange={(v) => setDraft((d) => ({ ...d, company: v }))}
           />

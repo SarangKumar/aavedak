@@ -52,6 +52,9 @@ export type CoverLetterDto = {
   title: string;
   body: string;
   applicationId: string | null;
+  companyName?: string | null;
+  role?: string | null;
+  jobId?: string | null;
   status: "active" | "archived";
   createdAt: string;
   updatedAt: string;
@@ -164,6 +167,10 @@ export function DocumentsHub({
   const [clTitle, setClTitle] = useState(DEFAULT_COVER_TITLE);
   const [clBody, setClBody] = useState(DEFAULT_COVER_BODY);
   const [clApplicationId, setClApplicationId] = useState<string>(initialApplications[0]?.id ?? "");
+  const [clMode, setClMode] = useState<"application" | "custom">("application");
+  const [clCompany, setClCompany] = useState("");
+  const [clRole, setClRole] = useState("");
+  const [jdNote, setJdNote] = useState<string | null>(null);
   const [editingClId, setEditingClId] = useState<string | null>(null);
   const [clFooterInclude, setClFooterInclude] = useState<FooterInclude>(() =>
     defaultFooterInclude(profileEmail, profileLinks),
@@ -190,15 +197,15 @@ export function DocumentsHub({
 
   const coverVars = useMemo(() => {
     return {
-      company: selectedApp?.companyName ?? "Acme Corp",
-      role: selectedApp?.role ?? "Software Engineer",
+      company: (clMode === "custom" ? clCompany : selectedApp?.companyName) || "Acme Corp",
+      role: (clMode === "custom" ? clRole : selectedApp?.role) || "Software Engineer",
       location: selectedApp?.location ?? "Remote",
       user_name: "John Doe",
-      from_email: "john.doe@example.com",
-      person_name: "Jane Smith",
-      person_email: "jane.smith@example.com",
+      from_email: "example@email.com",
+      person_name: "John Doe",
+      person_email: "example@email.com",
     };
-  }, [selectedApp]);
+  }, [selectedApp, clMode, clCompany, clRole]);
 
   const clFooter = useMemo(
     () => buildFooterFromProfile(clFooterInclude, profileEmail, profileLinks),
@@ -223,9 +230,9 @@ export function DocumentsHub({
         role: app?.role ?? "Software Engineer",
         location: app?.location ?? "Remote",
         user_name: "John Doe",
-        from_email: "john.doe@example.com",
-        person_name: "Jane Smith",
-        person_email: "jane.smith@example.com",
+        from_email: "example@email.com",
+        person_name: "John Doe",
+        person_email: "example@email.com",
       };
       const rendered = {
         title: renderTemplatePreview(cl.title, vars),
@@ -339,6 +346,44 @@ export function DocumentsHub({
     await refreshResumes();
   }
 
+  async function scoreJd(file: File) {
+    setError(null);
+    setJdNote(null);
+    setPending(true);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      form.set("companyName", clMode === "custom" ? clCompany : (selectedApp?.companyName ?? ""));
+      form.set("role", clMode === "custom" ? clRole : (selectedApp?.role ?? ""));
+      form.set("applicationId", clMode === "application" ? clApplicationId : "");
+      form.set("saveCover", "0");
+      const res = await fetch("/api/analyses/from-jd", { method: "POST", body: form });
+      const data = (await res.json()) as {
+        error?: string;
+        atsScore?: number;
+        resumeMatchScore?: number;
+        draft?: { title: string; body: string };
+        resumeFound?: boolean;
+      };
+      if (!res.ok) throw new Error(data.error || "Could not score this JD.");
+      if (data.draft) {
+        setClTitle(data.draft.title);
+        setClBody(data.draft.body);
+      }
+      setJdNote(
+        `ATS ${data.atsScore ?? 0} · resume match ${data.resumeMatchScore ?? 0}.${
+          data.resumeFound
+            ? ""
+            : " Upload an active resume with extractable text for a real overlap score."
+        }`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not score this JD.");
+    } finally {
+      setPending(false);
+    }
+  }
+
   async function saveCoverLetter() {
     setError(null);
     if (!clTitle.trim()) {
@@ -349,8 +394,12 @@ export function DocumentsHub({
       setError("Cover letter body is required.");
       return;
     }
-    if (!clApplicationId) {
-      setError("Pick a company / application — cover letters are always company-specific.");
+    if (clMode === "application" && !clApplicationId) {
+      setError("Pick an application, or switch to a custom company and role.");
+      return;
+    }
+    if (clMode === "custom" && (!clCompany.trim() || !clRole.trim())) {
+      setError("Company and role are required for a custom cover letter.");
       return;
     }
     if (clOverflowsPage) {
@@ -366,7 +415,9 @@ export function DocumentsHub({
           body: JSON.stringify({
             title: clTitle,
             body: clBody,
-            applicationId: clApplicationId,
+            applicationId: clMode === "application" ? clApplicationId : null,
+            companyName: clMode === "custom" ? clCompany : selectedApp?.companyName,
+            role: clMode === "custom" ? clRole : selectedApp?.role,
           }),
         });
         const data = (await res.json()) as { coverLetter?: CoverLetterDto; error?: string };
@@ -383,7 +434,9 @@ export function DocumentsHub({
           body: JSON.stringify({
             title: clTitle,
             body: clBody,
-            applicationId: clApplicationId,
+            applicationId: clMode === "application" ? clApplicationId : null,
+            companyName: clMode === "custom" ? clCompany : selectedApp?.companyName,
+            role: clMode === "custom" ? clRole : selectedApp?.role,
           }),
         });
         const data = (await res.json()) as { coverLetter?: CoverLetterDto; error?: string };
@@ -594,36 +647,95 @@ export function DocumentsHub({
               <p className="aavedak-section-title text-foreground">
                 {editingClId ? "Edit cover letter" : "New cover letter"}
               </p>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setClMode("application")}
+                  className={cn(
+                    "h-8 rounded-lg border px-2.5 text-[12px]",
+                    clMode === "application"
+                      ? "border-primary/40 bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground",
+                  )}
+                >
+                  Application
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClMode("custom")}
+                  className={cn(
+                    "h-8 rounded-lg border px-2.5 text-[12px]",
+                    clMode === "custom"
+                      ? "border-primary/40 bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground",
+                  )}
+                >
+                  Custom company + role
+                </button>
+              </div>
+              {clMode === "custom" ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input
+                    value={clCompany}
+                    onChange={(e) => setClCompany(e.target.value)}
+                    placeholder="Company"
+                    className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
+                  />
+                  <input
+                    value={clRole}
+                    onChange={(e) => setClRole(e.target.value)}
+                    placeholder="Role"
+                    className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
+                  />
+                </div>
+              ) : null}
               <label className="block space-y-1">
                 <span className="text-muted-foreground text-[11px] font-medium">
-                  Company / application *
+                  Upload JD → score → draft
                 </span>
-                <Select
-                  value={clApplicationId || undefined}
-                  onValueChange={(v) => setClApplicationId(v || "")}
-                >
-                  <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
-                    <SelectValue placeholder="Search applications…" />
-                  </SelectTrigger>
-                  <SelectContent
-                    className="z-[280]"
-                    searchable
-                    searchPlaceholder="Search company or role…"
-                  >
-                    {applications.length === 0 ? (
-                      <SelectItem value="__none" disabled>
-                        No applications yet — add one in Job tracker
-                      </SelectItem>
-                    ) : (
-                      applications.map((app) => (
-                        <SelectItem key={app.id} value={app.id}>
-                          {app.companyName} · {app.role}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <input
+                  type="file"
+                  accept=".pdf,.txt,text/plain,application/pdf"
+                  className="text-muted-foreground block w-full text-[12px]"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void scoreJd(file);
+                  }}
+                />
+                {jdNote ? <p className="text-muted-foreground text-[11px]">{jdNote}</p> : null}
               </label>
+              {clMode === "application" ? (
+                <label className="block space-y-1">
+                  <span className="text-muted-foreground text-[11px] font-medium">
+                    Company / application *
+                  </span>
+                  <Select
+                    value={clApplicationId || undefined}
+                    onValueChange={(v) => setClApplicationId(v || "")}
+                  >
+                    <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
+                      <SelectValue placeholder="Search applications…" />
+                    </SelectTrigger>
+                    <SelectContent
+                      className="z-[280]"
+                      searchable
+                      searchPlaceholder="Search company or role…"
+                    >
+                      {applications.length === 0 ? (
+                        <SelectItem value="__none" disabled>
+                          No applications yet — add one in Job tracker
+                        </SelectItem>
+                      ) : (
+                        applications.map((app) => (
+                          <SelectItem key={app.id} value={app.id}>
+                            {app.companyName} · {app.role}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </label>
+              ) : null}
               <input
                 value={clTitle}
                 onChange={(e) => setClTitle(e.target.value)}

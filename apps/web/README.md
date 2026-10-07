@@ -52,41 +52,40 @@ Three files under `apps/web/`:
 | `.env`         | Ignored       | Production-oriented defaults (`https://aavedak.vercel.app` origins). |
 | `.env.local`   | Ignored       | Local overrides (`http://localhost:3000`). Wins over `.env` in Next. |
 
-Shared secrets (Google OAuth, `BETTER_AUTH_SECRET`, `ADMIN_EMAILS`, API URL when same) should match in `.env` and `.env.local`; only public origins differ.
+Neon connection and Auth values (`DATABASE_URL`, `NEON_AUTH_*`, `ADMIN_EMAILS`, API URL when same) should match in `.env` and `.env.local`; only public origins differ.
 
 Copy from the template (`cp apps/web/.env.example apps/web/.env.local`) or run `pnpm setup`. Fill secrets locally — never commit `.env` / `.env.local`.
 
-| Variable                                    | Required for local UI | Notes                                                                        |
-| ------------------------------------------- | --------------------- | ---------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_URL`                       | Yes                   | App origin; local `http://localhost:3000`, prod `https://aavedak.vercel.app` |
-| `NEXT_PUBLIC_API_URL`                       | Yes                   | Document API; default `http://127.0.0.1:8000`                                |
-| `BETTER_AUTH_SECRET`                        | Yes for auth          | 32+ chars; `setup` / scaffold generates one if empty                         |
-| `BETTER_AUTH_URL`                           | Yes for auth          | Must match the browser origin (same as `NEXT_PUBLIC_APP_URL`)                |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | For Google sign-in    | Leave empty → `/sign-in` shows setup help (build still succeeds)             |
-| `AUTH_DATABASE_URL`                         | No (local)            | Reserved for production MySQL; local uses SQLite `data/local.db`             |
-| `ADMIN_EMAILS`                              | No                    | Comma-separated (e.g. `sarangkumar1578@gmail.com`)                           |
+| Variable                               | Required for local UI | Notes                                                                        |
+| -------------------------------------- | --------------------- | ---------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_URL`                  | Yes                   | App origin; local `http://localhost:3000`, prod `https://aavedak.vercel.app` |
+| `NEXT_PUBLIC_API_URL`                  | Yes                   | Document API; default `http://127.0.0.1:8000`                                |
+| `DATABASE_URL`                         | Yes                   | Neon `postgresql://` connection string                                       |
+| `NEON_AUTH_BASE_URL`                   | Yes for sign-in       | Neon Console → branch → Auth                                                 |
+| `NEON_AUTH_JWKS_URL`                   | Yes for sign-in       | JWKS URL from the same Auth panel                                            |
+| `NEON_AUTH_COOKIE_SECRET`              | Yes for sign-in       | 32+ chars; `setup` generates one if empty                                    |
+| `ADMIN_EMAILS`                         | No                    | Comma-separated (e.g. `sarangkumar1578@gmail.com`)                           |
+| `CRON_SECRET`                          | For Vercel Cron       | Bearer token for `/api/cron/jobs` and `/api/cron/follow-ups`                 |
+| `JOBS_FEED_URL` / `JOBS_INGEST_SAMPLE` | No                    | Remote JSON feed, or `1` to allow the bundled sample                         |
 
 Never commit secrets. `apps/web/data/` and `apps/web/.data/` are gitignored.
 
 API env (separate): `apps/api/.env.example` → `apps/api/.env` (also gitignored). See repo root README.
 
-## Auth (Better Auth + Google)
+## Auth (Neon Auth + Google)
 
-Frozen stack: **Better Auth** with **Google OAuth only** (no email/password).
+Frozen stack: **Neon Postgres** and **Neon Auth** with **Google only** (no email/password, no local SQLite, no self-hosted Better Auth).
 
-1. Google Cloud Console → APIs & Services → Credentials → Create OAuth client (Web).
-2. Authorized redirect URIs (add both):
-   - `http://localhost:3000/api/auth/callback/google`
-   - `https://aavedak.vercel.app/api/auth/callback/google`
-3. Put Client ID / Secret in `apps/web/.env` and `apps/web/.env.local` (same values).
-4. Local: `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL` = `http://localhost:3000` in `.env.local`.
-   Prod defaults: `https://aavedak.vercel.app` in `.env`.
-5. From `apps/web` (first time / schema change): `pnpm dlx auth@latest migrate`
-6. `pnpm --filter web dev` → open `/sign-in` → Continue with Google.
+1. Neon Console → branch → enable Auth → add the Google provider. Put the owner’s Google OAuth client in Neon, not in this app’s env.
+2. Authorized redirect URI (register in Google Cloud, then paste into Neon):
+   - `{NEON_AUTH_BASE_URL}/callback/google`
+3. Trusted domains: `http://localhost:3000` and `https://aavedak.vercel.app`.
+4. On the Google provider, include the `https://www.googleapis.com/auth/gmail.send` scope and offline access so follow-up mail can refresh tokens.
+5. Copy `DATABASE_URL`, `NEON_AUTH_BASE_URL`, and `NEON_AUTH_JWKS_URL` into `apps/web/.env.local`. Generate `NEON_AUTH_COOKIE_SECRET` with `openssl rand -base64 32` (or let `pnpm setup` fill an empty value).
+6. `NEXT_PUBLIC_APP_URL` = `http://localhost:3000` locally, `https://aavedak.vercel.app` on Vercel.
+7. `pnpm --filter web dev` → open `/sign-in` → Continue with Google. App tables migrate on first database connection. Do not run `pnpm dlx auth migrate`.
 
-Local DB: SQLite via Better Auth (Kysely + `better-sqlite3`) at `apps/web/data/local.db`. Production will swap to MySQL (Aiven) using `AUTH_DATABASE_URL` — see comments in `lib/auth.ts`.
-
-Key files: `lib/auth.ts`, `lib/auth-client.ts`, `app/api/auth/[...all]/route.ts`, `middleware.ts`, `app/sign-in/page.tsx`.
+Key files: `lib/auth.ts`, `lib/auth-client.ts`, `lib/db-config.ts`, `lib/app-db.ts`, `app/api/auth/[...all]/route.ts`, `middleware.ts`, `app/sign-in/page.tsx`.
 
 Protected routes (cookie check in middleware → `/sign-in`): `/dashboard`, `/jobs`, `/job-tracker`, `/documents`, `/referrals`, `/onboarding`, `/admin`. Public: `/`, `/sign-in`, `/{username}`.
 
@@ -109,37 +108,37 @@ apps/web/
 │   ├── site-footer.tsx
 │   └── page-stub.tsx    # Shared empty-state for stubs
 ├── lib/
-│   ├── auth.ts          # Better Auth server (SQLite + Google)
+│   ├── auth.ts          # Neon Auth server (Google via Neon)
 │   ├── auth-client.ts   # React client
+│   ├── app-db.ts        # Neon Postgres app tables
 │   └── utils.ts         # cn()
-├── middleware.ts        # Optimistic session-cookie gate
-├── data/                # local.db (gitignored)
+├── middleware.ts        # Neon Auth session gate
 └── public/brand/icon.png
 ```
 
 ## Jobs (local v1)
 
 - `/jobs`: master-detail cards; sources (manual/linkedin/careers/indeed/demo/other); search + source filter.
-- User-scoped `jobs` + `job_analyses` in `.data/app.db`. Demo seed when empty.
+- User-scoped `jobs` + `job_analyses` in Neon Postgres. Demo seed stays off on Vercel unless `JOBS_INGEST_SAMPLE=1`.
 - Detail actions create Applications (`bookmarked` / `preparing` / `applied`) with `job_id` snapshot.
 - Paste JD saves a private analysis stub (no global Job).
 
 ## Referrals (local v1)
 
 - `/referrals`: People + Follow-ups. Contacts are **user-scoped** (private outreach email override). Global Person sync later.
-- Follow-ups: due date, pending/done/dismissed; optional linked person.
-- Tables: `people`, `follow_up_tasks` in `.data/app.db`.
+- Follow-ups: due date, pending/queued/sent/failed/done/dismissed; optional linked person. Due queued mail sends through Gmail when Neon Auth has `gmail.send`.
+- Tables: `people`, `follow_up_tasks` in Neon Postgres.
 
 ## Documents hub (local v1)
 
 - `/documents`: Resumes | Cover letters | Templates.
 - Resumes reuse `/api/resumes` (+ `GET /api/resumes/[id]/file`). PDF uploads use Vinyaas `FileUpload`.
-- Cover letters / templates in `.data/app.db` (`cover_letters`, `templates`); archive-not-delete.
+- Cover letters / templates in Neon Postgres (`cover_letters`, `templates`); archive-not-delete.
 
 ## Job tracker (local v1)
 
 - `/job-tracker`: Kanban + list, Active / Archived scopes.
-- Applications in `.data/app.db` (`applications` table). `job_id` nullable; required snapshot: company, role, location.
+- Applications in Neon Postgres (`applications` table). `job_id` nullable; required snapshot: company, role, location.
 - Single status enum (no custom statuses). Column show/hide + view prefs in `user_preferences`.
 - Status changes only via user (drag or select) — Aavedak never auto-moves cards.
 

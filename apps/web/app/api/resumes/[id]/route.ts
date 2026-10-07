@@ -10,7 +10,7 @@ type Ctx = { params: Promise<{ id: string }> };
 async function requireUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -32,7 +32,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
   }
 
   try {
-    const resume = updateResume(user.id, id, {
+    const resume = await updateResume(user.id, id, {
       displayName: body.displayName,
       status: body.status,
     });
@@ -61,7 +61,7 @@ export async function DELETE(_request: Request, ctx: Ctx) {
   }
   const { id } = await ctx.params;
   try {
-    const resume = archiveResume(user.id, id);
+    const resume = await archiveResume(user.id, id);
     return NextResponse.json({
       resume: {
         id: resume.id,

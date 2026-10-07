@@ -2,7 +2,8 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { getAppDb } from "@/lib/app-db";
+import { dbAll, dbGet, dbRun } from "@/lib/app-db";
+import { isServerlessRuntime } from "@/lib/db-config";
 import { JOB_SOURCES, isJobSource, type JobSource, type JobStatus } from "@/lib/job-constants";
 
 export { JOB_SOURCES, isJobSource, type JobSource, type JobStatus };
@@ -18,6 +19,10 @@ export type JobRecord = {
   description: string;
   salary: string | null;
   status: JobStatus;
+  externalId: string | null;
+  atsScore: number | null;
+  resumeMatchScore: number | null;
+  decision: "applied" | "ignored" | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -33,6 +38,10 @@ function mapRow(row: {
   description: string;
   salary: string | null;
   status: JobStatus;
+  external_id?: string | null;
+  ats_score?: number | string | null;
+  resume_match_score?: number | string | null;
+  decision?: string | null;
   created_at: string;
   updated_at: string;
 }): JobRecord {
@@ -50,6 +59,13 @@ function mapRow(row: {
     description: row.description,
     salary: row.salary,
     status: row.status,
+    externalId: row.external_id ?? null,
+    atsScore: row.ats_score == null || row.ats_score === "" ? null : Number(row.ats_score),
+    resumeMatchScore:
+      row.resume_match_score == null || row.resume_match_score === ""
+        ? null
+        : Number(row.resume_match_score),
+    decision: row.decision === "applied" || row.decision === "ignored" ? row.decision : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -76,30 +92,33 @@ function parseSource(value: unknown): JobSource {
   return "manual";
 }
 
-export function listJobs(userId: string, opts?: { includeArchived?: boolean }): JobRecord[] {
+export async function listJobs(
+  userId: string,
+  opts?: { includeArchived?: boolean },
+): Promise<JobRecord[]> {
   const includeArchived = opts?.includeArchived ?? false;
   const sql = includeArchived
     ? `SELECT * FROM jobs WHERE user_id = ? ORDER BY updated_at DESC`
     : `SELECT * FROM jobs WHERE user_id = ? AND status != 'archived' ORDER BY updated_at DESC`;
-  const rows = getAppDb().prepare(sql).all(userId) as Array<Parameters<typeof mapRow>[0]>;
+  const rows = (await dbAll(sql, userId)) as Array<Parameters<typeof mapRow>[0]>;
   return rows.map(mapRow);
 }
 
-export function getJob(userId: string, id: string): JobRecord | null {
-  const row = getAppDb()
-    .prepare(`SELECT * FROM jobs WHERE id = ? AND user_id = ?`)
-    .get(id, userId) as Parameters<typeof mapRow>[0] | undefined;
+export async function getJob(userId: string, id: string): Promise<JobRecord | null> {
+  const row = (await dbGet(`SELECT * FROM jobs WHERE id = ? AND user_id = ?`, id, userId)) as
+    Parameters<typeof mapRow>[0] | undefined;
   return row ? mapRow(row) : null;
 }
 
-export function countJobs(userId: string): number {
-  const row = getAppDb()
-    .prepare(`SELECT COUNT(*) AS n FROM jobs WHERE user_id = ? AND status != 'archived'`)
-    .get(userId) as { n: number };
-  return row.n;
+export async function countJobs(userId: string): Promise<number> {
+  const row = await dbGet<{ n: number | string }>(
+    `SELECT COUNT(*) AS n FROM jobs WHERE user_id = ? AND status != 'archived'`,
+    userId,
+  );
+  return Number(row?.n ?? 0);
 }
 
-export function createJob(
+export async function createJob(
   userId: string,
   input: {
     title: string;
@@ -109,8 +128,11 @@ export function createJob(
     url?: string | null;
     description?: string;
     salary?: string | null;
+    externalId?: string | null;
+    atsScore?: number | null;
+    resumeMatchScore?: number | null;
   },
-): JobRecord {
+): Promise<JobRecord> {
   const title = requireText(input.title, "Title");
   const company = requireText(input.company, "Company");
   const location = requireText(input.location, "Location");
@@ -118,19 +140,35 @@ export function createJob(
   const url = optional(input.url);
   const description = typeof input.description === "string" ? input.description : "";
   const salary = optional(input.salary);
+  const externalId = optional(input.externalId);
   const id = randomUUID();
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `INSERT INTO jobs
-        (id, user_id, title, company, location, source, url, description, salary, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
-    )
-    .run(id, userId, title, company, location, source, url, description, salary, now, now);
-  return getJob(userId, id)!;
+  await dbRun(
+    `INSERT INTO jobs
+        (id, user_id, title, company, location, source, url, description, salary, status,
+         external_id, ats_score, resume_match_score, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+    id,
+    userId,
+    title,
+    company,
+    location,
+    source,
+    url,
+    description,
+    salary,
+    externalId,
+    input.atsScore ?? null,
+    input.resumeMatchScore ?? null,
+    now,
+    now,
+  );
+  const created = await getJob(userId, id);
+  if (!created) throw new Error("Could not save job.");
+  return created;
 }
 
-export function updateJob(
+export async function updateJob(
   userId: string,
   id: string,
   patch: Partial<{
@@ -143,8 +181,8 @@ export function updateJob(
     salary: string | null;
     status: JobStatus;
   }>,
-): JobRecord {
-  const existing = getJob(userId, id);
+): Promise<JobRecord> {
+  const existing = await getJob(userId, id);
   if (!existing) throw new Error("Job not found.");
 
   const title = patch.title !== undefined ? requireText(patch.title, "Title") : existing.title;
@@ -160,22 +198,89 @@ export function updateJob(
   if (status !== "active" && status !== "archived") throw new Error("Invalid status.");
 
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `UPDATE jobs SET title = ?, company = ?, location = ?, source = ?, url = ?, description = ?,
+  await dbRun(
+    `UPDATE jobs SET title = ?, company = ?, location = ?, source = ?, url = ?, description = ?,
          salary = ?, status = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
-    )
-    .run(title, company, location, source, url, description, salary, status, now, id, userId);
-  return getJob(userId, id)!;
+    title,
+    company,
+    location,
+    source,
+    url,
+    description,
+    salary,
+    status,
+    now,
+    id,
+    userId,
+  );
+  const updated = await getJob(userId, id);
+  if (!updated) throw new Error("Could not save job.");
+  return updated;
 }
 
-export function archiveJob(userId: string, id: string): JobRecord {
+export async function setJobDecision(
+  userId: string,
+  id: string,
+  decision: "applied" | "ignored",
+): Promise<JobRecord> {
+  const existing = await getJob(userId, id);
+  if (!existing) throw new Error("Job not found.");
+  const now = new Date().toISOString();
+  await dbRun(
+    `UPDATE jobs SET decision = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+    decision,
+    now,
+    id,
+    userId,
+  );
+  const updated = await getJob(userId, id);
+  if (!updated) throw new Error("Job not found.");
+  return updated;
+}
+
+export async function saveJobScores(
+  userId: string,
+  id: string,
+  scores: { atsScore: number; resumeMatchScore: number },
+): Promise<JobRecord> {
+  const existing = await getJob(userId, id);
+  if (!existing) throw new Error("Job not found.");
+  const now = new Date().toISOString();
+  await dbRun(
+    `UPDATE jobs SET ats_score = ?, resume_match_score = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+    scores.atsScore,
+    scores.resumeMatchScore,
+    now,
+    id,
+    userId,
+  );
+  const updated = await getJob(userId, id);
+  if (!updated) throw new Error("Job not found.");
+  return updated;
+}
+
+export async function findJobByExternalId(
+  userId: string,
+  externalId: string,
+): Promise<JobRecord | null> {
+  const row = (await dbGet(
+    `SELECT * FROM jobs WHERE user_id = ? AND external_id = ? LIMIT 1`,
+    userId,
+    externalId,
+  )) as Parameters<typeof mapRow>[0] | undefined;
+  return row ? mapRow(row) : null;
+}
+
+export async function archiveJob(userId: string, id: string): Promise<JobRecord> {
   return updateJob(userId, id, { status: "archived" });
 }
 
 /** Seed multi-source demo cards when empty; top up missing sample titles up to 6. */
-export function ensureDemoJobs(userId: string): JobRecord[] {
+export async function ensureDemoJobs(userId: string): Promise<JobRecord[]> {
+  if (isServerlessRuntime() && process.env.JOBS_INGEST_SAMPLE !== "1") {
+    return await listJobs(userId);
+  }
   const samples = [
     {
       title: "Senior Frontend Engineer",
@@ -239,21 +344,21 @@ export function ensureDemoJobs(userId: string): JobRecord[] {
     },
   ];
 
-  const existing = listJobs(userId);
+  const existing = await listJobs(userId);
   const titles = new Set(existing.map((j) => j.title.toLowerCase()));
   if (existing.length === 0) {
-    for (const sample of samples) createJob(userId, sample);
-    return listJobs(userId);
+    for (const sample of samples) await createJob(userId, sample);
+    return await listJobs(userId);
   }
 
   // Top up missing sample titles once (keeps user-added jobs intact).
   if (existing.length < 6) {
     for (const sample of samples) {
       if (titles.has(sample.title.toLowerCase())) continue;
-      createJob(userId, sample);
+      await createJob(userId, sample);
       titles.add(sample.title.toLowerCase());
-      if (countJobs(userId) >= 6) break;
+      if ((await countJobs(userId)) >= 6) break;
     }
   }
-  return listJobs(userId);
+  return await listJobs(userId);
 }

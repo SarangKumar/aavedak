@@ -2,7 +2,8 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { getAppDb } from "@/lib/app-db";
+import { dbAll, dbGet, dbRun } from "@/lib/app-db";
+import { ensureCompany } from "@/lib/companies";
 
 export type PersonStatus = "active" | "archived";
 
@@ -12,6 +13,7 @@ export type PersonRecord = {
   name: string;
   email: string | null;
   company: string | null;
+  companyId: string | null;
   roleTitle: string | null;
   notes: string | null;
   applicationId: string | null;
@@ -26,6 +28,7 @@ function mapRow(row: {
   name: string;
   email: string | null;
   company: string | null;
+  company_id?: string | null;
   role_title: string | null;
   notes: string | null;
   application_id: string | null;
@@ -39,6 +42,7 @@ function mapRow(row: {
     name: row.name,
     email: row.email,
     company: row.company,
+    companyId: row.company_id ?? null,
     roleTitle: row.role_title,
     notes: row.notes,
     applicationId: row.application_id,
@@ -62,23 +66,25 @@ function optional(value: unknown): string | null {
   return t || null;
 }
 
-export function listPeople(userId: string, opts?: { includeArchived?: boolean }): PersonRecord[] {
+export async function listPeople(
+  userId: string,
+  opts?: { includeArchived?: boolean },
+): Promise<PersonRecord[]> {
   const includeArchived = opts?.includeArchived ?? false;
   const sql = includeArchived
     ? `SELECT * FROM people WHERE user_id = ? ORDER BY updated_at DESC`
     : `SELECT * FROM people WHERE user_id = ? AND status != 'archived' ORDER BY updated_at DESC`;
-  const rows = getAppDb().prepare(sql).all(userId) as Array<Parameters<typeof mapRow>[0]>;
+  const rows = (await dbAll(sql, userId)) as Array<Parameters<typeof mapRow>[0]>;
   return rows.map(mapRow);
 }
 
-export function getPerson(userId: string, id: string): PersonRecord | null {
-  const row = getAppDb()
-    .prepare(`SELECT * FROM people WHERE id = ? AND user_id = ?`)
-    .get(id, userId) as Parameters<typeof mapRow>[0] | undefined;
+export async function getPerson(userId: string, id: string): Promise<PersonRecord | null> {
+  const row = (await dbGet(`SELECT * FROM people WHERE id = ? AND user_id = ?`, id, userId)) as
+    Parameters<typeof mapRow>[0] | undefined;
   return row ? mapRow(row) : null;
 }
 
-export function createPerson(
+export async function createPerson(
   userId: string,
   input: {
     name: string;
@@ -87,33 +93,36 @@ export function createPerson(
     roleTitle?: string | null;
     notes?: string | null;
     applicationId?: string | null;
+    companyId?: string | null;
   },
-): PersonRecord {
+): Promise<PersonRecord> {
   const name = requireName(input.name);
+  const companyName = optional(input.company);
+  const company = companyName ? await ensureCompany(userId, companyName) : null;
   const id = randomUUID();
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `INSERT INTO people
-        (id, user_id, name, email, company, role_title, notes, application_id, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
-    )
-    .run(
-      id,
-      userId,
-      name,
-      optional(input.email),
-      optional(input.company),
-      optional(input.roleTitle),
-      optional(input.notes),
-      optional(input.applicationId),
-      now,
-      now,
-    );
-  return getPerson(userId, id)!;
+  await dbRun(
+    `INSERT INTO people
+        (id, user_id, name, email, company, company_id, role_title, notes, application_id, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+    id,
+    userId,
+    name,
+    optional(input.email),
+    company?.name ?? companyName,
+    optional(input.companyId) ?? company?.id ?? null,
+    optional(input.roleTitle),
+    optional(input.notes),
+    optional(input.applicationId),
+    now,
+    now,
+  );
+  const created = await getPerson(userId, id);
+  if (!created) throw new Error("Could not save person.");
+  return created;
 }
 
-export function updatePerson(
+export async function updatePerson(
   userId: string,
   id: string,
   patch: Partial<{
@@ -125,13 +134,19 @@ export function updatePerson(
     applicationId: string | null;
     status: PersonStatus;
   }>,
-): PersonRecord {
-  const existing = getPerson(userId, id);
+): Promise<PersonRecord> {
+  const existing = await getPerson(userId, id);
   if (!existing) throw new Error("Person not found.");
 
   const name = patch.name !== undefined ? requireName(patch.name) : existing.name;
   const email = patch.email !== undefined ? optional(patch.email) : existing.email;
   const company = patch.company !== undefined ? optional(patch.company) : existing.company;
+  const companyId =
+    patch.company !== undefined
+      ? company
+        ? (await ensureCompany(userId, company)).id
+        : null
+      : existing.companyId;
   const roleTitle = patch.roleTitle !== undefined ? optional(patch.roleTitle) : existing.roleTitle;
   const notes = patch.notes !== undefined ? optional(patch.notes) : existing.notes;
   const applicationId =
@@ -140,16 +155,27 @@ export function updatePerson(
   if (status !== "active" && status !== "archived") throw new Error("Invalid status.");
 
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `UPDATE people SET name = ?, email = ?, company = ?, role_title = ?, notes = ?,
+  await dbRun(
+    `UPDATE people SET name = ?, email = ?, company = ?, company_id = ?, role_title = ?, notes = ?,
          application_id = ?, status = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
-    )
-    .run(name, email, company, roleTitle, notes, applicationId, status, now, id, userId);
-  return getPerson(userId, id)!;
+    name,
+    email,
+    company,
+    companyId,
+    roleTitle,
+    notes,
+    applicationId,
+    status,
+    now,
+    id,
+    userId,
+  );
+  const updated = await getPerson(userId, id);
+  if (!updated) throw new Error("Person not found.");
+  return updated;
 }
 
-export function archivePerson(userId: string, id: string): PersonRecord {
+export async function archivePerson(userId: string, id: string): Promise<PersonRecord> {
   return updatePerson(userId, id, { status: "archived" });
 }

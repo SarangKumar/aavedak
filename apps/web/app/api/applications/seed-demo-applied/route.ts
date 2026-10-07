@@ -8,7 +8,7 @@ import { ensureProfile } from "@/lib/profile";
 async function requireUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -21,7 +21,7 @@ export async function POST() {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const result = seedDemoAppliedApplications(user.id);
+  const result = await seedDemoAppliedApplications(user.id);
   return NextResponse.json({
     inserted: result.inserted.map(applicationToDto),
     skipped: result.skipped,

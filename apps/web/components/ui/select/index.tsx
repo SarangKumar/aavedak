@@ -387,6 +387,7 @@ export function SelectContent({
   side = "bottom",
   searchable = false,
   searchPlaceholder = "Search…",
+  onCreate,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -395,6 +396,8 @@ export function SelectContent({
   /** Show a filter input and hide non-matching options. */
   searchable?: boolean;
   searchPlaceholder?: string;
+  /** When the search text is not an existing option, offer to create it. */
+  onCreate?: (query: string) => void;
 }) {
   const select = useSelect();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -693,10 +696,37 @@ export function SelectContent({
         className="overflow-y-auto overscroll-contain p-1"
       >
         <SelectFilteredItems search={searchable ? search : ""}>{children}</SelectFilteredItems>
+        {searchable && onCreate && search.trim() && !hasExactOption(children, search.trim()) ? (
+          <button
+            type="button"
+            className="text-foreground hover:bg-accent mt-1 flex w-full rounded-md px-2 py-1.5 text-left text-sm"
+            onClick={() => {
+              onCreate(search.trim());
+              select.setOpen(false);
+            }}
+          >
+            Create “{search.trim()}”
+          </button>
+        ) : null}
       </div>
     </div>,
     document.body,
   );
+}
+
+function hasExactOption(children: React.ReactNode, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  let found = false;
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child) || found) return;
+    if (child.type === SelectItem) {
+      const label = textContent((child.props as SelectItemProps).children)
+        .trim()
+        .toLowerCase();
+      if (label === q) found = true;
+    }
+  });
+  return found;
 }
 
 function SelectFilteredItems({ children, search }: { children: React.ReactNode; search: string }) {

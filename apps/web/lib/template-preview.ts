@@ -58,10 +58,10 @@ export const DEFAULT_DUMMY_APPLICATION: DummyApplication = {
   company: "Acme Corp",
   role: "Software Engineer",
   location: "Remote",
-  personName: "Jane Smith",
-  personEmail: "jane.smith@example.com",
+  personName: "John Doe",
+  personEmail: "example@email.com",
   userName: "John Doe",
-  fromEmail: "john.doe@example.com",
+  fromEmail: "example@email.com",
 };
 
 export function dummyApplicationToVars(dummy: DummyApplication): Record<string, string> {

@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* better-sqlite3 is a native Node addon — keep it external for the server. */
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: ["@neondatabase/serverless"],
   async headers() {
     return [
       {

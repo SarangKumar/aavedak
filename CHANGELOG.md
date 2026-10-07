@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Data and auth** — App data is Neon Postgres (`DATABASE_URL` via `@neondatabase/serverless`). Sign-in is Neon Auth with Google configured in the Neon Console. Local SQLite, `better-sqlite3`, and self-hosted Better Auth (`BETTER_AUTH_*`, `GOOGLE_CLIENT_*`) are removed.
+- **Follow-ups** — Due queued mail sends through Gmail (`gmail.send`) using the Neon Auth Google token. Missing scope shows a reconnect action.
+- **Jobs** — Cron and optional feed ingestion, ATS and resume match scores, Apply / Ignore.
+- **Documents** — Cover letters can link to an application, a job, or a custom company and role. A pasted or uploaded JD scores against the active resume and can draft a cover letter.
+- **Referrals** — To field shows Badge email chips for the selected people. Company is a searchable, creatable select.
+- **Dates** — Job tracker and referral dates use the in-app calendar.
+- **UI** — Command palette focuses its input on open; table rows use a lighter card fill; clickable controls use the pointer cursor; textareas grow with their content.
 - **Profile links** — Portfolio, LinkedIn, GitHub, LeetCode, HackerRank, X/Twitter, Website (persisted in `links_json`; legacy portfolio/linkedin columns kept in sync).
 - **Cover letter footer** — Checkboxes pull email + links from profile (disabled when empty); live preview + PDF/DOCX use sans-serif.
 - **Showcase resume** — Only one active resume for public profile; activating demotes others.
@@ -29,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Theme** — Secondary/muted/borders charcoal-neutral (gold reserved for primary accent); larger card/badge type.
 
 - **Referrals composer** — Three reorderable columns (Applications / Cold email / People), Gmail From locked to signed-in user, confirm + queue follow-ups (no send). Admin allowlist via `ADMIN_EMAILS` (+ local fallback). `POST /api/referrals/queue`.
-- **Dashboard** — Live SQLite snapshot: status counts, active apps / follow-ups / resumes / jobs, recent applications (5), upcoming follow-ups (5). Optional `GET /api/dashboard`.
+- **Dashboard** — Live snapshot: status counts, active apps / follow-ups / resumes / jobs, recent applications (5), upcoming follow-ups (5). Optional `GET /api/dashboard`.
 
 ## [1.0.0] - 2026-10-07
 

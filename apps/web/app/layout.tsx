@@ -23,9 +23,7 @@ const siteDescription =
   "Aavedak (आवेदक) — job discovery, application & career platform. Discover roles, prepare documents, track applications. Aavedak recommends and prepares. You decide and send.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-  ),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
   title: {
     default: "Aavedak · Job-search OS",
     template: "%s · Aavedak",

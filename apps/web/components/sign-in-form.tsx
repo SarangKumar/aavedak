@@ -3,10 +3,11 @@
 import { useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { GOOGLE_SIGN_IN_SCOPES } from "@/lib/google-scopes";
 import { cn } from "@/lib/utils";
 
 type SignInFormProps = {
-  googleConfigured: boolean;
+  neonConfigured: boolean;
 };
 
 function GoogleMark({ className }: { className?: string }) {
@@ -32,7 +33,7 @@ function GoogleMark({ className }: { className?: string }) {
   );
 }
 
-export function SignInForm({ googleConfigured }: SignInFormProps) {
+export function SignInForm({ neonConfigured }: SignInFormProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +45,7 @@ export function SignInForm({ googleConfigured }: SignInFormProps) {
         provider: "google",
         callbackURL: "/dashboard",
         newUserCallbackURL: "/onboarding",
+        scopes: [...GOOGLE_SIGN_IN_SCOPES],
       });
     } catch (err) {
       setPending(false);
@@ -51,12 +53,12 @@ export function SignInForm({ googleConfigured }: SignInFormProps) {
     }
   }
 
-  if (!googleConfigured) {
+  if (!neonConfigured) {
     return (
       <div className="space-y-3 text-left">
-        <h2 className="text-foreground text-sm font-semibold">Google OAuth not configured</h2>
+        <h2 className="text-foreground text-sm font-semibold">Neon Auth not configured</h2>
         <p className="text-muted-foreground text-[13px] leading-relaxed">
-          Add Google Cloud OAuth credentials to{" "}
+          Google sign-in is provided by Neon Auth. Copy the branch Auth values into{" "}
           <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
             apps/web/.env.local
           </code>{" "}
@@ -64,39 +66,37 @@ export function SignInForm({ googleConfigured }: SignInFormProps) {
           <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">pnpm dev</code>.
         </p>
         <ol className="text-muted-foreground list-decimal space-y-1.5 pl-4 text-[13px] leading-relaxed">
+          <li>In the Neon Console, enable Auth on the branch and add the Google provider.</li>
           <li>
-            Create an OAuth client (Web application) in{" "}
-            <a
-              className="text-primary underline underline-offset-2"
-              href="https://console.cloud.google.com/apis/credentials"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Google Cloud Console
-            </a>
-            .
-          </li>
-          <li>
-            Authorized redirect URI:{" "}
+            Register the Neon redirect URI in Google Cloud and paste the same URI into Neon:{" "}
             <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[10px]">
-              http://localhost:3000/api/auth/callback/google
+              {"{NEON_AUTH_BASE_URL}/callback/google"}
             </code>
+            .
           </li>
           <li>
             Set{" "}
             <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
-              GOOGLE_CLIENT_ID
-            </code>{" "}
-            and{" "}
+              DATABASE_URL
+            </code>
+            ,{" "}
             <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
-              GOOGLE_CLIENT_SECRET
+              NEON_AUTH_BASE_URL
+            </code>
+            ,{" "}
+            <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
+              NEON_AUTH_JWKS_URL
+            </code>
+            , and a 32+ character{" "}
+            <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
+              NEON_AUTH_COOKIE_SECRET
             </code>
             .
           </li>
         </ol>
         <p className="text-muted-foreground text-[11px] leading-relaxed">
-          Also ensure <code className="font-mono">BETTER_AUTH_SECRET</code> (32+ chars) and{" "}
-          <code className="font-mono">BETTER_AUTH_URL=http://localhost:3000</code> are set.
+          Also set <code className="font-mono">NEXT_PUBLIC_APP_URL</code> to the origin you open in
+          the browser, and add that origin as a trusted domain in Neon.
         </p>
       </div>
     );

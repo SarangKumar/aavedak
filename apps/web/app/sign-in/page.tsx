@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { SignInForm } from "@/components/sign-in-form";
-import { isGoogleAuthConfigured } from "@/lib/auth";
+import { isNeonSignInConfigured } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -39,7 +39,7 @@ export default function SignInPage() {
           Aavedak recommends and prepares. The user decides and sends.
         </p>
         <div className="border-border/80 bg-card ring-ring/10 mt-6 w-full rounded-xl border p-3.5 shadow-sm ring-1 backdrop-blur-sm sm:p-4">
-          <SignInForm googleConfigured={isGoogleAuthConfigured} />
+          <SignInForm neonConfigured={isNeonSignInConfigured} />
         </div>
         <p className="text-muted-foreground mt-6 text-center text-[11px]">
           Google only for now — no email/password.{" "}

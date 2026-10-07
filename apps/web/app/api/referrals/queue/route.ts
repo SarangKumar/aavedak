@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
@@ -13,17 +12,17 @@ function fill(template: string, vars: Record<string, string>): string {
 
 /**
  * Queue outreach follow-ups for confirmed recipients.
- * Schedules send_after ≈ now + sendAfterMinutes (default 10). Does not send Gmail.
+ * Schedules send_after ≈ now + sendAfterMinutes (default 10). Sending happens in
+ * POST /api/referrals/process-queue (and the follow-up cron) via Gmail.
  * Body: { applicationId, personIds, subject, body, dueDate?, sendAfterMinutes?, confirmed: true }
  * subject/body may still contain {{person_name}} / {{person_email}} — filled per person.
- * Cron/process stub: POST /api/referrals/process-queue marks due queued items as sent_stub.
  */
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await auth.api.getSession();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -66,7 +65,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Select at least one recipient." }, { status: 400 });
   }
 
-  const application = getApplication(userId, applicationId);
+  const application = await getApplication(userId, applicationId);
   if (!application) {
     return NextResponse.json({ error: "Application not found." }, { status: 404 });
   }
@@ -80,7 +79,7 @@ export async function POST(request: Request) {
 
   const created = [];
   for (const personId of personIds) {
-    const person = getPerson(userId, personId);
+    const person = await getPerson(userId, personId);
     if (!person || person.status === "archived") {
       return NextResponse.json({ error: `Person not found: ${personId}` }, { status: 400 });
     }
@@ -102,7 +101,7 @@ export async function POST(request: Request) {
       .filter((line) => line !== null)
       .join("\n");
 
-    const followUp = createFollowUp(userId, {
+    const followUp = await createFollowUp(userId, {
       title,
       dueDate,
       sendAfter,
@@ -110,6 +109,9 @@ export async function POST(request: Request) {
       applicationId: application.id,
       notes,
       status: "queued",
+      toEmail: person.email,
+      subject,
+      bodyText: renderedBody.trim() || null,
     });
     created.push({
       id: followUp.id,
@@ -130,8 +132,8 @@ export async function POST(request: Request) {
       followUps: created,
       count: created.length,
       sendAfterMinutes,
-      gmail: "not_wired",
-      note: "Queued with send_after delay. Process via /api/referrals/process-queue; Gmail is not sent.",
+      gmail: "queued",
+      note: "Queued with send_after delay. Due items are sent through Gmail from /api/referrals/process-queue.",
     },
     { status: 201 },
   );

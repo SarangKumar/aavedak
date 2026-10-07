@@ -175,11 +175,10 @@ fi
 if [[ -n "$WEB_ENV" ]]; then
   ensure_env_key "$WEB_ENV" "NEXT_PUBLIC_APP_URL"
   ensure_env_key "$WEB_ENV" "NEXT_PUBLIC_API_URL"
-  ensure_env_key "$WEB_ENV" "BETTER_AUTH_SECRET"
-  ensure_env_key "$WEB_ENV" "BETTER_AUTH_URL"
-  ensure_env_key "$WEB_ENV" "GOOGLE_CLIENT_ID"
-  ensure_env_key "$WEB_ENV" "GOOGLE_CLIENT_SECRET"
-  ensure_env_key "$WEB_ENV" "AUTH_DATABASE_URL"
+  ensure_env_key "$WEB_ENV" "DATABASE_URL"
+  ensure_env_key "$WEB_ENV" "NEON_AUTH_BASE_URL"
+  ensure_env_key "$WEB_ENV" "NEON_AUTH_JWKS_URL"
+  ensure_env_key "$WEB_ENV" "NEON_AUTH_COOKIE_SECRET"
   ensure_env_key "$WEB_ENV" "ADMIN_EMAILS"
   if grep -qE '^NEXT_PUBLIC_API_URL=.+' "$WEB_ENV"; then
     ok "NEXT_PUBLIC_API_URL is set (required for local web → API)"
@@ -187,15 +186,13 @@ if [[ -n "$WEB_ENV" ]]; then
     warn "NEXT_PUBLIC_API_URL is empty — set it (e.g. http://127.0.0.1:8000) before relying on API calls"
   fi
 
-  # Generate BETTER_AUTH_SECRET if empty so local auth boot works
-  if grep -qE '^BETTER_AUTH_SECRET=$' "$WEB_ENV" 2>/dev/null; then
-    SECRET="$(openssl rand -hex 32 2>/dev/null || python3 -c 'import secrets; print(secrets.token_hex(32))')"
-    # portable in-place replace
+  if grep -qE '^NEON_AUTH_COOKIE_SECRET=$' "$WEB_ENV" 2>/dev/null; then
+    SECRET="$(openssl rand -base64 32 2>/dev/null || python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
     tmp="$(mktemp)"
-    sed "s/^BETTER_AUTH_SECRET=$/BETTER_AUTH_SECRET=${SECRET}/" "$WEB_ENV" >"$tmp" && mv "$tmp" "$WEB_ENV"
-    ok "Generated BETTER_AUTH_SECRET for local auth"
+    sed "s|^NEON_AUTH_COOKIE_SECRET=$|NEON_AUTH_COOKIE_SECRET=${SECRET}|" "$WEB_ENV" >"$tmp" && mv "$tmp" "$WEB_ENV"
+    ok "Generated NEON_AUTH_COOKIE_SECRET"
   fi
-  warn "Fill GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET for Google sign-in (see apps/web/README.md)"
+  warn "Fill DATABASE_URL, NEON_AUTH_BASE_URL, and NEON_AUTH_JWKS_URL from the Neon Console (see apps/web/README.md)"
 fi
 
 copy_env_if_missing "$API_DIR/.env.example" "$API_DIR/.env" "API env"

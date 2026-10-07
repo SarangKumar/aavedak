@@ -8,7 +8,7 @@ import { ensureProfile } from "@/lib/profile";
 async function requireUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -16,12 +16,13 @@ async function requireUser() {
   return session.user;
 }
 
-function toDto(row: ReturnType<typeof listPeople>[number]) {
+function toDto(row: Awaited<ReturnType<typeof listPeople>>[number]) {
   return {
     id: row.id,
     name: row.name,
     email: row.email,
     company: row.company,
+    companyId: row.companyId,
     roleTitle: row.roleTitle,
     notes: row.notes,
     applicationId: row.applicationId,
@@ -34,7 +35,7 @@ function toDto(row: ReturnType<typeof listPeople>[number]) {
 export async function GET() {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  return NextResponse.json({ people: listPeople(user.id).map(toDto) });
+  return NextResponse.json({ people: (await listPeople(user.id)).map(toDto) });
 }
 
 export async function POST(request: Request) {
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
   try {
-    const person = createPerson(user.id, {
+    const person = await createPerson(user.id, {
       name: String(body.name ?? ""),
       email: (body.email as string | null | undefined) ?? null,
       company: (body.company as string | null | undefined) ?? null,

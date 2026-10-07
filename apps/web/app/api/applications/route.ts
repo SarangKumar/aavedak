@@ -14,7 +14,7 @@ import { ensureProfile } from "@/lib/profile";
 async function requireUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
   const scopeParam = new URL(request.url).searchParams.get("scope");
   const scope = scopeParam === "archived" ? "archived" : "active";
-  const applications = listApplications(user.id, scope).map(applicationToDto);
+  const applications = (await listApplications(user.id, scope)).map(applicationToDto);
   return NextResponse.json({ applications });
 }
 
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     typeof body.status === "string" && isApplicationStatus(body.status) ? body.status : undefined;
 
   try {
-    const application = createApplication(user.id, {
+    const application = await createApplication(user.id, {
       companyName: String(body.companyName ?? ""),
       role: String(body.role ?? ""),
       location: String(body.location ?? ""),
@@ -56,12 +56,15 @@ export async function POST(request: Request) {
       jobId: (body.jobId as string | null | undefined) ?? null,
       notes: (body.notes as string | null | undefined) ?? null,
       status,
+      appliedAt: (body.appliedAt as string | null | undefined) ?? null,
     });
-    const duplicates = findDuplicateWarnings(
-      user.id,
-      application.companyName,
-      application.role,
-      application.id,
+    const duplicates = (
+      await findDuplicateWarnings(
+        user.id,
+        application.companyName,
+        application.role,
+        application.id,
+      )
     ).map(applicationToDto);
 
     return NextResponse.json(

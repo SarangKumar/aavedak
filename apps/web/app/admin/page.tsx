@@ -17,8 +17,8 @@ export default async function AdminPage() {
     redirect("/dashboard");
   }
 
-  const counts = getAdminOverviewCounts();
-  const resumes = listRecentResumesForAdmin(50);
+  const counts = await getAdminOverviewCounts();
+  const resumes = await listRecentResumesForAdmin(50);
   const allowlist = getAdminEmails();
 
   return (

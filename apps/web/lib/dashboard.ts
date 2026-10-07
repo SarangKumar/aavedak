@@ -68,17 +68,17 @@ function startOfTodayIso(): string {
   return d.toISOString();
 }
 
-export function getDashboardSnapshot(userId: string): DashboardSnapshot {
-  const db = getAppDb();
+export async function getDashboardSnapshot(userId: string): Promise<DashboardSnapshot> {
+  const db = await getAppDb();
 
-  const statusRows = db
+  const statusRows = await db
     .prepare(
       `SELECT status, COUNT(*) AS count
        FROM applications
        WHERE user_id = ? AND status != 'archived'
        GROUP BY status`,
     )
-    .all(userId) as Array<{ status: string; count: number }>;
+    .all<{ status: string; count: number }>(userId);
 
   const countByStatus = new Map<ApplicationStatus, number>();
   for (const s of APPLICATION_STATUSES) countByStatus.set(s, 0);
@@ -104,12 +104,12 @@ export function getDashboardSnapshot(userId: string): DashboardSnapshot {
 
   const activeApplicationCount = statusCounts.reduce((sum, s) => sum + s.count, 0);
 
-  const archivedRow = db
+  const archivedRow = await db
     .prepare(`SELECT COUNT(*) AS count FROM applications WHERE user_id = ? AND status = 'archived'`)
-    .get(userId) as { count: number } | undefined;
+    .get<{ count: number }>(userId);
   const archivedApplicationCount = Number(archivedRow?.count) || 0;
 
-  const pendingFollowUps = listFollowUps(userId, { includeClosed: false });
+  const pendingFollowUps = await listFollowUps(userId, { includeClosed: false });
   const pendingFollowUpCount = pendingFollowUps.length;
 
   const soon = daysFromNowIso(7);
@@ -123,15 +123,15 @@ export function getDashboardSnapshot(userId: string): DashboardSnapshot {
     return f.dueDate < todayStart;
   }).length;
 
-  const resumeCount = countUsableResumes(userId);
-  const coverLetterCount = listCoverLetters(userId).length;
-  const peopleCount = listPeople(userId).length;
-  const resumes = listResumes(userId);
+  const resumeCount = await countUsableResumes(userId);
+  const coverLetterCount = (await listCoverLetters(userId)).length;
+  const peopleCount = (await listPeople(userId)).length;
+  const resumes = await listResumes(userId);
   const activeResume = resumes.find((r) => r.status === "active") ?? null;
 
-  const jobCount = countJobs(userId);
+  const jobCount = await countJobs(userId);
 
-  const recentApplications = listApplications(userId, "active")
+  const recentApplications = (await listApplications(userId, "active"))
     .slice()
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 5);

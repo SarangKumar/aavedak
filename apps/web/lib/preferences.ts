@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getAppDb } from "@/lib/app-db";
+import { dbGet, dbRun } from "@/lib/app-db";
 import {
   DEFAULT_KANBAN_STATUSES,
   isApplicationStatus,
@@ -30,13 +30,12 @@ function parseHidden(raw: string): ApplicationStatus[] {
   }
 }
 
-export function getPreferences(userId: string): UserPreferences {
-  const row = getAppDb()
-    .prepare(
-      `SELECT user_id, tracker_view, tracker_scope, hidden_columns, updated_at
+export async function getPreferences(userId: string): Promise<UserPreferences> {
+  const row = (await dbGet(
+    `SELECT user_id, tracker_view, tracker_scope, hidden_columns, updated_at
        FROM user_preferences WHERE user_id = ?`,
-    )
-    .get(userId) as
+    userId,
+  )) as
     | {
         user_id: string;
         tracker_view: string;
@@ -65,15 +64,15 @@ export function getPreferences(userId: string): UserPreferences {
   };
 }
 
-export function updatePreferences(
+export async function updatePreferences(
   userId: string,
   patch: Partial<{
     trackerView: TrackerView;
     trackerScope: TrackerScope;
     hiddenColumns: ApplicationStatus[];
   }>,
-): UserPreferences {
-  const current = getPreferences(userId);
+): Promise<UserPreferences> {
+  const current = await getPreferences(userId);
   const next: UserPreferences = {
     userId,
     trackerView: patch.trackerView ?? current.trackerView,
@@ -82,23 +81,21 @@ export function updatePreferences(
     updatedAt: new Date().toISOString(),
   };
 
-  getAppDb()
-    .prepare(
-      `INSERT INTO user_preferences (user_id, tracker_view, tracker_scope, hidden_columns, updated_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(user_id) DO UPDATE SET
-         tracker_view = excluded.tracker_view,
-         tracker_scope = excluded.tracker_scope,
-         hidden_columns = excluded.hidden_columns,
-         updated_at = excluded.updated_at`,
-    )
-    .run(
-      userId,
-      next.trackerView,
-      next.trackerScope,
-      JSON.stringify(next.hiddenColumns),
-      next.updatedAt,
-    );
+  const hidden = JSON.stringify(next.hiddenColumns);
+  await dbRun(
+    `INSERT INTO user_preferences (user_id, tracker_view, tracker_scope, hidden_columns, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET
+       tracker_view = excluded.tracker_view,
+       tracker_scope = excluded.tracker_scope,
+       hidden_columns = excluded.hidden_columns,
+       updated_at = excluded.updated_at`,
+    userId,
+    next.trackerView,
+    next.trackerScope,
+    hidden,
+    next.updatedAt,
+  );
 
   return next;
 }

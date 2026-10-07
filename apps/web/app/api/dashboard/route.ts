@@ -11,13 +11,13 @@ export async function GET() {
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
   });
 
-  const snap = getDashboardSnapshot(session.user.id);
+  const snap = await getDashboardSnapshot(session.user.id);
   return NextResponse.json({
     ...snap,
     recentApplications: snap.recentApplications.map(applicationToDto),

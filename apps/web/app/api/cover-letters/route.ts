@@ -8,7 +8,7 @@ import { ensureProfile } from "@/lib/profile";
 async function requireUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -16,12 +16,15 @@ async function requireUser() {
   return session.user;
 }
 
-function toDto(row: ReturnType<typeof listCoverLetters>[number]) {
+function toDto(row: Awaited<ReturnType<typeof listCoverLetters>>[number]) {
   return {
     id: row.id,
     title: row.title,
     body: row.body,
     applicationId: row.applicationId,
+    companyName: row.companyName,
+    role: row.role,
+    jobId: row.jobId,
     status: row.status,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -31,7 +34,7 @@ function toDto(row: ReturnType<typeof listCoverLetters>[number]) {
 export async function GET() {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  return NextResponse.json({ coverLetters: listCoverLetters(user.id).map(toDto) });
+  return NextResponse.json({ coverLetters: (await listCoverLetters(user.id)).map(toDto) });
 }
 
 export async function POST(request: Request) {
@@ -44,10 +47,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
   try {
-    const coverLetter = createCoverLetter(user.id, {
+    const coverLetter = await createCoverLetter(user.id, {
       title: String(body.title ?? ""),
       body: typeof body.body === "string" ? body.body : "",
       applicationId: (body.applicationId as string | null | undefined) ?? null,
+      companyName: (body.companyName as string | null | undefined) ?? null,
+      role: (body.role as string | null | undefined) ?? null,
+      jobId: (body.jobId as string | null | undefined) ?? null,
     });
     return NextResponse.json({ coverLetter: toDto(coverLetter) }, { status: 201 });
   } catch (err) {

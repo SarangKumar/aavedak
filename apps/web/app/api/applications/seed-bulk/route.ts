@@ -11,13 +11,13 @@ export async function POST() {
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
   });
 
-  const result = seedBulkApplications(session.user.id);
+  const result = await seedBulkApplications(session.user.id);
   return NextResponse.json({
     insertedCount: result.inserted.length,
     skippedCount: result.skipped,

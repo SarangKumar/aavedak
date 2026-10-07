@@ -10,7 +10,7 @@ type Ctx = { params: Promise<{ id: string }> };
 async function requireUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -18,7 +18,7 @@ async function requireUser() {
   return session.user;
 }
 
-function toDto(row: NonNullable<ReturnType<typeof getPerson>>) {
+function toDto(row: NonNullable<Awaited<ReturnType<typeof getPerson>>>) {
   return {
     id: row.id,
     name: row.name,
@@ -60,7 +60,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
       }
       patch.status = status;
     }
-    const person = updatePerson(user.id, id, patch);
+    const person = await updatePerson(user.id, id, patch);
     return NextResponse.json({ person: toDto(person) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed.";
@@ -76,7 +76,7 @@ export async function DELETE(_request: Request, ctx: Ctx) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   try {
-    const person = archivePerson(user.id, id);
+    const person = await archivePerson(user.id, id);
     return NextResponse.json({ person: toDto(person) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Archive failed.";

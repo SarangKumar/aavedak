@@ -1,35 +1,43 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import { databaseErrorMessage, isDatabaseFailure } from "@/lib/db-config";
 import { processDueQueuedFollowUps } from "@/lib/follow-ups";
+import { GmailReconnectError } from "@/lib/gmail";
 import { ensureProfile } from "@/lib/profile";
 
-/**
- * Cron/manual stub: mark due queued outreach as sent_stub.
- * Does not call Gmail. Safe to POST repeatedly.
- */
+/** Sends queued follow-ups whose send_after is due, using the signed-in user's Google token. */
 export async function POST() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await auth.api.getSession();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await ensureProfile({
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+    });
+    const result = await processDueQueuedFollowUps(session.user.id);
+    const reconnect = result.processed.some((row) => row.lastError?.includes("Reconnect"));
+    return NextResponse.json({
+      processed: result.processed.length,
+      sent: result.sent,
+      failed: result.failed,
+      followUps: result.processed,
+      gmail: reconnect ? "reconnect_required" : result.sent > 0 ? "sent" : "idle",
+    });
+  } catch (err) {
+    if (err instanceof GmailReconnectError) {
+      return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+    }
+    if (isDatabaseFailure(err)) {
+      return NextResponse.json({ error: databaseErrorMessage(err) }, { status: 503 });
+    }
+    throw err;
   }
-  ensureProfile({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-  });
-
-  const result = processDueQueuedFollowUps(session.user.id);
-  return NextResponse.json({
-    processed: result.processed.length,
-    followUps: result.processed,
-    gmail: "not_wired",
-    skippedGmail: true,
-    note: "Marked due queued items as sent_stub. Wire Gmail (or another mailer) inside processDueQueuedFollowUps.",
-  });
 }
 
-export async function GET() {
+export function GET() {
   return POST();
 }

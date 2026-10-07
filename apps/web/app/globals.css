@@ -278,6 +278,27 @@
   animation: aavedak-icon-spin 280ms ease;
 }
 
+button:not(:disabled),
+a[href],
+summary,
+label:has(input, button),
+[role="button"]:not([aria-disabled="true"]),
+[role="option"]:not([aria-disabled="true"]),
+[role="tab"],
+[role="menuitem"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+textarea {
+  field-sizing: content;
+  min-height: 2.75rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .aavedak-logo,
   .aavedak-fade-up,

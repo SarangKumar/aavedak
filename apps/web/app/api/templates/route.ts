@@ -8,7 +8,7 @@ import { createTemplate, listTemplates, type TemplateKind } from "@/lib/template
 async function requireUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -16,7 +16,7 @@ async function requireUser() {
   return session.user;
 }
 
-function toDto(row: ReturnType<typeof listTemplates>[number]) {
+function toDto(row: Awaited<ReturnType<typeof listTemplates>>[number]) {
   return {
     id: row.id,
     title: row.title,
@@ -32,7 +32,7 @@ function toDto(row: ReturnType<typeof listTemplates>[number]) {
 export async function GET() {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  return NextResponse.json({ templates: listTemplates(user.id).map(toDto) });
+  return NextResponse.json({ templates: (await listTemplates(user.id)).map(toDto) });
 }
 
 export async function POST(request: Request) {
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
   try {
-    const template = createTemplate(user.id, {
+    const template = await createTemplate(user.id, {
       title: String(body.title ?? ""),
       subject: typeof body.subject === "string" ? body.subject : "",
       body: typeof body.body === "string" ? body.body : "",

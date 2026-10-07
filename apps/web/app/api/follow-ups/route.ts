@@ -8,7 +8,7 @@ import { ensureProfile } from "@/lib/profile";
 async function requireUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -16,7 +16,7 @@ async function requireUser() {
   return session.user;
 }
 
-function toDto(row: ReturnType<typeof listFollowUps>[number]) {
+function toDto(row: Awaited<ReturnType<typeof listFollowUps>>[number]) {
   return {
     id: row.id,
     title: row.title,
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const includeClosed = new URL(request.url).searchParams.get("includeClosed") === "1";
   return NextResponse.json({
-    followUps: listFollowUps(user.id, { includeClosed }).map(toDto),
+    followUps: (await listFollowUps(user.id, { includeClosed })).map(toDto),
   });
 }
 
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
   try {
-    const followUp = createFollowUp(user.id, {
+    const followUp = await createFollowUp(user.id, {
       title: String(body.title ?? ""),
       dueDate: (body.dueDate as string | null | undefined) ?? null,
       personId: (body.personId as string | null | undefined) ?? null,

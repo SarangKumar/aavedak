@@ -11,19 +11,19 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
   });
 
-  if (!hasCompletedOnboardingRequirement(session.user.id)) {
+  if (!(await hasCompletedOnboardingRequirement(session.user.id))) {
     return NextResponse.json(
       { error: "Upload at least one PDF resume before continuing." },
       { status: 400 },
     );
   }
 
-  setOnboardingComplete(session.user.id, true);
+  await setOnboardingComplete(session.user.id, true);
   return NextResponse.json({ ok: true, redirectTo: "/dashboard" });
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { createAuthClient } from "better-auth/react";
+import { createAuthClient } from "@neondatabase/auth/next";
 
-export const authClient = createAuthClient({
-  // same-origin; BETTER_AUTH_URL is for the server
-});
+/** Same-origin client. Requests go to /api/auth, which proxies Neon Auth. */
+export const authClient = createAuthClient();

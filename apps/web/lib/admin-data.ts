@@ -2,7 +2,7 @@ import "server-only";
 
 import fs from "node:fs";
 
-import { getAppDb } from "@/lib/app-db";
+import { dbAll, dbGet } from "@/lib/app-db";
 import type { ResumeStatus } from "@/lib/resumes";
 
 export type AdminOverviewCounts = {
@@ -28,33 +28,34 @@ export type AdminResumeRow = {
   updatedAt: string;
 };
 
-function countTable(table: string): number {
-  const row = getAppDb().prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number };
-  return row.n;
+async function countTable(table: string): Promise<number> {
+  const row = (await dbGet(`SELECT COUNT(*) AS n FROM ${table}`)) as
+    { n: number | string } | undefined;
+  return Number(row?.n ?? 0);
 }
 
-export function getAdminOverviewCounts(): AdminOverviewCounts {
-  return {
-    profiles: countTable("profiles"),
-    applications: countTable("applications"),
-    resumes: countTable("resumes"),
-    people: countTable("people"),
-    templates: countTable("templates"),
-  };
+export async function getAdminOverviewCounts(): Promise<AdminOverviewCounts> {
+  const [profiles, applications, resumes, people, templates] = await Promise.all([
+    countTable("profiles"),
+    countTable("applications"),
+    countTable("resumes"),
+    countTable("people"),
+    countTable("templates"),
+  ]);
+  return { profiles, applications, resumes, people, templates };
 }
 
-export function listRecentResumesForAdmin(limit = 40): AdminResumeRow[] {
-  const rows = getAppDb()
-    .prepare(
-      `SELECT r.id, r.user_id, r.display_name, r.status, r.storage_path, r.original_filename,
+export async function listRecentResumesForAdmin(limit = 40): Promise<AdminResumeRow[]> {
+  const rows = (await dbAll(
+    `SELECT r.id, r.user_id, r.display_name, r.status, r.storage_path, r.original_filename,
               r.byte_size, r.created_at, r.updated_at,
               p.username, p.email AS owner_email, p.name AS owner_name
        FROM resumes r
        LEFT JOIN profiles p ON p.user_id = r.user_id
        ORDER BY r.created_at DESC
        LIMIT ?`,
-    )
-    .all(limit) as Array<{
+    limit,
+  )) as Array<{
     id: string;
     user_id: string;
     display_name: string;

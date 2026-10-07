@@ -15,12 +15,12 @@ export const metadata: Metadata = {
 
 export default async function ReferralsPage() {
   const { user } = await requireOnboarded();
-  ensureDefaultOutreachTemplate(user.id);
+  await ensureDefaultOutreachTemplate(user.id);
 
-  const applications = listApplications(user.id, "active");
-  const people = listPeople(user.id);
-  const templates = listTemplates(user.id);
-  const followUps = listFollowUps(user.id, { includeClosed: false });
+  const applications = await listApplications(user.id, "active");
+  const people = await listPeople(user.id);
+  const templates = await listTemplates(user.id);
+  const followUps = await listFollowUps(user.id, { includeClosed: false });
 
   return (
     <div className="relative overflow-hidden">

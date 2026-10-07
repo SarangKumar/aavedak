@@ -100,7 +100,7 @@ export function CommandPalette() {
         onClick={(e) => e.stopPropagation()}
       >
         <Command className="bg-transparent">
-          <CommandInput placeholder="Search commands…" className="text-[14px]" />
+          <CommandInput autoFocus placeholder="Search commands…" className="text-[14px]" />
           <CommandList className="max-h-80">
             <CommandEmpty>No results.</CommandEmpty>
             {signedIn ? (

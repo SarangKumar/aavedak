@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { CompanySelect } from "@/components/company-select";
+import { DateField } from "@/components/date-field";
 import { ImportApplicationsDialog } from "@/components/import-applications-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,6 +77,7 @@ type Draft = {
   jobId: string;
   status: ApplicationStatus;
   notes: string;
+  appliedAt: string;
 };
 
 type ColumnMap = Record<string, string[]>;
@@ -90,6 +93,7 @@ const emptyDraft = (): Draft => ({
   jobId: "",
   status: "bookmarked",
   notes: "",
+  appliedAt: "",
 });
 
 function draftFromApp(app: ApplicationDto): Draft {
@@ -102,6 +106,7 @@ function draftFromApp(app: ApplicationDto): Draft {
     jobId: app.jobId ?? "",
     status: app.status,
     notes: app.notes ?? "",
+    appliedAt: app.appliedAt?.slice(0, 10) ?? "",
   };
 }
 
@@ -239,6 +244,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           jobLink: draft.jobLink || null,
           jobId: draft.jobId || null,
           status: draft.status === "archived" ? "bookmarked" : draft.status,
+          appliedAt: draft.appliedAt || null,
         }),
       });
       const data = (await res.json()) as {
@@ -332,6 +338,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           jobId: draft.jobId || null,
           notes: draft.notes || null,
           status: draft.status,
+          appliedAt: draft.appliedAt || null,
         }),
       });
       const data = (await res.json()) as { application?: ApplicationDto; error?: string };
@@ -689,8 +696,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         }
       >
         <div className="space-y-2.5">
-          <Field
-            label="Company name *"
+          <CompanySelect
             value={draft.companyName}
             onChange={(v) => setDraft((d) => ({ ...d, companyName: v }))}
           />
@@ -698,6 +704,11 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             label="Role *"
             value={draft.role}
             onChange={(v) => setDraft((d) => ({ ...d, role: v }))}
+          />
+          <DateField
+            label="Applied date"
+            value={draft.appliedAt}
+            onChange={(v) => setDraft((d) => ({ ...d, appliedAt: v }))}
           />
           <Field
             label="Location *"
@@ -773,8 +784,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
         }
       >
         <div className="space-y-2.5">
-          <Field
-            label="Company name *"
+          <CompanySelect
             value={draft.companyName}
             onChange={(v) => setDraft((d) => ({ ...d, companyName: v }))}
           />
@@ -782,6 +792,11 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
             label="Role *"
             value={draft.role}
             onChange={(v) => setDraft((d) => ({ ...d, role: v }))}
+          />
+          <DateField
+            label="Applied date"
+            value={draft.appliedAt}
+            onChange={(v) => setDraft((d) => ({ ...d, appliedAt: v }))}
           />
           <Field
             label="Location *"

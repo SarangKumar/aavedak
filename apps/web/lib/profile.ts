@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getAppDb } from "@/lib/app-db";
+import { dbGet, dbRun, getAppDb } from "@/lib/app-db";
 import {
   emptyProfileLinks,
   mergeLegacyLinks,
@@ -71,15 +71,15 @@ function slugBaseFromEmail(email: string): string {
   return usernameFromUser({ email });
 }
 
-function allocateUsername(email: string, userId: string): string {
-  const db = getAppDb();
+async function allocateUsername(email: string, userId: string): Promise<string> {
+  const db = await getAppDb();
   const base = slugBaseFromEmail(email) || "user";
   let candidate = base;
   let n = 2;
   for (;;) {
-    const row = db
+    const row = await db
       .prepare(`SELECT user_id FROM profiles WHERE username = ? LIMIT 1`)
-      .get(candidate) as { user_id: string } | undefined;
+      .get<{ user_id: string }>(candidate);
     if (!row || row.user_id === userId) return candidate;
     candidate = `${base}-${n}`;
     n += 1;
@@ -90,36 +90,37 @@ function allocateUsername(email: string, userId: string): string {
   }
 }
 
-export function getProfile(userId: string): Profile | null {
-  const row = getAppDb().prepare(`${PROFILE_SELECT} WHERE user_id = ?`).get(userId) as
+export async function getProfile(userId: string): Promise<Profile | null> {
+  const row = (await dbGet(`${PROFILE_SELECT} WHERE user_id = ?`, userId)) as
     ProfileRow | undefined;
   return row ? mapRow(row) : null;
 }
 
-export function getProfileByUsername(username: string): Profile | null {
-  const row = getAppDb()
-    .prepare(`${PROFILE_SELECT} WHERE username = ? COLLATE NOCASE`)
-    .get(username) as ProfileRow | undefined;
+export async function getProfileByUsername(username: string): Promise<Profile | null> {
+  const row = (await dbGet(`${PROFILE_SELECT} WHERE username = ? COLLATE NOCASE`, username)) as
+    ProfileRow | undefined;
   return row ? mapRow(row) : null;
 }
 
 /** Ensure a stable username exists for this auth user (email local-part + suffix). */
-export function ensureProfile(user: {
+export async function ensureProfile(user: {
   id: string;
   email: string;
   name?: string | null;
   image?: string | null;
-}): Profile {
-  const existing = getProfile(user.id);
+}): Promise<Profile> {
+  const existing = await getProfile(user.id);
   const now = new Date().toISOString();
-  const db = getAppDb();
+  const db = await getAppDb();
   const imageUrl = user.image?.trim() || null;
 
   if (existing) {
     // Sync email + avatar from auth; do not clobber display name / bio / links.
-    db.prepare(
-      `UPDATE profiles SET email = ?, image_url = COALESCE(?, image_url), updated_at = ? WHERE user_id = ?`,
-    ).run(user.email, imageUrl, now, user.id);
+    await db
+      .prepare(
+        `UPDATE profiles SET email = ?, image_url = COALESCE(?, image_url), updated_at = ? WHERE user_id = ?`,
+      )
+      .run(user.email, imageUrl, now, user.id);
     return {
       ...existing,
       email: user.email,
@@ -128,13 +129,15 @@ export function ensureProfile(user: {
     };
   }
 
-  const username = allocateUsername(user.email, user.id);
-  db.prepare(
-    `INSERT INTO profiles
+  const username = await allocateUsername(user.email, user.id);
+  await db
+    .prepare(
+      `INSERT INTO profiles
       (user_id, username, email, name, bio, portfolio_url, linkedin_url, links_json, image_url,
        onboarding_complete, created_at, updated_at)
      VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, 0, ?, ?)`,
-  ).run(user.id, username, user.email, user.name ?? null, "{}", imageUrl, now, now);
+    )
+    .run(user.id, username, user.email, user.name ?? null, "{}", imageUrl, now, now);
 
   return {
     userId: user.id,
@@ -152,11 +155,14 @@ export function ensureProfile(user: {
   };
 }
 
-export function setOnboardingComplete(userId: string, complete: boolean) {
+export async function setOnboardingComplete(userId: string, complete: boolean) {
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(`UPDATE profiles SET onboarding_complete = ?, updated_at = ? WHERE user_id = ?`)
-    .run(complete ? 1 : 0, now, userId);
+  await dbRun(
+    `UPDATE profiles SET onboarding_complete = ?, updated_at = ? WHERE user_id = ?`,
+    complete ? 1 : 0,
+    now,
+    userId,
+  );
 }
 
 export type ProfilePublicPatch = {
@@ -212,8 +218,11 @@ function normalizeLinks(input: ProfileLinks | undefined, fallback: ProfileLinks)
 }
 
 /** Owner update for shareable profile fields. */
-export function updateProfilePublic(userId: string, patch: ProfilePublicPatch): Profile {
-  const existing = getProfile(userId);
+export async function updateProfilePublic(
+  userId: string,
+  patch: ProfilePublicPatch,
+): Promise<Profile> {
+  const existing = await getProfile(userId);
   if (!existing) throw new Error("Profile not found.");
 
   const nextName =
@@ -244,15 +253,20 @@ export function updateProfilePublic(userId: string, patch: ProfilePublicPatch): 
   const linksJson = serializeProfileLinks(nextLinks);
 
   const now = new Date().toISOString();
-  getAppDb()
-    .prepare(
-      `UPDATE profiles
+  await dbRun(
+    `UPDATE profiles
        SET name = ?, bio = ?, portfolio_url = ?, linkedin_url = ?, links_json = ?, updated_at = ?
        WHERE user_id = ?`,
-    )
-    .run(nextName, nextBio, nextPortfolio, nextLinkedin, linksJson, now, userId);
+    nextName,
+    nextBio,
+    nextPortfolio,
+    nextLinkedin,
+    linksJson,
+    now,
+    userId,
+  );
 
-  return getProfile(userId)!;
+  return (await getProfile(userId))!;
 }
 
 /** Display portfolio URL as stored — no placeholder defaults. */

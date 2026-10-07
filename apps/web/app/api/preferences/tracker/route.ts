@@ -9,7 +9,7 @@ import { getPreferences, updatePreferences } from "@/lib/preferences";
 async function requireUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) return null;
-  ensureProfile({
+  await ensureProfile({
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
@@ -20,7 +20,7 @@ async function requireUser() {
 export async function GET() {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const prefs = getPreferences(user.id);
+  const prefs = await getPreferences(user.id);
   return NextResponse.json({ preferences: prefs });
 }
 
@@ -48,6 +48,6 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const preferences = updatePreferences(user.id, patch);
+  const preferences = await updatePreferences(user.id, patch);
   return NextResponse.json({ preferences });
 }

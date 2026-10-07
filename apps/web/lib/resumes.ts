@@ -4,7 +4,8 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { getAppDb, getResumesRoot } from "@/lib/app-db";
+import { dbAll, dbGet, getAppDb, getResumesRoot } from "@/lib/app-db";
+import { extractPdfText } from "@/lib/match-score";
 
 export type ResumeStatus = "active" | "inactive" | "archived";
 
@@ -16,6 +17,7 @@ export type ResumeRecord = {
   storagePath: string;
   originalFilename: string;
   byteSize: number;
+  textExcerpt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -28,6 +30,7 @@ function mapRow(row: {
   storage_path: string;
   original_filename: string;
   byte_size: number;
+  text_excerpt?: string | null;
   created_at: string;
   updated_at: string;
 }): ResumeRecord {
@@ -38,51 +41,57 @@ function mapRow(row: {
     status: row.status,
     storagePath: row.storage_path,
     originalFilename: row.original_filename,
-    byteSize: row.byte_size,
+    byteSize: Number(row.byte_size) || 0,
+    textExcerpt: row.text_excerpt ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-export function listResumes(userId: string, opts?: { includeArchived?: boolean }): ResumeRecord[] {
+export async function listResumes(
+  userId: string,
+  opts?: { includeArchived?: boolean },
+): Promise<ResumeRecord[]> {
   const includeArchived = opts?.includeArchived ?? false;
   const sql = includeArchived
     ? `SELECT * FROM resumes WHERE user_id = ? ORDER BY created_at DESC`
     : `SELECT * FROM resumes WHERE user_id = ? AND status != 'archived' ORDER BY created_at DESC`;
-  const rows = getAppDb().prepare(sql).all(userId) as Array<Parameters<typeof mapRow>[0]>;
+  const rows = (await dbAll(sql, userId)) as Array<Parameters<typeof mapRow>[0]>;
   return rows.map(mapRow);
 }
 
-export function countUsableResumes(userId: string): number {
-  const row = getAppDb()
-    .prepare(
-      `SELECT COUNT(*) AS n FROM resumes WHERE user_id = ? AND status IN ('active', 'inactive')`,
-    )
-    .get(userId) as { n: number };
-  return row.n;
+export async function countUsableResumes(userId: string): Promise<number> {
+  const row = await dbGet<{ n: number | string }>(
+    `SELECT COUNT(*) AS n FROM resumes WHERE user_id = ? AND status IN ('active', 'inactive')`,
+    userId,
+  );
+  return Number(row?.n ?? 0);
 }
 
-export function hasCompletedOnboardingRequirement(userId: string): boolean {
-  return countUsableResumes(userId) >= 1;
+export async function hasCompletedOnboardingRequirement(userId: string): Promise<boolean> {
+  return (await countUsableResumes(userId)) >= 1;
 }
 
-export function getResume(userId: string, resumeId: string): ResumeRecord | null {
-  const row = getAppDb()
-    .prepare(`SELECT * FROM resumes WHERE id = ? AND user_id = ?`)
-    .get(resumeId, userId) as Parameters<typeof mapRow>[0] | undefined;
+export async function getResume(userId: string, resumeId: string): Promise<ResumeRecord | null> {
+  const row = (await dbGet(
+    `SELECT * FROM resumes WHERE id = ? AND user_id = ?`,
+    resumeId,
+    userId,
+  )) as Parameters<typeof mapRow>[0] | undefined;
   return row ? mapRow(row) : null;
 }
 
-export function getResumeById(resumeId: string): ResumeRecord | null {
-  const row = getAppDb().prepare(`SELECT * FROM resumes WHERE id = ?`).get(resumeId) as
+export async function getResumeById(resumeId: string): Promise<ResumeRecord | null> {
+  const row = (await dbGet(`SELECT * FROM resumes WHERE id = ?`, resumeId)) as
     Parameters<typeof mapRow>[0] | undefined;
   return row ? mapRow(row) : null;
 }
 
-export function getActiveResume(userId: string): ResumeRecord | null {
-  const row = getAppDb()
-    .prepare(`SELECT * FROM resumes WHERE user_id = ? AND status = 'active' LIMIT 1`)
-    .get(userId) as Parameters<typeof mapRow>[0] | undefined;
+export async function getActiveResume(userId: string): Promise<ResumeRecord | null> {
+  const row = (await dbGet(
+    `SELECT * FROM resumes WHERE user_id = ? AND status = 'active' LIMIT 1`,
+    userId,
+  )) as Parameters<typeof mapRow>[0] | undefined;
   return row ? mapRow(row) : null;
 }
 
@@ -90,10 +99,12 @@ function normalizeDisplayName(name: string): string {
   return name.trim().replace(/\s+/g, " ");
 }
 
-function assertUniqueDisplayName(userId: string, displayName: string, excludeId?: string) {
-  const row = getAppDb()
-    .prepare(`SELECT id FROM resumes WHERE user_id = ? AND display_name = ? COLLATE NOCASE LIMIT 1`)
-    .get(userId, displayName) as { id: string } | undefined;
+async function assertUniqueDisplayName(userId: string, displayName: string, excludeId?: string) {
+  const row = (await dbGet(
+    `SELECT id FROM resumes WHERE user_id = ? AND display_name = ? COLLATE NOCASE LIMIT 1`,
+    userId,
+    displayName,
+  )) as { id: string } | undefined;
   if (row && row.id !== excludeId) {
     throw new Error("Display name must be unique among your resumes.");
   }
@@ -117,7 +128,7 @@ export async function createResumeFromPdf(opts: {
   if (opts.file.size <= 0) throw new Error("Empty file.");
   if (opts.file.size > 10 * 1024 * 1024) throw new Error("PDF must be 10MB or smaller.");
 
-  assertUniqueDisplayName(opts.userId, displayName);
+  await assertUniqueDisplayName(opts.userId, displayName);
 
   const id = randomUUID();
   const userDir = path.join(getResumesRoot(), opts.userId);
@@ -128,24 +139,34 @@ export async function createResumeFromPdf(opts: {
   if (buffer.subarray(0, 4).toString("utf8") !== "%PDF") {
     throw new Error("File does not look like a valid PDF.");
   }
-  fs.writeFileSync(storagePath, buffer);
+  try {
+    fs.writeFileSync(storagePath, buffer);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "write failed";
+    throw new Error(
+      `Could not store the resume file (${message}). Serverless disks are ephemeral — durable files need object storage (R2).`,
+    );
+  }
 
   const now = new Date().toISOString();
   const status: ResumeStatus = opts.makeActive === false ? "inactive" : "active";
-  const db = getAppDb();
+  const db = await getAppDb();
+  const excerpt = extractPdfText(buffer);
 
-  const tx = db.transaction(() => {
-    // Only one showcase (active) resume per profile.
-    if (status === "active") {
-      db.prepare(
+  if (status === "active") {
+    await db
+      .prepare(
         `UPDATE resumes SET status = 'inactive', updated_at = ? WHERE user_id = ? AND status = 'active'`,
-      ).run(now, opts.userId);
-    }
-    db.prepare(
+      )
+      .run(now, opts.userId);
+  }
+  await db
+    .prepare(
       `INSERT INTO resumes
-        (id, user_id, display_name, status, storage_path, original_filename, byte_size, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
+        (id, user_id, display_name, status, storage_path, original_filename, byte_size, text_excerpt, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
       id,
       opts.userId,
       displayName,
@@ -153,21 +174,20 @@ export async function createResumeFromPdf(opts: {
       storagePath,
       opts.file.name,
       opts.file.size,
+      excerpt || null,
       now,
       now,
     );
-  });
-  tx();
 
-  return getResume(opts.userId, id)!;
+  return (await getResume(opts.userId, id))!;
 }
 
-export function updateResume(
+export async function updateResume(
   userId: string,
   resumeId: string,
   patch: { displayName?: string; status?: ResumeStatus },
-): ResumeRecord {
-  const existing = getResume(userId, resumeId);
+): Promise<ResumeRecord> {
+  const existing = await getResume(userId, resumeId);
   if (!existing) throw new Error("Resume not found.");
   if (existing.status === "archived" && patch.status !== "inactive" && patch.status !== "active") {
     // allow restore to inactive/active; block other ops on archived without restore
@@ -178,7 +198,7 @@ export function updateResume(
   if (patch.displayName !== undefined) {
     displayName = normalizeDisplayName(patch.displayName);
     if (!displayName) throw new Error("Display name is required.");
-    assertUniqueDisplayName(userId, displayName, resumeId);
+    await assertUniqueDisplayName(userId, displayName, resumeId);
   }
 
   let status = existing.status;
@@ -189,24 +209,25 @@ export function updateResume(
     status = patch.status;
   }
 
-  const db = getAppDb();
-  const tx = db.transaction(() => {
-    if (status === "active") {
-      db.prepare(
+  const db = await getAppDb();
+  if (status === "active") {
+    await db
+      .prepare(
         `UPDATE resumes SET status = 'inactive', updated_at = ?
          WHERE user_id = ? AND status = 'active' AND id != ?`,
-      ).run(now, userId, resumeId);
-    }
-    db.prepare(
+      )
+      .run(now, userId, resumeId);
+  }
+  await db
+    .prepare(
       `UPDATE resumes SET display_name = ?, status = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
-    ).run(displayName, status, now, resumeId, userId);
-  });
-  tx();
+    )
+    .run(displayName, status, now, resumeId, userId);
 
-  return getResume(userId, resumeId)!;
+  return (await getResume(userId, resumeId))!;
 }
 
 /** Soft-delete: archive only (v1). Original PDF stays on disk. */
-export function archiveResume(userId: string, resumeId: string): ResumeRecord {
+export async function archiveResume(userId: string, resumeId: string): Promise<ResumeRecord> {
   return updateResume(userId, resumeId, { status: "archived" });
 }

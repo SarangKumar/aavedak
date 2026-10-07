@@ -15,14 +15,14 @@ export async function GET(_request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
 
   if (session?.user?.email) {
-    ensureProfile({
+    await ensureProfile({
       id: session.user.id,
       email: session.user.email,
       name: session.user.name,
       image: session.user.image,
     });
     const admin = isAdminEmail(session.user.email);
-    const resume = admin ? getResumeById(id) : getResume(session.user.id, id);
+    const resume = admin ? await getResumeById(id) : await getResume(session.user.id, id);
     if (!resume || (resume.status === "archived" && !admin)) {
       return NextResponse.json({ error: "Resume not found." }, { status: 404 });
     }
@@ -30,7 +30,7 @@ export async function GET(_request: Request, ctx: Ctx) {
   }
 
   // Public: only the active showcase resume is viewable without sign-in.
-  const resume = getResumeById(id);
+  const resume = await getResumeById(id);
   if (!resume || resume.status !== "active") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,0 +1,22 @@
+[
+  {
+    "externalId": "sample-northwind-frontend",
+    "title": "Senior Frontend Engineer",
+    "company": "Northwind Labs",
+    "location": "Bengaluru · Hybrid",
+    "source": "other",
+    "url": "https://example.com/jobs/northwind-frontend",
+    "salary": "₹35–45 LPA",
+    "description": "Build product UI in React, TypeScript, and Next.js. Requirements: design systems, accessibility, App Router."
+  },
+  {
+    "externalId": "sample-cascade-fullstack",
+    "title": "Full Stack Engineer",
+    "company": "Cascade Analytics",
+    "location": "Remote · India",
+    "source": "careers",
+    "url": "https://example.com/jobs/cascade-fullstack",
+    "salary": "₹28–38 LPA",
+    "description": "TypeScript services and a React app. Postgres, queues, and careful API design."
+  }
+]

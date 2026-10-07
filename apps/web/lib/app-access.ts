@@ -1,9 +1,10 @@
 import "server-only";
 
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
 import { auth } from "@/lib/auth";
+import { isDatabaseFailure } from "@/lib/db-config";
 import { ensureProfile, type Profile } from "@/lib/profile";
 import { hasCompletedOnboardingRequirement } from "@/lib/resumes";
 
@@ -32,36 +33,55 @@ async function getSessionUser(): Promise<AppSessionUser | null> {
   };
 }
 
+function rethrowNavigation(err: unknown): void {
+  unstable_rethrow(err);
+  if (isDatabaseFailure(err)) redirect("/setup-required");
+}
+
 /** Authenticated + ≥1 non-archived resume. Otherwise redirect to onboarding / sign-in. */
 export async function requireOnboarded(): Promise<AppAccess> {
-  const user = await getSessionUser();
-  if (!user) redirect("/sign-in?next=/dashboard");
-  const profile = ensureProfile(user);
-  if (!hasCompletedOnboardingRequirement(user.id)) {
-    redirect("/onboarding");
+  try {
+    const user = await getSessionUser();
+    if (!user) redirect("/sign-in?next=/dashboard");
+    const profile = await ensureProfile(user);
+    if (!(await hasCompletedOnboardingRequirement(user.id))) {
+      redirect("/onboarding");
+    }
+    return { user, profile };
+  } catch (err) {
+    rethrowNavigation(err);
+    throw err;
   }
-  return { user, profile };
 }
 
 /** Authenticated user for onboarding. If already has a usable resume → dashboard. */
 export async function requireOnboardingSession(): Promise<AppAccess> {
-  const user = await getSessionUser();
-  if (!user) redirect("/sign-in?next=/onboarding");
-  const profile = ensureProfile(user);
-  if (hasCompletedOnboardingRequirement(user.id)) {
-    if (!profile.onboardingComplete) {
-      // Mark complete when requirement already satisfied (e.g. resumed session)
-      const { setOnboardingComplete } = await import("@/lib/profile");
-      setOnboardingComplete(user.id, true);
+  try {
+    const user = await getSessionUser();
+    if (!user) redirect("/sign-in?next=/onboarding");
+    const profile = await ensureProfile(user);
+    if (await hasCompletedOnboardingRequirement(user.id)) {
+      if (!profile.onboardingComplete) {
+        const { setOnboardingComplete } = await import("@/lib/profile");
+        await setOnboardingComplete(user.id, true);
+      }
+      redirect("/dashboard");
     }
-    redirect("/dashboard");
+    return { user, profile };
+  } catch (err) {
+    rethrowNavigation(err);
+    throw err;
   }
-  return { user, profile };
 }
 
 export async function getOptionalAccess(): Promise<AppAccess | null> {
-  const user = await getSessionUser();
-  if (!user) return null;
-  const profile = ensureProfile(user);
-  return { user, profile };
+  try {
+    const user = await getSessionUser();
+    if (!user) return null;
+    const profile = await ensureProfile(user);
+    return { user, profile };
+  } catch (err) {
+    rethrowNavigation(err);
+    throw err;
+  }
 }

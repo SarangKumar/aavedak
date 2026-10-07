@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { CompanySelect } from "@/components/company-select";
+import { DateField } from "@/components/date-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +18,8 @@ import {
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { ShellWidth } from "@/components/shell-width";
+import { authClient } from "@/lib/auth-client";
+import { GOOGLE_SIGN_IN_SCOPES } from "@/lib/google-scopes";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -32,6 +36,7 @@ export type PersonDto = {
   name: string;
   email: string | null;
   company: string | null;
+  companyId?: string | null;
   roleTitle: string | null;
   notes: string | null;
   applicationId: string | null;
@@ -56,7 +61,7 @@ export type FollowUpDto = {
   title: string;
   dueDate: string | null;
   sendAfter: string | null;
-  status: "pending" | "done" | "dismissed" | "queued" | "sent_stub";
+  status: "pending" | "done" | "dismissed" | "queued" | "sent_stub" | "sent" | "failed";
   personId: string | null;
   applicationId: string | null;
   notes: string | null;
@@ -141,6 +146,14 @@ export function ReferralsComposer({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [dueDate, setDueDate] = useState(() => {
+    const due = new Date();
+    due.setDate(due.getDate() + 3);
+    const month = String(due.getMonth() + 1).padStart(2, "0");
+    const day = String(due.getDate()).padStart(2, "0");
+    return `${due.getFullYear()}-${month}-${day}`;
+  });
+  const [gmail, setGmail] = useState<{ linked: boolean; hasSendScope: boolean } | null>(null);
 
   const [manageOpen, setManageOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -153,6 +166,21 @@ export function ReferralsComposer({
 
   useEffect(() => {
     setColumnOrder(loadColumnOrder());
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/auth/gmail-status")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { linked?: boolean; hasSendScope?: boolean } | null) => {
+        if (!cancelled && data) {
+          setGmail({ linked: Boolean(data.linked), hasSendScope: Boolean(data.hasSendScope) });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const selectedApp = useMemo(
@@ -247,6 +275,30 @@ export function ReferralsComposer({
     setConfirmed(false);
   }
 
+  async function sendDueNow() {
+    setError(null);
+    setNotice(null);
+    setPending(true);
+    try {
+      const res = await fetch("/api/referrals/process-queue", { method: "POST" });
+      const data = (await res.json()) as {
+        error?: string;
+        sent?: number;
+        failed?: number;
+        code?: string;
+      };
+      if (!res.ok) throw new Error(data.error || "Could not send due follow-ups.");
+      setNotice(`Gmail sent ${data.sent ?? 0}. Failed ${data.failed ?? 0}.`);
+      if (data.code === "gmail_reconnect") {
+        setGmail({ linked: true, hasSendScope: false });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send due follow-ups.");
+    } finally {
+      setPending(false);
+    }
+  }
+
   async function queueFollowUps() {
     setError(null);
     setNotice(null);
@@ -268,10 +320,6 @@ export function ReferralsComposer({
     }
     setPending(true);
     try {
-      const due = new Date();
-      due.setUTCDate(due.getUTCDate() + 3);
-      const dueDate = due.toISOString().slice(0, 10);
-
       const personIds = Array.from(checkedPeople);
       // Render per-person body into notes via server using raw template + we send already-rendered with person vars
       // Send subject/body with company/role filled; person_name left for notes per person on server from people table
@@ -303,7 +351,7 @@ export function ReferralsComposer({
         setFollowUps((list) => [...data.followUps!, ...list]);
       }
       setNotice(
-        `Queued ${data.count ?? personIds.length} follow-up(s) for ~10 min. Gmail not sent yet.`,
+        `Queued ${data.count ?? personIds.length} follow-up(s). Gmail sends them after the delay when you choose Send due now.`,
       );
       setCheckedPeople(new Set());
       setConfirmed(false);
@@ -428,6 +476,37 @@ export function ReferralsComposer({
                   className="border-border bg-muted/40 text-foreground h-8 w-full cursor-not-allowed rounded-lg border px-2.5 text-[12px]"
                 />
               </label>
+              <div className="space-y-1">
+                <span className="text-muted-foreground text-[11px] font-medium">To</span>
+                <div className="border-border bg-background flex min-h-8 flex-wrap gap-1 rounded-lg border px-2 py-1.5">
+                  {checkedPeople.size === 0 ? (
+                    <span className="text-muted-foreground text-[12px]">
+                      Select people to fill recipients
+                    </span>
+                  ) : (
+                    people
+                      .filter((person) => checkedPeople.has(person.id))
+                      .map((person) => (
+                        <Badge
+                          key={person.id}
+                          variant="secondary"
+                          className="h-5 gap-1 pr-1 text-[10px]"
+                        >
+                          {person.email || person.name}
+                          <button
+                            type="button"
+                            aria-label={`Remove ${person.name}`}
+                            className="text-muted-foreground hover:text-foreground px-0.5"
+                            onClick={() => togglePerson(person.id)}
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))
+                  )}
+                </div>
+              </div>
+              <DateField label="Due date" value={dueDate} onChange={setDueDate} />
               <div className="space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground text-[11px] font-medium">
@@ -567,7 +646,7 @@ export function ReferralsComposer({
           <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Referrals</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Compose cold outreach against an application, pick people at that company, confirm, then
-            queue follow-ups (~10 min delay). Gmail is not sent yet — From stays ({userEmail}).
+            queue follow-ups (~10 min delay). Due mail sends from {userEmail} through Gmail.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -586,6 +665,26 @@ export function ReferralsComposer({
         </div>
       </header>
 
+      {gmail && !gmail.hasSendScope ? (
+        <div className="border-primary/30 bg-primary/10 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2">
+          <p className="text-foreground text-[12px]">
+            Reconnect Google and allow Gmail send before follow-ups can leave your mailbox.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() =>
+              void authClient.linkSocial({
+                provider: "google",
+                callbackURL: "/referrals",
+                scopes: [...GOOGLE_SIGN_IN_SCOPES],
+              })
+            }
+          >
+            Reconnect Google
+          </Button>
+        </div>
+      ) : null}
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
       {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
 
@@ -604,8 +703,8 @@ export function ReferralsComposer({
                 Creates pending follow-up tasks (linked to application + person).
               </p>
               <p className="text-muted-foreground mt-0.5 text-[12px] font-semibold leading-relaxed">
-                Queued sends wait ~10 minutes (send_after). Gmail API is not wired yet — the
-                processor stub only marks due items; nothing leaves your mailbox.
+                Queued sends wait ~10 minutes (send_after), then Gmail sends them when you choose
+                Send due now or when the follow-up cron runs.
               </p>
             </div>
           </div>
@@ -644,6 +743,14 @@ export function ReferralsComposer({
           className="aavedak-btn bg-primary text-primary-foreground inline-flex h-9 items-center rounded-lg px-4 text-[12px] font-semibold disabled:opacity-50"
         >
           {pending ? "Queueing…" : "Queue follow-ups"}
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => void sendDueNow()}
+          className="border-border text-foreground inline-flex h-9 items-center rounded-lg border px-4 text-[12px] font-medium disabled:opacity-50"
+        >
+          Send due now
         </button>
       </section>
 
@@ -702,11 +809,14 @@ export function ReferralsComposer({
         }
       >
         <div className="space-y-2.5">
+          <CompanySelect
+            value={personDraft.company}
+            onChange={(name) => setPersonDraft((d) => ({ ...d, company: name }))}
+          />
           {(
             [
               ["name", "Name *"],
               ["email", "Email"],
-              ["company", "Company"],
               ["roleTitle", "Role"],
             ] as const
           ).map(([key, label]) => (
@@ -714,6 +824,9 @@ export function ReferralsComposer({
               <span className="text-foreground text-[12px] font-medium">{label}</span>
               <input
                 value={personDraft[key]}
+                placeholder={
+                  key === "name" ? "John Doe" : key === "email" ? "example@email.com" : ""
+                }
                 onChange={(e) => setPersonDraft((d) => ({ ...d, [key]: e.target.value }))}
                 className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
               />

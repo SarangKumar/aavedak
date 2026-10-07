@@ -140,7 +140,7 @@ export function CommandInput({ className, ...props }: CommandInputProps) {
 
   return (
     <div className="p-px">
-      <div className="border-border/80 bg-muted/40 focus-within:border-ring/50 focus-within:ring-ring/30 m-0.5 flex items-center gap-2 rounded-lg border px-3 focus-within:ring-1">
+      <div className="border-border/80 bg-muted/40 m-0.5 flex items-center gap-2 rounded-lg border px-3">
         <SearchGlyph />
         <input
           {...props}
