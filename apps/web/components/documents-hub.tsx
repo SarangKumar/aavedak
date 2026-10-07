@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileUpload,
   FileUploadDropzone,
@@ -150,13 +151,10 @@ export function DocumentsHub({
   const [clTitle, setClTitle] = useState("");
   const [clBody, setClBody] = useState("");
   const [clApplicationId, setClApplicationId] = useState<string>(initialApplications[0]?.id ?? "");
-  const [clTemplateId, setClTemplateId] = useState<string>("");
   const [editingClId, setEditingClId] = useState<string | null>(null);
   const [clFooterInclude, setClFooterInclude] = useState<FooterInclude>(() =>
     defaultFooterInclude(profileEmail, profileLinks),
   );
-
-  const coverTemplates = useMemo(() => templates.filter((t) => t.kind === "cover"), [templates]);
 
   const appsById = useMemo(() => {
     const map = new Map(applications.map((a) => [a.id, a]));
@@ -167,7 +165,6 @@ export function DocumentsHub({
     setEditingClId(null);
     setClTitle("");
     setClBody("");
-    setClTemplateId("");
     setClApplicationId(applications[0]?.id ?? "");
     setClFooterInclude(defaultFooterInclude(profileEmail, profileLinks));
   }
@@ -194,12 +191,6 @@ export function DocumentsHub({
   const previewTitle = renderTemplatePreview(clTitle || "", coverVars);
   const previewBody = renderTemplatePreview(clBody || "", coverVars);
   const footerRow = coverFooterRowItems(clFooter);
-
-  function applyCoverTemplate(tpl: TemplateDto) {
-    setClTemplateId(tpl.id);
-    setClBody(tpl.body);
-    if (!clTitle.trim()) setClTitle(tpl.title);
-  }
 
   async function downloadCl(
     cl: CoverLetterDto,
@@ -561,253 +552,206 @@ export function DocumentsHub({
       {tab === "cover_letters" ? (
         <section className="space-y-4">
           <p className="text-muted-foreground text-[12px] leading-relaxed">
-            Cover letters are always company-specific. Start from a saved cover template on the
-            left, use {"{{role}}"} / {"{{company}}"} variables, preview the PDF layout live, then
-            download PDF or DOCX.
+            Cover letters are always company-specific. New letters start from scratch — pick an
+            application, write with {"{{role}}"} / {"{{company}}"} variables, preview the PDF
+            layout, then download PDF or DOCX.
           </p>
 
-          <div className="grid gap-3 lg:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)]">
-            {/* Side: saved cover templates */}
-            <aside className="border-border/80 bg-card space-y-2 rounded-lg border p-3 shadow-sm">
-              <p className="text-foreground text-[12px] font-semibold tracking-tight">
-                Start from a saved template
+          <div className="grid min-w-0 gap-3 xl:grid-cols-2">
+            <div className="border-border/80 bg-card space-y-2.5 rounded-lg border p-4 shadow-sm">
+              <p className="text-foreground text-[12px] font-medium">
+                {editingClId ? "Edit cover letter" : "New cover letter"}
               </p>
-              <p className="text-muted-foreground text-[11px] leading-relaxed">
-                Cover-kind templates only. Click one to seed the editor (create new templates under
-                Cold email templates).
-              </p>
-              {coverTemplates.length === 0 ? (
-                <p className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-2.5 py-6 text-center text-[11px]">
-                  No cover templates yet.
+              <label className="block space-y-1">
+                <span className="text-muted-foreground text-[11px] font-medium">
+                  Company / application *
+                </span>
+                <Select
+                  value={clApplicationId || undefined}
+                  onValueChange={(v) => setClApplicationId(v || "")}
+                >
+                  <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
+                    <SelectValue placeholder="Search applications…" />
+                  </SelectTrigger>
+                  <SelectContent
+                    className="z-[280]"
+                    searchable
+                    searchPlaceholder="Search company or role…"
+                  >
+                    {applications.length === 0 ? (
+                      <SelectItem value="__none" disabled>
+                        No applications yet — add one in Job tracker
+                      </SelectItem>
+                    ) : (
+                      applications.map((app) => (
+                        <SelectItem key={app.id} value={app.id}>
+                          {app.companyName} · {app.role}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </label>
+              <input
+                value={clTitle}
+                onChange={(e) => setClTitle(e.target.value)}
+                placeholder="Title — e.g. Cover for {{role}} at {{company}}"
+                className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
+              />
+              <textarea
+                value={clBody}
+                onChange={(e) => setClBody(e.target.value)}
+                placeholder={
+                  "Dear Hiring Manager,\n\nI am writing to apply for the {{role}} role at {{company}}…"
+                }
+                rows={9}
+                className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
+              />
+              <div className="space-y-1.5">
+                <p className="text-foreground text-[11px] font-semibold tracking-tight">
+                  Footer from profile
                 </p>
-              ) : (
-                <ul className="max-h-[28rem] space-y-1.5 overflow-y-auto">
-                  {coverTemplates.map((tpl) => {
-                    const selected = clTemplateId === tpl.id;
+                <p className="text-muted-foreground text-[10px] leading-relaxed">
+                  Values come from your profile. Empty fields stay disabled — edit them under
+                  Profile settings.
+                </p>
+                <div className="grid gap-1.5 sm:grid-cols-2">
+                  {(
+                    [
+                      {
+                        key: "email" as const,
+                        label: "Email",
+                        value: profileEmail?.trim() || "",
+                      },
+                      ...COVER_FOOTER_LINK_KEYS.map((key) => ({
+                        key: key as CoverFooterLinkKey,
+                        label: PROFILE_LINK_META[key].label,
+                        value: profileLinks?.[key]?.trim() || "",
+                      })),
+                    ] as Array<{ key: FooterIncludeKey; label: string; value: string }>
+                  ).map((item) => {
+                    const hasValue = Boolean(item.value);
+                    const checked = hasValue && clFooterInclude[item.key];
                     return (
-                      <li key={tpl.id}>
-                        <button
-                          type="button"
-                          onClick={() => applyCoverTemplate(tpl)}
-                          className={cn(
-                            "w-full rounded-lg border px-2.5 py-2 text-left transition-colors",
-                            selected
-                              ? "border-primary/40 bg-primary/10"
-                              : "border-border/70 bg-background/40 hover:bg-muted/40",
-                          )}
-                        >
-                          <p className="text-foreground truncate text-[12px] font-medium">
-                            {tpl.title}
-                          </p>
-                          <p className="text-muted-foreground line-clamp-2 text-[10px] leading-snug">
-                            {tpl.body || "Empty body"}
-                          </p>
-                        </button>
-                      </li>
+                      <label
+                        key={item.key}
+                        className={cn(
+                          "border-border/70 flex items-start gap-2 rounded-lg border px-2.5 py-2",
+                          hasValue ? "bg-background/50" : "bg-muted/30 opacity-70",
+                        )}
+                      >
+                        <Checkbox
+                          className="mt-0.5"
+                          checked={checked}
+                          disabled={!hasValue}
+                          onChange={(e) =>
+                            setClFooterInclude((prev) => ({
+                              ...prev,
+                              [item.key]: e.target.checked,
+                            }))
+                          }
+                        />
+                        <span className="min-w-0">
+                          <span className="text-foreground block text-[11px] font-medium">
+                            {item.label}
+                          </span>
+                          <span className="text-muted-foreground block truncate text-[10px]">
+                            {hasValue ? item.value : "Not set in profile"}
+                          </span>
+                        </span>
+                      </label>
                     );
                   })}
-                </ul>
-              )}
-            </aside>
-
-            {/* Editor + live PDF preview */}
-            <div className="grid min-w-0 gap-3 xl:grid-cols-2">
-              <div className="border-border/80 bg-card space-y-2.5 rounded-lg border p-4 shadow-sm">
-                <p className="text-foreground text-[12px] font-medium">
-                  {editingClId ? "Edit cover letter" : "New cover letter"}
-                </p>
-                <label className="block space-y-1">
-                  <span className="text-muted-foreground text-[11px] font-medium">
-                    Company / application *
-                  </span>
-                  <Select
-                    value={clApplicationId || undefined}
-                    onValueChange={(v) => setClApplicationId(v || "")}
-                  >
-                    <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
-                      <SelectValue placeholder="Search applications…" />
-                    </SelectTrigger>
-                    <SelectContent
-                      className="z-[280]"
-                      searchable
-                      searchPlaceholder="Search company or role…"
-                    >
-                      {applications.length === 0 ? (
-                        <SelectItem value="__none" disabled>
-                          No applications yet — add one in Job tracker
-                        </SelectItem>
-                      ) : (
-                        applications.map((app) => (
-                          <SelectItem key={app.id} value={app.id}>
-                            {app.companyName} · {app.role}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </label>
-                <input
-                  value={clTitle}
-                  onChange={(e) => setClTitle(e.target.value)}
-                  placeholder="Title — e.g. Cover for {{role}} at {{company}}"
-                  className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
-                />
-                <textarea
-                  value={clBody}
-                  onChange={(e) => setClBody(e.target.value)}
-                  placeholder={
-                    "Dear Hiring Manager,\n\nI am writing to apply for the {{role}} role at {{company}}…"
-                  }
-                  rows={9}
-                  className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
-                />
-                <div className="space-y-1.5">
-                  <p className="text-foreground text-[11px] font-semibold tracking-tight">
-                    Footer from profile
-                  </p>
-                  <p className="text-muted-foreground text-[10px] leading-relaxed">
-                    Values come from your profile. Empty fields stay disabled — edit them under
-                    Profile settings.
-                  </p>
-                  <div className="grid gap-1.5 sm:grid-cols-2">
-                    {(
-                      [
-                        {
-                          key: "email" as const,
-                          label: "Email",
-                          value: profileEmail?.trim() || "",
-                        },
-                        ...COVER_FOOTER_LINK_KEYS.map((key) => ({
-                          key: key as CoverFooterLinkKey,
-                          label: PROFILE_LINK_META[key].label,
-                          value: profileLinks?.[key]?.trim() || "",
-                        })),
-                      ] as Array<{ key: FooterIncludeKey; label: string; value: string }>
-                    ).map((item) => {
-                      const hasValue = Boolean(item.value);
-                      const checked = hasValue && clFooterInclude[item.key];
-                      return (
-                        <label
-                          key={item.key}
-                          className={cn(
-                            "border-border/70 flex items-start gap-2 rounded-lg border px-2.5 py-2",
-                            hasValue ? "bg-background/50" : "bg-muted/30 opacity-70",
-                          )}
-                        >
-                          <input
-                            type="checkbox"
-                            className="mt-0.5"
-                            checked={checked}
-                            disabled={!hasValue}
-                            onChange={(e) =>
-                              setClFooterInclude((prev) => ({
-                                ...prev,
-                                [item.key]: e.target.checked,
-                              }))
-                            }
-                          />
-                          <span className="min-w-0">
-                            <span className="text-foreground block text-[11px] font-medium">
-                              {item.label}
-                            </span>
-                            <span className="text-muted-foreground block truncate text-[10px]">
-                              {hasValue ? item.value : "Not set in profile"}
-                            </span>
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {editingClId ? (
-                    <button
-                      type="button"
-                      onClick={() => resetCoverDraft()}
-                      className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-                    >
-                      Cancel
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => void saveCoverLetter()}
-                    className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg border-0 px-3 text-[12px] font-semibold disabled:opacity-60"
-                  >
-                    {pending ? "Saving…" : editingClId ? "Update" : "Save cover letter"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={downloadBusy === "draft-pdf"}
-                    onClick={() => void downloadDraft("pdf")}
-                    className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
-                  >
-                    {downloadBusy === "draft-pdf" ? "PDF…" : "Download PDF"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={downloadBusy === "draft-docx"}
-                    onClick={() => void downloadDraft("docx")}
-                    className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
-                  >
-                    {downloadBusy === "draft-docx" ? "DOCX…" : "Download DOCX"}
-                  </button>
                 </div>
               </div>
-
-              <div className="border-border/80 bg-card flex min-h-[22rem] flex-col rounded-lg border p-3 shadow-sm">
-                <p className="text-foreground text-[12px] font-semibold tracking-tight">
-                  Live PDF preview
-                </p>
-                <p className="text-muted-foreground mb-2 text-[11px]">
-                  Light page preview (PDF-style). Variables resolve from the selected application.
-                </p>
-                <div className="min-h-0 flex-1 overflow-y-auto rounded-md bg-[#e8e8e8] p-4 dark:bg-[#2a2a2a]">
-                  <div
-                    className="mx-auto min-h-[20rem] max-w-[36rem] rounded-[2px] bg-white px-10 py-12 text-black shadow-[0_8px_30px_rgba(0,0,0,0.18)] ring-1 ring-black/5"
-                    style={{ fontFamily: "Helvetica, Arial, ui-sans-serif, system-ui, sans-serif" }}
+              <div className="flex flex-wrap gap-2">
+                {editingClId ? (
+                  <button
+                    type="button"
+                    onClick={() => resetCoverDraft()}
+                    className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
                   >
-                    <p className="text-[15px] font-bold tracking-tight text-black">
-                      {previewTitle || "(untitled cover letter)"}
+                    Cancel
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => void saveCoverLetter()}
+                  className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg border-0 px-3 text-[12px] font-semibold disabled:opacity-60"
+                >
+                  {pending ? "Saving…" : editingClId ? "Update" : "Save cover letter"}
+                </button>
+                <button
+                  type="button"
+                  disabled={downloadBusy === "draft-pdf"}
+                  onClick={() => void downloadDraft("pdf")}
+                  className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
+                >
+                  {downloadBusy === "draft-pdf" ? "PDF…" : "Download PDF"}
+                </button>
+                <button
+                  type="button"
+                  disabled={downloadBusy === "draft-docx"}
+                  onClick={() => void downloadDraft("docx")}
+                  className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
+                >
+                  {downloadBusy === "draft-docx" ? "DOCX…" : "Download DOCX"}
+                </button>
+              </div>
+            </div>
+
+            <div className="border-border/80 bg-card flex flex-col rounded-lg border p-3 shadow-sm">
+              <p className="text-foreground text-[12px] font-semibold tracking-tight">
+                Live PDF preview
+              </p>
+              <p className="text-muted-foreground mb-2 text-[11px]">
+                Light page preview (PDF-style). Variables resolve from the selected application.
+              </p>
+              <div className="h-[28rem] overflow-y-auto rounded-md bg-[#e8e8e8] p-4 dark:bg-[#2a2a2a]">
+                <div
+                  className="mx-auto min-h-[24rem] max-w-[36rem] rounded-[2px] bg-white px-10 py-12 text-black shadow-[0_8px_30px_rgba(0,0,0,0.18)] ring-1 ring-black/5"
+                  style={{ fontFamily: "Helvetica, Arial, ui-sans-serif, system-ui, sans-serif" }}
+                >
+                  <p className="text-[15px] font-bold tracking-tight text-black">
+                    {previewTitle || "(untitled cover letter)"}
+                  </p>
+                  {selectedApp ? (
+                    <p className="mt-2 text-[11px] text-neutral-500">
+                      Company: {selectedApp.companyName}
+                      {selectedApp.role ? ` · Role: ${selectedApp.role}` : ""}
                     </p>
-                    {selectedApp ? (
-                      <p className="mt-2 text-[11px] text-neutral-500">
-                        Company: {selectedApp.companyName}
-                        {selectedApp.role ? ` · Role: ${selectedApp.role}` : ""}
+                  ) : (
+                    <p className="mt-2 text-[11px] text-neutral-500">
+                      Pick an application to fill {"{{company}}"} / {"{{role}}"}.
+                    </p>
+                  )}
+                  <pre className="mt-5 whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-neutral-900">
+                    {previewBody || "(empty body)"}
+                  </pre>
+                  {footerRow.length > 0 ? (
+                    <div className="mt-8 border-t border-neutral-200 pt-3">
+                      <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-neutral-600">
+                        {footerRow.map((item, idx) => (
+                          <span key={item.key} className="inline-flex items-center gap-x-1.5">
+                            {idx > 0 ? (
+                              <span className="text-neutral-400" aria-hidden>
+                                ⋅
+                              </span>
+                            ) : null}
+                            <a
+                              href={item.href}
+                              target={item.key === "email" ? undefined : "_blank"}
+                              rel={item.key === "email" ? undefined : "noreferrer"}
+                              className="text-blue-700 underline-offset-2 hover:underline"
+                            >
+                              {item.label}
+                            </a>
+                          </span>
+                        ))}
                       </p>
-                    ) : (
-                      <p className="mt-2 text-[11px] text-neutral-500">
-                        Pick an application to fill {"{{company}}"} / {"{{role}}"}.
-                      </p>
-                    )}
-                    <pre className="mt-5 whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-neutral-900">
-                      {previewBody || "(empty body)"}
-                    </pre>
-                    {footerRow.length > 0 ? (
-                      <div className="mt-8 border-t border-neutral-200 pt-3">
-                        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-neutral-600">
-                          {footerRow.map((item, idx) => (
-                            <span key={item.key} className="inline-flex items-center gap-x-1.5">
-                              {idx > 0 ? (
-                                <span className="text-neutral-400" aria-hidden>
-                                  ⋅
-                                </span>
-                              ) : null}
-                              <a
-                                href={item.href}
-                                target={item.key === "email" ? undefined : "_blank"}
-                                rel={item.key === "email" ? undefined : "noreferrer"}
-                                className="text-blue-700 underline-offset-2 hover:underline"
-                              >
-                                {item.label}
-                              </a>
-                            </span>
-                          ))}
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -861,7 +805,6 @@ export function DocumentsHub({
                               setClTitle(cl.title);
                               setClBody(cl.body);
                               setClApplicationId(cl.applicationId ?? applications[0]?.id ?? "");
-                              setClTemplateId("");
                             }}
                             className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                           >

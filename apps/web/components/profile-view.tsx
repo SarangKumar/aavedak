@@ -15,6 +15,7 @@ export type ProfileViewProps = {
   profile: Profile;
   isOwner: boolean;
   activeResumeTitle: string | null;
+  activeResumeId: string | null;
 };
 
 function displayName(profile: Profile) {
@@ -48,7 +49,12 @@ function buildProfileFooterRow(profile: Profile): RowItem[] {
   return items;
 }
 
-export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileViewProps) {
+export function ProfileView({
+  profile,
+  isOwner,
+  activeResumeTitle,
+  activeResumeId,
+}: ProfileViewProps) {
   const name = displayName(profile);
   const rowItems = buildProfileFooterRow(profile);
 
@@ -133,7 +139,7 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
             </Link>
           ) : null}
         </div>
-        {activeResumeTitle ? (
+        {activeResumeTitle && activeResumeId ? (
           <div
             className={cn(
               "border-border/70 bg-background/50 mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5",
@@ -145,13 +151,23 @@ export function ProfileView({ profile, isOwner, activeResumeTitle }: ProfileView
               </p>
               <p className="text-muted-foreground text-[11px]">
                 {isOwner
-                  ? "Your single active showcase resume (download stays private for now)."
+                  ? "Your single active showcase resume — open to view the PDF."
                   : "Showcase resume on Aavedak."}
               </p>
             </div>
-            <span className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-              Active
-            </span>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <a
+                href={`/api/resumes/${activeResumeId}/file`}
+                target="_blank"
+                rel="noreferrer"
+                className="border-border text-foreground hover:bg-muted inline-flex h-7 items-center rounded-md border px-2.5 text-[11px] font-medium"
+              >
+                View
+              </a>
+              <span className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                Active
+              </span>
+            </div>
           </div>
         ) : (
           <p className="text-muted-foreground mt-3 text-[13px]">

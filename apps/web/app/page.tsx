@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 const chips = [
   { label: "You send · Aavedak prepares" },
   { label: "Recommend · Decide · Act" },
+  { label: "Local-first · Privacy-minded" },
 ] as const;
 
 const features = [
@@ -46,9 +47,31 @@ const features = [
   },
 ] as const;
 
+const steps = [
+  {
+    n: "01",
+    title: "Discover",
+    body: "Browse roles, bookmark what fits, and keep signals in one place.",
+  },
+  {
+    n: "02",
+    title: "Prepare",
+    body: "Resumes, company-specific cover letters, and cold templates — ready when you are.",
+  },
+  {
+    n: "03",
+    title: "Act",
+    body: "Track the pipeline, queue outreach, and follow up without losing context.",
+  },
+] as const;
+
 export default function HomePage() {
   return (
     <div className="relative">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(ellipse_at_top,var(--mesh-a),transparent_60%)] opacity-80"
+      />
       <div className="relative mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-16 lg:py-20">
         <section
           className="aavedak-fade-up flex flex-col items-center px-1 text-center sm:px-0"
@@ -83,8 +106,8 @@ export default function HomePage() {
             Discover · Apply · Grow
           </p>
 
-          <p className="text-muted-foreground mt-3.5 max-w-lg text-pretty text-[15px] leading-relaxed sm:mt-4 sm:text-base">
-            Aavedak recommends and prepares. The user decides and sends.
+          <p className="text-muted-foreground mt-3.5 max-w-xl text-pretty text-[15px] leading-relaxed sm:mt-4 sm:text-base">
+            Your personal job-search OS. Aavedak recommends and prepares — you decide and send.
           </p>
 
           <div className="aavedak-fade-up aavedak-fade-up-delay-1 mt-4 flex max-w-md flex-wrap items-center justify-center gap-1.5 sm:mt-5 sm:max-w-none">
@@ -96,20 +119,42 @@ export default function HomePage() {
             ))}
           </div>
 
-          <div className="aavedak-fade-up aavedak-fade-up-delay-2 mt-6 flex w-full max-w-sm flex-col items-stretch gap-2 sm:mt-7 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
+          <div className="aavedak-fade-up aavedak-fade-up-delay-2 mt-6 flex w-full max-w-sm flex-col items-stretch gap-2 sm:mt-8 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
+            <Link
+              href="/sign-in"
+              className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-10 items-center justify-center rounded-lg px-6 text-[14px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90"
+            >
+              Get started
+            </Link>
             <Link
               href="/dashboard"
-              className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 items-center justify-center rounded-lg px-5 text-[13px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90"
+              className="aavedak-btn border-border bg-card text-foreground ring-ring/10 hover:text-primary inline-flex h-10 items-center justify-center rounded-lg border px-6 text-[14px] font-medium shadow-sm ring-1 backdrop-blur-sm"
             >
               Open dashboard
             </Link>
-            <Link
-              href="/onboarding"
-              className="aavedak-btn border-border bg-card text-foreground ring-ring/10 hover:text-primary inline-flex h-9 items-center justify-center rounded-lg border px-5 text-[13px] font-medium shadow-sm ring-1 backdrop-blur-sm"
-            >
-              Start onboarding
-            </Link>
           </div>
+        </section>
+
+        <section
+          className="aavedak-fade-up aavedak-fade-up-delay-2 mt-12 grid gap-2.5 sm:mt-16 sm:grid-cols-3"
+          aria-label="How Aavedak works"
+        >
+          {steps.map((step) => (
+            <div
+              key={step.n}
+              className="border-border/80 bg-card/80 rounded-xl border p-4 shadow-sm backdrop-blur-sm"
+            >
+              <p className="text-primary font-mono text-[11px] font-semibold tracking-wide">
+                {step.n}
+              </p>
+              <h2 className="text-foreground mt-1 text-[14px] font-semibold tracking-tight">
+                {step.title}
+              </h2>
+              <p className="text-muted-foreground mt-1.5 text-[13px] leading-relaxed">
+                {step.body}
+              </p>
+            </div>
+          ))}
         </section>
 
         <section
@@ -119,11 +164,11 @@ export default function HomePage() {
           <div className="mb-3.5 flex flex-col gap-1 sm:mb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
             <h2
               id="workspace-heading"
-              className="text-foreground text-[13px] font-semibold tracking-tight"
+              className="text-foreground text-[14px] font-semibold tracking-tight"
             >
               Workspace
             </h2>
-            <p className="text-muted-foreground text-[11px]">
+            <p className="text-muted-foreground text-[12px]">
               Everything you need to find and ship applications
             </p>
           </div>

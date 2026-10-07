@@ -33,6 +33,7 @@ export default async function ProfilePage({ params }: Props) {
       profile={profile}
       isOwner={Boolean(isOwner)}
       activeResumeTitle={active?.displayName ?? null}
+      activeResumeId={active?.id ?? null}
     />
   );
 }

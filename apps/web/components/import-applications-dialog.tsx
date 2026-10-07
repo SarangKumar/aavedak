@@ -9,6 +9,7 @@ import {
   FileUploadList,
   type FileUploadFile,
 } from "@/components/ui/file-upload";
+import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import {
   APPLICATION_IMPORT_SAMPLE,
@@ -155,13 +156,20 @@ export function ImportApplicationsDialog({
         <section className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-foreground text-[12px] font-semibold">Schema</h3>
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="icon-sm"
+              title={copied === "schema" ? "Copied" : "Copy schema"}
+              aria-label={copied === "schema" ? "Copied" : "Copy schema"}
               onClick={() => void copyText("schema", humanSchema)}
-              className="text-muted-foreground hover:text-foreground text-[11px] underline-offset-2 hover:underline"
             >
-              {copied === "schema" ? "Copied" : "Copy"}
-            </button>
+              {copied === "schema" ? (
+                <CheckIcon className="size-3.5" />
+              ) : (
+                <CopyIcon className="size-3.5" />
+              )}
+            </Button>
           </div>
           <pre className="border-border/80 bg-muted/40 text-muted-foreground max-h-40 overflow-auto whitespace-pre-wrap rounded-xl border p-2.5 font-mono text-[10px] leading-relaxed">
             {humanSchema}
@@ -191,13 +199,20 @@ export function ImportApplicationsDialog({
         <section className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-foreground text-[12px] font-semibold">Sample JSON</h3>
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="icon-sm"
+              title={copied === "sample" ? "Copied" : "Copy sample"}
+              aria-label={copied === "sample" ? "Copied" : "Copy sample"}
               onClick={() => void copyText("sample", sampleJson)}
-              className="text-muted-foreground hover:text-foreground text-[11px] underline-offset-2 hover:underline"
             >
-              {copied === "sample" ? "Copied" : "Copy"}
-            </button>
+              {copied === "sample" ? (
+                <CheckIcon className="size-3.5" />
+              ) : (
+                <CopyIcon className="size-3.5" />
+              )}
+            </Button>
           </div>
           <pre className="border-border/80 bg-muted/40 text-muted-foreground max-h-36 overflow-auto rounded-xl border p-2.5 font-mono text-[10px] leading-relaxed">
             {sampleJson}
@@ -235,5 +250,33 @@ export function ImportApplicationsDialog({
         {summary ? <p className="text-primary text-[13px] font-medium">{summary}</p> : null}
       </div>
     </Modal>
+  );
+}
+
+function CopyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M10.5 5.5V4A1.5 1.5 0 0 0 9 2.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M3.5 8.5 6.5 11.5 12.5 4.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

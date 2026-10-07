@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ImportApplicationsDialog } from "@/components/import-applications-dialog";
 import { Badge } from "@/components/ui/badge";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import {
   Card,
   CardAction,
@@ -587,7 +588,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                                 <DragDropItem
                                   key={id}
                                   id={id}
-                                  className="border-border/70 bg-background hover:border-border shrink-0 overflow-visible rounded-lg p-0 shadow-sm"
+                                  className="border-border/50 bg-muted/40 hover:border-border/80 hover:bg-muted/55 shrink-0 overflow-visible rounded-lg p-0 shadow-none"
                                 >
                                   <Card
                                     size="sm"
@@ -600,7 +601,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
                                         openEdit(app);
                                       }
                                     }}
-                                    className="bg-background shrink-0 cursor-pointer gap-0 border-0 p-0 shadow-none"
+                                    className="shrink-0 cursor-pointer gap-0 border-0 bg-transparent p-0 shadow-none"
                                   >
                                     <CardHeader className="gap-0.5 p-3 pb-2">
                                       <CardTitle className="text-foreground pr-8 text-[13px] font-semibold leading-snug tracking-tight">
@@ -875,14 +876,14 @@ function ImportGlyph({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
       <path
-        d="M8 2.5v7.5M8 10l-2.5-2.5M8 10l2.5-2.5"
+        d="M2.5 8h7.5M7.5 5.5 10 8l-2.5 2.5"
         stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M3 11.5v1a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 13 12.5v-1"
+        d="M10.5 3.5H12a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 12 12.5h-1.5"
         stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="round"
@@ -953,38 +954,68 @@ function ListView({
   onSelect: (app: ApplicationDto) => void;
 }) {
   if (applications.length === 0) return null;
+
+  const columns: DataTableColumn<ApplicationDto>[] = [
+    {
+      id: "company",
+      header: "Company",
+      accessorKey: "companyName",
+      sortable: true,
+      searchable: true,
+      enableHiding: false,
+      cell: (row) => (
+        <button
+          type="button"
+          onClick={() => onSelect(row)}
+          className="text-foreground text-left font-medium hover:underline"
+        >
+          {row.companyName}
+        </button>
+      ),
+    },
+    {
+      id: "role",
+      header: "Role",
+      accessorKey: "role",
+      sortable: true,
+      searchable: true,
+    },
+    {
+      id: "location",
+      header: "Location",
+      accessorKey: "location",
+      sortable: true,
+      searchable: true,
+    },
+    {
+      id: "ctc",
+      header: "CTC",
+      accessorKey: "salaryCtc",
+      cell: (row) => row.salaryCtc || "—",
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorKey: "status",
+      sortable: true,
+      cell: (row) => STATUS_LABELS[row.status],
+    },
+  ];
+
   return (
-    <div className="border-border/80 bg-card/60 overflow-hidden rounded-xl border">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[40rem] text-left text-[12px]">
-          <thead className="border-border/60 bg-muted/40 text-muted-foreground border-b">
-            <tr>
-              <th className="px-3 py-2 font-medium">Company</th>
-              <th className="px-3 py-2 font-medium">Role</th>
-              <th className="px-3 py-2 font-medium">Location</th>
-              <th className="px-3 py-2 font-medium">CTC</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {applications.map((app) => (
-              <tr
-                key={app.id}
-                className="border-border/40 hover:bg-muted/30 cursor-pointer border-b last:border-0"
-                onClick={() => onSelect(app)}
-              >
-                <td className="text-foreground px-3 py-2 font-medium">{app.companyName}</td>
-                <td className="text-foreground/90 px-3 py-2">{app.role}</td>
-                <td className="text-muted-foreground px-3 py-2">{app.location}</td>
-                <td className="text-muted-foreground px-3 py-2">{app.salaryCtc || "—"}</td>
-                <td className="text-foreground px-3 py-2">{STATUS_LABELS[app.status]}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="text-muted-foreground border-border/60 border-t px-3 py-2 text-[11px]">
-        Click a row to edit. Switch to Kanban and drag cards to change status.
+    <div className="border-border/80 bg-card/60 space-y-2 overflow-hidden rounded-xl border p-3">
+      <DataTable
+        columns={columns}
+        data={applications}
+        getRowId={(row) => row.id}
+        searchable
+        searchPlaceholder="Filter company, role, location…"
+        pagination={10}
+        emptyMessage="No applications match."
+        className="text-[12px]"
+      />
+      <p className="text-muted-foreground text-[11px]">
+        Click a company name to edit. Switch to Kanban and drag cards to change status.
       </p>
     </div>
   );

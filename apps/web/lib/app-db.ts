@@ -135,7 +135,8 @@ export function getAppDb() {
       user_id TEXT NOT NULL,
       title TEXT NOT NULL,
       due_date TEXT,
-      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'done', 'dismissed')),
+      send_after TEXT,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'queued', 'sent_stub', 'done', 'dismissed')),
       person_id TEXT,
       application_id TEXT,
       notes TEXT,
@@ -211,6 +212,45 @@ export function getAppDb() {
   }>;
   if (!templateCols.some((c) => c.name === "subject")) {
     instance.exec(`ALTER TABLE templates ADD COLUMN subject TEXT NOT NULL DEFAULT ''`);
+  }
+
+  const followCols = instance.prepare(`PRAGMA table_info(follow_up_tasks)`).all() as Array<{
+    name: string;
+  }>;
+  const followColNames = new Set(followCols.map((c) => c.name));
+  if (!followColNames.has("send_after")) {
+    instance.exec(`ALTER TABLE follow_up_tasks ADD COLUMN send_after TEXT`);
+  }
+  // Expand status CHECK for existing local DBs (SQLite cannot ALTER CHECK in place).
+  const followSql = (
+    instance
+      .prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'follow_up_tasks'`)
+      .get() as { sql: string } | undefined
+  )?.sql;
+  if (followSql && !followSql.includes("'queued'")) {
+    instance.exec(`
+      CREATE TABLE follow_up_tasks__mig (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        due_date TEXT,
+        send_after TEXT,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'queued', 'sent_stub', 'done', 'dismissed')),
+        person_id TEXT,
+        application_id TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      INSERT INTO follow_up_tasks__mig
+        (id, user_id, title, due_date, send_after, status, person_id, application_id, notes, created_at, updated_at)
+      SELECT id, user_id, title, due_date, send_after, status, person_id, application_id, notes, created_at, updated_at
+      FROM follow_up_tasks;
+      DROP TABLE follow_up_tasks;
+      ALTER TABLE follow_up_tasks__mig RENAME TO follow_up_tasks;
+      CREATE INDEX IF NOT EXISTS follow_up_tasks_user_id_idx ON follow_up_tasks (user_id);
+      CREATE INDEX IF NOT EXISTS follow_up_tasks_user_status_idx ON follow_up_tasks (user_id, status);
+    `);
   }
 
   db = instance;

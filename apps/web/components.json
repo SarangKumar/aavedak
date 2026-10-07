@@ -1,0 +1,15 @@
+{
+  "$schema": "https://vinyaas.vercel.app/r/schema/components.json",
+  "style": "new-york",
+  "tsx": true,
+  "tailwind": {
+    "css": "app/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true
+  },
+  "aliases": {
+    "components": "@/components",
+    "ui": "@/components/ui",
+    "utils": "@/lib/utils"
+  }
+}

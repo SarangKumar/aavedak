@@ -12,22 +12,32 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, ctx: Ctx) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.email) {
+  const { id } = await ctx.params;
+
+  if (session?.user?.email) {
+    ensureProfile({
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      image: session.user.image,
+    });
+    const admin = isAdminEmail(session.user.email);
+    const resume = admin ? getResumeById(id) : getResume(session.user.id, id);
+    if (!resume || (resume.status === "archived" && !admin)) {
+      return NextResponse.json({ error: "Resume not found." }, { status: 404 });
+    }
+    return serveResume(resume);
+  }
+
+  // Public: only the active showcase resume is viewable without sign-in.
+  const resume = getResumeById(id);
+  if (!resume || resume.status !== "active") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  ensureProfile({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-    image: session.user.image,
-  });
+  return serveResume(resume);
+}
 
-  const { id } = await ctx.params;
-  const admin = isAdminEmail(session.user.email);
-  const resume = admin ? getResumeById(id) : getResume(session.user.id, id);
-  if (!resume || (resume.status === "archived" && !admin)) {
-    return NextResponse.json({ error: "Resume not found." }, { status: 404 });
-  }
+function serveResume(resume: { storagePath: string; originalFilename: string }) {
   if (!fs.existsSync(resume.storagePath)) {
     return NextResponse.json({ error: "File missing on disk." }, { status: 404 });
   }

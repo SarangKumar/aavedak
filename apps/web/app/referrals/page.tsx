@@ -64,6 +64,7 @@ export default async function ReferralsPage() {
             id: f.id,
             title: f.title,
             dueDate: f.dueDate,
+            sendAfter: f.sendAfter,
             status: f.status,
             personId: f.personId,
             applicationId: f.applicationId,

@@ -6,10 +6,10 @@ export const APPLICATION_STATUSES = [
   "under_review",
   "assessment",
   "interview",
-  "offer",
   "rejected",
   "withdrawn",
   "ghosted",
+  "offer",
   "archived",
 ] as const;
 
@@ -22,14 +22,17 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   under_review: "Under review",
   assessment: "Assessment",
   interview: "Interview",
-  offer: "Offer",
   rejected: "Rejected",
   withdrawn: "Withdrawn",
   ghosted: "Ghosted",
+  offer: "Offer",
   archived: "Archived",
 };
 
-/** Default Kanban majors when not archived-only view (archived is a separate scope). */
+/**
+ * Kanban majors left → right (chronological pipeline).
+ * Bookmarked far left · Offer far right. Archived is a separate scope.
+ */
 export const DEFAULT_KANBAN_STATUSES: ApplicationStatus[] = [
   "bookmarked",
   "preparing",
@@ -37,10 +40,10 @@ export const DEFAULT_KANBAN_STATUSES: ApplicationStatus[] = [
   "under_review",
   "assessment",
   "interview",
-  "offer",
   "rejected",
   "withdrawn",
   "ghosted",
+  "offer",
 ];
 
 export function isApplicationStatus(value: string): value is ApplicationStatus {

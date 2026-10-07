@@ -12,9 +12,11 @@ function fill(template: string, vars: Record<string, string>): string {
 }
 
 /**
- * Queue outreach follow-ups for confirmed recipients (no Gmail send).
- * Body: { applicationId, personIds, subject, body, dueDate?, confirmed: true }
+ * Queue outreach follow-ups for confirmed recipients.
+ * Schedules send_after ≈ now + sendAfterMinutes (default 10). Does not send Gmail.
+ * Body: { applicationId, personIds, subject, body, dueDate?, sendAfterMinutes?, confirmed: true }
  * subject/body may still contain {{person_name}} / {{person_email}} — filled per person.
+ * Cron/process stub: POST /api/referrals/process-queue marks due queued items as sent_stub.
  */
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -43,6 +45,12 @@ export async function POST(request: Request) {
   const bodyTpl = typeof body.body === "string" ? body.body : "";
   const dueDate =
     typeof body.dueDate === "string" && body.dueDate.trim() ? body.dueDate.trim() : null;
+  const sendAfterMinutesRaw = body.sendAfterMinutes;
+  const sendAfterMinutes =
+    typeof sendAfterMinutesRaw === "number" && Number.isFinite(sendAfterMinutesRaw)
+      ? Math.min(24 * 60, Math.max(1, Math.round(sendAfterMinutesRaw)))
+      : 10;
+  const sendAfter = new Date(Date.now() + sendAfterMinutes * 60_000).toISOString();
   const confirmed = body.confirmed === true;
 
   if (!confirmed) {
@@ -97,15 +105,17 @@ export async function POST(request: Request) {
     const followUp = createFollowUp(userId, {
       title,
       dueDate,
+      sendAfter,
       personId: person.id,
       applicationId: application.id,
       notes,
-      status: "pending",
+      status: "queued",
     });
     created.push({
       id: followUp.id,
       title: followUp.title,
       dueDate: followUp.dueDate,
+      sendAfter: followUp.sendAfter,
       status: followUp.status,
       personId: followUp.personId,
       applicationId: followUp.applicationId,
@@ -115,5 +125,14 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.json({ followUps: created, count: created.length }, { status: 201 });
+  return NextResponse.json(
+    {
+      followUps: created,
+      count: created.length,
+      sendAfterMinutes,
+      gmail: "not_wired",
+      note: "Queued with send_after delay. Process via /api/referrals/process-queue; Gmail is not sent.",
+    },
+    { status: 201 },
+  );
 }

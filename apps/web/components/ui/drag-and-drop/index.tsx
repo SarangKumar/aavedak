@@ -614,12 +614,12 @@ export function DragDropHandle({
 function DragDropHandleIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" className="size-4">
-      <circle cx="5" cy="3.5" r="1.25" />
-      <circle cx="11" cy="3.5" r="1.25" />
-      <circle cx="5" cy="8" r="1.25" />
-      <circle cx="11" cy="8" r="1.25" />
-      <circle cx="5" cy="12.5" r="1.25" />
-      <circle cx="11" cy="12.5" r="1.25" />
+      <circle cx="5" cy="3.5" r="1.55" />
+      <circle cx="11" cy="3.5" r="1.55" />
+      <circle cx="5" cy="8" r="1.55" />
+      <circle cx="11" cy="8" r="1.55" />
+      <circle cx="5" cy="12.5" r="1.55" />
+      <circle cx="11" cy="12.5" r="1.55" />
     </svg>
   );
 }

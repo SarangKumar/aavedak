@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Modal } from "@/components/ui/modal";
 import {
   Select,
@@ -14,7 +15,6 @@ import {
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { ShellWidth } from "@/components/shell-width";
-import { ResizeHandle } from "@/components/ui/resize-handle";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -54,7 +54,8 @@ export type FollowUpDto = {
   id: string;
   title: string;
   dueDate: string | null;
-  status: "pending" | "done" | "dismissed";
+  sendAfter: string | null;
+  status: "pending" | "done" | "dismissed" | "queued" | "sent_stub";
   personId: string | null;
   applicationId: string | null;
   notes: string | null;
@@ -66,7 +67,6 @@ type ColumnId = "applications" | "template" | "people";
 
 const DEFAULT_ORDER: ColumnId[] = ["applications", "template", "people"];
 const STORAGE_KEY = "aavedak-referrals-column-order";
-const WIDTHS_KEY = "aavedak-referrals-column-widths-v2";
 const DEFAULT_WIDTHS: Record<ColumnId, number> = {
   applications: 1,
   template: 2,
@@ -112,28 +112,6 @@ function loadColumnOrder(): ColumnId[] {
   }
 }
 
-function clampFlex(n: number, fallback: number): number {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return fallback;
-  return Math.min(4, Math.max(0.55, v));
-}
-
-function loadColumnWidths(): Record<ColumnId, number> {
-  if (typeof window === "undefined") return { ...DEFAULT_WIDTHS };
-  try {
-    const raw = localStorage.getItem(WIDTHS_KEY);
-    if (!raw) return { ...DEFAULT_WIDTHS };
-    const parsed = JSON.parse(raw) as Partial<Record<ColumnId, number>>;
-    return {
-      applications: clampFlex(parsed.applications as number, DEFAULT_WIDTHS.applications),
-      template: clampFlex(parsed.template as number, DEFAULT_WIDTHS.template),
-      people: clampFlex(parsed.people as number, DEFAULT_WIDTHS.people),
-    };
-  } catch {
-    return { ...DEFAULT_WIDTHS };
-  }
-}
-
 export function ReferralsComposer({
   userEmail,
   userName,
@@ -165,7 +143,6 @@ export function ReferralsComposer({
 
   const [manageOpen, setManageOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [colWidths, setColWidths] = useState<Record<ColumnId, number>>(DEFAULT_WIDTHS);
   const [personDraft, setPersonDraft] = useState({
     name: "",
     email: "",
@@ -175,13 +152,31 @@ export function ReferralsComposer({
 
   useEffect(() => {
     setColumnOrder(loadColumnOrder());
-    setColWidths(loadColumnWidths());
   }, []);
 
   const selectedApp = useMemo(
     () => applications.find((a) => a.id === selectedAppId) ?? null,
     [applications, selectedAppId],
   );
+
+  const companyPeople = useMemo(() => {
+    if (!selectedApp) return [] as PersonDto[];
+    const company = selectedApp.companyName.trim().toLowerCase();
+    return people.filter((person) => {
+      if (person.applicationId === selectedApp.id) return true;
+      const personCompany = person.company?.trim().toLowerCase() ?? "";
+      return Boolean(company) && personCompany === company;
+    });
+  }, [people, selectedApp]);
+
+  useEffect(() => {
+    setCheckedPeople((prev) => {
+      const allowed = new Set(companyPeople.map((p) => p.id));
+      const next = new Set([...prev].filter((id) => allowed.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+    setConfirmed(false);
+  }, [selectedAppId, companyPeople]);
 
   const baseVars = useMemo(
     () => ({
@@ -218,37 +213,6 @@ export function ReferralsComposer({
       /* ignore */
     }
   }, []);
-
-  const persistWidths = useCallback((next: Record<ColumnId, number>) => {
-    setColWidths(next);
-    try {
-      localStorage.setItem(WIDTHS_KEY, JSON.stringify(next));
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  function startResize(id: ColumnId, startX: number, startW: number) {
-    function onMove(e: MouseEvent) {
-      // ~140px of drag ≈ one flex unit so columns stay snappy but controllable
-      const nextFlex = clampFlex(startW + (e.clientX - startX) / 140, startW);
-      setColWidths((prev) => {
-        const next = { ...prev, [id]: nextFlex };
-        try {
-          localStorage.setItem(WIDTHS_KEY, JSON.stringify(next));
-        } catch {
-          /* ignore */
-        }
-        return next;
-      });
-    }
-    function onUp() {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    }
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }
 
   function onColDragStart(id: ColumnId) {
     setDragCol(id);
@@ -325,6 +289,7 @@ export function ReferralsComposer({
           body,
           dueDate,
           confirmed: true,
+          sendAfterMinutes: 10,
         }),
       });
       const data = (await res.json()) as {
@@ -336,7 +301,9 @@ export function ReferralsComposer({
       if (data.followUps?.length) {
         setFollowUps((list) => [...data.followUps!, ...list]);
       }
-      setNotice(`Queued ${data.count ?? personIds.length} follow-up(s). No email was sent.`);
+      setNotice(
+        `Queued ${data.count ?? personIds.length} follow-up(s) for ~10 min. Gmail not sent yet.`,
+      );
       setCheckedPeople(new Set());
       setConfirmed(false);
     } catch (err) {
@@ -387,7 +354,7 @@ export function ReferralsComposer({
         onDragOver={(e) => e.preventDefault()}
         onDrop={() => onColDrop(id)}
         style={{
-          flex: `${colWidths[id] ?? DEFAULT_WIDTHS[id]} 1 0%`,
+          flex: `${DEFAULT_WIDTHS[id]} 1 0%`,
           minWidth: 240,
         }}
         className={cn(
@@ -395,14 +362,6 @@ export function ReferralsComposer({
           dragCol === id && "ring-primary/40 opacity-70 ring-2",
         )}
       >
-        <ResizeHandle
-          aria-label={`Resize ${meta.title} column`}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            startResize(id, e.clientX, colWidths[id] ?? DEFAULT_WIDTHS[id]);
-          }}
-          className="absolute inset-y-2 right-0 translate-x-1/2"
-        />
         <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
           <div className="min-w-0">
             <p className="text-foreground text-[13px] font-semibold tracking-tight">{meta.title}</p>
@@ -551,12 +510,16 @@ export function ReferralsComposer({
                 </button>
               </div>
               <ul className="space-y-1.5">
-                {people.length === 0 ? (
+                {!selectedApp ? (
                   <li className="text-muted-foreground text-[12px]">
-                    No people yet — add contacts to check as recipients.
+                    Select an application to see people at that company.
+                  </li>
+                ) : companyPeople.length === 0 ? (
+                  <li className="text-muted-foreground text-[12px]">
+                    No people at {selectedApp.companyName} yet — add a contact for this company.
                   </li>
                 ) : (
-                  people.map((person) => {
+                  companyPeople.map((person) => {
                     const checked = checkedPeople.has(person.id);
                     return (
                       <li key={person.id}>
@@ -568,8 +531,7 @@ export function ReferralsComposer({
                               : "border-border/70 bg-muted/30",
                           )}
                         >
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={checked}
                             onChange={() => togglePerson(person.id)}
                             className="mt-0.5"
@@ -605,8 +567,8 @@ export function ReferralsComposer({
           </p>
           <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Referrals</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-            Compose cold outreach against an application, pick people, confirm, then queue
-            follow-ups. No mail is sent yet — From stays your Gmail ({userEmail}).
+            Compose cold outreach against an application, pick people at that company, confirm, then
+            queue follow-ups (~10 min delay). Gmail is not sent yet — From stays ({userEmail}).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -617,13 +579,10 @@ export function ReferralsComposer({
           ) : null}
           <button
             type="button"
-            onClick={() => {
-              persistOrder(DEFAULT_ORDER);
-              persistWidths({ ...DEFAULT_WIDTHS });
-            }}
+            onClick={() => persistOrder(DEFAULT_ORDER)}
             className="border-border bg-card text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
           >
-            Reset columns
+            Reset column order
           </button>
         </div>
       </header>
@@ -646,17 +605,14 @@ export function ReferralsComposer({
                 Creates pending follow-up tasks (linked to application + person).
               </p>
               <p className="text-muted-foreground mt-0.5 text-[12px] font-semibold leading-relaxed">
-                Does not send Gmail.
+                Queued sends wait ~10 minutes (send_after). Gmail API is not wired yet — the
+                processor stub only marks due items; nothing leaves your mailbox.
               </p>
             </div>
           </div>
           <label className="text-foreground flex shrink-0 items-center gap-2 text-[12px]">
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
-            />
-            I confirm these {checkedPeople.size} recipient(s)
+            <Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />I
+            confirm these {checkedPeople.size} recipient(s)
           </label>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -705,7 +661,11 @@ export function ReferralsComposer({
                 <div className="min-w-0">
                   <p className="text-foreground truncate text-[12px] font-medium">{f.title}</p>
                   <p className="text-muted-foreground text-[11px]">
-                    {f.dueDate ? `Due ${f.dueDate.slice(0, 10)}` : "No due date"}
+                    {f.sendAfter
+                      ? `Send after ${new Date(f.sendAfter).toLocaleString()}`
+                      : f.dueDate
+                        ? `Due ${f.dueDate.slice(0, 10)}`
+                        : "No schedule"}
                   </p>
                 </div>
                 <Badge variant="outline" className="text-[10px]">
@@ -792,22 +752,13 @@ export function ReferralsComposer({
 
 function GripVerticalIcon({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <circle cx="9" cy="5" r="1" fill="currentColor" stroke="none" />
-      <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" />
-      <circle cx="9" cy="19" r="1" fill="currentColor" stroke="none" />
-      <circle cx="15" cy="5" r="1" fill="currentColor" stroke="none" />
-      <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" />
-      <circle cx="15" cy="19" r="1" fill="currentColor" stroke="none" />
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <circle cx="9" cy="5" r="1.65" />
+      <circle cx="9" cy="12" r="1.65" />
+      <circle cx="9" cy="19" r="1.65" />
+      <circle cx="15" cy="5" r="1.65" />
+      <circle cx="15" cy="12" r="1.65" />
+      <circle cx="15" cy="19" r="1.65" />
     </svg>
   );
 }
