@@ -1,6 +1,13 @@
 import "server-only";
 
 import { getAppDb } from "@/lib/app-db";
+import {
+  emptyProfileLinks,
+  mergeLegacyLinks,
+  parseProfileLinksJson,
+  serializeProfileLinks,
+  type ProfileLinks,
+} from "@/lib/profile-links";
 import { usernameFromUser } from "@/lib/username";
 
 export type Profile = {
@@ -9,8 +16,11 @@ export type Profile = {
   email: string | null;
   name: string | null;
   bio: string | null;
+  /** @deprecated Prefer `links.portfolio` — kept in sync for older readers. */
   portfolioUrl: string | null;
+  /** @deprecated Prefer `links.linkedin` — kept in sync for older readers. */
   linkedinUrl: string | null;
+  links: ProfileLinks;
   imageUrl: string | null;
   onboardingComplete: boolean;
   createdAt: string;
@@ -25,6 +35,7 @@ type ProfileRow = {
   bio: string | null;
   portfolio_url: string | null;
   linkedin_url: string | null;
+  links_json: string | null;
   image_url: string | null;
   onboarding_complete: number;
   created_at: string;
@@ -32,17 +43,23 @@ type ProfileRow = {
 };
 
 const PROFILE_SELECT = `SELECT user_id, username, email, name, bio, portfolio_url, linkedin_url,
-  image_url, onboarding_complete, created_at, updated_at FROM profiles`;
+  links_json, image_url, onboarding_complete, created_at, updated_at FROM profiles`;
 
 function mapRow(row: ProfileRow): Profile {
+  const links = mergeLegacyLinks(
+    parseProfileLinksJson(row.links_json),
+    row.portfolio_url,
+    row.linkedin_url,
+  );
   return {
     userId: row.user_id,
     username: row.username,
     email: row.email,
     name: row.name,
     bio: row.bio,
-    portfolioUrl: row.portfolio_url,
-    linkedinUrl: row.linkedin_url,
+    portfolioUrl: links.portfolio ?? null,
+    linkedinUrl: links.linkedin ?? null,
+    links,
     imageUrl: row.image_url,
     onboardingComplete: Boolean(row.onboarding_complete),
     createdAt: row.created_at,
@@ -114,10 +131,10 @@ export function ensureProfile(user: {
   const username = allocateUsername(user.email, user.id);
   db.prepare(
     `INSERT INTO profiles
-      (user_id, username, email, name, bio, portfolio_url, linkedin_url, image_url,
+      (user_id, username, email, name, bio, portfolio_url, linkedin_url, links_json, image_url,
        onboarding_complete, created_at, updated_at)
-     VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, 0, ?, ?)`,
-  ).run(user.id, username, user.email, user.name ?? null, imageUrl, now, now);
+     VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, 0, ?, ?)`,
+  ).run(user.id, username, user.email, user.name ?? null, "{}", imageUrl, now, now);
 
   return {
     userId: user.id,
@@ -127,6 +144,7 @@ export function ensureProfile(user: {
     bio: null,
     portfolioUrl: null,
     linkedinUrl: null,
+    links: emptyProfileLinks(),
     imageUrl,
     onboardingComplete: false,
     createdAt: now,
@@ -146,6 +164,7 @@ export type ProfilePublicPatch = {
   bio?: string | null;
   portfolioUrl?: string | null;
   linkedinUrl?: string | null;
+  links?: ProfileLinks;
 };
 
 function normalizeOptionalText(value: string | null, max: number): string | null {
@@ -178,6 +197,20 @@ function normalizeOptionalUrl(value: string | null): string | null {
   }
 }
 
+function normalizeLinks(input: ProfileLinks | undefined, fallback: ProfileLinks): ProfileLinks {
+  const base = { ...emptyProfileLinks(), ...fallback };
+  if (!input) return base;
+  const out = emptyProfileLinks();
+  for (const key of Object.keys(out) as Array<keyof ProfileLinks>) {
+    if (input[key] !== undefined) {
+      out[key] = normalizeOptionalUrl(input[key] ?? null);
+    } else {
+      out[key] = base[key] ?? null;
+    }
+  }
+  return out;
+}
+
 /** Owner update for shareable profile fields. */
 export function updateProfilePublic(userId: string, patch: ProfilePublicPatch): Profile {
   const existing = getProfile(userId);
@@ -186,28 +219,43 @@ export function updateProfilePublic(userId: string, patch: ProfilePublicPatch): 
   const nextName =
     patch.name !== undefined ? normalizeOptionalText(patch.name, 120) : existing.name;
   const nextBio = patch.bio !== undefined ? normalizeOptionalText(patch.bio, 600) : existing.bio;
-  const nextPortfolio =
-    patch.portfolioUrl !== undefined
-      ? normalizeOptionalUrl(patch.portfolioUrl)
-      : existing.portfolioUrl;
-  const nextLinkedin =
-    patch.linkedinUrl !== undefined
-      ? normalizeOptionalUrl(patch.linkedinUrl)
-      : existing.linkedinUrl;
+
+  let nextLinks = { ...existing.links };
+  if (patch.links !== undefined) {
+    nextLinks = normalizeLinks(patch.links, existing.links);
+  } else {
+    // Legacy single-field patches still work.
+    if (patch.portfolioUrl !== undefined) {
+      nextLinks = {
+        ...nextLinks,
+        portfolio: normalizeOptionalUrl(patch.portfolioUrl),
+      };
+    }
+    if (patch.linkedinUrl !== undefined) {
+      nextLinks = {
+        ...nextLinks,
+        linkedin: normalizeOptionalUrl(patch.linkedinUrl),
+      };
+    }
+  }
+
+  const nextPortfolio = nextLinks.portfolio ?? null;
+  const nextLinkedin = nextLinks.linkedin ?? null;
+  const linksJson = serializeProfileLinks(nextLinks);
 
   const now = new Date().toISOString();
   getAppDb()
     .prepare(
       `UPDATE profiles
-       SET name = ?, bio = ?, portfolio_url = ?, linkedin_url = ?, updated_at = ?
+       SET name = ?, bio = ?, portfolio_url = ?, linkedin_url = ?, links_json = ?, updated_at = ?
        WHERE user_id = ?`,
     )
-    .run(nextName, nextBio, nextPortfolio, nextLinkedin, now, userId);
+    .run(nextName, nextBio, nextPortfolio, nextLinkedin, linksJson, now, userId);
 
   return getProfile(userId)!;
 }
 
 /** Display portfolio URL as stored — no placeholder defaults. */
 export function resolvePortfolioUrl(profile: Profile): string | null {
-  return profile.portfolioUrl?.trim() || null;
+  return profile.links.portfolio?.trim() || profile.portfolioUrl?.trim() || null;
 }

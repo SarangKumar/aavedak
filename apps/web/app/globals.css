@@ -10,7 +10,7 @@
  */
 :root {
   color-scheme: light;
-  --radius: 0.875rem;
+  --radius: 0.75rem;
   --shell-gap: 1.5rem;
   --background: oklch(0.985 0.008 95);
   --foreground: oklch(0.2 0.02 95);

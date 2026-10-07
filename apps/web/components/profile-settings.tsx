@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { ShellWidth } from "@/components/shell-width";
 import {
@@ -12,6 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  emptyProfileLinks,
+  PROFILE_LINK_KEYS,
+  PROFILE_LINK_META,
+  type ProfileLinks,
+} from "@/lib/profile-links";
 import { cn } from "@/lib/utils";
 
 export type ProfileSettingsProfile = {
@@ -20,6 +26,7 @@ export type ProfileSettingsProfile = {
   bio: string | null;
   portfolioUrl: string | null;
   linkedinUrl: string | null;
+  links?: ProfileLinks;
 };
 
 export type ProfileSettingsResume = {
@@ -41,31 +48,53 @@ function formatBytes(n: number) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function linksFromProfile(profile: ProfileSettingsProfile): ProfileLinks {
+  const base = emptyProfileLinks();
+  const fromApi = profile.links ?? {};
+  for (const key of PROFILE_LINK_KEYS) {
+    base[key] = fromApi[key] ?? null;
+  }
+  if (!base.portfolio) base.portfolio = profile.portfolioUrl;
+  if (!base.linkedin) base.linkedin = profile.linkedinUrl;
+  return base;
+}
+
 export function ProfileSettings({ profile, initialResumes }: Props) {
   const router = useRouter();
   const [name, setName] = useState(profile.name ?? "");
   const [bio, setBio] = useState(profile.bio ?? "");
-  const [portfolioUrl, setPortfolioUrl] = useState(profile.portfolioUrl ?? "");
-  const [linkedinUrl, setLinkedinUrl] = useState(profile.linkedinUrl ?? "");
+  const [links, setLinks] = useState<ProfileLinks>(() => linksFromProfile(profile));
   const [resumes, setResumes] = useState(initialResumes);
   const [pending, setPending] = useState(false);
   const [resumePending, setResumePending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  const showcaseId = useMemo(
+    () => resumes.find((r) => r.status === "active")?.id ?? null,
+    [resumes],
+  );
+
+  function setLink(key: (typeof PROFILE_LINK_KEYS)[number], value: string) {
+    setLinks((prev) => ({ ...prev, [key]: value }));
+  }
+
   async function saveProfile() {
     setPending(true);
     setError(null);
     setSaved(false);
     try {
+      const payloadLinks: ProfileLinks = {};
+      for (const key of PROFILE_LINK_KEYS) {
+        payloadLinks[key] = links[key]?.trim() || null;
+      }
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim() || null,
           bio: bio.trim() || null,
-          portfolioUrl: portfolioUrl.trim() || null,
-          linkedinUrl: linkedinUrl.trim() || null,
+          links: payloadLinks,
         }),
       });
       const data = (await res.json()) as { error?: string };
@@ -118,8 +147,8 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
             Profile settings
           </h1>
           <p className="text-muted-foreground max-w-xl text-[13px]">
-            Edit how you appear on Aavedak. Multiple resumes can be active; activate/deactivate
-            reuses Documents APIs.
+            Edit how you appear on Aavedak. Only one resume can be the active showcase on your
+            public profile.
           </p>
         </div>
         <Link
@@ -133,7 +162,7 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
       {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
       {saved ? <p className="text-primary text-[12px]">Profile saved.</p> : null}
 
-      <section className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
+      <section className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-lg border p-4 shadow-sm ring-1">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Public details</h2>
 
         <div className="grid gap-2.5 sm:grid-cols-2">
@@ -158,26 +187,33 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
               placeholder="A short intro for your shareable profile"
             />
           </label>
+        </div>
 
-          <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium">Portfolio URL</span>
-            <input
-              value={portfolioUrl}
-              onChange={(e) => setPortfolioUrl(e.target.value)}
-              className={fieldClass}
-              placeholder="https://…"
-            />
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium">LinkedIn URL</span>
-            <input
-              value={linkedinUrl}
-              onChange={(e) => setLinkedinUrl(e.target.value)}
-              className={fieldClass}
-              placeholder="https://linkedin.com/in/…"
-            />
-          </label>
+        <div className="space-y-2">
+          <div>
+            <h3 className="text-foreground text-[12px] font-semibold tracking-tight">Links</h3>
+            <p className="text-muted-foreground text-[11px] leading-relaxed">
+              Add as many as you want — empty fields stay hidden on your public profile and are
+              disabled in cover-letter footers.
+            </p>
+          </div>
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {PROFILE_LINK_KEYS.map((key) => (
+              <label key={key} className="space-y-1">
+                <span className="text-muted-foreground text-[11px] font-medium">
+                  {PROFILE_LINK_META[key].label}
+                </span>
+                <input
+                  value={links[key] ?? ""}
+                  onChange={(e) => setLink(key, e.target.value)}
+                  className={fieldClass}
+                  placeholder={PROFILE_LINK_META[key].placeholder}
+                  inputMode="url"
+                  autoComplete="url"
+                />
+              </label>
+            ))}
+          </div>
         </div>
 
         <button
@@ -190,11 +226,17 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
         </button>
       </section>
 
-      <section className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
+      <section className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-lg border p-4 shadow-sm ring-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
-            Resumes ({resumes.length})
-          </h2>
+          <div>
+            <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
+              Showcase resume ({resumes.length})
+            </h2>
+            <p className="text-muted-foreground text-[11px] leading-relaxed">
+              Exactly one resume can be <span className="text-foreground font-medium">Active</span>{" "}
+              for your public profile. Activating another demotes the current showcase.
+            </p>
+          </div>
           <Link
             href="/documents"
             className="text-muted-foreground hover:text-foreground text-[11px] font-medium"
@@ -204,56 +246,64 @@ export function ProfileSettings({ profile, initialResumes }: Props) {
         </div>
 
         {resumes.length === 0 ? (
-          <div className="border-border/70 text-muted-foreground rounded-xl border border-dashed px-3 py-6 text-center text-[12px]">
+          <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-3 py-6 text-center text-[12px]">
             No resumes yet — upload a PDF from Documents.
           </div>
         ) : (
           <ul className="space-y-2">
-            {resumes.map((resume) => (
-              <li
-                key={resume.id}
-                className="border-border/70 bg-background/50 flex flex-col gap-2 rounded-xl border p-2.5 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="text-foreground truncate text-[12px] font-medium">
-                    {resume.displayName}
-                  </p>
-                  <p className="text-muted-foreground truncate text-[11px]">
-                    {resume.originalFilename} · {formatBytes(resume.byteSize)}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <a
-                    href={`/api/resumes/${resume.id}/file`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="border-border text-muted-foreground hover:text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
-                  >
-                    Open
-                  </a>
-                  <Select
-                    value={resume.status === "active" ? "active" : "inactive"}
-                    onValueChange={(v) => {
-                      if (!v || v === resume.status) return;
-                      void setResumeStatus(resume.id, v as "active" | "inactive");
-                    }}
-                    disabled={resumePending === resume.id}
-                  >
-                    <SelectTrigger className="border-border bg-background text-foreground h-7 w-[7.5rem] rounded-md border px-2 text-[11px]">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[240]">
-                      <SelectItem value="active" className="text-[12px]">
-                        Active
-                      </SelectItem>
-                      <SelectItem value="inactive" className="text-[12px]">
-                        Inactive
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </li>
-            ))}
+            {resumes.map((resume) => {
+              const isShowcase = resume.id === showcaseId;
+              return (
+                <li
+                  key={resume.id}
+                  className="border-border/70 bg-background/50 flex flex-col gap-2 rounded-lg border p-2.5 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="text-foreground truncate text-[12px] font-medium">
+                      {resume.displayName}
+                      {isShowcase ? (
+                        <span className="bg-primary/15 text-primary ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                          Showcase
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="text-muted-foreground truncate text-[11px]">
+                      {resume.originalFilename} · {formatBytes(resume.byteSize)}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <a
+                      href={`/api/resumes/${resume.id}/file`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="border-border text-muted-foreground hover:text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
+                    >
+                      Open
+                    </a>
+                    <Select
+                      value={resume.status === "active" ? "active" : "inactive"}
+                      onValueChange={(v) => {
+                        if (!v || v === resume.status) return;
+                        void setResumeStatus(resume.id, v as "active" | "inactive");
+                      }}
+                      disabled={resumePending === resume.id}
+                    >
+                      <SelectTrigger className="border-border bg-background text-foreground h-7 w-[7.5rem] rounded-md border px-2 text-[11px]">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[240]">
+                        <SelectItem value="active" className="text-[12px]">
+                          Active (showcase)
+                        </SelectItem>
+                        <SelectItem value="inactive" className="text-[12px]">
+                          Inactive
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

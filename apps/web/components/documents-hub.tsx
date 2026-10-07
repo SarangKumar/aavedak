@@ -22,6 +22,12 @@ import {
   downloadCoverLetterPdf,
   type CoverLetterFooter,
 } from "@/lib/cover-letter-download";
+import {
+  COVER_FOOTER_LINK_KEYS,
+  PROFILE_LINK_META,
+  type CoverFooterLinkKey,
+  type ProfileLinks,
+} from "@/lib/profile-links";
 import { renderTemplatePreview } from "@/lib/template-preview";
 import { cn } from "@/lib/utils";
 
@@ -72,12 +78,45 @@ type DocumentsHubProps = {
   initialApplications: ApplicationOptionDto[];
   userEmail?: string;
   userName?: string;
+  profileEmail?: string | null;
+  profileLinks?: ProfileLinks;
 };
+
+type FooterIncludeKey = CoverFooterLinkKey | "email";
+
+type FooterInclude = Record<FooterIncludeKey, boolean>;
 
 function formatBytes(n: number) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function defaultFooterInclude(
+  profileEmail: string | null | undefined,
+  profileLinks: ProfileLinks | undefined,
+): FooterInclude {
+  const links = profileLinks ?? {};
+  return {
+    email: Boolean(profileEmail?.trim()),
+    portfolio: Boolean(links.portfolio?.trim()),
+    linkedin: Boolean(links.linkedin?.trim()),
+    github: Boolean(links.github?.trim()),
+  };
+}
+
+function buildFooterFromProfile(
+  include: FooterInclude,
+  profileEmail: string | null | undefined,
+  profileLinks: ProfileLinks | undefined,
+): CoverLetterFooter {
+  const links = profileLinks ?? {};
+  return {
+    email: include.email ? profileEmail?.trim() || undefined : undefined,
+    portfolio: include.portfolio ? links.portfolio?.trim() || undefined : undefined,
+    linkedin: include.linkedin ? links.linkedin?.trim() || undefined : undefined,
+    github: include.github ? links.github?.trim() || undefined : undefined,
+  };
 }
 
 export function DocumentsHub({
@@ -87,6 +126,8 @@ export function DocumentsHub({
   initialApplications,
   userEmail,
   userName,
+  profileEmail,
+  profileLinks,
 }: DocumentsHubProps) {
   const [tab, setTab] = useState<Tab>("resumes");
   const [resumes, setResumes] = useState(initialResumes);
@@ -107,12 +148,9 @@ export function DocumentsHub({
   const [clApplicationId, setClApplicationId] = useState<string>(initialApplications[0]?.id ?? "");
   const [clTemplateId, setClTemplateId] = useState<string>("");
   const [editingClId, setEditingClId] = useState<string | null>(null);
-  const [clFooter, setClFooter] = useState<CoverLetterFooter>({
-    portfolio: "",
-    email: "",
-    linkedin: "",
-    github: "",
-  });
+  const [clFooterInclude, setClFooterInclude] = useState<FooterInclude>(() =>
+    defaultFooterInclude(profileEmail, profileLinks),
+  );
 
   const coverTemplates = useMemo(() => templates.filter((t) => t.kind === "cover"), [templates]);
 
@@ -127,7 +165,7 @@ export function DocumentsHub({
     setClBody("");
     setClTemplateId("");
     setClApplicationId(applications[0]?.id ?? "");
-    setClFooter({ portfolio: "", email: "", linkedin: "", github: "" });
+    setClFooterInclude(defaultFooterInclude(profileEmail, profileLinks));
   }
 
   const selectedApp = clApplicationId ? appsById.get(clApplicationId) : undefined;
@@ -143,6 +181,11 @@ export function DocumentsHub({
       person_email: "jane.smith@example.com",
     };
   }, [selectedApp]);
+
+  const clFooter = useMemo(
+    () => buildFooterFromProfile(clFooterInclude, profileEmail, profileLinks),
+    [clFooterInclude, profileEmail, profileLinks],
+  );
 
   const previewTitle = renderTemplatePreview(clTitle || "", coverVars);
   const previewBody = renderTemplatePreview(clBody || "", coverVars);
@@ -356,7 +399,8 @@ export function DocumentsHub({
         <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Documents</h1>
         <p className="text-muted-foreground text-[13px] leading-relaxed">
           Resumes (PDF), company-specific cover letters (PDF/DOCX download), and cold-email
-          templates. Multiple resumes can be active. Resume delete archives only.
+          templates. Only one resume can be the active profile showcase. Resume delete archives
+          only.
         </p>
       </header>
 
@@ -395,7 +439,7 @@ export function DocumentsHub({
 
       {tab === "resumes" ? (
         <section className="space-y-4">
-          <div className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-xl border p-4 shadow-sm ring-1">
+          <div className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-lg border p-4 shadow-sm ring-1">
             <div className="space-y-1.5">
               <label
                 htmlFor="resume-display-name"
@@ -412,7 +456,7 @@ export function DocumentsHub({
                 maxLength={120}
               />
               <p className="text-muted-foreground text-[11px]">
-                Display name must be unique. You can keep multiple resumes active at once.
+                Display name must be unique. Activating a resume makes it the sole profile showcase.
               </p>
             </div>
 
@@ -424,7 +468,7 @@ export function DocumentsHub({
               onFilesChange={setUploadFiles}
               disabled={pending}
             >
-              <FileUploadDropzone className="min-h-40 rounded-xl text-[13px]">
+              <FileUploadDropzone className="min-h-40 rounded-lg text-[13px]">
                 Drop a PDF resume here, or browse
               </FileUploadDropzone>
               <FileUploadList />
@@ -445,7 +489,7 @@ export function DocumentsHub({
               Your resumes ({resumes.length})
             </h2>
             {resumes.length === 0 ? (
-              <div className="border-border/70 text-muted-foreground rounded-xl border border-dashed px-4 py-8 text-center text-[13px]">
+              <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-[13px]">
                 No resumes yet — upload a PDF to get started.
               </div>
             ) : (
@@ -453,7 +497,7 @@ export function DocumentsHub({
                 {resumes.map((resume) => (
                   <li
                     key={resume.id}
-                    className="border-border/80 bg-card flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="border-border/80 bg-card flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
                       <p className="text-foreground truncate text-[13px] font-medium">
@@ -488,7 +532,7 @@ export function DocumentsHub({
                           onClick={() => void patchResume(resume.id, { status: "active" })}
                           className="border-border text-foreground hover:text-primary inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                         >
-                          Activate
+                          Set as showcase
                         </button>
                       ) : (
                         <button
@@ -496,7 +540,7 @@ export function DocumentsHub({
                           onClick={() => void patchResume(resume.id, { status: "inactive" })}
                           className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                         >
-                          Deactivate
+                          Unset showcase
                         </button>
                       )}
                       <button
@@ -525,7 +569,7 @@ export function DocumentsHub({
 
           <div className="grid gap-3 lg:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)]">
             {/* Side: saved cover templates */}
-            <aside className="border-border/80 bg-card space-y-2 rounded-xl border p-3 shadow-sm">
+            <aside className="border-border/80 bg-card space-y-2 rounded-lg border p-3 shadow-sm">
               <p className="text-foreground text-[12px] font-semibold tracking-tight">
                 Start from a saved template
               </p>
@@ -569,7 +613,7 @@ export function DocumentsHub({
 
             {/* Editor + live PDF preview */}
             <div className="grid min-w-0 gap-3 xl:grid-cols-2">
-              <div className="border-border/80 bg-card space-y-2.5 rounded-xl border p-4 shadow-sm">
+              <div className="border-border/80 bg-card space-y-2.5 rounded-lg border p-4 shadow-sm">
                 <p className="text-foreground text-[12px] font-medium">
                   {editingClId ? "Edit cover letter" : "New cover letter"}
                 </p>
@@ -620,33 +664,60 @@ export function DocumentsHub({
                 />
                 <div className="space-y-1.5">
                   <p className="text-foreground text-[11px] font-semibold tracking-tight">
-                    Footer (optional)
+                    Footer from profile
+                  </p>
+                  <p className="text-muted-foreground text-[10px] leading-relaxed">
+                    Values come from your profile. Empty fields stay disabled — edit them under
+                    Profile settings.
                   </p>
                   <div className="grid gap-1.5 sm:grid-cols-2">
-                    <input
-                      value={clFooter.portfolio ?? ""}
-                      onChange={(e) => setClFooter((f) => ({ ...f, portfolio: e.target.value }))}
-                      placeholder="Portfolio — https://example.com"
-                      className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px]"
-                    />
-                    <input
-                      value={clFooter.email ?? ""}
-                      onChange={(e) => setClFooter((f) => ({ ...f, email: e.target.value }))}
-                      placeholder="Email — jane@example.com"
-                      className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px]"
-                    />
-                    <input
-                      value={clFooter.linkedin ?? ""}
-                      onChange={(e) => setClFooter((f) => ({ ...f, linkedin: e.target.value }))}
-                      placeholder="LinkedIn — https://linkedin.com/in/…"
-                      className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px]"
-                    />
-                    <input
-                      value={clFooter.github ?? ""}
-                      onChange={(e) => setClFooter((f) => ({ ...f, github: e.target.value }))}
-                      placeholder="GitHub — https://github.com/…"
-                      className="border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px]"
-                    />
+                    {(
+                      [
+                        {
+                          key: "email" as const,
+                          label: "Email",
+                          value: profileEmail?.trim() || "",
+                        },
+                        ...COVER_FOOTER_LINK_KEYS.map((key) => ({
+                          key: key as CoverFooterLinkKey,
+                          label: PROFILE_LINK_META[key].label,
+                          value: profileLinks?.[key]?.trim() || "",
+                        })),
+                      ] as Array<{ key: FooterIncludeKey; label: string; value: string }>
+                    ).map((item) => {
+                      const hasValue = Boolean(item.value);
+                      const checked = hasValue && clFooterInclude[item.key];
+                      return (
+                        <label
+                          key={item.key}
+                          className={cn(
+                            "border-border/70 flex items-start gap-2 rounded-lg border px-2.5 py-2",
+                            hasValue ? "bg-background/50" : "bg-muted/30 opacity-70",
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={checked}
+                            disabled={!hasValue}
+                            onChange={(e) =>
+                              setClFooterInclude((prev) => ({
+                                ...prev,
+                                [item.key]: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="min-w-0">
+                            <span className="text-foreground block text-[11px] font-medium">
+                              {item.label}
+                            </span>
+                            <span className="text-muted-foreground block truncate text-[10px]">
+                              {hasValue ? item.value : "Not set in profile"}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -686,7 +757,7 @@ export function DocumentsHub({
                 </div>
               </div>
 
-              <div className="border-border/80 bg-card flex min-h-[22rem] flex-col rounded-xl border p-3 shadow-sm">
+              <div className="border-border/80 bg-card flex min-h-[22rem] flex-col rounded-lg border p-3 shadow-sm">
                 <p className="text-foreground text-[12px] font-semibold tracking-tight">
                   Live PDF preview
                 </p>
@@ -708,7 +779,7 @@ export function DocumentsHub({
                         Pick an application to fill {"{{company}}"} / {"{{role}}"}.
                       </p>
                     )}
-                    <pre className="text-foreground/90 whitespace-pre-wrap font-serif text-[13px] leading-relaxed">
+                    <pre className="text-foreground/90 whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
                       {previewBody || "(empty body)"}
                     </pre>
                     {footerLines.length > 0 ? (

@@ -8,6 +8,7 @@ import {
   updateProfilePublic,
   type ProfilePublicPatch,
 } from "@/lib/profile";
+import type { ProfileLinks } from "@/lib/profile-links";
 
 async function requireUser() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -30,6 +31,7 @@ function serialize(profile: NonNullable<ReturnType<typeof getProfile>>) {
     bio: profile.bio,
     portfolioUrl: profile.portfolioUrl,
     linkedinUrl: profile.linkedinUrl,
+    links: profile.links,
     imageUrl: profile.imageUrl,
     onboardingComplete: profile.onboardingComplete,
     updatedAt: profile.updatedAt,
@@ -54,7 +56,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: ProfilePublicPatch;
+  let body: ProfilePublicPatch & { links?: ProfileLinks };
   try {
     body = (await request.json()) as ProfilePublicPatch;
   } catch {
@@ -67,6 +69,7 @@ export async function PATCH(request: Request) {
       bio: body.bio,
       portfolioUrl: body.portfolioUrl,
       linkedinUrl: body.linkedinUrl,
+      links: body.links,
     });
     return NextResponse.json({ profile: serialize(profile) });
   } catch (err) {

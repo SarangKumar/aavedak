@@ -36,6 +36,7 @@ export function getAppDb() {
       bio TEXT,
       portfolio_url TEXT,
       linkedin_url TEXT,
+      links_json TEXT NOT NULL DEFAULT '{}',
       image_url TEXT,
       onboarding_complete INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
@@ -200,6 +201,9 @@ export function getAppDb() {
   }
   if (!profileColNames.has("image_url")) {
     instance.exec(`ALTER TABLE profiles ADD COLUMN image_url TEXT`);
+  }
+  if (!profileColNames.has("links_json")) {
+    instance.exec(`ALTER TABLE profiles ADD COLUMN links_json TEXT NOT NULL DEFAULT '{}'`);
   }
 
   const templateCols = instance.prepare(`PRAGMA table_info(templates)`).all() as Array<{

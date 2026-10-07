@@ -121,20 +121,29 @@ export async function downloadCoverLetterDocx(opts: CoverLetterDownloadOpts): Pr
   const paragraphs: InstanceType<typeof Paragraph>[] = [
     new Paragraph({
       heading: HeadingLevel.HEADING_1,
-      children: [new TextRun({ text: opts.title || "Cover letter", bold: true })],
+      children: [new TextRun({ text: opts.title || "Cover letter", bold: true, font: "Arial" })],
     }),
   ];
   if (opts.companyName) {
     paragraphs.push(
       new Paragraph({
-        children: [new TextRun({ text: `Company: ${opts.companyName}`, italics: true, size: 20 })],
+        children: [
+          new TextRun({
+            text: `Company: ${opts.companyName}`,
+            italics: true,
+            size: 20,
+            font: "Arial",
+          }),
+        ],
       }),
     );
   }
   if (opts.role) {
     paragraphs.push(
       new Paragraph({
-        children: [new TextRun({ text: `Role: ${opts.role}`, italics: true, size: 20 })],
+        children: [
+          new TextRun({ text: `Role: ${opts.role}`, italics: true, size: 20, font: "Arial" }),
+        ],
       }),
     );
   }
@@ -142,7 +151,7 @@ export async function downloadCoverLetterDocx(opts: CoverLetterDownloadOpts): Pr
   for (const block of (opts.body || "").split(/\n/)) {
     paragraphs.push(
       new Paragraph({
-        children: [new TextRun({ text: block, size: 22 })],
+        children: [new TextRun({ text: block, size: 22, font: "Arial" })],
         spacing: { after: 120 },
       }),
     );
@@ -153,13 +162,13 @@ export async function downloadCoverLetterDocx(opts: CoverLetterDownloadOpts): Pr
     paragraphs.push(new Paragraph({ children: [] }));
     paragraphs.push(
       new Paragraph({
-        children: [new TextRun({ text: "—", size: 20, color: "888888" })],
+        children: [new TextRun({ text: "—", size: 20, color: "888888", font: "Arial" })],
       }),
     );
     for (const line of foot) {
       paragraphs.push(
         new Paragraph({
-          children: [new TextRun({ text: line, size: 18, color: "555555" })],
+          children: [new TextRun({ text: line, size: 18, color: "555555", font: "Arial" })],
           spacing: { after: 40 },
         }),
       );
