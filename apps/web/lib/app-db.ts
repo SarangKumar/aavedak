@@ -63,6 +63,7 @@ export function getAppDb() {
       job_id TEXT,
       status TEXT NOT NULL,
       notes TEXT,
+      applied_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -170,6 +171,13 @@ export function getAppDb() {
 
     CREATE INDEX IF NOT EXISTS job_analyses_user_id_idx ON job_analyses (user_id);
   `);
+  // Migrations for existing local DBs
+  const appCols = instance.prepare(`PRAGMA table_info(applications)`).all() as Array<{
+    name: string;
+  }>;
+  if (!appCols.some((c) => c.name === "applied_at")) {
+    instance.exec(`ALTER TABLE applications ADD COLUMN applied_at TEXT`);
+  }
   db = instance;
   return instance;
 }

@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { getApplication, updateApplication } from "@/lib/applications";
+import { applicationToDto, updateApplication } from "@/lib/applications";
 import { isApplicationStatus } from "@/lib/application-status";
 import { auth } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
@@ -17,22 +17,6 @@ async function requireUser() {
     name: session.user.name,
   });
   return session.user;
-}
-
-function toDto(app: NonNullable<ReturnType<typeof getApplication>>) {
-  return {
-    id: app.id,
-    companyName: app.companyName,
-    role: app.role,
-    location: app.location,
-    salaryCtc: app.salaryCtc,
-    jobLink: app.jobLink,
-    jobId: app.jobId,
-    status: app.status,
-    notes: app.notes,
-    createdAt: app.createdAt,
-    updatedAt: app.updatedAt,
-  };
 }
 
 export async function PATCH(request: Request, ctx: Ctx) {
@@ -64,7 +48,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     }
 
     const application = updateApplication(user.id, id, patch);
-    return NextResponse.json({ application: toDto(application) });
+    return NextResponse.json({ application: applicationToDto(application) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed.";
     const status = message === "Application not found." ? 404 : 400;

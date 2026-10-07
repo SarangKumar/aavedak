@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { JobTrackerBoard } from "@/components/job-tracker-board";
 import { requireOnboarded } from "@/lib/app-access";
-import { listApplications } from "@/lib/applications";
+import { listApplications, seedDemoAppliedApplications } from "@/lib/applications";
 import { getPreferences } from "@/lib/preferences";
 
 export const metadata: Metadata = {
@@ -12,6 +12,9 @@ export const metadata: Metadata = {
 
 export default async function JobTrackerPage() {
   const { user } = await requireOnboarded();
+  // Idempotent: upserts Sarang's four applied roles by company+role.
+  seedDemoAppliedApplications(user.id);
+
   const preferences = getPreferences(user.id);
   const applications = listApplications(user.id, preferences.trackerScope);
 
@@ -30,6 +33,7 @@ export default async function JobTrackerPage() {
             jobId: app.jobId,
             status: app.status,
             notes: app.notes,
+            appliedAt: app.appliedAt,
             createdAt: app.createdAt,
             updatedAt: app.updatedAt,
           }))}

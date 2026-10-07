@@ -8,6 +8,7 @@ import {
   STATUS_LABELS,
   type ApplicationStatus,
 } from "@/lib/application-status";
+import { ImportApplicationsDialog } from "@/components/import-applications-dialog";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -20,6 +21,7 @@ export type ApplicationDto = {
   jobId: string | null;
   status: ApplicationStatus;
   notes: string | null;
+  appliedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -59,6 +61,7 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
   const [applications, setApplications] = useState(initialApplications);
   const [prefs, setPrefs] = useState(initialPreferences);
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [pending, setPending] = useState(false);
@@ -288,6 +291,16 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           <button
             type="button"
             onClick={() => {
+              setImportOpen(true);
+              setError(null);
+            }}
+            className="border-border bg-card/70 text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+          >
+            Import applications
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               setCreateOpen(true);
               setWarning(null);
               setError(null);
@@ -488,6 +501,22 @@ export function JobTrackerBoard({ initialApplications, initialPreferences }: Job
           </div>
         </div>
       ) : null}
+
+      <ImportApplicationsDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={(apps) => {
+          if (apps.length === 0) return;
+          setApplications((list) => {
+            const ids = new Set(list.map((a) => a.id));
+            const fresh = apps.filter((a) => !ids.has(a.id));
+            const scoped = fresh.filter((a) =>
+              prefs.trackerScope === "archived" ? a.status === "archived" : a.status !== "archived",
+            );
+            return scoped.length ? [...scoped, ...list] : list;
+          });
+        }}
+      />
     </div>
   );
 }

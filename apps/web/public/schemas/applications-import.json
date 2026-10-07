@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Avsar applications import",
+  "description": "Either a top-level array of application objects, or an object with an `applications` array.",
+  "oneOf": [
+    {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/application"
+      }
+    },
+    {
+      "type": "object",
+      "required": ["applications"],
+      "additionalProperties": false,
+      "properties": {
+        "applications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/application"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "application": {
+      "type": "object",
+      "required": ["company_name", "role", "location", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "company_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "bookmarked",
+            "preparing",
+            "applied",
+            "under_review",
+            "assessment",
+            "interview",
+            "offer",
+            "rejected",
+            "withdrawn",
+            "ghosted",
+            "archived"
+          ]
+        },
+        "salary_ctc": {
+          "type": ["string", "null"],
+          "maxLength": 200
+        },
+        "job_link": {
+          "type": ["string", "null"],
+          "maxLength": 2000
+        },
+        "job_id": {
+          "type": ["string", "null"],
+          "maxLength": 200
+        },
+        "notes": {
+          "type": ["string", "null"],
+          "maxLength": 10000
+        },
+        "applied_at": {
+          "type": ["string", "null"],
+          "description": "ISO date or datetime (e.g. 2026-09-22 or 2026-09-22T00:00:00.000Z)"
+        },
+        "created_at": {
+          "type": ["string", "null"],
+          "description": "Alias for applied_at when applied_at is omitted"
+        }
+      }
+    }
+  }
+}
