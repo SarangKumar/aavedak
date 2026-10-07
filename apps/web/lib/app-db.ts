@@ -263,6 +263,23 @@ async function runSchema() {
   // Optional resume text cache for matching (paste / future PDF extract)
   await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS extracted_text TEXT`;
 
+  // Friendships (invite link → confirm; accepted pairs for dashboard competition graphs)
+  await db`
+    CREATE TABLE IF NOT EXISTS friendships (
+      id TEXT PRIMARY KEY NOT NULL,
+      inviter_id TEXT NOT NULL,
+      invitee_id TEXT,
+      invite_token TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'accepted', 'declined', 'revoked')),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      accepted_at TEXT
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS friendships_inviter_idx ON friendships (inviter_id)`;
+  await db`CREATE INDEX IF NOT EXISTS friendships_invitee_idx ON friendships (invitee_id)`;
+  await db`CREATE INDEX IF NOT EXISTS friendships_status_idx ON friendships (status)`;
+
   // Ingest watermark
   await db`
     CREATE TABLE IF NOT EXISTS jobs_ingest_runs (

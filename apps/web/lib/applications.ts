@@ -302,6 +302,31 @@ export async function setApplicationStatus(
   return updateApplication(userId, id, { status });
 }
 
+/** Hard-delete an application so activity graphs drop that day's contribution. */
+export async function deleteApplication(userId: string, id: string): Promise<void> {
+  await ensureAppSchema();
+  const existing = await getApplication(userId, id);
+  if (!existing) throw new Error("Application not found.");
+  const now = new Date().toISOString();
+  await getSql()`
+    UPDATE cover_letters SET application_id = NULL, updated_at = ${now}
+    WHERE user_id = ${userId} AND application_id = ${id}
+  `;
+  await getSql()`
+    UPDATE follow_up_tasks SET application_id = NULL, updated_at = ${now}
+    WHERE user_id = ${userId} AND application_id = ${id}
+  `;
+  await getSql()`
+    UPDATE people SET application_id = NULL, updated_at = ${now}
+    WHERE application_id = ${id}
+  `;
+  await getSql()`
+    UPDATE user_job_state SET application_id = NULL, updated_at = ${now}
+    WHERE user_id = ${userId} AND application_id = ${id}
+  `;
+  await getSql()`DELETE FROM applications WHERE id = ${id} AND user_id = ${userId}`;
+}
+
 export async function hasApplicationOnDay(
   userId: string,
   companyName: string,

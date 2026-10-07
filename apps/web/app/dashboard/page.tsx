@@ -4,6 +4,7 @@ import Link from "next/link";
 import { requireOnboarded } from "@/lib/app-access";
 import { STATUS_LABELS } from "@/lib/application-status";
 import { getDashboardSnapshot } from "@/lib/dashboard";
+import { ApplicationsActivityCharts } from "@/components/applications-activity-charts";
 import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
 
@@ -97,6 +98,8 @@ export default async function DashboardPage() {
             </div>
           </section>
         ) : null}
+
+        <ApplicationsActivityCharts />
 
         <section aria-labelledby="pulse-heading" className="space-y-2.5">
           <h2

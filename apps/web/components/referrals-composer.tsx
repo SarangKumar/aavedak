@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
+import { CompanySelect } from "@/components/company-select";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
@@ -735,23 +736,38 @@ export function ReferralsComposer({
         }
       >
         <div className="space-y-2.5">
-          {(
-            [
-              ["name", "Name *"],
-              ["email", "Email"],
-              ["company", "Company"],
-              ["roleTitle", "Role"],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="block space-y-1">
-              <span className="text-foreground text-[12px] font-medium">{label}</span>
-              <input
-                value={personDraft[key]}
-                onChange={(e) => setPersonDraft((d) => ({ ...d, [key]: e.target.value }))}
-                className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
-              />
-            </label>
-          ))}
+          <label className="block space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Name *</span>
+            <input
+              value={personDraft.name}
+              onChange={(e) => setPersonDraft((d) => ({ ...d, name: e.target.value }))}
+              className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Email</span>
+            <input
+              value={personDraft.email}
+              onChange={(e) => setPersonDraft((d) => ({ ...d, email: e.target.value }))}
+              className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Company</span>
+            <CompanySelect
+              value={personDraft.company}
+              onChange={(name) => setPersonDraft((d) => ({ ...d, company: name }))}
+              placeholder="Select or add company"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-foreground text-[12px] font-medium">Role</span>
+            <input
+              value={personDraft.roleTitle}
+              onChange={(e) => setPersonDraft((d) => ({ ...d, roleTitle: e.target.value }))}
+              className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
+            />
+          </label>
         </div>
       </Modal>
 

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dashboard applications/day charts** — Vinyaas Chart (recharts) line graphs for you + friend; range Select 1/3/6/12 months; counts derive from live applications (hard delete lowers the day).
+- **Friends** — Profile invite URL; `/friends/invite/[token]` confirm; accepted friendships power the second dashboard graph.
+- **Wipe script** — `scripts/wipe-all-data.mjs` clears Neon app + Better Auth tables and GCS `resumes/` (not GCP OAuth clients).
+
+### Changed
+
+- **Job tracker delete** — Hard-deletes applications (no longer archive-only) so activity graphs stay accurate.
+- **Referrals add-person** — Company field uses creatable Company Select (not free text).
+
+### Added
+
 - **Real Gmail send** — Follow-up queue uses Gmail API (`gmail.send` + offline refresh); cron every 10m; re-consent banner on Referrals / Follow-ups / Profile.
 - **SEO** — `sitemap.xml`, `robots.ts`, OG/Twitter image route, public index vs app `noindex`, JSON-LD retained.
 

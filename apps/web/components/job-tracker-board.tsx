@@ -381,11 +381,9 @@ export function JobTrackerBoard({
     setPendingAction("delete");
     try {
       const res = await fetch(`/api/applications/${editingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "archived" }),
+        method: "DELETE",
       });
-      const data = (await res.json()) as { application?: ApplicationDto; error?: string };
+      const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Delete failed.");
       setApplications((list) => list.filter((a) => a.id !== editingId));
       closeEdit();
@@ -764,7 +762,7 @@ export function JobTrackerBoard({
         open={Boolean(editingId)}
         onClose={closeEdit}
         title="Edit application"
-        description="Update details or archive (delete) this application."
+        description="Update details or permanently delete this application."
         footer={
           <>
             <Button
@@ -896,7 +894,7 @@ export function JobTrackerBoard({
             />
           </div>
           <p className="text-muted-foreground text-[11px] leading-relaxed">
-            Delete archives the application. It does not hard-delete.
+            Delete permanently removes the application and lowers that day on your dashboard graph.
           </p>
         </div>
       </Sheet>

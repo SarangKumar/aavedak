@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { FriendsInviteCard } from "@/components/friends-invite-card";
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import {
   CareerProfileFields,
@@ -407,6 +408,8 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
           </ul>
         )}
       </section>
+
+      <FriendsInviteCard />
 
       <section className="border-border/80 bg-card space-y-3 rounded-lg border p-4 shadow-sm">
         <div>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { applicationToDto, updateApplication } from "@/lib/applications";
+import { applicationToDto, deleteApplication, updateApplication } from "@/lib/applications";
 import { isApplicationStatus } from "@/lib/application-status";
 import { requireApiUser } from "@/lib/api-session";
 
@@ -28,11 +28,13 @@ export async function PATCH(request: Request, ctx: Ctx) {
   try {
     const patch: Parameters<typeof updateApplication>[2] = {};
     if ("companyName" in body) patch.companyName = String(body.companyName ?? "");
+    if ("companyId" in body) patch.companyId = (body.companyId as string | null) ?? null;
     if ("role" in body) patch.role = String(body.role ?? "");
     if ("location" in body) patch.location = String(body.location ?? "");
     if ("salaryCtc" in body) patch.salaryCtc = (body.salaryCtc as string | null) ?? null;
     if ("jobLink" in body) patch.jobLink = (body.jobLink as string | null) ?? null;
-    if ("coverLetterId" in body) patch.coverLetterId = (body.coverLetterId as string | null) ?? null;
+    if ("coverLetterId" in body)
+      patch.coverLetterId = (body.coverLetterId as string | null) ?? null;
     if ("jobId" in body) patch.jobId = (body.jobId as string | null) ?? null;
     if ("notes" in body) patch.notes = (body.notes as string | null) ?? null;
     if ("appliedAt" in body) patch.appliedAt = (body.appliedAt as string | null) ?? null;
@@ -47,6 +49,22 @@ export async function PATCH(request: Request, ctx: Ctx) {
     return NextResponse.json({ application: applicationToDto(application) });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed.";
+    const status = message === "Application not found." ? 404 : 400;
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function DELETE(_request: Request, ctx: Ctx) {
+  const authResult = await requireUser();
+  if ("error" in authResult) return authResult.error;
+  const user = authResult.user;
+  const { id } = await ctx.params;
+
+  try {
+    await deleteApplication(user.id, id);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Delete failed.";
     const status = message === "Application not found." ? 404 : 400;
     return NextResponse.json({ error: message }, { status });
   }
