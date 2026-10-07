@@ -4,62 +4,70 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Theme tokens aligned with Vinyaas (oklch).
- * Components use semantic Tailwind utilities, never raw palette colors.
+ * Avsar theme — opportunity / job-search OS.
+ * Warm amber-gold accent (matches brand mark), dark-first, not a gray twin.
  */
 :root {
   color-scheme: light;
-  --radius: 0.75rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.21 0.006 285.885);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
+  --radius: 0.875rem;
+  --background: oklch(0.985 0.008 85);
+  --foreground: oklch(0.18 0.02 55);
+  --card: oklch(1 0.005 85);
+  --card-foreground: oklch(0.18 0.02 55);
+  --popover: oklch(1 0.005 85);
+  --popover-foreground: oklch(0.18 0.02 55);
+  --primary: oklch(0.55 0.14 70);
+  --primary-foreground: oklch(0.99 0.01 95);
+  --secondary: oklch(0.95 0.02 85);
+  --secondary-foreground: oklch(0.28 0.04 60);
+  --muted: oklch(0.95 0.015 85);
+  --muted-foreground: oklch(0.5 0.03 60);
+  --accent: oklch(0.94 0.04 80);
+  --accent-foreground: oklch(0.28 0.05 60);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.945 0.003 286.32);
-  --input: oklch(0.945 0.003 286.32);
-  --ring: oklch(0.705 0.015 286.067);
-  --chart-1: oklch(0.32 0.012 285.885);
-  --chart-2: oklch(0.42 0.01 285.885);
-  --chart-3: oklch(0.52 0.008 285.885);
-  --chart-4: oklch(0.62 0.006 285.885);
-  --chart-5: oklch(0.72 0.004 285.885);
+  --border: oklch(0.9 0.02 80);
+  --input: oklch(0.9 0.02 80);
+  --ring: oklch(0.7 0.12 75);
+  --chart-1: oklch(0.65 0.14 70);
+  --chart-2: oklch(0.55 0.1 55);
+  --chart-3: oklch(0.7 0.08 95);
+  --chart-4: oklch(0.5 0.06 40);
+  --chart-5: oklch(0.8 0.1 85);
+  --glow: oklch(0.78 0.14 75 / 35%);
+  --mesh-a: oklch(0.85 0.12 75 / 40%);
+  --mesh-b: oklch(0.88 0.08 45 / 30%);
+  --mesh-c: oklch(0.9 0.06 120 / 20%);
 }
 
 .dark {
   color-scheme: dark;
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.004 286.32);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.145 0.018 55);
+  --foreground: oklch(0.97 0.01 90);
+  --card: oklch(0.19 0.02 55);
+  --card-foreground: oklch(0.97 0.01 90);
+  --popover: oklch(0.19 0.02 55);
+  --popover-foreground: oklch(0.97 0.01 90);
+  --primary: oklch(0.82 0.13 78);
+  --primary-foreground: oklch(0.18 0.03 55);
+  --secondary: oklch(0.24 0.025 55);
+  --secondary-foreground: oklch(0.95 0.02 85);
+  --muted: oklch(0.24 0.025 55);
+  --muted-foreground: oklch(0.68 0.03 70);
+  --accent: oklch(0.26 0.04 65);
+  --accent-foreground: oklch(0.95 0.04 85);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.552 0.016 285.938);
-  --chart-1: oklch(0.88 0.01 286.32);
-  --chart-2: oklch(0.8 0.008 286.32);
-  --chart-3: oklch(0.72 0.006 286.32);
-  --chart-4: oklch(0.64 0.005 286.32);
-  --chart-5: oklch(0.56 0.004 286.32);
+  --border: oklch(0.92 0.04 80 / 12%);
+  --input: oklch(0.92 0.04 80 / 14%);
+  --ring: oklch(0.75 0.12 75);
+  --chart-1: oklch(0.82 0.13 78);
+  --chart-2: oklch(0.72 0.1 55);
+  --chart-3: oklch(0.78 0.08 95);
+  --chart-4: oklch(0.6 0.06 40);
+  --chart-5: oklch(0.88 0.1 85);
+  --glow: oklch(0.75 0.14 75 / 28%);
+  --mesh-a: oklch(0.55 0.14 75 / 28%);
+  --mesh-b: oklch(0.4 0.08 40 / 22%);
+  --mesh-c: oklch(0.35 0.06 140 / 16%);
 }
 
 @theme inline {
@@ -101,5 +109,34 @@
 @layer base {
   * {
     @apply border-border;
+  }
+
+  body {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, var(--glow), transparent),
+      radial-gradient(ellipse 40% 30% at 100% 0%, var(--mesh-b), transparent);
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  .avsar-mesh {
+    background-image:
+      radial-gradient(ellipse 60% 50% at 20% 20%, var(--mesh-a), transparent 70%),
+      radial-gradient(ellipse 50% 40% at 80% 10%, var(--mesh-b), transparent 65%),
+      radial-gradient(ellipse 45% 35% at 60% 80%, var(--mesh-c), transparent 60%);
+  }
+
+  .avsar-display {
+    letter-spacing: -0.04em;
+    font-weight: 650;
+  }
+
+  .avsar-chip {
+    @apply border-border/80 bg-card/70 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium backdrop-blur-sm;
+  }
+
+  .avsar-chip-dot {
+    @apply bg-primary size-1.5 shrink-0 rounded-full shadow-[0_0_8px_var(--glow)];
   }
 }

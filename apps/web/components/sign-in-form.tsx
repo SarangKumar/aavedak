@@ -29,7 +29,7 @@ export function SignInForm({ googleConfigured }: SignInFormProps) {
 
   if (!googleConfigured) {
     return (
-      <div className="border-border bg-card ring-ring/5 space-y-4 rounded-xl border p-6 text-left shadow-sm ring-1">
+      <div className="space-y-4 text-left">
         <h2 className="text-foreground text-sm font-semibold">Google OAuth not configured</h2>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Add Google Cloud OAuth credentials to{" "}
@@ -43,7 +43,7 @@ export function SignInForm({ googleConfigured }: SignInFormProps) {
           <li>
             Create an OAuth client (Web application) in{" "}
             <a
-              className="text-foreground underline underline-offset-2"
+              className="text-primary underline underline-offset-2"
               href="https://console.cloud.google.com/apis/credentials"
               target="_blank"
               rel="noreferrer"
@@ -84,7 +84,7 @@ export function SignInForm({ googleConfigured }: SignInFormProps) {
         type="button"
         onClick={continueWithGoogle}
         disabled={pending}
-        className="bg-primary text-primary-foreground inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-medium shadow-sm transition-opacity hover:opacity-90 disabled:opacity-60"
+        className="bg-primary text-primary-foreground ring-primary/30 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold shadow-lg shadow-black/20 ring-1 transition-opacity hover:opacity-90 disabled:opacity-60"
       >
         {pending ? "Redirecting…" : "Continue with Google"}
       </button>

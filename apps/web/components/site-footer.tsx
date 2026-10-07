@@ -4,18 +4,24 @@ import { cn } from "@/lib/utils";
 
 export function SiteFooter({ className }: { className?: string }) {
   return (
-    <footer className={cn("border-border/80 mt-auto border-t", className)}>
+    <footer className={cn("border-border/60 mt-auto border-t", className)}>
       <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div className="space-y-1">
-          <p className="text-muted-foreground text-sm">
+        <div className="space-y-1.5">
+          <p className="text-foreground/90 text-sm font-medium tracking-tight">
+            Avsar{" "}
+            <span className="text-primary/80 font-mono text-xs font-normal" lang="sa">
+              अवसर
+            </span>
+          </p>
+          <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
             Avsar recommends and prepares. The user decides and sends.
           </p>
-          <p className="text-muted-foreground/80 text-xs">© 2026 Avsar</p>
+          <p className="text-muted-foreground/70 text-xs">© 2026 Avsar</p>
         </div>
         <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
           <Link
             href="https://sarangkumar.vercel.app"
-            className="hover:text-foreground transition-colors"
+            className="hover:text-primary transition-colors"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -26,7 +32,7 @@ export function SiteFooter({ className }: { className?: string }) {
           </span>
           <Link
             href="https://vinyaas.vercel.app"
-            className="hover:text-foreground transition-colors"
+            className="hover:text-primary transition-colors"
             target="_blank"
             rel="noopener noreferrer"
           >

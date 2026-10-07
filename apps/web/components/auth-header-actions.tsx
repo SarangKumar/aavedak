@@ -32,7 +32,7 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
     return (
       <Link
         href="/sign-in"
-        className="bg-primary text-primary-foreground rounded-lg px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-90"
+        className="bg-primary text-primary-foreground ring-primary/25 rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm ring-1 transition-opacity hover:opacity-90"
       >
         Sign in
       </Link>

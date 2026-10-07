@@ -29,28 +29,28 @@ export async function SiteHeader({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "border-border/80 bg-background/80 sticky top-0 z-40 border-b backdrop-blur-md",
+        "border-border/60 bg-background/70 sticky top-0 z-40 border-b backdrop-blur-xl",
         className,
       )}
     >
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-4 sm:px-6">
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+        <Link href="/" className="group flex shrink-0 items-center gap-2.5">
           <Image
             src="/brand/icon.png"
             alt=""
             width={28}
             height={28}
-            className="rounded-md"
+            className="shadow-sm shadow-black/30 transition-transform group-hover:scale-[1.03]"
             priority
           />
-          <span className="text-foreground text-sm font-semibold tracking-tight">Avsar</span>
+          <span className="avsar-display text-foreground text-[15px]">Avsar</span>
         </Link>
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
+        <nav className="hidden items-center gap-0.5 md:flex" aria-label="Main">
           {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-lg px-2.5 py-1.5 text-sm transition-colors"
+              className="text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground rounded-lg px-2.5 py-1.5 text-sm transition-colors"
             >
               {item.label}
             </Link>
