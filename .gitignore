@@ -1,0 +1,35 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# next
+apps/web/.next/
+apps/web/out/
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+!**/.env.example
+
+# python
+**/.venv/
+**/venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# tooling
+.turbo/
+.DS_Store
+*.log
+coverage/
+.vercel/
+
+# editors
+.idea/
+.vscode/*
+!.vscode/extensions.json

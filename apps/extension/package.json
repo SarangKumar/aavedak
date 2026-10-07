@@ -1,0 +1,9 @@
+{
+  "name": "extension",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "node -e \"console.log('Chrome extension not scaffolded yet')\"",
+    "build": "node -e \"console.log('Chrome extension not scaffolded yet')\""
+  }
+}
