@@ -102,6 +102,12 @@ apps/web/
 └── public/brand/icon.png
 ```
 
+## Referrals (local v1)
+
+- `/referrals`: People + Follow-ups. Contacts are **user-scoped** (private outreach email override). Global Person sync later.
+- Follow-ups: due date, pending/done/dismissed; optional linked person.
+- Tables: `people`, `follow_up_tasks` in `.data/app.db`.
+
 ## Documents hub (local v1)
 
 - `/documents`: Resumes | Cover letters | Templates.

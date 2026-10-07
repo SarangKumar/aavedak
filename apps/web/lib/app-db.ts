@@ -103,6 +103,40 @@ export function getAppDb() {
     );
 
     CREATE INDEX IF NOT EXISTS templates_user_id_idx ON templates (user_id);
+
+    /* User-scoped contacts for referrals/outreach (local v1).
+       Global/admin Person.email sync comes later — never overwrite from here. */
+    CREATE TABLE IF NOT EXISTS people (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      email TEXT,
+      company TEXT,
+      role_title TEXT,
+      notes TEXT,
+      application_id TEXT,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS people_user_id_idx ON people (user_id);
+
+    CREATE TABLE IF NOT EXISTS follow_up_tasks (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      due_date TEXT,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'done', 'dismissed')),
+      person_id TEXT,
+      application_id TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS follow_up_tasks_user_id_idx ON follow_up_tasks (user_id);
+    CREATE INDEX IF NOT EXISTS follow_up_tasks_user_status_idx ON follow_up_tasks (user_id, status);
   `);
   db = instance;
   return instance;
