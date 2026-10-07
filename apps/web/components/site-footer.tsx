@@ -5,23 +5,23 @@ import { cn } from "@/lib/utils";
 export function SiteFooter({ className }: { className?: string }) {
   return (
     <footer className={cn("border-border/60 mt-auto border-t", className)}>
-      <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-8">
-        <div className="space-y-1.5">
-          <p className="text-foreground/90 text-sm font-medium tracking-tight">
+      <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-6">
+        <div className="space-y-1">
+          <p className="text-foreground/90 text-[13px] font-medium tracking-tight">
             Avsar{" "}
-            <span className="text-primary/80 font-mono text-xs font-normal" lang="sa">
+            <span className="text-primary/80 font-mono text-[11px] font-normal" lang="hi">
               अवसर
             </span>
           </p>
-          <p className="text-muted-foreground max-w-md text-pretty text-sm leading-relaxed">
+          <p className="text-muted-foreground max-w-md text-pretty text-[13px] leading-relaxed">
             Avsar recommends and prepares. The user decides and sends.
           </p>
-          <p className="text-muted-foreground/70 text-xs">© 2026 Avsar</p>
+          <p className="text-muted-foreground/70 text-[11px]">© 2026 Avsar</p>
         </div>
-        <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+        <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]">
           <Link
             href="https://sarangkumar.vercel.app"
-            className="hover:text-primary inline-flex min-h-9 items-center transition-colors"
+            className="hover:text-foreground inline-flex min-h-8 items-center transition-colors"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -32,7 +32,7 @@ export function SiteFooter({ className }: { className?: string }) {
           </span>
           <Link
             href="https://vinyaas.vercel.app"
-            className="hover:text-primary inline-flex min-h-9 items-center transition-colors"
+            className="hover:text-foreground inline-flex min-h-8 items-center transition-colors"
             target="_blank"
             rel="noopener noreferrer"
           >

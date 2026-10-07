@@ -56,7 +56,7 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
     return (
       <Link
         href="/sign-in"
-        className="bg-primary text-primary-foreground ring-primary/25 inline-flex min-h-10 items-center justify-center rounded-lg px-3.5 py-2 text-xs font-semibold shadow-sm ring-1 transition-opacity hover:opacity-90"
+        className="avsar-btn bg-primary text-primary-foreground ring-primary/25 inline-flex h-8 items-center justify-center rounded-lg px-2.5 text-[12px] font-semibold shadow-sm ring-1 hover:opacity-90"
       >
         Sign in
       </Link>
@@ -76,7 +76,7 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
         aria-controls={menuId}
         onClick={() => setOpen((value) => !value)}
         className={cn(
-          "ring-border hover:ring-primary/40 focus-visible:ring-primary/50 flex size-10 items-center justify-center overflow-hidden rounded-full ring-1 transition focus-visible:outline-none focus-visible:ring-2",
+          "ring-border hover:ring-primary/40 focus-visible:ring-primary/50 flex size-8 items-center justify-center overflow-hidden rounded-full ring-1 transition focus-visible:outline-none focus-visible:ring-2",
           open && "ring-primary/50",
         )}
       >
@@ -84,13 +84,13 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
           <Image
             src={user.image}
             alt=""
-            width={40}
-            height={40}
-            className="size-10 rounded-full object-cover"
+            width={32}
+            height={32}
+            className="size-8 rounded-full object-cover"
             referrerPolicy="no-referrer"
           />
         ) : (
-          <span className="bg-muted text-muted-foreground flex size-10 items-center justify-center text-sm font-medium">
+          <span className="bg-muted text-muted-foreground flex size-8 items-center justify-center text-xs font-medium">
             {initial}
           </span>
         )}
@@ -100,13 +100,13 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
         <div
           id={menuId}
           role="menu"
-          className="border-border bg-popover text-popover-foreground absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border shadow-lg shadow-black/40"
+          className="border-border bg-popover text-popover-foreground absolute right-0 z-50 mt-2 w-40 overflow-hidden rounded-xl border shadow-lg shadow-black/30"
         >
           <Link
             href={profileHref}
             role="menuitem"
             onClick={() => setOpen(false)}
-            className="hover:bg-accent hover:text-accent-foreground block px-3.5 py-2.5 text-sm font-medium transition-colors"
+            className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] font-medium transition-colors"
           >
             Profile
           </Link>
@@ -114,7 +114,7 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
             href={`${profileHref}/settings`}
             role="menuitem"
             onClick={() => setOpen(false)}
-            className="hover:bg-accent hover:text-accent-foreground block px-3.5 py-2.5 text-sm transition-colors"
+            className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
           >
             Settings
           </Link>
@@ -124,7 +124,7 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
             role="menuitem"
             onClick={signOut}
             disabled={pending}
-            className="hover:bg-accent hover:text-accent-foreground w-full px-3.5 py-2.5 text-left text-sm transition-colors disabled:opacity-60"
+            className="hover:text-foreground text-muted-foreground w-full px-3 py-2 text-left text-[13px] transition-colors disabled:opacity-60"
           >
             {pending ? "Signing out…" : "Sign out"}
           </button>

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 
 import { AuthHeaderActions } from "@/components/auth-header-actions";
 import { MobileNav } from "@/components/mobile-nav";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { auth } from "@/lib/auth";
 import { usernameFromUser } from "@/lib/username";
 import { cn } from "@/lib/utils";
@@ -45,19 +46,23 @@ export async function SiteHeader({ className }: { className?: string }) {
         className,
       )}
     >
-      <div className="relative mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:gap-4 sm:px-6">
+      <div className="relative mx-auto flex h-12 max-w-5xl items-center gap-2.5 px-4 sm:gap-3 sm:px-6">
         <MobileNav items={nav} />
 
-        <Link href="/" className="group flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
+        <Link
+          href="/"
+          className="group flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5"
+          aria-label="Avsar home"
+        >
           <Image
-            src="/brand/icon.png"
-            alt=""
+            src="/brand/logo-icon.png"
+            alt="Avsar logo"
             width={28}
             height={28}
-            className="size-7 shadow-sm shadow-black/30 transition-transform group-hover:scale-[1.03]"
+            className="avsar-logo size-7"
             priority
           />
-          <span className="avsar-display text-foreground text-[15px]">Avsar</span>
+          <span className="avsar-display text-foreground text-sm">Avsar</span>
         </Link>
 
         <nav className="ml-1 hidden items-center gap-0.5 md:flex" aria-label="Main">
@@ -65,14 +70,15 @@ export async function SiteHeader({ className }: { className?: string }) {
             <Link
               key={item.href}
               href={item.href}
-              className="text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground rounded-lg px-2.5 py-1.5 text-sm transition-colors"
+              className="text-muted-foreground hover:text-foreground rounded-lg px-2 py-1 text-[13px] transition-colors"
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          <ThemeToggle />
           <AuthHeaderActions user={user} />
         </div>
       </div>

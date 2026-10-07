@@ -1,0 +1,2 @@
+/** Inline blocking script — apply theme before paint (avoids FOUC). */
+export const themeInitScript = `(function(){try{var k='avsar-theme';var m=localStorage.getItem(k);if(m!=='light'&&m!=='dark'&&m!=='system')m='system';var d=m==='dark'||(m==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';r.dataset.theme=m;}catch(e){}})();`;

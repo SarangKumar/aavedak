@@ -4,20 +4,53 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Avsar theme — dark only.
- * Clean gold / yellow accent (logo metallic gold), not amber-rust/orange.
- * Accent stays minimal: CTAs, rings, highlights — not flooded.
+ * Avsar theme — premium dark + light.
+ * Brand gold: #F5B91F / #FFD34D (oklch hue ~92, clean yellow-gold).
+ * Dark bg #090909 · text #F5F5F0 · secondary #9A9AA0
  */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   --radius: 0.875rem;
+  --background: oklch(0.985 0.008 95);
+  --foreground: oklch(0.2 0.02 95);
+  --card: oklch(0.995 0.004 95);
+  --card-foreground: oklch(0.2 0.02 95);
+  --popover: oklch(1 0.003 95);
+  --popover-foreground: oklch(0.2 0.02 95);
+  /* #F5B91F-ish gold, readable on light */
+  --primary: oklch(0.72 0.14 92);
+  --primary-foreground: oklch(0.18 0.02 95);
+  --secondary: oklch(0.95 0.015 95);
+  --secondary-foreground: oklch(0.28 0.03 95);
+  --muted: oklch(0.95 0.012 95);
+  --muted-foreground: oklch(0.5 0.02 95);
+  --accent: oklch(0.94 0.035 95);
+  --accent-foreground: oklch(0.28 0.04 95);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.9 0.02 95);
+  --input: oklch(0.9 0.02 95);
+  --ring: oklch(0.78 0.12 92);
+  --chart-1: oklch(0.72 0.14 92);
+  --chart-2: oklch(0.65 0.1 100);
+  --chart-3: oklch(0.7 0.08 85);
+  --chart-4: oklch(0.55 0.06 110);
+  --chart-5: oklch(0.85 0.1 95);
+  --glow: oklch(0.85 0.14 92 / 32%);
+  --mesh-a: oklch(0.88 0.1 92 / 35%);
+  --mesh-b: oklch(0.9 0.06 100 / 22%);
+  --mesh-c: oklch(0.92 0.04 120 / 16%);
+  --logo-glow: oklch(0.82 0.14 92 / 45%);
+}
+
+.dark {
+  color-scheme: dark;
   --background: oklch(0.145 0.012 95);
   --foreground: oklch(0.97 0.01 95);
   --card: oklch(0.19 0.014 95);
   --card-foreground: oklch(0.97 0.01 95);
   --popover: oklch(0.19 0.014 95);
   --popover-foreground: oklch(0.97 0.01 95);
-  /* Clean yellow-gold — hue ~92, avoid orange/rust ~40–70 */
+  /* Clean yellow-gold — hue ~92 (#F5B91F / #FFD34D) */
   --primary: oklch(0.86 0.14 92);
   --primary-foreground: oklch(0.16 0.02 95);
   --secondary: oklch(0.24 0.016 95);
@@ -39,11 +72,7 @@
   --mesh-a: oklch(0.55 0.12 92 / 22%);
   --mesh-b: oklch(0.4 0.06 100 / 16%);
   --mesh-c: oklch(0.35 0.04 120 / 12%);
-}
-
-/* Same tokens — html always has .dark; no light mode. */
-.dark {
-  color-scheme: dark;
+  --logo-glow: oklch(0.86 0.14 92 / 40%);
 }
 
 @theme inline {
@@ -88,7 +117,7 @@
   }
 
   html {
-    color-scheme: dark;
+    font-size: 15px;
   }
 
   body {
@@ -97,6 +126,10 @@
       radial-gradient(ellipse 40% 30% at 100% 0%, var(--mesh-b), transparent);
     background-attachment: fixed;
     overflow-x: hidden;
+  }
+
+  :focus-visible {
+    @apply ring-ring/60 ring-offset-background outline-none ring-2 ring-offset-2;
   }
 }
 
@@ -114,10 +147,128 @@
   }
 
   .avsar-chip {
-    @apply border-border/80 bg-card/70 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium backdrop-blur-sm;
+    @apply border-border/80 bg-card/70 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium backdrop-blur-sm;
   }
 
   .avsar-chip-dot {
     @apply bg-primary size-1.5 shrink-0 rounded-full shadow-[0_0_8px_var(--glow)];
+  }
+
+  /* Logo: idle pulse + hover/active glow (brand guide) */
+  .avsar-logo {
+    transition:
+      transform 200ms ease,
+      filter 200ms ease,
+      box-shadow 200ms ease;
+    animation: avsar-logo-pulse 3.2s ease-in-out infinite;
+  }
+
+  .avsar-logo:hover,
+  .group:hover .avsar-logo {
+    filter: drop-shadow(0 0 10px var(--logo-glow));
+    transform: scale(1.04);
+  }
+
+  .avsar-logo:active,
+  .group:active .avsar-logo {
+    filter: drop-shadow(0 0 16px var(--logo-glow));
+    transform: scale(0.98);
+  }
+
+  .avsar-btn {
+    transition:
+      transform 140ms ease,
+      opacity 140ms ease,
+      background-color 140ms ease,
+      color 140ms ease,
+      box-shadow 140ms ease;
+  }
+
+  .avsar-btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .avsar-fade-up {
+    animation: avsar-fade-up 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .avsar-fade-up-delay-1 {
+    animation-delay: 60ms;
+  }
+  .avsar-fade-up-delay-2 {
+    animation-delay: 120ms;
+  }
+  .avsar-fade-up-delay-3 {
+    animation-delay: 180ms;
+  }
+  .avsar-fade-up-delay-4 {
+    animation-delay: 240ms;
+  }
+
+  .avsar-card-lift {
+    transition:
+      transform 200ms ease,
+      border-color 200ms ease,
+      box-shadow 200ms ease,
+      background-color 200ms ease;
+  }
+
+  .avsar-card-lift:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes avsar-logo-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px transparent);
+  }
+  50% {
+    filter: drop-shadow(0 0 8px var(--logo-glow));
+  }
+}
+
+@keyframes avsar-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes avsar-icon-spin {
+  from {
+    transform: rotate(-90deg);
+    opacity: 0.4;
+  }
+  to {
+    transform: rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.avsar-theme-icon {
+  animation: avsar-icon-spin 280ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avsar-logo,
+  .avsar-fade-up,
+  .avsar-theme-icon,
+  .avsar-btn,
+  .avsar-card-lift {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .avsar-logo:hover,
+  .group:hover .avsar-logo,
+  .avsar-card-lift:hover,
+  .avsar-btn:active:not(:disabled) {
+    transform: none;
+    filter: none;
   }
 }
