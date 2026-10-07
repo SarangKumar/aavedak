@@ -102,6 +102,13 @@ apps/web/
 └── public/brand/icon.png
 ```
 
+## Job tracker (local v1)
+
+- `/job-tracker`: Kanban + list, Active / Archived scopes.
+- Applications in `.data/app.db` (`applications` table). `job_id` nullable; required snapshot: company, role, location.
+- Single status enum (no custom statuses). Column show/hide + view prefs in `user_preferences`.
+- Status changes only via user (drag or select) — Avsar never auto-moves cards.
+
 ## Onboarding & resumes (local v1)
 
 - New Google users land on `/onboarding` (`newUserCallbackURL`).

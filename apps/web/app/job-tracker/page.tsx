@@ -1,19 +1,45 @@
 import type { Metadata } from "next";
 
-import { PageStub } from "@/components/page-stub";
+import { JobTrackerBoard } from "@/components/job-tracker-board";
 import { requireOnboarded } from "@/lib/app-access";
+import { listApplications } from "@/lib/applications";
+import { getPreferences } from "@/lib/preferences";
 
 export const metadata: Metadata = {
   title: "Job tracker",
+  description: "Kanban and list views for every application stage.",
 };
 
-export default async function Page() {
-  await requireOnboarded();
+export default async function JobTrackerPage() {
+  const { user } = await requireOnboarded();
+  const preferences = getPreferences(user.id);
+  const applications = listApplications(user.id, preferences.trackerScope);
+
   return (
-    <PageStub
-      title="Job tracker"
-      description="Kanban and list views for every application stage."
-      hint="Pipeline columns and status updates will appear here."
-    />
+    <div className="relative overflow-hidden">
+      <div className="avsar-mesh pointer-events-none absolute inset-0 opacity-60" aria-hidden />
+      <div className="relative">
+        <JobTrackerBoard
+          initialApplications={applications.map((app) => ({
+            id: app.id,
+            companyName: app.companyName,
+            role: app.role,
+            location: app.location,
+            salaryCtc: app.salaryCtc,
+            jobLink: app.jobLink,
+            jobId: app.jobId,
+            status: app.status,
+            notes: app.notes,
+            createdAt: app.createdAt,
+            updatedAt: app.updatedAt,
+          }))}
+          initialPreferences={{
+            trackerView: preferences.trackerView,
+            trackerScope: preferences.trackerScope,
+            hiddenColumns: preferences.hiddenColumns,
+          }}
+        />
+      </div>
+    </div>
   );
 }

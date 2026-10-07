@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 /**
- * Local app data (profiles + resumes). Separate from Better Auth `data/local.db`.
+ * Local app data (profiles + resumes + applications). Separate from Better Auth `data/local.db`.
  * Production will move to MySQL / R2 — keep this API surface stable.
  */
 const dataRoot = path.join(process.cwd(), ".data");
@@ -51,6 +51,32 @@ export function getAppDb() {
 
     CREATE INDEX IF NOT EXISTS resumes_user_id_idx ON resumes (user_id);
     CREATE INDEX IF NOT EXISTS resumes_user_status_idx ON resumes (user_id, status);
+
+    CREATE TABLE IF NOT EXISTS applications (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      company_name TEXT NOT NULL,
+      role TEXT NOT NULL,
+      location TEXT NOT NULL,
+      salary_ctc TEXT,
+      job_link TEXT,
+      job_id TEXT,
+      status TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS applications_user_id_idx ON applications (user_id);
+    CREATE INDEX IF NOT EXISTS applications_user_status_idx ON applications (user_id, status);
+
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      user_id TEXT PRIMARY KEY NOT NULL,
+      tracker_view TEXT NOT NULL DEFAULT 'kanban',
+      tracker_scope TEXT NOT NULL DEFAULT 'active',
+      hidden_columns TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL
+    );
   `);
   db = instance;
   return instance;
