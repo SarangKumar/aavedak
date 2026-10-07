@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import {
   coverFooterRowItems,
   coverLetterExceedsOneA4Page,
@@ -45,6 +46,7 @@ export type ResumeDto = {
   status: "active" | "inactive" | "archived";
   originalFilename: string;
   byteSize: number;
+  atsScore: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -171,6 +173,7 @@ export function DocumentsHub({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
+  const [atsScoringIds, setAtsScoringIds] = useState<Set<string>>(() => new Set());
 
   // Resume upload state
   const [displayName, setDisplayName] = useState("Primary Resume");
@@ -336,6 +339,30 @@ export function DocumentsHub({
     setResumes(data.resumes ?? []);
   }, []);
 
+  async function scoreResumeAtsOnCard(resumeId: string) {
+    setAtsScoringIds((prev) => new Set(prev).add(resumeId));
+    try {
+      const res = await fetch(`/api/resumes/${resumeId}/score`, { method: "POST" });
+      const data = (await res.json()) as { resume?: ResumeDto; error?: string };
+      if (!res.ok) throw new Error(data.error || "ATS scoring failed.");
+      if (data.resume) {
+        setResumes((list) =>
+          list.map((r) => (r.id === resumeId ? { ...r, ...data.resume!, atsScore: data.resume!.atsScore } : r)),
+        );
+      } else {
+        await refreshResumes();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ATS scoring failed.");
+    } finally {
+      setAtsScoringIds((prev) => {
+        const next = new Set(prev);
+        next.delete(resumeId);
+        return next;
+      });
+    }
+  }
+
   async function uploadResume() {
     setError(null);
     if (!selectedPdf) {
@@ -349,10 +376,13 @@ export function DocumentsHub({
       body.set("displayName", displayName.trim() || selectedPdf.name.replace(/\.pdf$/i, ""));
       body.set("makeActive", "true");
       const res = await fetch("/api/resumes", { method: "POST", body });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as { resume?: ResumeDto; error?: string };
       if (!res.ok) throw new Error(data.error || "Upload failed.");
       setUploadFiles([]);
       await refreshResumes();
+      if (data.resume?.id) {
+        void scoreResumeAtsOnCard(data.resume.id);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -612,9 +642,17 @@ export function DocumentsHub({
                           {resume.status}
                         </span>
                       </p>
-                      <p className="text-muted-foreground truncate text-[11px]">
-                        {resume.originalFilename} · {formatBytes(resume.byteSize)}
-                        {resume.atsScore != null ? ` · ATS ${resume.atsScore}` : ""}
+                      <p className="text-muted-foreground flex items-center gap-1.5 truncate text-[11px]">
+                        <span className="truncate">
+                          {resume.originalFilename} · {formatBytes(resume.byteSize)}
+                        </span>
+                        {atsScoringIds.has(resume.id) ? (
+                          <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1">
+                            · <Spinner className="size-3" label="Scoring ATS" /> ATS…
+                          </span>
+                        ) : resume.atsScore != null ? (
+                          <span className="shrink-0"> · ATS {resume.atsScore}</span>
+                        ) : null}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-1.5">

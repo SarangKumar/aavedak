@@ -182,8 +182,12 @@ function buildRawMime(opts: {
     "Content-Transfer-Encoding: base64",
     `Content-Disposition: attachment; filename="${filename}"`,
     "",
-    opts.attachment.bytes.toString("base64").replace(/(.{76})/g, "$1\r\n"),
+    opts.attachment.bytes
+      .toString("base64")
+      .replace(/(.{76})/g, "$1\r\n")
+      .replace(/\r\n$/, ""),
     `--${boundary}--`,
+    "",
   ];
   return Buffer.from(lines.join("\r\n"), "utf8")
     .toString("base64")

@@ -35,19 +35,22 @@ const RANGES = [
   { value: "12", label: "12 months" },
 ] as const;
 
-/** Distinct series colors: you first, then friends. */
+/**
+ * Distinct series colors (you first, then friends).
+ * Avoid yellow / gold / amber brand hues so lines stay readable vs the UI chrome.
+ */
 const SERIES_COLORS = [
-  "var(--color-chart-1)",
-  "var(--color-chart-2)",
-  "var(--color-chart-3)",
-  "var(--color-chart-4)",
-  "var(--color-chart-5)",
-  "oklch(0.70 0.14 40)",
-  "oklch(0.66 0.15 320)",
-  "oklch(0.68 0.13 280)",
-  "oklch(0.70 0.12 20)",
-  "oklch(0.64 0.11 180)",
-  "oklch(0.67 0.13 60)",
+  "oklch(0.58 0.14 210)", // teal-blue — you
+  "oklch(0.55 0.18 290)", // violet
+  "oklch(0.58 0.16 160)", // green
+  "oklch(0.58 0.17 20)", // coral
+  "oklch(0.52 0.14 250)", // indigo
+  "oklch(0.56 0.15 340)", // magenta
+  "oklch(0.50 0.12 200)", // cyan
+  "oklch(0.54 0.14 145)", // emerald
+  "oklch(0.52 0.16 310)", // purple
+  "oklch(0.56 0.13 30)", // terracotta
+  "oklch(0.48 0.11 230)", // slate-blue
 ] as const;
 
 function seriesLabel(s: SeriesDto): string {
@@ -186,26 +189,27 @@ export function ApplicationsActivityCharts() {
                 align="left"
                 wrapperStyle={{ fontSize: 11, paddingBottom: 8 }}
               />
-              {series.map((s) => {
+              {series.map((s, i) => {
                 const key = seriesKey(s);
+                const stroke = SERIES_COLORS[i % SERIES_COLORS.length]!;
                 return (
                   <Line
                     key={s.userId}
                     dataKey={key}
                     name={seriesLabel(s)}
                     type="monotone"
-                    stroke={`var(--color-${key})`}
+                    stroke={stroke}
                     strokeWidth={s.isMe ? 2.5 : 2}
                     dot={{
                       r: s.isMe ? 3.5 : 2.5,
                       fill: "var(--color-foreground)",
-                      stroke: `var(--color-${key})`,
+                      stroke,
                       strokeWidth: 2,
                     }}
                     activeDot={{
                       r: 5,
                       fill: "var(--color-foreground)",
-                      stroke: `var(--color-${key})`,
+                      stroke,
                       strokeWidth: 2,
                     }}
                   />

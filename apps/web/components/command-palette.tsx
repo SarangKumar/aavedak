@@ -125,6 +125,9 @@ export function CommandPalette() {
                 <CommandItem value="referrals" onClick={() => go("/referrals")}>
                   Referrals
                 </CommandItem>
+                <CommandItem value="ats" onClick={() => go("/ats")}>
+                  ATS score
+                </CommandItem>
                 <CommandItem value="people" onClick={() => go("/people")}>
                   People
                 </CommandItem>

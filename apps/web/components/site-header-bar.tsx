@@ -16,6 +16,7 @@ const nav = [
   { href: "/job-tracker", label: "Tracker" },
   { href: "/documents", label: "Documents" },
   { href: "/referrals", label: "Referrals" },
+  { href: "/ats", label: "ATS" },
 ] as const;
 
 type SiteHeaderBarProps = {

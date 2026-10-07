@@ -3,7 +3,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
-import { isGcsConfigured, resumeObjectKey, uploadResumePdf } from "@/lib/gcs";
+import { downloadResumePdf, isGcsConfigured, resumeObjectKey, uploadResumePdf } from "@/lib/gcs";
+import { extractPdfText, scoreResumeAtsReadiness } from "@/lib/match-score";
 
 export type ResumeStatus = "active" | "inactive" | "archived";
 
@@ -275,4 +276,33 @@ export async function setResumeExtractedText(
     UPDATE resumes SET extracted_text = ${textValue}, updated_at = ${now}
     WHERE id = ${resumeId} AND user_id = ${userId}
   `;
+}
+
+/** Download PDF from GCS, extract text, persist ATS readiness score. */
+export async function scoreResumeAts(
+  userId: string,
+  resumeId: string,
+): Promise<ResumeRecord> {
+  await ensureAppSchema();
+  const existing = await getResume(userId, resumeId);
+  if (!existing) throw new Error("Resume not found.");
+
+  let excerpt = existing.textExcerpt?.trim() || "";
+  if (!excerpt) {
+    const bytes = await downloadResumePdf(existing.storagePath);
+    if (!bytes) throw new Error("Resume PDF not found in storage.");
+    excerpt = extractPdfText(bytes);
+  }
+  const readiness = scoreResumeAtsReadiness(excerpt);
+  const now = new Date().toISOString();
+  await getSql()`
+    UPDATE resumes
+       SET extracted_text = ${excerpt || null},
+           ats_score = ${readiness.atsScore},
+           updated_at = ${now}
+     WHERE id = ${resumeId} AND user_id = ${userId}
+  `;
+  const updated = await getResume(userId, resumeId);
+  if (!updated) throw new Error("Resume not found after scoring.");
+  return updated;
 }

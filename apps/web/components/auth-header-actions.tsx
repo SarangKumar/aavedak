@@ -106,6 +106,14 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
           >
             Follow-ups
           </Link>
+          <Link
+            href="/ats"
+            role="menuitem"
+            onClick={close}
+            className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
+          >
+            ATS
+          </Link>
           <div className="border-border border-t" />
           {error ? (
             <p className="text-destructive px-3 py-1.5 text-[11px]" role="alert">

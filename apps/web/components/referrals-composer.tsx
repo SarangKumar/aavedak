@@ -148,7 +148,7 @@ export function ReferralsComposer({
     Array<{ id: string; displayName: string; status: string }>
   >([]);
   const [resumePickerOpen, setResumePickerOpen] = useState(false);
-  const [countdownOpen, setCountdownOpen] = useState(false);
+  const [countdownVisible, setCountdownVisible] = useState(false);
   const [countdown, setCountdown] = useState(20);
   const [countdownArmed, setCountdownArmed] = useState(false);
 
@@ -180,7 +180,7 @@ export function ReferralsComposer({
   }, []);
 
   useEffect(() => {
-    if (!countdownOpen || !countdownArmed) return;
+    if (!countdownVisible || !countdownArmed) return;
     if (countdown <= 0) {
       setCountdownArmed(false);
       void finalizeQueuedSend();
@@ -189,7 +189,14 @@ export function ReferralsComposer({
     const timer = window.setTimeout(() => setCountdown((value) => value - 1), 1000);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- countdown tick only
-  }, [countdownOpen, countdown, countdownArmed]);
+  }, [countdownVisible, countdown, countdownArmed]);
+
+  function cancelCountdown() {
+    setCountdownVisible(false);
+    setCountdownArmed(false);
+    setCountdown(20);
+    setNotice("Send cancelled. Nothing was queued.");
+  }
 
   const selectedApp = useMemo(
     () => applications.find((a) => a.id === selectedAppId) ?? null,
@@ -304,13 +311,13 @@ export function ReferralsComposer({
     }
     setCountdown(20);
     setCountdownArmed(true);
-    setCountdownOpen(true);
+    setCountdownVisible(true);
   }
 
   async function finalizeQueuedSend() {
     if (!selectedAppId) return;
     setPending(true);
-    setCountdownOpen(false);
+    setCountdownVisible(false);
     try {
       const due = new Date();
       due.setUTCDate(due.getUTCDate() + 3);
@@ -350,11 +357,27 @@ export function ReferralsComposer({
         error?: string;
         sent?: number;
         failed?: number;
+        code?: string;
       };
-      if (!sendRes.ok) throw new Error(sendData.error || "Could not send queued mail.");
-      setNotice(
-        `Batch ready after the 20s wait. Gmail sent ${sendData.sent ?? 0}. Failed ${sendData.failed ?? 0}.`,
-      );
+      if (!sendRes.ok) {
+        if (sendData.code === "gmail_reconnect" || /gmail|authoriz/i.test(sendData.error || "")) {
+          throw new Error(
+            sendData.error || "Gmail send failed — reconnect Google with send permission.",
+          );
+        }
+        throw new Error(sendData.error || "Could not send queued mail.");
+      }
+      const sent = sendData.sent ?? 0;
+      const failed = sendData.failed ?? 0;
+      if (sent === 0 && failed > 0) {
+        setError(`Gmail could not send ${failed} message${failed === 1 ? "" : "s"}. Check Follow-ups.`);
+      } else {
+        setNotice(
+          `Sent ${sent} via Gmail${failed ? ` · ${failed} failed` : ""}${
+            resumeId ? " (resume attached)" : ""
+          }.`,
+        );
+      }
       setCheckedPeople(new Set());
       setConfirmed(false);
     } catch (err) {
@@ -786,7 +809,7 @@ export function ReferralsComposer({
             checkedPeople.size === 0 ||
             !selectedAppId ||
             !selectedTemplateId ||
-            countdownOpen
+            countdownVisible
           }
           onClick={() => void queueFollowUps()}
           className="aavedak-btn bg-primary text-primary-foreground inline-flex h-9 items-center rounded-lg px-4 text-[12px] font-semibold disabled:opacity-50"
@@ -824,39 +847,33 @@ export function ReferralsComposer({
         )}
       </section>
 
-      <Modal
-        open={countdownOpen}
-        onClose={() => {
-          setCountdownOpen(false);
-          setCountdownArmed(false);
-          setCountdown(20);
-        }}
-        title="Sending batch in…"
-        description="Stay on this screen. Gmail sends after the countdown."
-        footer={
+      {countdownVisible ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="border-border bg-card fixed bottom-4 left-1/2 z-[300] flex w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-xl border px-3.5 py-3 shadow-lg"
+        >
+          <div className="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-lg">
+            <span className="aavedak-display text-lg tabular-nums leading-none">{countdown}</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-foreground text-[13px] font-semibold tracking-tight">
+              Sending in {countdown}s
+            </p>
+            <p className="text-muted-foreground truncate text-[11px] leading-relaxed">
+              {checkedPeople.size} recipient{checkedPeople.size === 1 ? "" : "s"}
+              {resumeId ? " · resume attached" : ""} via Gmail
+            </p>
+          </div>
           <button
             type="button"
-            onClick={() => {
-              setCountdownOpen(false);
-              setCountdownArmed(false);
-              setCountdown(20);
-              setNotice("Send cancelled. Nothing was queued.");
-            }}
-            className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+            onClick={cancelCountdown}
+            className="border-border text-foreground hover:bg-muted/60 inline-flex h-8 shrink-0 items-center rounded-lg border px-3 text-[12px] font-semibold"
           >
-            Cancel
+            Undo
           </button>
-        }
-      >
-        <div className="flex flex-col items-center gap-2 py-4">
-          <p className="aavedak-display text-foreground text-5xl tabular-nums">{countdown}</p>
-          <p className="text-muted-foreground text-center text-[13px]">
-            seconds before this batch goes out to {checkedPeople.size} recipient
-            {checkedPeople.size === 1 ? "" : "s"}
-            {resumeId ? " with your resume attached" : ""}.
-          </p>
         </div>
-      </Modal>
+      ) : null}
 
       <Modal
         open={manageOpen}

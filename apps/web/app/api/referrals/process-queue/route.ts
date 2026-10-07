@@ -12,12 +12,23 @@ export async function POST() {
   if (authResult.error) return authResult.error;
 
   const result = await processDueQueuedFollowUps(authResult.user.id);
+  const authFailed = result.processed.some(
+    (f) =>
+      f.status === "failed" &&
+      /gmail|authoriz|scope|reconnect/i.test(f.sendError || ""),
+  );
   return NextResponse.json({
     processed: result.processed.length,
     sent: result.sent,
     failed: result.failed,
     followUps: result.processed,
     gmail: "live",
+    ...(authFailed
+      ? {
+          code: "gmail_reconnect",
+          error: "Gmail authorization failed. Reconnect Google with send permission.",
+        }
+      : {}),
   });
 }
 
