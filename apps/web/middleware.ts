@@ -19,6 +19,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Vercel Services does not support Edge — middleware must run on Node.js.
+  runtime: "nodejs",
   matcher: [
     "/dashboard/:path*",
     "/jobs/:path*",

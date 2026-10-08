@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
-export const runtime = "edge";
+// Node.js — Edge is not supported when deploying with Vercel Services.
+export const runtime = "nodejs";
 export const alt = "Aavedak — Discover · Apply · Grow";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
