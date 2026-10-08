@@ -56,16 +56,17 @@ Shared secrets (`BETTER_AUTH_*`, `GOOGLE_CLIENT_*`, `ADMIN_EMAILS`, `DATABASE_UR
 
 Copy from the template (`cp apps/web/.env.example apps/web/.env.local`) or run `pnpm setup`. Fill secrets locally — never commit `.env` / `.env.local`.
 
-| Variable               | Required for local UI | Notes                                                                           |
-| ---------------------- | --------------------- | ------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_URL`  | Yes                   | App origin; local `http://localhost:3000`, prod `https://aavedak.vercel.app`    |
-| `DATABASE_URL`         | Yes                   | Neon Postgres pooled connection string                                          |
-| `BETTER_AUTH_SECRET`   | Yes for auth          | 32+ chars; `setup` generates one if empty                                       |
-| `BETTER_AUTH_URL`      | Yes for auth          | Same as `NEXT_PUBLIC_APP_URL`                                                   |
-| `GOOGLE_CLIENT_ID`     | Yes for auth          | Google Cloud OAuth Web client                                                   |
-| `GOOGLE_CLIENT_SECRET` | Yes for auth          | Google Cloud OAuth Web client secret                                            |
-| `GCS_BUCKET`           | Yes on Vercel         | Resume PDF bucket                                                               |
-| `ADMIN_EMAILS`         | No                    | Comma-separated admin emails (e.g. `a@x.com,b@y.com`). New users need approval. |
+| Variable               | Required for local UI | Notes                                                                                            |
+| ---------------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_APP_URL`  | Yes                   | App origin; local `http://localhost:3000`, prod `https://aavedak.vercel.app`                     |
+| `NEXT_PUBLIC_API_URL`  | Yes for FastAPI       | FastAPI base (`…/svc`). Local `http://localhost:3000/svc`, prod `https://aavedak.vercel.app/svc` |
+| `DATABASE_URL`         | Yes                   | Neon Postgres pooled connection string                                                           |
+| `BETTER_AUTH_SECRET`   | Yes for auth          | 32+ chars; `setup` generates one if empty                                                        |
+| `BETTER_AUTH_URL`      | Yes for auth          | Same as `NEXT_PUBLIC_APP_URL`                                                                    |
+| `GOOGLE_CLIENT_ID`     | Yes for auth          | Google Cloud OAuth Web client                                                                    |
+| `GOOGLE_CLIENT_SECRET` | Yes for auth          | Google Cloud OAuth Web client secret                                                             |
+| `GCS_BUCKET`           | Yes on Vercel         | Resume PDF bucket                                                                                |
+| `ADMIN_EMAILS`         | No                    | Comma-separated admin emails (e.g. `a@x.com,b@y.com`). New users need approval.                  |
 
 Never commit secrets. Local SQLite paths are unused; auth + app data are on Neon.
 

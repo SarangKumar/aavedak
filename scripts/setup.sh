@@ -174,6 +174,7 @@ elif [[ -f "$WEB_DIR/.env" ]]; then
 fi
 if [[ -n "$WEB_ENV" ]]; then
   ensure_env_key "$WEB_ENV" "NEXT_PUBLIC_APP_URL"
+  ensure_env_key "$WEB_ENV" "NEXT_PUBLIC_API_URL"
   ensure_env_key "$WEB_ENV" "DATABASE_URL"
   ensure_env_key "$WEB_ENV" "BETTER_AUTH_SECRET"
   ensure_env_key "$WEB_ENV" "BETTER_AUTH_URL"

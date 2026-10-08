@@ -73,12 +73,16 @@ There is no `vercel run` for Services. Use **`vercel dev`** / **`vercel dev -L`*
 
 ## Env
 
-| Variable       | Required for health stub | Notes                                      |
-| -------------- | ------------------------ | ------------------------------------------ |
-| `LOG_LEVEL`    | No (default `INFO`)      |                                            |
-| `DATABASE_URL` | No                       | Empty → API starts; DB features won’t work |
-| `CRON_SECRET`  | No                       | Protected cron routes later                |
-| `R2_*`         | No                       | Object storage later                       |
+| Variable          | Required for health stub | Notes                                                      |
+| ----------------- | ------------------------ | ---------------------------------------------------------- |
+| `LOG_LEVEL`       | No (default `INFO`)      |                                                            |
+| `API_PREFIX`      | No (default `/svc`)      | Must match public mount + web `NEXT_PUBLIC_API_URL` suffix |
+| `PUBLIC_BASE_URL` | No                       | App origin (`http://localhost:3000` / prod Vercel URL)     |
+| `DATABASE_URL`    | No                       | Empty → API starts; DB features won’t work                 |
+| `CRON_SECRET`     | No                       | Protected cron routes later                                |
+| `R2_*`            | No                       | Object storage later                                       |
+
+Web clients use `NEXT_PUBLIC_API_URL` (e.g. `http://localhost:3000/svc` or `https://aavedak.vercel.app/svc`) — see `apps/web/lib/api-url.ts`.
 
 ## Logging
 

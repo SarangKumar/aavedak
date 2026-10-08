@@ -21,6 +21,9 @@ __pycache__/
 **/.venv/
 **/venv/
 # deps
+package-lock.json
+apps/**/package-lock.json
+yarn.lock
 # editors
 # env
 # local resume files under .data/ (gitignored)

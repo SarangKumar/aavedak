@@ -4,7 +4,7 @@
     "web": {
       "root": "apps/web",
       "framework": "nextjs",
-      "installCommand": "cd ../.. && pnpm install",
+      "installCommand": "cd ../.. && corepack enable && corepack prepare pnpm@10.26.0 --activate && pnpm install --frozen-lockfile",
       "buildCommand": "pnpm build"
     },
     "api": {

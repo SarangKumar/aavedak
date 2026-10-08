@@ -91,8 +91,10 @@ aavedak/
 
 **Deploy (one Vercel project):** In Vercel settings, **Root Directory must be `.` (repo root)**, not `apps/web`. Otherwise Services never activate and `/svc/health` is a Next.js 404.
 
+- Package manager: **pnpm@10.26.0** (do not use pnpm 12 on Vercel — install breaks with `ERR_INVALID_THIS`). Optional env: `ENABLE_EXPERIMENTAL_COREPACK=1`.
 - Health: `https://aavedak.vercel.app/svc/health` → `{"ok":true,"service":"api"}`
 - Local (both services): `pnpm dev:vercel` or `pnpm dev:vercel:local` (`vercel dev` / `vercel dev -L`)
+- Local pnpm: `corepack enable && corepack prepare pnpm@10.26.0 --activate` (or `npx pnpm@10.26.0 …`)
 
 ### App routes (no username prefix)
 
