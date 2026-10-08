@@ -519,7 +519,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
                   className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[12px] font-semibold disabled:opacity-60"
                 >
                   {pending ? <Spinner className="size-3.5" /> : null}
-                  Applied
+                  Apply
                 </button>
                 <button
                   type="button"

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
-import { scoreResumeAgainstJd, scoreResumeAtsReadiness } from "@/lib/match-score";
+import { analyzeResumesBatchViaService, analyzeResumeViaService } from "@/lib/ats-service";
+import { detectAtsMode } from "@/lib/ats-types";
+import { getProfile } from "@/lib/profile";
 import { getActiveResume, getResume, listResumes } from "@/lib/resumes";
 
 export async function GET() {
@@ -32,26 +34,42 @@ export async function POST(request: Request) {
   }
 
   const jdText = typeof body.jdText === "string" ? body.jdText : "";
+  const role = typeof body.role === "string" ? body.role.trim() : "";
   const scoreAll = body.scoreAll === true;
   const resumeId = typeof body.resumeId === "string" ? body.resumeId : "";
 
+  const profile = await getProfile(authResult.user.id);
+  const mode = detectAtsMode(role, jdText);
+
   if (scoreAll) {
-    if (!jdText.trim()) {
-      return NextResponse.json({ error: "Job description is required." }, { status: 400 });
-    }
     const resumes = await listResumes(authResult.user.id);
-    const results = resumes.map((resume) => {
-      const excerpt = resume.textExcerpt || "";
-      const againstJd = scoreResumeAgainstJd(excerpt, jdText);
-      return {
-        resumeId: resume.id,
-        displayName: resume.displayName,
-        status: resume.status,
-        readiness: scoreResumeAtsReadiness(excerpt),
-        againstJd,
-      };
+    if (resumes.length === 0) {
+      return NextResponse.json({ error: "Upload a resume on Documents first." }, { status: 400 });
+    }
+
+    const { results, engine } = await analyzeResumesBatchViaService({
+      jdText,
+      role,
+      resumes: resumes.map((resume) => ({
+        id: resume.id,
+        text: resume.textExcerpt || "",
+      })),
     });
-    return NextResponse.json({ results });
+
+    return NextResponse.json({
+      engine,
+      mode,
+      role: role || null,
+      profileSkills: profile?.career?.skills ?? [],
+      results: results.map((row) => {
+        const resume = resumes.find((r) => r.id === row.resumeId);
+        return {
+          ...row,
+          displayName: resume?.displayName ?? row.resumeId,
+          status: resume?.status ?? "unknown",
+        };
+      }),
+    });
   }
 
   const resume = resumeId
@@ -60,17 +78,21 @@ export async function POST(request: Request) {
   if (!resume) {
     return NextResponse.json({ error: "Resume not found." }, { status: 404 });
   }
-  const excerpt = resume.textExcerpt || "";
-  const readiness = scoreResumeAtsReadiness(excerpt);
-  const againstJd = jdText.trim() ? scoreResumeAgainstJd(excerpt, jdText) : null;
+
+  const scored = await analyzeResumeViaService({
+    resumeId: resume.id,
+    resumeText: resume.textExcerpt || "",
+    jdText,
+    role,
+  });
 
   return NextResponse.json({
     resume: {
       id: resume.id,
       displayName: resume.displayName,
-      atsScore: resume.atsScore ?? readiness.atsScore,
+      atsScore: resume.atsScore ?? scored.scores.atsCompatibility ?? null,
     },
-    readiness,
-    againstJd,
+    ...scored,
+    mode: scored.mode ?? mode,
   });
 }

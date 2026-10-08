@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 
 import { JobTrackerBoard } from "@/components/job-tracker-board";
 import { requireOnboarded } from "@/lib/app-access";
-import { listApplications, seedDemoAppliedApplications } from "@/lib/applications";
-import { seedBulkApplications } from "@/lib/applications-bulk-seed";
+import { listApplications } from "@/lib/applications";
 import { listCoverLetters } from "@/lib/cover-letters";
 import { getJobById } from "@/lib/jobs";
 import { getPreferences, updatePreferences } from "@/lib/preferences";
@@ -16,8 +15,6 @@ export const metadata: Metadata = {
 
 export default async function JobTrackerPage() {
   const { user } = await requireOnboarded();
-  await seedDemoAppliedApplications(user.id);
-  await seedBulkApplications(user.id);
 
   let preferences = await getPreferences(user.id);
   if (preferences.trackerScope !== "active") {

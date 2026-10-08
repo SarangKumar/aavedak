@@ -99,6 +99,22 @@ There is no `vercel run` for Services. Use **`vercel dev`** / **`vercel dev -L`*
 
 Web clients use `NEXT_PUBLIC_API_URL` (e.g. `http://localhost:3000/svc` or `https://aavedak.vercel.app/svc`) — see `apps/web/lib/api-url.ts`.
 
+## ATS scoring
+
+Transparent **ATS Match & Resume Quality** engine (not a vendor ATS oracle).
+
+| Method | Path                      | Purpose              |
+| ------ | ------------------------- | -------------------- |
+| `GET`  | `/svc/v1/ats/health`      | ATS module health    |
+| `POST` | `/svc/v1/ats/score`       | Analyze one resume   |
+| `POST` | `/svc/v1/ats/score-batch` | Analyze many resumes |
+
+Modes (auto): `resume_only` · `role_match` · `job_match` (JD without title infers title).
+
+Modules: `skill_taxonomy`, `resume_profile`, `jd_profile`, `evidence`, `analyze`.
+
+The Next.js `/api/ats` route calls these endpoints and falls back to local heuristics if the API is unreachable.
+
 ## Logging
 
 Request middleware in `app/main.py` logs method, path, status, and duration.
