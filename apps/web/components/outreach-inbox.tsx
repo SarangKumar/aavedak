@@ -384,6 +384,7 @@ export function OutreachInbox({ initialFollowUps, people, applications }: Props)
           onClick={() => void processQueue()}
           disabled={processing}
           loading={processing}
+          loadingText="Processing…"
         >
           Process due queue
         </Button>

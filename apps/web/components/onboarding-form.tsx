@@ -271,7 +271,7 @@ export function OnboardingForm({
             onClick={() => void saveCareerAndNext()}
             className="w-full sm:w-auto"
           >
-            {savingCareer ? "Saving…" : "Save & continue to resume"}
+            Save & continue to resume
           </Button>
         </section>
       ) : (
@@ -320,8 +320,14 @@ export function OnboardingForm({
               ) : null}
             </div>
 
-            <Button type="submit" loading={uploading} disabled={!selectedPdf} className="w-full">
-              {uploading ? "Uploading…" : "Upload PDF resume"}
+            <Button
+              type="submit"
+              loading={uploading}
+              loadingText="Uploading…"
+              disabled={!selectedPdf}
+              className="w-full"
+            >
+              Upload PDF resume
             </Button>
           </form>
 

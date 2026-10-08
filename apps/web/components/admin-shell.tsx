@@ -182,6 +182,7 @@ export function AdminShell({
                     className="cursor-pointer"
                     disabled={actionId === u.userId}
                     loading={actionId === u.userId}
+                    loadingText=""
                     onClick={() => void decide(u.userId, "approved")}
                   >
                     Approve

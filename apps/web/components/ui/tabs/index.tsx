@@ -106,12 +106,7 @@ const tabsListVariants = cva(
 
 export type TabsListProps = React.ComponentProps<"div"> & VariantProps<typeof tabsListVariants>;
 
-export function TabsList({
-  className,
-  variant = "default",
-  onKeyDown,
-  ...props
-}: TabsListProps) {
+export function TabsList({ className, variant = "default", onKeyDown, ...props }: TabsListProps) {
   const { orientation, disabled } = useTabs();
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -188,13 +183,7 @@ export type TabsTriggerProps = Omit<React.ComponentProps<"button">, "value"> & {
   value: string;
 };
 
-export function TabsTrigger({
-  className,
-  value,
-  disabled,
-  onClick,
-  ...props
-}: TabsTriggerProps) {
+export function TabsTrigger({ className, value, disabled, onClick, ...props }: TabsTriggerProps) {
   const tabs = useTabs();
   const selected = tabs.value === value;
   const isDisabled = Boolean(disabled || tabs.disabled);
@@ -211,11 +200,11 @@ export function TabsTrigger({
       tabIndex={selected ? 0 : -1}
       disabled={isDisabled}
       className={cn(
-        "focus-visible:ring-ring relative inline-flex h-[calc(100%-1px)] shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,background-color,box-shadow,opacity] focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+        "focus-visible:ring-ring relative inline-flex h-[calc(100%-1px)] shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent px-2 py-1 text-sm font-medium transition-[color,background-color,box-shadow,opacity] focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
         "text-foreground/60 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground",
         "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
         "group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none",
-        "after:bg-foreground after:absolute after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-0 group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:right-0 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100",
+        "after:bg-foreground after:absolute after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=horizontal]/tabs:after:bottom-0 group-data-[orientation=vertical]/tabs:after:right-0 group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100",
         tabs.orientation === "vertical" && "w-full justify-start",
         className,
       )}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
 import { AlertDialog } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileUpload,
@@ -22,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   coverFooterRowItems,
   coverLetterExceedsOneA4Page,
@@ -629,608 +631,614 @@ export function DocumentsHub({
         </p>
       </header>
 
-      <div
-        className="border-border bg-card relative z-10 inline-flex h-8 max-w-full flex-wrap items-center rounded-lg border p-0.5"
-        role="tablist"
-        aria-label="Documents sections"
+      <Tabs
+        value={tab}
+        onValueChange={(value) => {
+          setTab(value as Tab);
+          setError(null);
+        }}
+        className="gap-4"
       >
-        {(
-          [
-            { id: "resumes", label: "Resume" },
-            { id: "cover_letters", label: "Cover Letter" },
-            { id: "referral_email", label: "Referral Email" },
-            { id: "followup_email", label: "Follow-up Email" },
-          ] as const
-        ).map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => {
-              setTab(item.id);
-              setError(null);
-            }}
-            className={cn(
-              "inline-flex h-7 items-center rounded-md px-2.5 text-[12px] font-medium transition-colors",
-              tab === item.id
-                ? "bg-primary/15 text-primary"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+        <TabsList
+          aria-label="Documents sections"
+          className="border-border bg-card h-auto max-w-full flex-wrap border p-0.5"
+        >
+          <TabsTrigger value="resumes" className="cursor-pointer px-2.5 text-[12px]">
+            Resume
+          </TabsTrigger>
+          <TabsTrigger value="cover_letters" className="cursor-pointer px-2.5 text-[12px]">
+            Cover Letter
+          </TabsTrigger>
+          <TabsTrigger value="referral_email" className="cursor-pointer px-2.5 text-[12px]">
+            Referral Email
+          </TabsTrigger>
+          <TabsTrigger value="followup_email" className="cursor-pointer px-2.5 text-[12px]">
+            Follow-up Email
+          </TabsTrigger>
+        </TabsList>
 
-      {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+        {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
 
-      {tab === "resumes" ? (
-        <section className="space-y-4">
-          <div className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-lg border p-4 shadow-sm ring-1">
-            <div className="space-y-1.5">
-              <label
-                htmlFor="resume-display-name"
-                className="text-foreground text-[12px] font-medium"
-              >
-                Display name
-              </label>
-              <input
-                id="resume-display-name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
-                placeholder="e.g. Primary Resume"
-                maxLength={120}
-              />
-              <p className="text-muted-foreground text-[11px]">
-                Display name must be unique. Activating a resume makes it the sole profile showcase.
-              </p>
-            </div>
-
-            <FileUpload
-              accept="application/pdf,.pdf"
-              multiple={false}
-              maxSize={10 * 1024 * 1024}
-              files={uploadFiles}
-              onFilesChange={setUploadFiles}
-              disabled={pending}
-            >
-              <FileUploadDropzone className="min-h-40 rounded-lg text-[13px]">
-                Drop a PDF resume here, or browse
-              </FileUploadDropzone>
-              <FileUploadList />
-            </FileUpload>
-
-            <button
-              type="button"
-              disabled={pending || !selectedPdf}
-              onClick={() => void uploadResume()}
-              className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-[13px] font-semibold shadow-sm ring-1 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {pending ? <Spinner className="size-3.5" label="Uploading" /> : null}
-              {pending ? "Uploading…" : "Upload PDF resume"}
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="aavedak-section-title text-foreground">
-                Your resumes ({resumes.length})
-              </h2>
-              <Link
-                href="/ats"
-                className="text-primary text-[12px] font-medium underline-offset-2 hover:underline"
-              >
-                ATS scores
-              </Link>
-            </div>
-            {resumes.length === 0 ? (
-              <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-[13px]">
-                No resumes yet — upload a PDF to get started.
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {resumes.map((resume) => {
-                  const busy = resumeActionId === resume.id;
-                  return (
-                    <li
-                      key={resume.id}
-                      className="border-border/80 bg-card flex items-center gap-2 rounded-lg border p-3 sm:justify-between"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-foreground truncate text-[13px] font-medium">
-                          {resume.displayName}
-                          <span
-                            className={cn(
-                              "ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                              resume.status === "active"
-                                ? "bg-primary/15 text-primary"
-                                : "bg-muted text-muted-foreground",
-                            )}
-                          >
-                            {resume.status}
-                          </span>
-                        </p>
-                        <p className="text-muted-foreground flex items-center gap-1.5 truncate text-[11px]">
-                          <span className="truncate">
-                            {resume.originalFilename} · {formatBytes(resume.byteSize)}
-                          </span>
-                          {atsScoringIds.has(resume.id) ? (
-                            <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1">
-                              · <Spinner className="size-3" label="Scoring ATS" /> ATS…
-                            </span>
-                          ) : resume.atsScore != null ? (
-                            <span className="shrink-0"> · ATS {resume.atsScore}</span>
-                          ) : null}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
-                        <a
-                          href={`/api/resumes/${resume.id}/file`}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="Open"
-                          aria-label={`Open ${resume.displayName}`}
-                          className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border sm:h-8 sm:w-auto sm:px-2.5"
-                        >
-                          <OpenIcon className="size-3.5 sm:hidden" />
-                          <span className="hidden text-[12px] sm:inline">Open</span>
-                        </a>
-                        {resume.status !== "active" ? (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            title="Set as showcase"
-                            aria-label={`Set ${resume.displayName} as showcase`}
-                            onClick={() => void patchResume(resume.id, { status: "active" })}
-                            className="border-border text-foreground hover:text-primary inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
-                          >
-                            {busy ? (
-                              <Spinner className="size-3.5" label="Updating" />
-                            ) : (
-                              <>
-                                <StarIcon className="size-3.5 sm:hidden" />
-                                <span className="hidden text-[12px] sm:inline">
-                                  Set as showcase
-                                </span>
-                              </>
-                            )}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            title="Unset showcase"
-                            aria-label={`Unset showcase for ${resume.displayName}`}
-                            onClick={() => void patchResume(resume.id, { status: "inactive" })}
-                            className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
-                          >
-                            {busy ? (
-                              <Spinner className="size-3.5" label="Updating" />
-                            ) : (
-                              <>
-                                <StarOffIcon className="size-3.5 sm:hidden" />
-                                <span className="hidden text-[12px] sm:inline">Unset showcase</span>
-                              </>
-                            )}
-                          </button>
-                        )}
-                        {resume.status === "inactive" ? (
-                          <button
-                            type="button"
-                            disabled={busy || deletePending}
-                            title="Delete permanently"
-                            aria-label={`Delete ${resume.displayName} permanently`}
-                            onClick={() => setDeleteTarget(resume)}
-                            className="border-border text-destructive hover:bg-destructive/10 inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
-                          >
-                            <TrashIcon className="size-3.5 sm:hidden" />
-                            <span className="hidden text-[12px] sm:inline">Delete permanently</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            title="Archive"
-                            aria-label={`Archive ${resume.displayName}`}
-                            onClick={() => void archiveResume(resume.id)}
-                            className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
-                          >
-                            {busy ? (
-                              <Spinner className="size-3.5" label="Archiving" />
-                            ) : (
-                              <>
-                                <ArchiveIcon className="size-3.5 sm:hidden" />
-                                <span className="hidden text-[12px] sm:inline">Archive</span>
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </section>
-      ) : null}
-
-      {tab === "cover_letters" ? (
-        <section className="space-y-4 px-0">
-          <p className="aavedak-meta text-muted-foreground leading-relaxed">
-            Cover letters are tied to a Jobs listing or a custom company + role (for external JDs
-            you registered). Limited to one A4 page. Use {"{{role}}"} / {"{{company}}"} variables,
-            preview, then download PDF or DOCX.
-          </p>
-
-          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.18fr)] xl:items-stretch">
-            <div className="border-border/80 bg-card space-y-2.5 rounded-lg border p-4 shadow-sm">
-              <p className="aavedak-section-title text-foreground">
-                {editingClId ? "Edit cover letter" : "New cover letter"}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setClMode("job")}
-                  className={
-                    clMode === "job"
-                      ? "bg-primary/15 text-primary inline-flex h-7 items-center rounded-full px-2.5 text-[11px] font-medium"
-                      : "border-border text-muted-foreground inline-flex h-7 items-center rounded-full border px-2.5 text-[11px]"
-                  }
-                >
-                  From Jobs
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setClMode("custom")}
-                  className={
-                    clMode === "custom"
-                      ? "bg-primary/15 text-primary inline-flex h-7 items-center rounded-full px-2.5 text-[11px] font-medium"
-                      : "border-border text-muted-foreground inline-flex h-7 items-center rounded-full border px-2.5 text-[11px]"
-                  }
-                >
-                  Custom company + role
-                </button>
-              </div>
-              {clMode === "job" ? (
-                <label className="block space-y-1">
-                  <span className="text-muted-foreground text-[11px] font-medium">Job *</span>
-                  <Select value={clJobId || undefined} onValueChange={(v) => setClJobId(v || "")}>
-                    <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
-                      <SelectValue placeholder="Pick a job from Jobs…" />
-                    </SelectTrigger>
-                    <SelectContent
-                      className="z-[280]"
-                      searchable
-                      searchPlaceholder="Search title or company…"
-                    >
-                      {jobs.length === 0 ? (
-                        <SelectItem value="__none" disabled>
-                          No jobs yet — add or paste a JD on Jobs
-                        </SelectItem>
-                      ) : (
-                        jobs.map((job) => (
-                          <SelectItem key={job.id} value={job.id}>
-                            {job.company} · {job.title}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </label>
-              ) : (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="block space-y-1">
-                    <span className="text-muted-foreground text-[11px] font-medium">Company *</span>
-                    <CompanySelect
-                      value={clCustomCompany}
-                      onChange={(name) => setClCustomCompany(name)}
-                      placeholder="e.g. Stripe"
-                    />
-                  </label>
-                  <label className="block space-y-1">
-                    <span className="text-muted-foreground text-[11px] font-medium">Role *</span>
-                    <input
-                      value={clCustomRole}
-                      onChange={(e) => setClCustomRole(e.target.value)}
-                      placeholder="e.g. Software Engineer"
-                      className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
-                    />
-                  </label>
-                </div>
-              )}
-              <input
-                value={clTitle}
-                onChange={(e) => setClTitle(e.target.value)}
-                placeholder="Title — e.g. Cover for {{role}} at {{company}}"
-                className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
-              />
-              <textarea
-                value={clBody}
-                onChange={(e) => setClBody(e.target.value)}
-                placeholder={
-                  "Dear Hiring Manager,\n\nI am writing to apply for the {{role}} role at {{company}}…"
-                }
-                rows={8}
-                className="border-border bg-background text-foreground max-h-64 min-h-[10rem] w-full overflow-y-auto rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
-              />
+        <TabsContent value="resumes" className="mt-0 outline-none">
+          <section className="space-y-4">
+            <div className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-lg border p-4 shadow-sm ring-1">
               <div className="space-y-1.5">
-                <p className="text-foreground text-[11px] font-semibold tracking-tight">
-                  Footer from profile
+                <label
+                  htmlFor="resume-display-name"
+                  className="text-foreground text-[12px] font-medium"
+                >
+                  Display name
+                </label>
+                <input
+                  id="resume-display-name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+                  placeholder="e.g. Primary Resume"
+                  maxLength={120}
+                />
+                <p className="text-muted-foreground text-[11px]">
+                  Display name must be unique. Activating a resume makes it the sole profile
+                  showcase.
                 </p>
-                <p className="text-muted-foreground text-[10px] leading-relaxed">
-                  Values come from your profile. Empty fields stay disabled — edit them under
-                  Profile settings.
-                </p>
-                <div className="grid gap-1.5 sm:grid-cols-2">
-                  {(
-                    [
-                      {
-                        key: "email" as const,
-                        label: "Email",
-                        value: profileEmail?.trim() || "",
-                      },
-                      ...COVER_FOOTER_LINK_KEYS.map((key) => ({
-                        key: key as CoverFooterLinkKey,
-                        label: PROFILE_LINK_META[key].label,
-                        value: profileLinks?.[key]?.trim() || "",
-                      })),
-                    ] as Array<{ key: FooterIncludeKey; label: string; value: string }>
-                  ).map((item) => {
-                    const hasValue = Boolean(item.value);
-                    const checked = hasValue && clFooterInclude[item.key];
+              </div>
+
+              <FileUpload
+                accept="application/pdf,.pdf"
+                multiple={false}
+                maxSize={10 * 1024 * 1024}
+                files={uploadFiles}
+                onFilesChange={setUploadFiles}
+                disabled={pending}
+              >
+                <FileUploadDropzone className="min-h-40 rounded-lg text-[13px]">
+                  Drop a PDF resume here, or browse
+                </FileUploadDropzone>
+                <FileUploadList />
+              </FileUpload>
+
+              <button
+                type="button"
+                disabled={pending || !selectedPdf}
+                onClick={() => void uploadResume()}
+                className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-[13px] font-semibold shadow-sm ring-1 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pending ? <Spinner className="size-3.5" label="Uploading" /> : null}
+                {pending ? "Uploading…" : "Upload PDF resume"}
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="aavedak-section-title text-foreground">
+                  Your resumes ({resumes.length})
+                </h2>
+                <Link
+                  href="/ats"
+                  className="text-primary text-[12px] font-medium underline-offset-2 hover:underline"
+                >
+                  ATS scores
+                </Link>
+              </div>
+              {resumes.length === 0 ? (
+                <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-[13px]">
+                  No resumes yet — upload a PDF to get started.
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {resumes.map((resume) => {
+                    const busy = resumeActionId === resume.id;
                     return (
-                      <label
-                        key={item.key}
-                        className={cn(
-                          "border-border/70 flex items-center gap-2 rounded-lg border px-2.5 py-2",
-                          hasValue ? "bg-background/50" : "bg-muted/30 opacity-70",
-                        )}
+                      <li
+                        key={resume.id}
+                        className="border-border/80 bg-card flex items-center gap-2 rounded-lg border p-3 sm:justify-between"
                       >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-foreground truncate text-[13px] font-medium">
+                            {resume.displayName}
+                            <span
+                              className={cn(
+                                "ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                resume.status === "active"
+                                  ? "bg-primary/15 text-primary"
+                                  : "bg-muted text-muted-foreground",
+                              )}
+                            >
+                              {resume.status}
+                            </span>
+                          </p>
+                          <p className="text-muted-foreground flex items-center gap-1.5 truncate text-[11px]">
+                            <span className="truncate">
+                              {resume.originalFilename} · {formatBytes(resume.byteSize)}
+                            </span>
+                            {atsScoringIds.has(resume.id) ? (
+                              <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1">
+                                · <Spinner className="size-3" label="Scoring ATS" /> ATS…
+                              </span>
+                            ) : resume.atsScore != null ? (
+                              <span className="shrink-0"> · ATS {resume.atsScore}</span>
+                            ) : null}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                          <a
+                            href={`/api/resumes/${resume.id}/file`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Open"
+                            aria-label={`Open ${resume.displayName}`}
+                            className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border sm:h-8 sm:w-auto sm:px-2.5"
+                          >
+                            <OpenIcon className="size-3.5 sm:hidden" />
+                            <span className="hidden text-[12px] sm:inline">Open</span>
+                          </a>
+                          {resume.status !== "active" ? (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              title="Set as showcase"
+                              aria-label={`Set ${resume.displayName} as showcase`}
+                              onClick={() => void patchResume(resume.id, { status: "active" })}
+                              className="border-border text-foreground hover:text-primary inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
+                            >
+                              {busy ? (
+                                <Spinner className="size-3.5" label="Updating" />
+                              ) : (
+                                <>
+                                  <StarIcon className="size-3.5 sm:hidden" />
+                                  <span className="hidden text-[12px] sm:inline">
+                                    Set as showcase
+                                  </span>
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              title="Unset showcase"
+                              aria-label={`Unset showcase for ${resume.displayName}`}
+                              onClick={() => void patchResume(resume.id, { status: "inactive" })}
+                              className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
+                            >
+                              {busy ? (
+                                <Spinner className="size-3.5" label="Updating" />
+                              ) : (
+                                <>
+                                  <StarOffIcon className="size-3.5 sm:hidden" />
+                                  <span className="hidden text-[12px] sm:inline">
+                                    Unset showcase
+                                  </span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                          {resume.status === "inactive" ? (
+                            <button
+                              type="button"
+                              disabled={busy || deletePending}
+                              title="Delete permanently"
+                              aria-label={`Delete ${resume.displayName} permanently`}
+                              onClick={() => setDeleteTarget(resume)}
+                              className="border-border text-destructive hover:bg-destructive/10 inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
+                            >
+                              <TrashIcon className="size-3.5 sm:hidden" />
+                              <span className="hidden text-[12px] sm:inline">
+                                Delete permanently
+                              </span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              title="Archive"
+                              aria-label={`Archive ${resume.displayName}`}
+                              onClick={() => void archiveResume(resume.id)}
+                              className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
+                            >
+                              {busy ? (
+                                <Spinner className="size-3.5" label="Archiving" />
+                              ) : (
+                                <>
+                                  <ArchiveIcon className="size-3.5 sm:hidden" />
+                                  <span className="hidden text-[12px] sm:inline">Archive</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="cover_letters" className="mt-0 outline-none">
+          <section className="space-y-4 px-0">
+            <p className="aavedak-meta text-muted-foreground leading-relaxed">
+              Cover letters are tied to a Jobs listing or a custom company + role (for external JDs
+              you registered). Limited to one A4 page. Use {"{{role}}"} / {"{{company}}"} variables,
+              preview, then download PDF or DOCX.
+            </p>
+
+            <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.18fr)] xl:items-stretch">
+              <div className="border-border/80 bg-card space-y-2.5 rounded-lg border p-4 shadow-sm">
+                <p className="aavedak-section-title text-foreground">
+                  {editingClId ? "Edit cover letter" : "New cover letter"}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setClMode("job")}
+                    className={
+                      clMode === "job"
+                        ? "bg-primary/15 text-primary inline-flex h-7 items-center rounded-full px-2.5 text-[11px] font-medium"
+                        : "border-border text-muted-foreground inline-flex h-7 items-center rounded-full border px-2.5 text-[11px]"
+                    }
+                  >
+                    From Jobs
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClMode("custom")}
+                    className={
+                      clMode === "custom"
+                        ? "bg-primary/15 text-primary inline-flex h-7 items-center rounded-full px-2.5 text-[11px] font-medium"
+                        : "border-border text-muted-foreground inline-flex h-7 items-center rounded-full border px-2.5 text-[11px]"
+                    }
+                  >
+                    Custom company + role
+                  </button>
+                </div>
+                {clMode === "job" ? (
+                  <label className="block space-y-1">
+                    <span className="text-muted-foreground text-[11px] font-medium">Job *</span>
+                    <Select value={clJobId || undefined} onValueChange={(v) => setClJobId(v || "")}>
+                      <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
+                        <SelectValue placeholder="Pick a job from Jobs…" />
+                      </SelectTrigger>
+                      <SelectContent
+                        className="z-[280]"
+                        searchable
+                        searchPlaceholder="Search title or company…"
+                      >
+                        {jobs.length === 0 ? (
+                          <SelectItem value="__none" disabled>
+                            No jobs yet — add or paste a JD on Jobs
+                          </SelectItem>
+                        ) : (
+                          jobs.map((job) => (
+                            <SelectItem key={job.id} value={job.id}>
+                              {job.company} · {job.title}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </label>
+                ) : (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="block space-y-1">
+                      <span className="text-muted-foreground text-[11px] font-medium">
+                        Company *
+                      </span>
+                      <CompanySelect
+                        value={clCustomCompany}
+                        onChange={(name) => setClCustomCompany(name)}
+                        placeholder="e.g. Stripe"
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-muted-foreground text-[11px] font-medium">Role *</span>
+                      <input
+                        value={clCustomRole}
+                        onChange={(e) => setClCustomRole(e.target.value)}
+                        placeholder="e.g. Software Engineer"
+                        className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
+                      />
+                    </label>
+                  </div>
+                )}
+                <input
+                  value={clTitle}
+                  onChange={(e) => setClTitle(e.target.value)}
+                  placeholder="Title — e.g. Cover for {{role}} at {{company}}"
+                  className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
+                />
+                <textarea
+                  value={clBody}
+                  onChange={(e) => setClBody(e.target.value)}
+                  placeholder={
+                    "Dear Hiring Manager,\n\nI am writing to apply for the {{role}} role at {{company}}…"
+                  }
+                  rows={8}
+                  className="border-border bg-background text-foreground max-h-64 min-h-[10rem] w-full overflow-y-auto rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
+                />
+                <div className="space-y-1.5">
+                  <p className="text-foreground text-[11px] font-semibold tracking-tight">
+                    Footer from profile
+                  </p>
+                  <p className="text-muted-foreground text-[10px] leading-relaxed">
+                    Values come from your profile. Empty fields stay disabled — edit them under
+                    Profile settings.
+                  </p>
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    {(
+                      [
+                        {
+                          key: "email" as const,
+                          label: "Email",
+                          value: profileEmail?.trim() || "",
+                        },
+                        ...COVER_FOOTER_LINK_KEYS.map((key) => ({
+                          key: key as CoverFooterLinkKey,
+                          label: PROFILE_LINK_META[key].label,
+                          value: profileLinks?.[key]?.trim() || "",
+                        })),
+                      ] as Array<{ key: FooterIncludeKey; label: string; value: string }>
+                    ).map((item) => {
+                      const hasValue = Boolean(item.value);
+                      const checked = hasValue && clFooterInclude[item.key];
+                      return (
+                        <label
+                          key={item.key}
+                          className={cn(
+                            "border-border/70 flex items-center gap-2 rounded-lg border px-2.5 py-2",
+                            hasValue ? "bg-background/50" : "bg-muted/30 opacity-70",
+                          )}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            disabled={!hasValue}
+                            onChange={(e) =>
+                              setClFooterInclude((prev) => ({
+                                ...prev,
+                                [item.key]: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="min-w-0">
+                            <span className="text-foreground block text-[11px] font-medium">
+                              {item.label}
+                            </span>
+                            <span className="text-muted-foreground block truncate text-[10px]">
+                              {hasValue ? item.value : "Not set in profile"}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                    <div
+                      className={cn(
+                        "border-border/70 space-y-1.5 rounded-lg border px-2.5 py-2",
+                        usableResumes.length > 0 ? "bg-background/50" : "bg-muted/30 opacity-70",
+                      )}
+                    >
+                      <label className="flex items-center gap-2">
                         <Checkbox
-                          checked={checked}
-                          disabled={!hasValue}
-                          onChange={(e) =>
-                            setClFooterInclude((prev) => ({
-                              ...prev,
-                              [item.key]: e.target.checked,
-                            }))
-                          }
+                          checked={clFooterInclude.resume && usableResumes.length > 0}
+                          disabled={usableResumes.length === 0}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setClFooterInclude((prev) => ({ ...prev, resume: checked }));
+                            if (checked && !clFooterResumeId && usableResumes[0]) {
+                              setClFooterResumeId(usableResumes[0].id);
+                            }
+                          }}
                         />
                         <span className="min-w-0">
                           <span className="text-foreground block text-[11px] font-medium">
-                            {item.label}
+                            Resume link
                           </span>
                           <span className="text-muted-foreground block truncate text-[10px]">
-                            {hasValue ? item.value : "Not set in profile"}
+                            {usableResumes.length > 0
+                              ? "Add a resume PDF link to the footer"
+                              : "Upload a resume first"}
                           </span>
                         </span>
                       </label>
-                    );
-                  })}
-                  <div
-                    className={cn(
-                      "border-border/70 space-y-1.5 rounded-lg border px-2.5 py-2",
-                      usableResumes.length > 0 ? "bg-background/50" : "bg-muted/30 opacity-70",
-                    )}
-                  >
-                    <label className="flex items-center gap-2">
-                      <Checkbox
-                        checked={clFooterInclude.resume && usableResumes.length > 0}
-                        disabled={usableResumes.length === 0}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setClFooterInclude((prev) => ({ ...prev, resume: checked }));
-                          if (checked && !clFooterResumeId && usableResumes[0]) {
-                            setClFooterResumeId(usableResumes[0].id);
-                          }
-                        }}
-                      />
-                      <span className="min-w-0">
-                        <span className="text-foreground block text-[11px] font-medium">
-                          Resume link
-                        </span>
-                        <span className="text-muted-foreground block truncate text-[10px]">
-                          {usableResumes.length > 0
-                            ? "Add a resume PDF link to the footer"
-                            : "Upload a resume first"}
-                        </span>
-                      </span>
-                    </label>
-                    {clFooterInclude.resume && usableResumes.length > 0 ? (
-                      <Select
-                        value={clFooterResumeId || undefined}
-                        onValueChange={(v) => setClFooterResumeId(v || "")}
-                      >
-                        <SelectTrigger className="border-border bg-background text-foreground h-8 w-full cursor-pointer rounded-lg border px-2 text-[12px]">
-                          <SelectValue placeholder="Choose resume" />
-                        </SelectTrigger>
-                        <SelectContent className="z-[240]">
-                          {usableResumes.map((r) => (
-                            <SelectItem key={r.id} value={r.id} className="text-[12px]">
-                              {r.displayName}
-                              {r.status === "active" ? " · active" : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : null}
+                      {clFooterInclude.resume && usableResumes.length > 0 ? (
+                        <Select
+                          value={clFooterResumeId || undefined}
+                          onValueChange={(v) => setClFooterResumeId(v || "")}
+                        >
+                          <SelectTrigger className="border-border bg-background text-foreground h-8 w-full cursor-pointer rounded-lg border px-2 text-[12px]">
+                            <SelectValue placeholder="Choose resume" />
+                          </SelectTrigger>
+                          <SelectContent className="z-[240]">
+                            {usableResumes.map((r) => (
+                              <SelectItem key={r.id} value={r.id} className="text-[12px]">
+                                {r.displayName}
+                                {r.status === "active" ? " · active" : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {editingClId ? (
+                <div className="flex flex-wrap gap-2">
+                  {editingClId ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => resetCoverDraft()}
+                      className="h-8"
+                    >
+                      Cancel
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    loading={pending}
+                    disabled={clOverflowsPage}
+                    onClick={() => void saveCoverLetter()}
+                    className="h-8"
+                  >
+                    {editingClId ? "Update" : "Save cover letter"}
+                  </Button>
                   <button
                     type="button"
-                    onClick={() => resetCoverDraft()}
-                    className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+                    disabled={downloadBusy === "draft-pdf" || clOverflowsPage}
+                    onClick={() => void downloadDraft("pdf")}
+                    className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
                   >
-                    Cancel
+                    {downloadBusy === "draft-pdf" ? "PDF…" : "Download PDF"}
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={pending || clOverflowsPage}
-                  onClick={() => void saveCoverLetter()}
-                  className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg border-0 px-3 text-[12px] font-semibold disabled:opacity-60"
-                >
-                  {pending ? "Saving…" : editingClId ? "Update" : "Save cover letter"}
-                </button>
-                <button
-                  type="button"
-                  disabled={downloadBusy === "draft-pdf" || clOverflowsPage}
-                  onClick={() => void downloadDraft("pdf")}
-                  className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
-                >
-                  {downloadBusy === "draft-pdf" ? "PDF…" : "Download PDF"}
-                </button>
-                <button
-                  type="button"
-                  disabled={downloadBusy === "draft-docx" || clOverflowsPage}
-                  onClick={() => void downloadDraft("docx")}
-                  className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
-                >
-                  {downloadBusy === "draft-docx" ? "DOCX…" : "Download DOCX"}
-                </button>
+                  <button
+                    type="button"
+                    disabled={downloadBusy === "draft-docx" || clOverflowsPage}
+                    onClick={() => void downloadDraft("docx")}
+                    className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
+                  >
+                    {downloadBusy === "draft-docx" ? "DOCX…" : "Download DOCX"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-border/80 bg-card flex min-h-[36rem] flex-col rounded-lg border p-3 shadow-sm xl:min-h-full">
+                <CoverLetterPdfPreview
+                  title={previewTitle}
+                  body={previewBody}
+                  companyName={coverTarget.company}
+                  role={coverTarget.role}
+                  footerRow={footerRow}
+                  onOverflowChange={onClOverflowChange}
+                  className="min-h-[32rem] xl:min-h-0"
+                />
               </div>
             </div>
 
-            <div className="border-border/80 bg-card flex min-h-[36rem] flex-col rounded-lg border p-3 shadow-sm xl:min-h-full">
-              <CoverLetterPdfPreview
-                title={previewTitle}
-                body={previewBody}
-                companyName={coverTarget.company}
-                role={coverTarget.role}
-                footerRow={footerRow}
-                onOverflowChange={onClOverflowChange}
-                className="min-h-[32rem] xl:min-h-0"
-              />
+            <div className="space-y-2">
+              <h2 className="aavedak-section-title text-foreground">
+                Your cover letters ({coverLetters.length})
+              </h2>
+              {coverLetters.length === 0 ? (
+                <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-[13px]">
+                  No cover letters yet.
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {coverLetters.map((cl) => {
+                    const job = cl.jobId ? jobsById.get(cl.jobId) : undefined;
+                    const app = cl.applicationId ? appsById.get(cl.applicationId) : undefined;
+                    const linkedCompany = cl.companyName || job?.company || app?.companyName;
+                    const linkedRole = cl.roleTitle || job?.title || app?.role;
+                    return (
+                      <li key={cl.id} className="border-border/80 bg-card rounded-lg border p-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="text-foreground text-[13px] font-medium">{cl.title}</p>
+                            <p className="text-muted-foreground mt-0.5 text-[11px]">
+                              {linkedCompany
+                                ? `${linkedCompany} · ${linkedRole}`
+                                : "No company linked"}
+                            </p>
+                            <p className="text-muted-foreground mt-1 line-clamp-2 text-[12px] leading-relaxed">
+                              {cl.body || "Empty body"}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 flex-wrap gap-1.5">
+                            <button
+                              type="button"
+                              disabled={downloadBusy === `${cl.id}-pdf`}
+                              onClick={() => void downloadCl(cl, "pdf")}
+                              className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
+                            >
+                              {downloadBusy === `${cl.id}-pdf` ? "PDF…" : "PDF"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={downloadBusy === `${cl.id}-docx`}
+                              onClick={() => void downloadCl(cl, "docx")}
+                              className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
+                            >
+                              {downloadBusy === `${cl.id}-docx` ? "DOCX…" : "DOCX"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingClId(cl.id);
+                                setClTitle(cl.title);
+                                setClBody(cl.body);
+                                setClApplicationId(cl.applicationId ?? "");
+                                if (cl.jobId) {
+                                  setClMode("job");
+                                  setClJobId(cl.jobId);
+                                } else {
+                                  setClMode("custom");
+                                  setClCustomCompany(cl.companyName ?? "");
+                                  setClCustomRole(cl.roleTitle ?? "");
+                                }
+                              }}
+                              className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void archiveCoverLetter(cl.id)}
+                              className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                            >
+                              Archive
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
-          </div>
+          </section>
+        </TabsContent>
 
-          <div className="space-y-2">
-            <h2 className="aavedak-section-title text-foreground">
-              Your cover letters ({coverLetters.length})
-            </h2>
-            {coverLetters.length === 0 ? (
-              <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-[13px]">
-                No cover letters yet.
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {coverLetters.map((cl) => {
-                  const job = cl.jobId ? jobsById.get(cl.jobId) : undefined;
-                  const app = cl.applicationId ? appsById.get(cl.applicationId) : undefined;
-                  const linkedCompany = cl.companyName || job?.company || app?.companyName;
-                  const linkedRole = cl.roleTitle || job?.title || app?.role;
-                  return (
-                    <li key={cl.id} className="border-border/80 bg-card rounded-lg border p-3">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="text-foreground text-[13px] font-medium">{cl.title}</p>
-                          <p className="text-muted-foreground mt-0.5 text-[11px]">
-                            {linkedCompany
-                              ? `${linkedCompany} · ${linkedRole}`
-                              : "No company linked"}
-                          </p>
-                          <p className="text-muted-foreground mt-1 line-clamp-2 text-[12px] leading-relaxed">
-                            {cl.body || "Empty body"}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 flex-wrap gap-1.5">
-                          <button
-                            type="button"
-                            disabled={downloadBusy === `${cl.id}-pdf`}
-                            onClick={() => void downloadCl(cl, "pdf")}
-                            className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
-                          >
-                            {downloadBusy === `${cl.id}-pdf` ? "PDF…" : "PDF"}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={downloadBusy === `${cl.id}-docx`}
-                            onClick={() => void downloadCl(cl, "docx")}
-                            className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
-                          >
-                            {downloadBusy === `${cl.id}-docx` ? "DOCX…" : "DOCX"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingClId(cl.id);
-                              setClTitle(cl.title);
-                              setClBody(cl.body);
-                              setClApplicationId(cl.applicationId ?? "");
-                              if (cl.jobId) {
-                                setClMode("job");
-                                setClJobId(cl.jobId);
-                              } else {
-                                setClMode("custom");
-                                setClCustomCompany(cl.companyName ?? "");
-                                setClCustomRole(cl.roleTitle ?? "");
-                              }
-                            }}
-                            className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void archiveCoverLetter(cl.id)}
-                            className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-                          >
-                            Archive
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </section>
-      ) : null}
+        <TabsContent value="referral_email" className="mt-0 outline-none">
+          <section className="space-y-3">
+            <p className="text-muted-foreground text-[12px] leading-relaxed">
+              Referral email templates for Referrals outreach. Live preview uses the dummy
+              application strip.
+            </p>
+            <ColdEmailTemplatesPanel
+              lockedKind="outreach"
+              listTitle="My referral templates"
+              newButtonLabel="New referral template"
+              templates={templates.filter((t) => t.kind === "outreach")}
+              onTemplatesChange={(next) =>
+                setTemplates((prev) => [...prev.filter((t) => t.kind !== "outreach"), ...next])
+              }
+              fromEmail={userEmail}
+              userName={userName}
+            />
+          </section>
+        </TabsContent>
 
-      {tab === "referral_email" ? (
-        <section className="space-y-3">
-          <p className="text-muted-foreground text-[12px] leading-relaxed">
-            Referral email templates for Referrals outreach. Live preview uses the dummy application
-            strip.
-          </p>
-          <ColdEmailTemplatesPanel
-            lockedKind="outreach"
-            listTitle="My referral templates"
-            newButtonLabel="New referral template"
-            templates={templates.filter((t) => t.kind === "outreach")}
-            onTemplatesChange={(next) =>
-              setTemplates((prev) => [...prev.filter((t) => t.kind !== "outreach"), ...next])
-            }
-            fromEmail={userEmail}
-            userName={userName}
-          />
-        </section>
-      ) : null}
-
-      {tab === "followup_email" ? (
-        <section className="space-y-3">
-          <p className="text-muted-foreground text-[12px] leading-relaxed">
-            Follow-up email templates for later nudges. Same editor as Referral Email — stored in
-            your account. Live preview uses the dummy application strip.
-          </p>
-          <ColdEmailTemplatesPanel
-            lockedKind="followup"
-            listTitle="My follow-up templates"
-            newButtonLabel="New follow-up template"
-            templates={templates.filter((t) => t.kind === "followup")}
-            onTemplatesChange={(next) =>
-              setTemplates((prev) => [...prev.filter((t) => t.kind !== "followup"), ...next])
-            }
-            fromEmail={userEmail}
-            userName={userName}
-          />
-        </section>
-      ) : null}
+        <TabsContent value="followup_email" className="mt-0 outline-none">
+          <section className="space-y-3">
+            <p className="text-muted-foreground text-[12px] leading-relaxed">
+              Follow-up email templates for later nudges. Same editor as Referral Email — stored in
+              your account. Live preview uses the dummy application strip.
+            </p>
+            <ColdEmailTemplatesPanel
+              lockedKind="followup"
+              listTitle="My follow-up templates"
+              newButtonLabel="New follow-up template"
+              templates={templates.filter((t) => t.kind === "followup")}
+              onTemplatesChange={(next) =>
+                setTemplates((prev) => [...prev.filter((t) => t.kind !== "followup"), ...next])
+              }
+              fromEmail={userEmail}
+              userName={userName}
+            />
+          </section>
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog
         open={Boolean(deleteTarget)}

@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Modal } from "@/components/ui/modal";
 import {
   Select,
@@ -1045,34 +1046,74 @@ export function ReferralsComposer({
                               {person.email ?? "No email"}
                               {person.company ? ` · ${person.company}` : ""}
                             </span>
-                            <span className="mt-1 flex flex-wrap gap-1">
-                              {appReferralTab === "needs" && outreachBlocked ? (
+                            {appReferralTab === "needs" && outreachBlocked ? (
+                              <span className="mt-1 block">
                                 <Badge variant="outline" className="h-5 text-[10px]">
                                   Referral already sent
                                 </Badge>
-                              ) : null}
-                              {appReferralTab === "sent" && meta.outreach ? (
-                                <Badge variant="secondary" className="h-5 text-[10px]">
-                                  Referral email sent{" "}
-                                  {formatRelativeAgo(
-                                    meta.outreach.updatedAt || meta.outreach.createdAt,
-                                  )}
-                                </Badge>
-                              ) : null}
-                              {appReferralTab === "sent" && meta.followup ? (
-                                <Badge variant="outline" className="h-5 text-[10px]">
-                                  Last follow-up{" "}
-                                  {formatRelativeAgo(
-                                    meta.followup.updatedAt || meta.followup.createdAt,
-                                  )}
-                                </Badge>
-                              ) : null}
-                              {cooldown?.blocked ? (
-                                <Badge variant="outline" className="h-5 text-[10px]">
-                                  Wait 1 hour before another follow-up
-                                </Badge>
-                              ) : null}
-                            </span>
+                              </span>
+                            ) : null}
+                            {appReferralTab === "sent" &&
+                            (meta.outreach || meta.followup || cooldown?.blocked) ? (
+                              <span className="mt-1 flex items-center gap-1">
+                                {cooldown?.blocked ? (
+                                  <Badge variant="outline" className="h-5 text-[10px]">
+                                    Wait 1 hour before another follow-up
+                                  </Badge>
+                                ) : null}
+                                <HoverCard openDelay={80} closeDelay={100}>
+                                  <HoverCardTrigger
+                                    className="text-muted-foreground hover:text-foreground border-border/70 hover:border-border inline-flex size-5 shrink-0 items-center justify-center rounded-full border"
+                                    aria-label="Mail status details"
+                                    onClick={(e) => e.preventDefault()}
+                                  >
+                                    <QuestionMarkIcon className="size-3" />
+                                  </HoverCardTrigger>
+                                  <HoverCardContent
+                                    side="top"
+                                    align="start"
+                                    className="space-y-1.5"
+                                  >
+                                    <p className="text-foreground text-[11px] font-semibold tracking-tight">
+                                      Mail status
+                                    </p>
+                                    {meta.outreach ? (
+                                      <p className="text-muted-foreground leading-snug">
+                                        Referral email sent{" "}
+                                        <span className="text-foreground">
+                                          {formatRelativeAgo(
+                                            meta.outreach.updatedAt || meta.outreach.createdAt,
+                                          )}
+                                        </span>
+                                      </p>
+                                    ) : null}
+                                    {meta.followup ? (
+                                      <p className="text-muted-foreground leading-snug">
+                                        Last follow-up{" "}
+                                        <span className="text-foreground">
+                                          {formatRelativeAgo(
+                                            meta.followup.updatedAt || meta.followup.createdAt,
+                                          )}
+                                        </span>
+                                      </p>
+                                    ) : (
+                                      <p className="text-muted-foreground leading-snug">
+                                        No follow-up sent yet
+                                      </p>
+                                    )}
+                                    {cooldown?.blocked ? (
+                                      <p className="text-primary leading-snug">
+                                        Wait 1 hour before another follow-up
+                                      </p>
+                                    ) : (
+                                      <p className="text-muted-foreground leading-snug">
+                                        Ready for another follow-up
+                                      </p>
+                                    )}
+                                  </HoverCardContent>
+                                </HoverCard>
+                              </span>
+                            ) : null}
                           </span>
                         </label>
                       </li>
@@ -1089,7 +1130,7 @@ export function ReferralsComposer({
 
   return (
     <ShellWidth className="aavedak-fade-up space-y-6 py-8 sm:py-10">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
             आवेदक
@@ -1106,13 +1147,12 @@ export function ReferralsComposer({
               Admin
             </Badge>
           ) : null}
-          <button
-            type="button"
-            onClick={() => persistOrder(DEFAULT_ORDER)}
-            className="border-border bg-card text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-          >
-            Reset column order
-          </button>
+          <Link href="/people" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Manage people
+          </Link>
+          <Link href="/outreach" className={buttonVariants({ size: "sm" })}>
+            Open outreach inbox
+          </Link>
         </div>
       </header>
 
@@ -1392,6 +1432,20 @@ function GripVerticalIcon({ className }: { className?: string }) {
       <circle cx="15" cy="5" r="1.65" />
       <circle cx="15" cy="12" r="1.65" />
       <circle cx="15" cy="19" r="1.65" />
+    </svg>
+  );
+}
+
+function QuestionMarkIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <path
+        d="M5.75 5.6c0-1.2 1-2.1 2.25-2.1S10.25 4.4 10.25 5.6c0 .85-.45 1.45-1.2 1.85-.7.35-1.05.7-1.05 1.4v.35"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <circle cx="8" cy="11.6" r="0.85" fill="currentColor" />
     </svg>
   );
 }

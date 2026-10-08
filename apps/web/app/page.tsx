@@ -15,6 +15,45 @@ const chips = [
   { label: "Local-first · Privacy-minded" },
 ] as const;
 
+const features = [
+  {
+    href: "/dashboard",
+    title: "Dashboard",
+    label: "Focus",
+    description: "Today's priorities, application pulse, and what to do next.",
+  },
+  {
+    href: "/jobs",
+    title: "Jobs",
+    label: "Discover",
+    description: "Multi-source roles as cards — scan, shortlist, open detail.",
+  },
+  {
+    href: "/job-tracker",
+    title: "Job tracker",
+    label: "Pipeline",
+    description: "Kanban and list views for every application stage.",
+  },
+  {
+    href: "/documents",
+    title: "Documents",
+    label: "Prepare",
+    description: "Resumes, cover letters, and reusable templates ready to send.",
+  },
+  {
+    href: "/referrals",
+    title: "Referrals",
+    label: "Warm paths",
+    description: "Track asks, follow-ups, and introductions that move the needle.",
+  },
+  {
+    href: "/ats",
+    title: "ATS",
+    label: "Score",
+    description: "Check resume ATS readiness and match against a job description.",
+  },
+] as const;
+
 const steps = [
   {
     n: "01",
@@ -122,6 +161,42 @@ export default function HomePage() {
               </p>
             </div>
           ))}
+        </section>
+
+        <section
+          className="aavedak-fade-up aavedak-fade-up-delay-3 mt-12 sm:mt-16"
+          aria-labelledby="workspace-heading"
+        >
+          <div className="mb-3.5 flex flex-col gap-1 sm:mb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+            <h2
+              id="workspace-heading"
+              className="text-foreground text-[14px] font-semibold tracking-tight"
+            >
+              Workspace
+            </h2>
+            <p className="aavedak-meta text-muted-foreground">
+              Everything you need to find and ship applications
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="aavedak-card-lift aavedak-fade-up aavedak-fade-up-delay-3 border-border/80 bg-card ring-ring/5 hover:border-primary/25 group flex min-h-[6.75rem] cursor-pointer flex-col rounded-xl border p-3.5 shadow-sm ring-1 backdrop-blur-sm sm:p-4"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="aavedak-section-title text-foreground text-[13px]">
+                    {item.title}
+                  </h3>
+                  <span className="text-primary/90 bg-primary/10 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide">
+                    {item.label}
+                  </span>
+                </div>
+                <p className="aavedak-body text-muted-foreground mt-2">{item.description}</p>
+              </Link>
+            ))}
+          </div>
         </section>
       </div>
     </div>

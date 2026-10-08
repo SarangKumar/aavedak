@@ -408,8 +408,8 @@ export function PeopleHub({ initialPeople, applications }: Props) {
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button onClick={() => void savePerson()} disabled={saving}>
-              {saving ? "Saving…" : editingId ? "Save changes" : "Create person"}
+            <Button onClick={() => void savePerson()} loading={saving}>
+              {editingId ? "Save changes" : "Create person"}
             </Button>
             <Button variant="outline" onClick={() => setDrawerOpen(false)} disabled={saving}>
               Cancel

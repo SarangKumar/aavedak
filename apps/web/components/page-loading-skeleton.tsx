@@ -108,23 +108,27 @@ function DashboardSkeleton() {
           </div>
         </section>
 
-        {/* Matches ApplicationsActivityCharts: one shared chart + range chips bottom-right */}
+        {/* Matches ApplicationsActivityCharts: chart card + range chips outside, bottom-right */}
         <section className="space-y-3">
           <div className="space-y-1">
             <Skeleton className="h-4 w-40" />
             <Skeleton className="h-3 w-72 max-w-full" />
           </div>
-          <div className="border-border/80 bg-card relative rounded-lg border p-4 shadow-sm">
-            <div className="mb-3 flex flex-wrap gap-2">
-              <Skeleton className="h-3 w-16 rounded-full" />
-              <Skeleton className="h-3 w-20 rounded-full" />
+          <div className="space-y-2">
+            <div className="border-border/80 bg-card rounded-lg border p-4 shadow-sm">
+              <div className="mb-3 flex flex-wrap gap-2">
+                <Skeleton className="h-3 w-16 rounded-full" />
+                <Skeleton className="h-3 w-20 rounded-full" />
+              </div>
+              <Skeleton className="h-[280px] w-full rounded-md" />
             </div>
-            <Skeleton className="h-[280px] w-full rounded-md" />
-            <div className="absolute bottom-3 right-3 flex gap-1 rounded-lg border border-transparent p-1">
-              <Skeleton className="h-7 w-16 rounded-md" />
-              <Skeleton className="h-7 w-16 rounded-md" />
-              <Skeleton className="h-7 w-16 rounded-md" />
-              <Skeleton className="h-7 w-16 rounded-md" />
+            <div className="flex justify-end">
+              <div className="border-border/70 bg-card flex gap-1 rounded-lg border p-1">
+                <Skeleton className="h-7 w-16 rounded-md" />
+                <Skeleton className="h-7 w-16 rounded-md" />
+                <Skeleton className="h-7 w-16 rounded-md" />
+                <Skeleton className="h-7 w-16 rounded-md" />
+              </div>
             </div>
           </div>
         </section>

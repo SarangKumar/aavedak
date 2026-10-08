@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ImportApplicationsDialog } from "@/components/import-applications-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardAction,
@@ -647,7 +646,6 @@ export function JobTrackerBoard({
                                           aria-label={`Move ${app.companyName}`}
                                           className="text-muted-foreground size-7 cursor-grab"
                                           onClick={(e) => e.stopPropagation()}
-                                          onPointerDown={(e) => e.stopPropagation()}
                                         />
                                       </CardAction>
                                     </CardHeader>
@@ -704,19 +702,11 @@ export function JobTrackerBoard({
             <Button
               type="button"
               size="sm"
+              loading={pendingAction === "create"}
               disabled={pending}
               onClick={() => void createApplication(Boolean(warning))}
             >
-              {pendingAction === "create" ? (
-                <>
-                  <Spinner className="mr-1.5" />
-                  Saving…
-                </>
-              ) : warning ? (
-                "Create anyway"
-              ) : (
-                "Create"
-              )}
+              {warning ? "Create anyway" : "Create"}
             </Button>
           </>
         }
@@ -780,31 +770,25 @@ export function JobTrackerBoard({
               type="button"
               variant="destructive"
               size="sm"
+              loading={pendingAction === "delete"}
+              loadingText="Deleting…"
               disabled={pending}
               onClick={() => void deleteApplication()}
               className="mr-auto"
             >
-              {pendingAction === "delete" ? (
-                <>
-                  <Spinner className="mr-1.5" />
-                  Deleting…
-                </>
-              ) : (
-                "Delete"
-              )}
+              Delete
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={closeEdit}>
               Cancel
             </Button>
-            <Button type="button" size="sm" disabled={pending} onClick={() => void saveEdit()}>
-              {pendingAction === "save" ? (
-                <>
-                  <Spinner className="mr-1.5" />
-                  Saving…
-                </>
-              ) : (
-                "Save"
-              )}
+            <Button
+              type="button"
+              size="sm"
+              loading={pendingAction === "save"}
+              disabled={pending}
+              onClick={() => void saveEdit()}
+            >
+              Save
             </Button>
           </>
         }

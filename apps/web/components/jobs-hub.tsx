@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import {
   Select,
@@ -624,14 +625,15 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
             >
               Cancel
             </button>
-            <button
+            <Button
               type="button"
-              disabled={pending}
+              size="sm"
+              loading={pending}
               onClick={() => void createJob()}
-              className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-md px-3 text-[12px] font-semibold disabled:opacity-60"
+              className="h-8"
             >
-              {pending ? "Saving…" : "Create"}
-            </button>
+              Create
+            </Button>
           </div>
         </div>
       </Modal>
@@ -657,14 +659,15 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
           >
             Cancel
           </button>
-          <button
+          <Button
             type="button"
-            disabled={pending}
+            size="sm"
+            loading={pending}
             onClick={() => void pasteJd()}
-            className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-md px-3 text-[12px] font-semibold disabled:opacity-60"
+            className="h-8"
           >
-            {pending ? "Saving…" : "Save analysis"}
-          </button>
+            Save analysis
+          </Button>
         </div>
       </Modal>
     </ShellWidth>

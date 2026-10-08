@@ -574,6 +574,9 @@ export function DragDropHandle({
   className,
   children,
   "aria-label": ariaLabel = "Reorder",
+  onPointerDown,
+  onKeyDown,
+  onClick,
   ...props
 }: DragDropHandleProps) {
   const item = useContext(DragDropItemContext);
@@ -582,7 +585,7 @@ export function DragDropHandle({
   }
 
   const { handleProps, registerHandle, disabled } = item;
-  const { ref, ...rest } = handleProps;
+  const { ref, onPointerDown: sensorPointerDown, onKeyDown: sensorKeyDown, ...rest } = handleProps;
 
   React.useEffect(() => {
     registerHandle(true);
@@ -605,6 +608,18 @@ export function DragDropHandle({
       )}
       {...rest}
       {...props}
+      onPointerDown={(event) => {
+        // Keep dnd-kit listeners; callers must not replace them via {...props} last.
+        sensorPointerDown?.(event as React.PointerEvent<HTMLElement>);
+        onPointerDown?.(event);
+      }}
+      onKeyDown={(event) => {
+        sensorKeyDown?.(event as React.KeyboardEvent<HTMLElement>);
+        onKeyDown?.(event);
+      }}
+      onClick={(event) => {
+        onClick?.(event);
+      }}
     >
       {children ?? <DragDropHandleIcon />}
     </button>

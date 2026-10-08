@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { ReferralsComposer } from "@/components/referrals-composer";
-import { ShellWidth } from "@/components/shell-width";
 import { isAdminEmail } from "@/lib/admin";
 import { requireOnboarded } from "@/lib/app-access";
 import { listApplications } from "@/lib/applications";
@@ -29,18 +27,7 @@ export default async function ReferralsPage() {
   return (
     <div className="relative overflow-hidden">
       <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-60" aria-hidden />
-      <div className="relative space-y-3 pt-6">
-        <ShellWidth className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
-          <Link href="/people" className="text-primary font-medium hover:underline">
-            Manage people
-          </Link>
-          <span className="text-border" aria-hidden>
-            ·
-          </span>
-          <Link href="/outreach" className="text-primary font-medium hover:underline">
-            Open outreach inbox
-          </Link>
-        </ShellWidth>
+      <div className="relative">
         <ReferralsComposer
           userEmail={user.email}
           userName={user.name ?? ""}

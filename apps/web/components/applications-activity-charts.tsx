@@ -149,101 +149,108 @@ export function ApplicationsActivityCharts() {
 
       {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
 
-      <div className="border-border/80 bg-card relative rounded-lg border p-4 shadow-sm">
-        {loading && !data ? (
-          <div className="text-muted-foreground flex h-[260px] items-center justify-center gap-2 text-[12px]">
-            <Spinner /> Loading chart…
-          </div>
-        ) : chartData.length === 0 ? (
-          <p className="text-muted-foreground flex h-[200px] items-center justify-center text-[12px]">
-            No application activity in this range yet.
-          </p>
-        ) : (
-          <ChartContainer config={chartConfig} className="aspect-auto h-[300px] w-full pb-12">
-            <LineChart
-              data={chartData}
-              accessibilityLayer
-              margin={{ left: 4, right: 8, top: 8, bottom: 28 }}
-            >
-              <CartesianGrid vertical={false} strokeDasharray="3 3" />
-              <XAxis
-                dataKey="label"
-                tickLine={false}
-                axisLine={false}
-                minTickGap={24}
-                interval={tickInterval}
-                tickMargin={8}
-              />
-              <YAxis
-                allowDecimals={false}
-                width={28}
-                tickLine={false}
-                axisLine={false}
-                tickMargin={4}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(_, payload) => {
-                      const row = payload?.[0]?.payload as { date?: string } | undefined;
-                      return row?.date ?? "";
-                    }}
-                  />
-                }
-              />
-              <Legend
-                verticalAlign="bottom"
-                align="left"
-                wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-              />
-              {series.map((s, i) => {
-                const key = seriesKey(s);
-                const friendIndex = series.slice(0, i).filter((x) => !x.isMe).length;
-                const stroke = strokeForSeries(s, friendIndex);
-                return (
-                  <Line
-                    key={s.userId}
-                    dataKey={key}
-                    name={seriesLabel(s)}
-                    type="monotone"
-                    stroke={stroke}
-                    strokeWidth={s.isMe ? 2.5 : 2}
-                    dot={{
-                      r: s.isMe ? 3.5 : 2.5,
-                      fill: "var(--color-foreground)",
-                      stroke,
-                      strokeWidth: 2,
-                    }}
-                    activeDot={{
-                      r: 5,
-                      fill: "var(--color-foreground)",
-                      stroke,
-                      strokeWidth: 2,
-                    }}
-                  />
-                );
-              })}
-            </LineChart>
-          </ChartContainer>
-        )}
+      <div className="space-y-2">
+        <div className="border-border/80 bg-card rounded-lg border p-4 shadow-sm">
+          {loading && !data ? (
+            <div className="text-muted-foreground flex h-[260px] items-center justify-center gap-2 text-[12px]">
+              <Spinner /> Loading chart…
+            </div>
+          ) : chartData.length === 0 ? (
+            <p className="text-muted-foreground flex h-[200px] items-center justify-center text-[12px]">
+              No application activity in this range yet.
+            </p>
+          ) : (
+            <ChartContainer config={chartConfig} className="aspect-auto h-[280px] w-full">
+              <LineChart
+                data={chartData}
+                accessibilityLayer
+                margin={{ left: 4, right: 8, top: 8, bottom: 28 }}
+              >
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={24}
+                  interval={tickInterval}
+                  tickMargin={8}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  width={28}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={4}
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      labelFormatter={(_, payload) => {
+                        const row = payload?.[0]?.payload as { date?: string } | undefined;
+                        return row?.date ?? "";
+                      }}
+                    />
+                  }
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  align="left"
+                  wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+                />
+                {series.map((s, i) => {
+                  const key = seriesKey(s);
+                  const friendIndex = series.slice(0, i).filter((x) => !x.isMe).length;
+                  const stroke = strokeForSeries(s, friendIndex);
+                  return (
+                    <Line
+                      key={s.userId}
+                      dataKey={key}
+                      name={seriesLabel(s)}
+                      type="monotone"
+                      stroke={stroke}
+                      strokeWidth={s.isMe ? 2.5 : 2}
+                      dot={{
+                        r: s.isMe ? 3.5 : 2.5,
+                        fill: "var(--color-foreground)",
+                        stroke,
+                        strokeWidth: 2,
+                      }}
+                      activeDot={{
+                        r: 5,
+                        fill: "var(--color-foreground)",
+                        stroke,
+                        strokeWidth: 2,
+                      }}
+                    />
+                  );
+                })}
+              </LineChart>
+            </ChartContainer>
+          )}
+        </div>
 
-        {/* Duration / interval — bottom right of the chart */}
-        <div className="border-border/70 bg-background/95 absolute bottom-3 right-3 flex items-center gap-1 rounded-lg border p-1 text-[11px] shadow-sm">
-          {RANGES.map((r) => (
-            <button
-              key={r.value}
-              type="button"
-              className={cn(
-                "rounded-md px-2 py-1",
-                months === r.value
-                  ? "bg-primary/15 text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              onClick={() => setMonths(r.value)}
-            >
-              {r.label}
-            </button>
-          ))}
+        <div className="flex justify-end">
+          <div
+            className="border-border/70 bg-card inline-flex items-center gap-1 rounded-lg border p-1 text-[11px] shadow-sm"
+            role="group"
+            aria-label="Chart time range"
+          >
+            {RANGES.map((r) => (
+              <button
+                key={r.value}
+                type="button"
+                className={cn(
+                  "cursor-pointer rounded-md px-2 py-1",
+                  months === r.value
+                    ? "bg-primary/15 text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setMonths(r.value)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

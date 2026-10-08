@@ -300,7 +300,7 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
         </div>
 
         <Button type="button" size="sm" loading={pending} onClick={() => void saveProfile()}>
-          {pending ? "Saving…" : "Save profile"}
+          Save profile
         </Button>
       </section>
 
@@ -320,7 +320,7 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
           idPrefix="settings-career"
         />
         <Button type="button" size="sm" loading={careerPending} onClick={() => void saveCareer()}>
-          {careerPending ? "Saving…" : "Save career preferences"}
+          Save career preferences
         </Button>
       </section>
 
@@ -466,10 +466,11 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
               variant="destructive"
               size="sm"
               loading={deleting}
+              loadingText="Deleting…"
               disabled={!canDelete}
               onClick={() => void deleteAccount()}
             >
-              {deleting ? "Deleting…" : "Delete forever"}
+              Delete forever
             </Button>
           </>
         }

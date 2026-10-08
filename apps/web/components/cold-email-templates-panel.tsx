@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import {
   Select,
@@ -328,24 +329,25 @@ export function ColdEmailTemplatesPanel({
               value={draft.body}
               onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))}
               placeholder="Hi {{person_name}}, …"
-              rows={8}
+              rows={14}
               className={cn(
                 field,
-                "h-auto max-h-64 min-h-[10rem] overflow-y-auto py-2 font-mono text-[11px] leading-relaxed",
+                "h-auto max-h-[28rem] min-h-[16rem] overflow-y-auto py-2 font-mono text-[11px] leading-relaxed",
               )}
             />
           </label>
-          <button
+          <Button
             type="button"
-            disabled={pending}
+            size="sm"
+            loading={pending}
             onClick={() => void save()}
-            className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold shadow-sm ring-1 disabled:opacity-60"
+            className="h-8"
           >
-            {pending ? "Saving…" : draft.id ? "Update template" : "Create template"}
-          </button>
+            {draft.id ? "Update template" : "Create template"}
+          </Button>
         </div>
 
-        <div className="border-border/80 bg-card flex min-h-[22rem] flex-col rounded-xl border p-3 shadow-sm">
+        <div className="border-border/80 bg-card flex min-h-[28rem] flex-col rounded-xl border p-3 shadow-sm">
           <p className="text-foreground text-[12px] font-semibold tracking-tight">Live preview</p>
           <p className="text-muted-foreground mb-2 text-[11px]">
             Updates as you type subject and body.
