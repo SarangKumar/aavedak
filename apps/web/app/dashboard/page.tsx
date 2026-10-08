@@ -31,7 +31,6 @@ export default async function DashboardPage() {
     { label: "Jobs", value: dash.jobCount, href: "/jobs" },
     { label: "Resumes", value: dash.resumeCount, href: "/documents" },
     { label: "Covers", value: dash.coverLetterCount, href: "/documents" },
-    { label: "People", value: dash.peopleCount, href: "/people" },
   ] as const;
 
   return (
@@ -93,50 +92,52 @@ export default async function DashboardPage() {
 
         <ApplicationsActivityCharts />
 
-        <section aria-labelledby="pulse-heading" className="space-y-2.5">
-          <h2
-            id="pulse-heading"
-            className="text-foreground text-[13px] font-semibold tracking-tight"
-          >
-            Pulse
-          </h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
-            {metaStats.map((stat) => (
-              <Link
-                key={stat.label}
-                href={stat.href}
-                className="border-border/80 bg-card hover:border-primary/30 rounded-lg border p-3 shadow-sm transition-colors"
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
+          <section aria-labelledby="summary-heading" className="flex flex-col space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <h2
+                id="summary-heading"
+                className="text-foreground text-[13px] font-semibold tracking-tight"
               >
-                <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
-                  {stat.label}
-                </p>
-                <p className="aavedak-display text-foreground mt-0.5 text-xl tabular-nums">
-                  {stat.value}
-                </p>
+                Pipeline by status
+              </h2>
+              <Link
+                href="/job-tracker"
+                className="text-primary text-[12px] font-medium hover:underline"
+              >
+                Open tracker
               </Link>
-            ))}
-          </div>
-        </section>
+            </div>
+            <div className="border-border/80 bg-card flex flex-1 flex-col justify-center rounded-lg border p-4 shadow-sm">
+              <PipelineStatusChart data={dash.highlightCounts} />
+            </div>
+          </section>
 
-        <section aria-labelledby="summary-heading" className="space-y-2.5">
-          <div className="flex items-center justify-between gap-2">
+          <section aria-labelledby="pulse-heading" className="flex flex-col space-y-2.5">
             <h2
-              id="summary-heading"
+              id="pulse-heading"
               className="text-foreground text-[13px] font-semibold tracking-tight"
             >
-              Pipeline by status
+              Pulse
             </h2>
-            <Link
-              href="/job-tracker"
-              className="text-primary text-[12px] font-medium hover:underline"
-            >
-              Open tracker
-            </Link>
-          </div>
-          <div className="border-border/80 bg-card rounded-lg border p-4 shadow-sm">
-            <PipelineStatusChart data={dash.highlightCounts} />
-          </div>
-        </section>
+            <div className="grid flex-1 grid-cols-2 grid-rows-3 gap-2">
+              {metaStats.map((stat) => (
+                <Link
+                  key={stat.label}
+                  href={stat.href}
+                  className="border-border/80 bg-card hover:border-primary/30 flex flex-col justify-center rounded-lg border p-3 shadow-sm transition-colors"
+                >
+                  <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
+                    {stat.label}
+                  </p>
+                  <p className="aavedak-display text-foreground mt-0.5 text-xl tabular-nums">
+                    {stat.value}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <section

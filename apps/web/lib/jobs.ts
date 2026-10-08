@@ -109,10 +109,7 @@ export async function getJob(userId: string, id: string): Promise<JobRecord | nu
   return null;
 }
 
-export async function getUserJobState(
-  userId: string,
-  jobId: string,
-): Promise<UserJobState | null> {
+export async function getUserJobState(userId: string, jobId: string): Promise<UserJobState | null> {
   await ensureAppSchema();
   const rows = (await getSql()`
     SELECT ignored, application_id FROM user_job_state
@@ -125,7 +122,11 @@ export async function getUserJobState(
   };
 }
 
-export async function setJobIgnored(userId: string, jobId: string, ignored: boolean): Promise<void> {
+export async function setJobIgnored(
+  userId: string,
+  jobId: string,
+  ignored: boolean,
+): Promise<void> {
   await ensureAppSchema();
   const now = new Date().toISOString();
   const flag = ignored ? 1 : 0;
@@ -380,7 +381,7 @@ export async function ensureDemoJobs(userId: string): Promise<JobRecord[]> {
       url: "https://example.com/jobs/cascade-fullstack",
       salary: "₹28–38 LPA",
       description:
-        "Ship Next.js + API services. Experience with Postgres and auth flows preferred.\n\nRequirements:\n• 3+ years full-stack\n• Postgres, TypeScript\n\nNice to have: Neon Auth, Drizzle, or similar.",
+        "Ship Next.js + API services. Experience with Postgres and auth flows preferred.\n\nRequirements:\n• 3+ years full-stack\n• Postgres, TypeScript\n\nNice to have: Better Auth, Drizzle, or similar.",
     },
     {
       title: "Product Engineer",

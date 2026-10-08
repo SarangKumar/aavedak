@@ -52,14 +52,13 @@ Three files under `apps/web/`:
 | `.env`         | Ignored       | Production-oriented defaults (`https://aavedak.vercel.app` origins). |
 | `.env.local`   | Ignored       | Local overrides (`http://localhost:3000`). Wins over `.env` in Next. |
 
-Shared secrets (Google OAuth, `BETTER_AUTH_SECRET`, `ADMIN_EMAILS`, `DATABASE_URL`, GCS, API URL when same) should match in `.env` and `.env.local`; only public origins differ.
+Shared secrets (`BETTER_AUTH_*`, `GOOGLE_CLIENT_*`, `ADMIN_EMAILS`, `DATABASE_URL`, GCS) should match in `.env` and `.env.local`; only public origins differ.
 
 Copy from the template (`cp apps/web/.env.example apps/web/.env.local`) or run `pnpm setup`. Fill secrets locally — never commit `.env` / `.env.local`.
 
 | Variable               | Required for local UI | Notes                                                                           |
 | ---------------------- | --------------------- | ------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_APP_URL`  | Yes                   | App origin; local `http://localhost:3000`, prod `https://aavedak.vercel.app`    |
-| `NEXT_PUBLIC_API_URL`  | Yes                   | Document API; default `http://127.0.0.1:8000`                                   |
 | `DATABASE_URL`         | Yes                   | Neon Postgres pooled connection string                                          |
 | `BETTER_AUTH_SECRET`   | Yes for auth          | 32+ chars; `setup` generates one if empty                                       |
 | `BETTER_AUTH_URL`      | Yes for auth          | Same as `NEXT_PUBLIC_APP_URL`                                                   |
@@ -111,7 +110,7 @@ apps/web/
 │   ├── site-footer.tsx
 │   └── page-stub.tsx    # Shared empty-state for stubs
 ├── lib/
-│   ├── auth.ts          # Better Auth server (SQLite + Google)
+│   ├── auth.ts          # Better Auth server (Neon + Google)
 │   ├── auth-client.ts   # React client
 │   └── utils.ts         # cn()
 ├── middleware.ts        # Optimistic session-cookie gate

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
 import { GMAIL_REAUTH_PARAMS, GMAIL_REAUTH_SCOPES, GMAIL_SEND_SCOPE } from "@/lib/gmail-scopes";
 import { cn } from "@/lib/utils";
@@ -21,14 +20,9 @@ type Props = {
   className?: string;
   /** Where to return after Google re-consent. */
   callbackURL?: string;
-  compact?: boolean;
 };
 
-export function GmailConnectBanner({
-  className,
-  callbackURL = "/referrals",
-  compact = false,
-}: Props) {
+export function GmailConnectBanner({ className, callbackURL = "/referrals" }: Props) {
   const [status, setStatus] = useState<GmailStatusDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
@@ -71,39 +65,9 @@ export function GmailConnectBanner({
     }
   }
 
-  if (loading) {
-    return (
-      <div
-        className={cn(
-          "border-border/70 bg-card flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px]",
-          className,
-        )}
-      >
-        <Spinner className="text-muted-foreground size-3.5" label="Checking Gmail" />
-        <span className="text-muted-foreground">Checking Gmail authorization…</span>
-      </div>
-    );
-  }
-
-  if (status?.ready) {
-    if (compact) {
-      return (
-        <p className={cn("text-muted-foreground text-[11px]", className)}>
-          Gmail send ready · From your Google inbox
-        </p>
-      );
-    }
-    return (
-      <div
-        className={cn(
-          "border-primary/25 bg-primary/10 text-foreground rounded-lg border px-3 py-2 text-[12px]",
-          className,
-        )}
-        role="status"
-      >
-        Gmail is authorized — queued follow-ups will send from your Google account after the delay.
-      </div>
-    );
+  // Only surface UI when Gmail send is missing — hide success / loading chrome.
+  if (loading || status?.ready) {
+    return null;
   }
 
   return (

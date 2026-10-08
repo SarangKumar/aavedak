@@ -47,7 +47,6 @@ pnpm install
 cp apps/web/.env.example apps/web/.env.local
 # Optional prod-oriented defaults: cp apps/web/.env.example apps/web/.env
 # .env.local overrides with localhost; .env uses https://aavedak.vercel.app
-# Ensure NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 
 # 3. API env + venv
 cp apps/api/.env.example apps/api/.env
@@ -106,20 +105,18 @@ aavedak/
 
 **Local scaffold**
 
-- Web needs `NEXT_PUBLIC_API_URL` (default `http://127.0.0.1:8000`) for `pnpm dev`.
-- Auth/Google keys (`BETTER_AUTH_*`, `GOOGLE_*`, optional `AUTH_DATABASE_URL`) — see Auth section / `apps/web/README.md`.
-- API starts with an empty `DATABASE_URL`; DB-backed features won’t work until you set it. `CRON_SECRET` and R2 keys are optional for the health stub.
+- Auth: **Better Auth** (session framework on Neon) + **Google OAuth** (only sign-in provider). Keys: `BETTER_AUTH_*`, `GOOGLE_CLIENT_*`, `DATABASE_URL` — see Auth section / `apps/web/README.md`.
+- API starts with an empty `DATABASE_URL`; DB-backed features won’t work until you set it. `CRON_SECRET` is optional for cron stubs.
 
 Generators and scripts must read the **app-specific** env file — never mix web and API keys.
 
 ## Auth (web)
 
-Better Auth + **Google only**. Local SQLite at `apps/web/data/local.db` (gitignored); production will use MySQL via `AUTH_DATABASE_URL`.
+**Better Auth** (self-hosted) with **Google** as the only social provider. Session tables live on Neon (`DATABASE_URL`). There is no Neon Auth / Clerk / email-password.
 
 1. Create a Google OAuth Web client; redirect URI:
    `http://localhost:3000/api/auth/callback/google`
-2. Set Neon `DATABASE_URL`, `NEON_AUTH_BASE_URL`, and `NEON_AUTH_COOKIE_SECRET` in `apps/web/.env.local`.
-   Configure Google OAuth in the Neon Console (provider credentials live there).
+2. Set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` in `apps/web/.env.local`.
 3. `pnpm --filter web dev` → `/sign-in`
 
 Without Google keys the app still builds; `/sign-in` shows setup help. Details: `apps/web/README.md`.

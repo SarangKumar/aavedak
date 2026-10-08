@@ -4,13 +4,12 @@ import { Pool } from "@neondatabase/serverless";
 import { headers } from "next/headers";
 
 /**
- * Self-hosted Better Auth + Google OAuth.
- * Session/user tables live on Neon Postgres (DATABASE_URL).
- * Google OAuth client lives in this app (GOOGLE_CLIENT_*), not Neon Auth.
+ * Better Auth (framework) + Google (only sign-in provider).
+ * Session/user tables: Neon Postgres via DATABASE_URL.
+ * Google Cloud OAuth client: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET (not Neon Auth).
  *
- * Sign-in requests only openid/email/profile (non-sensitive → no Google verification needed
- * once the consent screen is "In production"). gmail.send is requested incrementally via
- * linkSocial from GmailConnectBanner; include_granted_scopes keeps it on later sign-ins.
+ * Sign-in scopes: openid/email/profile. gmail.send is requested later via
+ * GmailConnectBanner → linkSocial (incremental consent).
  */
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";

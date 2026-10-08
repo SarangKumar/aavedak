@@ -37,27 +37,27 @@ export function PipelineStatusChart({ data }: Props) {
 
   if (total === 0) {
     return (
-      <p className="text-muted-foreground flex h-[220px] items-center justify-center text-[12px]">
+      <p className="text-muted-foreground flex h-[180px] items-center justify-center text-[12px]">
         No applications in the pipeline yet.
       </p>
     );
   }
 
   return (
-    <ChartContainer config={chartConfig} className="aspect-auto h-[260px] w-full">
-      <BarChart data={data} accessibilityLayer margin={{ left: 4, right: 8, top: 8, bottom: 8 }}>
+    <ChartContainer config={chartConfig} className="aspect-auto h-[200px] w-full">
+      <BarChart data={data} accessibilityLayer margin={{ left: 0, right: 4, top: 8, bottom: 4 }}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis
           dataKey="label"
           tickLine={false}
           axisLine={false}
-          tickMargin={8}
+          tickMargin={6}
           interval={0}
-          tick={{ fontSize: 11 }}
+          tick={{ fontSize: 10 }}
         />
-        <YAxis allowDecimals={false} width={28} tickLine={false} axisLine={false} tickMargin={4} />
+        <YAxis allowDecimals={false} width={24} tickLine={false} axisLine={false} tickMargin={4} />
         <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="count" name="Applications" radius={[6, 6, 0, 0]} maxBarSize={48}>
+        <Bar dataKey="count" name="Applications" radius={[6, 6, 0, 0]} maxBarSize={36}>
           {data.map((entry, i) => (
             <Cell key={entry.status} fill={BAR_COLORS[i % BAR_COLORS.length]!} />
           ))}

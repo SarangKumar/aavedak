@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
-import { cn } from "@/lib/utils";
 
 type SignInFormProps = {
   googleConfigured: boolean;
@@ -53,69 +53,35 @@ export function SignInForm({ googleConfigured }: SignInFormProps) {
 
   if (!googleConfigured) {
     return (
-      <div className="space-y-3 text-left">
-        <h2 className="text-foreground text-sm font-semibold">Google OAuth not configured</h2>
-        <p className="text-muted-foreground text-[13px] leading-relaxed">
-          Add Google Cloud OAuth credentials to{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
-            apps/web/.env.local
-          </code>{" "}
-          then restart{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">pnpm dev</code>.
-        </p>
-        <ol className="text-muted-foreground list-decimal space-y-1.5 pl-4 text-[13px] leading-relaxed">
-          <li>
-            Create an OAuth client (Web application) in{" "}
-            <a
-              className="text-primary underline underline-offset-2"
-              href="https://console.cloud.google.com/apis/credentials"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Google Cloud Console
-            </a>
-            .
-          </li>
-          <li>
-            Authorized redirect URI:{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[10px]">
-              http://localhost:3000/api/auth/callback/google
-            </code>
-          </li>
-          <li>
-            Set{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
-              GOOGLE_CLIENT_ID
-            </code>{" "}
-            and{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
-              GOOGLE_CLIENT_SECRET
-            </code>
-            .
-          </li>
-        </ol>
-        <p className="text-muted-foreground text-[11px] leading-relaxed">
-          Also ensure <code className="font-mono">BETTER_AUTH_SECRET</code> (32+ chars) and{" "}
-          <code className="font-mono">BETTER_AUTH_URL=http://localhost:3000</code> are set.
+      <div className="space-y-2 text-left">
+        <p className="text-foreground text-[13px] font-medium">Google sign-in isn’t configured</p>
+        <p className="text-muted-foreground text-[12px] leading-relaxed">
+          Set <code className="font-mono text-[11px]">GOOGLE_CLIENT_ID</code> and{" "}
+          <code className="font-mono text-[11px]">GOOGLE_CLIENT_SECRET</code> in{" "}
+          <code className="font-mono text-[11px]">apps/web/.env.local</code>, then restart the app.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2.5">
-      <button
+    <div className="space-y-3">
+      <Button
         type="button"
-        onClick={continueWithGoogle}
-        disabled={pending}
-        className={cn(
-          "aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg px-3.5 text-[13px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90 disabled:opacity-60",
-        )}
+        size="lg"
+        className="w-full"
+        loading={pending}
+        loadingText="Redirecting…"
+        onClick={() => void continueWithGoogle()}
       >
-        {!pending ? <GoogleMark className="size-3.5 shrink-0" /> : null}
-        {pending ? "Redirecting…" : "Continue with Google"}
-      </button>
-      {error ? <p className="text-destructive text-center text-[13px]">{error}</p> : null}
+        <GoogleMark className="size-4 shrink-0" />
+        Continue with Google
+      </Button>
+      {error ? (
+        <p className="text-destructive text-center text-[12px]" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
