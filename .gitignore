@@ -40,3 +40,5 @@ apps/web/out/
 coverage/
 node_modules/
 .neon
+# local notes on Vinyaas registry divergences (not shared)
+**/.vinyaas

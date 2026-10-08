@@ -11,7 +11,7 @@ export function Table({ className, ref, ...props }: React.ComponentProps<"table"
 }
 
 export function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
-  return <thead className={cn("border-border border-b", className)} {...props} />;
+  return <thead className={cn("border-border/40 border-b", className)} {...props} />;
 }
 
 export function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
@@ -20,12 +20,12 @@ export function TableBody({ className, ...props }: React.ComponentProps<"tbody">
 
 export function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   return (
-    <tfoot className={cn("border-border bg-muted border-t font-medium", className)} {...props} />
+    <tfoot className={cn("border-border/40 bg-muted border-t font-medium", className)} {...props} />
   );
 }
 
 export function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
-  return <tr className={cn("border-border hover:bg-accent border-b", className)} {...props} />;
+  return <tr className={cn("border-border/40 hover:bg-accent border-b", className)} {...props} />;
 }
 
 export function TableHead({ className, ...props }: React.ComponentProps<"th">) {

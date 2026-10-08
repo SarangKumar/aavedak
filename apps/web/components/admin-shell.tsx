@@ -1,11 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  paginationPageList,
+} from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
@@ -17,6 +27,8 @@ import type { AdminOverviewCounts, AdminResumeRow } from "@/lib/admin-data";
 import { formatDateTimeFixed } from "@/lib/format-datetime";
 import type { PendingUserRow } from "@/lib/user-approval-shared";
 import { cn } from "@/lib/utils";
+
+const RESUME_PAGE_SIZE = 10;
 
 type Props = {
   adminEmail: string;
@@ -42,6 +54,7 @@ export function AdminShell({
   pendingUsers: initialPending,
 }: Props) {
   const [resumeFilter, setResumeFilter] = useState<ResumeFilter>("all");
+  const [resumePage, setResumePage] = useState(1);
   const [pendingUsers, setPendingUsers] = useState(initialPending);
   /** `${userId}:approved` | `${userId}:rejected` — loader only on the clicked button. */
   const [actionKey, setActionKey] = useState<string | null>(null);
@@ -51,6 +64,17 @@ export function AdminShell({
     if (resumeFilter === "all") return resumes;
     return resumes.filter((r) => r.status === resumeFilter);
   }, [resumes, resumeFilter]);
+
+  const resumePageCount = Math.max(1, Math.ceil(filteredResumes.length / RESUME_PAGE_SIZE) || 1);
+  const resumeCurrentPage = Math.min(Math.max(1, resumePage), resumePageCount);
+  const pagedResumes = useMemo(() => {
+    const start = (resumeCurrentPage - 1) * RESUME_PAGE_SIZE;
+    return filteredResumes.slice(start, start + RESUME_PAGE_SIZE);
+  }, [filteredResumes, resumeCurrentPage]);
+
+  useEffect(() => {
+    setResumePage(1);
+  }, [resumeFilter]);
 
   const cards: Array<{ key: keyof AdminOverviewCounts; label: string }> = [
     { key: "profiles", label: "Profiles" },
@@ -207,7 +231,9 @@ export function AdminShell({
           </div>
           <Select
             value={resumeFilter}
-            onValueChange={(v) => setResumeFilter((v as ResumeFilter) || "all")}
+            onValueChange={(v) => {
+              setResumeFilter((v as ResumeFilter) || "all");
+            }}
           >
             <SelectTrigger className="border-border bg-background text-foreground h-8 w-[9rem] rounded-lg border px-2 text-[12px]">
               <SelectValue placeholder="Status" />
@@ -247,7 +273,7 @@ export function AdminShell({
                 </tr>
               </thead>
               <tbody className="divide-border/60 divide-y">
-                {filteredResumes.map((row) => (
+                {pagedResumes.map((row) => (
                   <tr key={row.id} className="bg-card/40">
                     <td className="px-2.5 py-2 align-top">
                       <p className="text-foreground font-medium">{row.displayName}</p>
@@ -316,6 +342,58 @@ export function AdminShell({
             </table>
           </div>
         )}
+
+        {filteredResumes.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <p className="text-muted-foreground text-[11px] tabular-nums">
+              Showing {(resumeCurrentPage - 1) * RESUME_PAGE_SIZE + 1}–
+              {Math.min(resumeCurrentPage * RESUME_PAGE_SIZE, filteredResumes.length)} of{" "}
+              {filteredResumes.length}
+            </p>
+            <Pagination className="mx-0 w-auto justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    size="sm"
+                    disabled={resumeCurrentPage <= 1}
+                    onClick={() => setResumePage((p) => Math.max(1, p - 1))}
+                  />
+                </PaginationItem>
+                {paginationPageList(resumeCurrentPage, resumePageCount).map(
+                  (pageNumber, index, list) => {
+                    const previous = list[index - 1];
+                    const showEllipsis = previous != null && pageNumber - previous > 1;
+                    return (
+                      <span key={pageNumber} className="contents">
+                        {showEllipsis ? (
+                          <PaginationItem>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        ) : null}
+                        <PaginationItem>
+                          <PaginationLink
+                            size="sm"
+                            isActive={pageNumber === resumeCurrentPage}
+                            onClick={() => setResumePage(pageNumber)}
+                          >
+                            {pageNumber}
+                          </PaginationLink>
+                        </PaginationItem>
+                      </span>
+                    );
+                  },
+                )}
+                <PaginationItem>
+                  <PaginationNext
+                    size="sm"
+                    disabled={resumeCurrentPage >= resumePageCount}
+                    onClick={() => setResumePage((p) => Math.min(resumePageCount, p + 1))}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        ) : null}
       </section>
 
       <section className="border-border/80 bg-card space-y-2 rounded-xl border p-3.5 shadow-sm">

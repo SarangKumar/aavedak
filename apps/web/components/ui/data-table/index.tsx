@@ -22,6 +22,7 @@ import {
   PaginationNext,
   PaginationPrevious,
   PaginationEllipsis,
+  paginationPageList,
 } from "../pagination";
 import { Skeleton } from "../skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../table";
@@ -125,24 +126,6 @@ function searchValue<TData>(column: DataTableColumn<TData>, row: TData) {
   }
 
   return "";
-}
-
-function pageList(current: number, total: number) {
-  if (total <= 5) {
-    return Array.from({ length: total }, (_, index) => index + 1);
-  }
-
-  const pages = new Set<number>([1, total, current]);
-
-  if (current > 1) {
-    pages.add(current - 1);
-  }
-
-  if (current < total) {
-    pages.add(current + 1);
-  }
-
-  return [...pages].sort((a, b) => a - b);
 }
 
 export function DataTable<TData>({
@@ -538,7 +521,7 @@ export function DataTable<TData>({
                   onClick={() => setPage((current) => Math.max(1, current - 1))}
                 />
               </PaginationItem>
-              {pageList(currentPage, pageCount).map((pageNumber, index, list) => {
+              {paginationPageList(currentPage, pageCount).map((pageNumber, index, list) => {
                 const previous = list[index - 1];
                 const showEllipsis = previous != null && pageNumber - previous > 1;
 

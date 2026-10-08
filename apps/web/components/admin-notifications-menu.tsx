@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { HeaderMenu } from "@/components/header-menu";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTimeFixed } from "@/lib/format-datetime";
 import type { PendingUserRow } from "@/lib/user-approval-shared";
@@ -51,6 +52,8 @@ function NotificationsPanel({ close, pendingCount, onCountChange }: PanelProps) 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<PendingUserRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [actionKey, setActionKey] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const loadPending = useCallback(async () => {
     setLoading(true);
@@ -74,6 +77,30 @@ function NotificationsPanel({ close, pendingCount, onCountChange }: PanelProps) 
     void loadPending();
   }, [loadPending]);
 
+  async function decide(userId: string, status: "approved" | "rejected") {
+    const key = `${userId}:${status}`;
+    setActionKey(key);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/approval`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not update approval.");
+      setItems((list) => {
+        const next = list.filter((u) => u.userId !== userId);
+        onCountChange?.(next.length);
+        return next;
+      });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not update approval.");
+    } finally {
+      setActionKey(null);
+    }
+  }
+
   return (
     <div>
       <div className="border-border/70 flex items-center justify-between gap-2 border-b px-3 py-2">
@@ -96,26 +123,61 @@ function NotificationsPanel({ close, pendingCount, onCountChange }: PanelProps) 
           No pending registrations.
         </p>
       ) : (
-        <ul className="max-h-72 overflow-y-auto">
-          {items.map((u) => (
-            <li key={u.userId} className="border-border/60 border-b last:border-b-0">
-              <Link
-                href="/admin"
-                role="menuitem"
-                onClick={close}
-                className="hover:bg-muted/40 block px-3 py-2.5 transition-colors"
+        <ul className="max-h-80 overflow-y-auto">
+          {items.map((u) => {
+            const busy = actionKey?.startsWith(`${u.userId}:`) ?? false;
+            return (
+              <li
+                key={u.userId}
+                className="border-border/60 space-y-2 border-b px-3 py-2.5 last:border-b-0"
               >
-                <p className="text-foreground truncate text-[13px] font-medium">
-                  {u.name || u.username}
-                </p>
-                <p className="text-muted-foreground truncate font-mono text-[11px]">
-                  {u.email || "—"} · {formatDateTimeFixed(u.createdAt)}
-                </p>
-              </Link>
-            </li>
-          ))}
+                <div className="min-w-0">
+                  <p className="text-foreground truncate text-[13px] font-medium">
+                    {u.name || u.username}
+                  </p>
+                  <p className="text-muted-foreground truncate font-mono text-[11px]">
+                    {u.email || "—"} · {formatDateTimeFixed(u.createdAt)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 cursor-pointer px-2.5 text-[11px]"
+                    disabled={busy}
+                    loading={actionKey === `${u.userId}:approved`}
+                    loadingText=""
+                    onClick={() => void decide(u.userId, "approved")}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 cursor-pointer px-2.5 text-[11px]"
+                    disabled={busy}
+                    loading={actionKey === `${u.userId}:rejected`}
+                    loadingText=""
+                    onClick={() => void decide(u.userId, "rejected")}
+                  >
+                    Reject
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
+
+      {actionError ? (
+        <p
+          className="text-destructive border-border/70 border-t px-3 py-2 text-[11px]"
+          role="alert"
+        >
+          {actionError}
+        </p>
+      ) : null}
 
       <div className="border-border/70 border-t">
         <Link

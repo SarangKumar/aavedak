@@ -134,8 +134,10 @@ export default async function HomePage() {
             Discover · Apply · Grow
           </p>
 
-          <p className="text-muted-foreground mt-3.5 max-w-xl text-pretty text-[15px] leading-relaxed sm:mt-4 sm:text-base">
-            Your personal job-search OS. Aavedak recommends and prepares — you decide and send.
+          <p className="text-muted-foreground max-w-88 mt-3.5 text-balance text-[15px] leading-relaxed sm:mt-4 sm:max-w-md sm:text-base">
+            Your personal job-search OS.
+            <br className="hidden sm:block" /> Aavedak recommends and prepares — you decide and
+            send.
           </p>
 
           <div className="aavedak-fade-up aavedak-fade-up-delay-1 mt-4 flex max-w-md flex-wrap items-center justify-center gap-1.5 sm:mt-5 sm:max-w-none">

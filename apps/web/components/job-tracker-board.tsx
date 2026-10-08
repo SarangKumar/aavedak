@@ -22,6 +22,16 @@ import {
 } from "@/components/ui/drag-and-drop";
 import { Modal } from "@/components/ui/modal";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  paginationPageList,
+} from "@/components/ui/pagination";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -48,6 +58,9 @@ import {
 import { CompanySelect } from "@/components/company-select";
 import { DatePickerField } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+
+const LIST_PAGE_SIZES = [10, 25, 50] as const;
+type ListPageSize = (typeof LIST_PAGE_SIZES)[number];
 
 export type ApplicationDto = {
   id: string;
@@ -166,6 +179,7 @@ export function JobTrackerBoard({
   const [importOpen, setImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [columnsOpen, setColumnsOpen] = useState(false);
+  const [listPageSize, setListPageSize] = useState<ListPageSize>(10);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [error, setError] = useState<string | null>(null);
@@ -488,6 +502,32 @@ export function JobTrackerBoard({
               <ListGlyph className="size-3.5" />
             </button>
           </div>
+          {prefs.trackerView === "list" ? (
+            <div
+              className="border-border bg-card inline-flex items-center gap-0.5 rounded-[10px] border p-0.5"
+              role="group"
+              aria-label="Applications per page"
+            >
+              {LIST_PAGE_SIZES.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  title={`${size} per page`}
+                  aria-label={`${size} applications per page`}
+                  aria-pressed={listPageSize === size}
+                  onClick={() => setListPageSize(size)}
+                  className={cn(
+                    "inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-[8px] px-2 text-[12px] font-medium tabular-nums transition-colors",
+                    listPageSize === size
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          ) : null}
           {prefs.trackerView === "kanban" ? (
             <button
               type="button"
@@ -669,7 +709,7 @@ export function JobTrackerBoard({
           </div>
         </div>
       ) : (
-        <ListView applications={filteredApplications} onSelect={openEdit} />
+        <ListView applications={filteredApplications} pageSize={listPageSize} onSelect={openEdit} />
       )}
 
       {filteredApplications.length === 0 && !pending ? (
@@ -1006,17 +1046,31 @@ function Field({
 
 function ListView({
   applications,
+  pageSize,
   onSelect,
 }: {
   applications: ApplicationDto[];
+  pageSize: number;
   onSelect: (app: ApplicationDto) => void;
 }) {
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">("all");
+  const [page, setPage] = useState(1);
 
   const rows = useMemo(() => {
     if (statusFilter === "all") return applications;
     return applications.filter((a) => a.status === statusFilter);
   }, [applications, statusFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize) || 1);
+  const currentPage = Math.min(Math.max(1, page), pageCount);
+  const pagedRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return rows.slice(start, start + pageSize);
+  }, [rows, currentPage, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, pageSize]);
 
   if (applications.length === 0) return null;
 
@@ -1055,21 +1109,21 @@ function ListView({
           );
         })}
       </div>
-      <Table className="text-[12px]">
+      <Table className="text-[12px] font-normal">
         <TableHeader>
-          <TableRow>
-            <TableHead>Company</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Location</TableHead>
-            <TableHead>CTC</TableHead>
-            <TableHead>Status</TableHead>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="font-normal">Company</TableHead>
+            <TableHead className="font-normal">Role</TableHead>
+            <TableHead className="font-normal">Location</TableHead>
+            <TableHead className="font-normal">CTC</TableHead>
+            <TableHead className="font-normal">Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((app) => (
+          {pagedRows.map((app) => (
             <TableRow
               key={app.id}
-              className="cursor-pointer"
+              className="hover:bg-muted/40 cursor-pointer"
               onClick={() => onSelect(app)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -1080,11 +1134,15 @@ function ListView({
               tabIndex={0}
               role="button"
             >
-              <TableCell className="text-foreground font-medium">{app.companyName}</TableCell>
-              <TableCell>{app.role}</TableCell>
-              <TableCell>{app.location}</TableCell>
-              <TableCell>{app.salaryCtc || "—"}</TableCell>
-              <TableCell>{STATUS_LABELS[app.status]}</TableCell>
+              <TableCell className="text-foreground/90 font-normal">{app.companyName}</TableCell>
+              <TableCell className="text-muted-foreground font-normal">{app.role}</TableCell>
+              <TableCell className="text-muted-foreground font-normal">{app.location}</TableCell>
+              <TableCell className="text-muted-foreground font-normal">
+                {app.salaryCtc || "—"}
+              </TableCell>
+              <TableCell className="text-muted-foreground font-normal">
+                {STATUS_LABELS[app.status]}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -1094,9 +1152,52 @@ function ListView({
           No applications in this status.
         </p>
       ) : (
-        <p className="text-muted-foreground px-1 py-1 text-[11px]">
-          Click a row to edit. Switch to Kanban and drag cards to change status.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1 pt-1">
+          <p className="text-muted-foreground text-[11px] tabular-nums">
+            Showing {(currentPage - 1) * pageSize + 1}–
+            {Math.min(currentPage * pageSize, rows.length)} of {rows.length}
+          </p>
+          <Pagination className="mx-0 w-auto justify-end">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                />
+              </PaginationItem>
+              {paginationPageList(currentPage, pageCount).map((pageNumber, index, list) => {
+                const previous = list[index - 1];
+                const showEllipsis = previous != null && pageNumber - previous > 1;
+                return (
+                  <span key={pageNumber} className="contents">
+                    {showEllipsis ? (
+                      <PaginationItem>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    ) : null}
+                    <PaginationItem>
+                      <PaginationLink
+                        size="sm"
+                        isActive={pageNumber === currentPage}
+                        onClick={() => setPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </PaginationLink>
+                    </PaginationItem>
+                  </span>
+                );
+              })}
+              <PaginationItem>
+                <PaginationNext
+                  size="sm"
+                  disabled={currentPage >= pageCount}
+                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
       )}
     </div>
   );

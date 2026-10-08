@@ -4,6 +4,25 @@ import { type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "../button";
 
+/** Compact page number list with ellipsis gaps (used by DataTable + app pagers). */
+export function paginationPageList(current: number, total: number): number[] {
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, total, current]);
+
+  if (current > 1) {
+    pages.add(current - 1);
+  }
+
+  if (current < total) {
+    pages.add(current + 1);
+  }
+
+  return [...pages].sort((a, b) => a - b);
+}
+
 export type PaginationProps = React.ComponentProps<"nav">;
 
 export function Pagination({ className, ...props }: PaginationProps) {
