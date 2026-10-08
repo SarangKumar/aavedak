@@ -2,7 +2,7 @@ import "server-only";
 
 import { analyzeResumeFallback } from "@/lib/ats-analyze-fallback";
 import { apiUrl, getApiBaseUrl } from "@/lib/api-url";
-import type { AtsAnalysis } from "@/lib/ats-types";
+import { normalizeAtsIssues, type AtsAnalysis } from "@/lib/ats-types";
 
 export type { AtsAnalysis } from "@/lib/ats-types";
 
@@ -45,6 +45,7 @@ function normalizeAnalysis(row: AtsAnalysis, engine: "fastapi" | "fallback"): At
   return {
     ...row,
     overallScore: row.overallScore ?? row.atsScore ?? 0,
+    atsIssues: normalizeAtsIssues(row.atsIssues),
     engine,
   };
 }

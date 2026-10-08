@@ -6,11 +6,13 @@ from __future__ import annotations
 SKILL_ALIASES: dict[str, tuple[str, tuple[str, ...]]] = {
     "react": ("React", ("react", "react.js", "reactjs", "react js")),
     "nextjs": ("Next.js", ("next.js", "nextjs", "next js")),
-    "typescript": ("TypeScript", ("typescript", "ts")),
-    "javascript": ("JavaScript", ("javascript", "js", "ecmascript")),
-    "nodejs": ("Node.js", ("node.js", "nodejs", "node js", "node")),
+    # Prefer unambiguous aliases — short forms like "go"/"node"/"js"/"ts"/"py"/"ml"/"tf"
+    # false-positive on normal English and inflate skill coverage.
+    "typescript": ("TypeScript", ("typescript",)),
+    "javascript": ("JavaScript", ("javascript", "ecmascript")),
+    "nodejs": ("Node.js", ("node.js", "nodejs", "node js")),
     "express": ("Express.js", ("express", "express.js", "expressjs")),
-    "python": ("Python", ("python", "py")),
+    "python": ("Python", ("python",)),
     "fastapi": ("FastAPI", ("fastapi", "fast api")),
     "django": ("Django", ("django",)),
     "flask": ("Flask", ("flask",)),
@@ -34,7 +36,7 @@ SKILL_ALIASES: dict[str, tuple[str, tuple[str, ...]]] = {
     "linux": ("Linux", ("linux", "unix")),
     "git": ("Git", ("git", "github", "gitlab")),
     "ci_cd": ("CI/CD", ("ci/cd", "cicd", "continuous integration", "continuous delivery")),
-    "rest": ("REST API", ("rest", "rest api", "restful", "rest apis")),
+    "rest": ("REST API", ("rest api", "restful", "rest apis", "rest")),
     "graphql": ("GraphQL", ("graphql",)),
     "kafka": ("Kafka", ("kafka", "apache kafka")),
     "elasticsearch": ("Elasticsearch", ("elasticsearch", "elastic search")),
@@ -56,9 +58,9 @@ SKILL_ALIASES: dict[str, tuple[str, tuple[str, ...]]] = {
     "vue": ("Vue.js", ("vue", "vue.js", "vuejs")),
     "angular": ("Angular", ("angular", "angularjs")),
     "figma": ("Figma", ("figma",)),
-    "machine_learning": ("Machine Learning", ("machine learning", "ml")),
+    "machine_learning": ("Machine Learning", ("machine learning",)),
     "pytorch": ("PyTorch", ("pytorch", "torch")),
-    "tensorflow": ("TensorFlow", ("tensorflow", "tf")),
+    "tensorflow": ("TensorFlow", ("tensorflow",)),
 }
 
 # Pairs that must NEVER be treated as the same (canonical ids)

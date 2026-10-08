@@ -59,11 +59,15 @@ def detect_mode(role: str, jd: str) -> str:
     return "role_match"
 
 
-def score_ats_compatibility(profile) -> tuple[int, list[str], list[str]]:
+def _issue(code: str, title: str, detail: str) -> dict[str, str]:
+    return {"code": code, "title": title, "detail": detail}
+
+
+def score_ats_compatibility(profile) -> tuple[int, list[str], list[dict[str, str]]]:
     """Continuous ATS-parseability score — hard to max, varies with content density."""
     score = 6.0
     signals: list[str] = []
-    issues: list[str] = []
+    issues: list[dict[str, str]] = []
     n = len(profile.raw.strip())
 
     # Length continuum (not a binary cliff at 400)
@@ -71,59 +75,170 @@ def score_ats_compatibility(profile) -> tuple[int, list[str], list[str]]:
     if n >= 400:
         signals.append("Enough extractable text for parsers")
     else:
-        issues.append("Little readable text — PDF may be image-only or sparsely extracted")
+        issues.append(
+            _issue(
+                "sparse_text",
+                "Too little readable text extracted",
+                f"Only about {n} characters came out of this file. Many ATS systems cannot read "
+                "scanned/image-only PDFs, text locked in images, or heavily designed layouts. "
+                "Export a text-based PDF (or DOCX → PDF) with selectable body text and avoid "
+                "putting contact info or skills only inside graphics.",
+            )
+        )
 
     if profile.email:
         score += 9
         signals.append("Email found in plain text")
     else:
-        issues.append("Add a plain-text email address")
+        issues.append(
+            _issue(
+                "missing_email",
+                "No plain-text email address found",
+                "Parsers look for a normal address like name@domain.com in the header. "
+                "Emails drawn as icons, QR codes, or image text are often skipped. Put your "
+                "email as selectable text near the top of the resume.",
+            )
+        )
 
     if profile.phone:
         score += 6
         signals.append("Phone number found")
     else:
-        issues.append("Include a phone number in plain text")
+        issues.append(
+            _issue(
+                "missing_phone",
+                "No plain-text phone number found",
+                "Include a phone number as normal digits (with optional country code), not as "
+                "an icon or image. Recruiters and older ATS parsers still rely on this field "
+                "when building a candidate profile.",
+            )
+        )
 
     if profile.linkedin:
         score += 4
         signals.append("LinkedIn present")
+    elif profile.email:
+        issues.append(
+            _issue(
+                "missing_linkedin",
+                "LinkedIn URL not detected",
+                "Add your LinkedIn profile as plain text (linkedin.com/in/…) in the header. "
+                "Optional for parseability, but it helps recruiters and many ATS profiles "
+                "attach a verifiable identity to the application.",
+            )
+        )
     if profile.github:
         score += 4
         signals.append("GitHub present")
+    elif profile.email and any(
+        s in profile.skill_mentions
+        for s in ("react", "nodejs", "python", "typescript", "javascript", "go", "java")
+    ):
+        issues.append(
+            _issue(
+                "missing_github",
+                "No GitHub (or portfolio) link detected",
+                "For engineering roles, a plain-text GitHub, GitLab, or portfolio URL gives "
+                "parsers and hiring managers a verifiable signal beyond a skills list.",
+            )
+        )
 
     section_pts = min(18.0, len(profile.sections) * 4.5)
     score += section_pts
     if profile.sections:
         signals.append(f"Sections detected: {', '.join(profile.sections)}")
+        missing_core = [s for s in ("experience", "education", "skills") if s not in profile.sections]
+        if missing_core:
+            issues.append(
+                _issue(
+                    "incomplete_sections",
+                    f"Missing clear section(s): {', '.join(missing_core)}",
+                    "Detected headings: "
+                    + (", ".join(profile.sections) if profile.sections else "none")
+                    + ". Standard labeled sections (Experience, Education, Skills) help ATS "
+                    "systems map content correctly. Use those words as line headings, not only "
+                    "in a design sidebar or icon labels.",
+                )
+            )
     else:
-        issues.append("Use clear headings (Experience, Education, Skills)")
+        issues.append(
+            _issue(
+                "no_sections",
+                "No standard section headings detected",
+                "The extract has no clear Experience / Education / Skills (or equivalent) "
+                "headings. Without them, parsers often dump the whole resume into one bag of "
+                "words and miss employment history. Use plain text headings on their own lines.",
+            )
+        )
 
     score += min(8.0, profile.date_ranges * 3.5)
     if profile.date_ranges >= 1:
         signals.append("Date ranges found on experience")
     else:
-        issues.append("Include employment date ranges parsers can read")
+        issues.append(
+            _issue(
+                "missing_dates",
+                "No employment date ranges detected",
+                "Write roles with readable ranges such as “Jan 2021 – Present” or "
+                "“03/2019 – 06/2022”. Date chips inside images or “2021-23” crammed into "
+                "tables are often missed, so tenure and recency signals stay empty.",
+            )
+        )
 
     score += min(7.0, len(profile.titles) * 3.5)
     if profile.titles:
         signals.append("Job titles detected")
     else:
-        issues.append("Make prior job titles explicit")
+        issues.append(
+            _issue(
+                "missing_titles",
+                "No prior job titles detected",
+                "Spell out titles like “Software Engineer” or “Backend Developer” next to "
+                "each role. Creative labels, icons, or titles only inside graphics make it "
+                "hard for ATS software to match your history to the target role.",
+            )
+        )
 
     skill_n = len(profile.skill_mentions)
     score += min(12.0, skill_n * 1.4)
     if skill_n < 3:
-        issues.append("Spell out tools and skills as plain text")
+        issues.append(
+            _issue(
+                "few_skills",
+                "Very few recognizable tools/skills in plain text",
+                f"Only {skill_n} known skill(s) were found in the extract. Write tool names "
+                "as normal words (e.g. React, PostgreSQL, Docker)—not logos, icon rows, or "
+                "skill bars. ATS keyword matching needs the literal text.",
+            )
+        )
 
     # Bullet density helps parsers
     score += min(8.0, len(profile.bullets) * 0.7)
+    if len(profile.bullets) < 3 and n >= 400:
+        issues.append(
+            _issue(
+                "few_bullets",
+                "Few distinct experience bullets detected",
+                f"Only {len(profile.bullets)} substantial line(s) looked like bullets. Prefer "
+                "short action-led lines (• Built… / - Designed…) instead of one dense paragraph "
+                "per job so parsers and humans can scan impact.",
+            )
+        )
 
     if profile.stuffing_score >= 0.4:
         score -= 12
-        issues.append("Keyword repetition detected — reduce stuffing")
+        issues.append(
+            _issue(
+                "keyword_stuffing",
+                "Keyword repetition / stuffing detected",
+                "The same tools appear many times with little experience context. That can "
+                "look like gaming to both parsers and recruiters, and it weakens evidence "
+                "quality. List each skill once in Skills, then prove it in Experience bullets "
+                "with an action and outcome.",
+            )
+        )
 
-    return _soft_cap(score, 88), signals[:8], issues[:8]
+    return _soft_cap(score, 88), signals[:8], issues[:10]
 
 
 def score_resume_quality(profile) -> tuple[int, list[str], list[dict[str, str]]]:
@@ -288,21 +403,32 @@ def _role_flavor(profile, role_key: str | None) -> float:
     return 38 + ((fe + be) / 2) * 40 + cloud * 8
 
 
+_SKILL_CATEGORIES = (
+    frozenset({"react", "nextjs", "typescript", "javascript", "css", "html", "redux", "vue", "angular"}),
+    frozenset({"nodejs", "python", "java", "go", "fastapi", "django", "flask", "rest", "graphql", "express"}),
+    frozenset({"postgresql", "mysql", "mongodb", "redis", "sql"}),
+    frozenset({"aws", "gcp", "azure", "docker", "kubernetes", "terraform", "linux", "ci_cd"}),
+    frozenset({"spark", "airflow", "kafka", "snowflake", "dbt", "bigquery", "etl", "iceberg", "databricks"}),
+    frozenset({"machine_learning", "pytorch", "tensorflow"}),
+)
+
+
 def _skill_set_signal(profile) -> float:
-    """Stable 0–100 signal from which skills appear (not just count)."""
-    ids = sorted(profile.skill_mentions.keys())
+    """0–100 from category breadth + experience depth (not a skill-id hash)."""
+    ids = set(profile.skill_mentions.keys())
     if not ids:
-        return 20.0
-    # Mix presence with experience-context coverage
+        return 15.0
     in_exp = sum(
         1 for m in profile.skill_mentions.values() if m.section in ("experience", "projects")
     )
-    # Hash-ish mix of skill ids so FE vs BE skill sets diverge even at same count
-    acc = 0
-    for i, sid in enumerate(ids):
-        acc += (sum(ord(c) for c in sid) * (i + 3)) % 97
-    mix = (acc % 40) + min(35, len(ids) * 3) + min(25, in_exp * 4)
-    return float(min(100, mix))
+    categories = sum(1 for cat in _SKILL_CATEGORIES if ids & cat)
+    breadth = min(40.0, categories * 8.0)
+    depth = min(35.0, in_exp * 5.0)
+    volume = min(25.0, len(ids) * 2.5)
+    # Skills only in a Skills section (no experience evidence) cap the signal.
+    if in_exp == 0 and ids:
+        return float(min(55.0, breadth * 0.6 + volume * 0.5))
+    return float(min(100.0, breadth + depth + volume))
 
 
 def _weighted_mean(parts: list[tuple[str, float, float]]) -> tuple[int, dict[str, float]]:
@@ -331,9 +457,16 @@ def _skill_dimension(
         return 0, matched, partial, missing
 
     scores: list[float] = []
-    for req in requirements:
+    weights: list[float] = []
+    for idx, req in enumerate(requirements):
+        # Core / earlier requirements weigh more (role buckets put core first).
+        if core_weight_boost:
+            half = max(1, len(requirements) // 2)
+            w = 1.6 if idx < half else 1.0
+        else:
+            w = 1.0
+
         if not req.canonical:
-            # text-only soft match
             status, strength, ev = responsibility_match(profile, req.text)
             entry = {
                 "skill": req.text,
@@ -348,6 +481,7 @@ def _skill_dimension(
             else:
                 missing.append(entry)
             scores.append(strength)
+            weights.append(w)
             continue
 
         strength, label, ev = evidence_strength(profile, req.canonical)
@@ -370,15 +504,69 @@ def _skill_dimension(
         else:
             missing.append(entry)
         scores.append(strength)
+        weights.append(w)
 
-    avg = (sum(scores) / len(scores)) * 100 if scores else 0
-    if core_weight_boost and scores:
-        # Slightly emphasize first half (usually core)
-        half = max(1, len(scores) // 2)
-        core_avg = sum(scores[:half]) / half
-        rest_avg = sum(scores[half:]) / max(1, len(scores) - half) if len(scores) > half else core_avg
-        avg = (core_avg * 0.7 + rest_avg * 0.3) * 100
+    weight_total = sum(weights) or 1.0
+    avg = (sum(s * w for s, w in zip(scores, weights)) / weight_total) * 100
+    # Gaps in the required set hurt more than a flat mean implies.
+    missing_ratio = sum(1 for s in scores if s < 0.3) / len(scores)
+    avg *= 1.0 - 0.22 * missing_ratio
     return _clamp(avg), matched, partial, missing
+
+
+def _jd_keyword_coverage(profile, jd_text: str, required_canonicals: set[str]) -> int | None:
+    """Lexical JD↔resume coverage for content beyond already-scored required skills."""
+    import re
+
+    raw = (jd_text or "").strip()
+    if not raw:
+        return None
+    stop = {
+        "with",
+        "from",
+        "that",
+        "this",
+        "your",
+        "will",
+        "have",
+        "experience",
+        "years",
+        "year",
+        "team",
+        "work",
+        "role",
+        "job",
+        "ability",
+        "strong",
+        "using",
+        "including",
+        "across",
+        "about",
+        "within",
+        "must",
+        "should",
+        "preferred",
+        "required",
+        "qualifications",
+        "responsibilities",
+    }
+    jd_tokens = {
+        t for t in re.findall(r"[a-z][a-z0-9+.#-]{3,}", raw.lower()) if t not in stop
+    }
+    # Drop tokens that are aliases of already-required skills (scored elsewhere).
+    from app.ats.skill_taxonomy import ALIAS_TO_CANONICAL
+
+    filtered: set[str] = set()
+    for t in jd_tokens:
+        can = ALIAS_TO_CANONICAL.get(t)
+        if can and can in required_canonicals:
+            continue
+        filtered.add(t)
+    if not filtered:
+        return None
+    resume_tokens = set(re.findall(r"[a-z][a-z0-9+.#-]{3,}", profile.lower))
+    coverage = len(filtered & resume_tokens) / len(filtered)
+    return _soft_cap(coverage * 100, 94)
 
 
 def analyze_resume(
@@ -419,7 +607,14 @@ def analyze_resume(
             "missingResponsibilities": [],
             "strengths": [],
             "improvements": [],
-            "atsIssues": ["Empty or unreadable resume text"],
+            "atsIssues": [
+                _issue(
+                    "empty_resume",
+                    "Empty or unreadable resume text",
+                    "No extractable text was available for this file. Re-upload a text-based "
+                    "PDF (selectable text), or paste the resume content if the PDF is scanned.",
+                )
+            ],
             "confidence": "low",
             "notes": notes,
             "weighting": {},
@@ -477,31 +672,27 @@ def analyze_resume(
         import re
 
         uniq = len(set(re.findall(r"[a-z][a-z0-9+.#-]{2,}", profile.lower)))
-        uniqueness = min(100.0, uniq / 2.0)
+        uniqueness = min(100.0, uniq / 2.2)
         evidence = _soft_cap(
-            quality_score * 0.55 + (in_exp_skills / max(1, len(profile.skill_mentions))) * 40,
+            quality_score * 0.5
+            + (in_exp_skills / max(1, len(profile.skill_mentions))) * 45
+            + (0 if profile.stuffing_score >= 0.35 else 8),
             90,
         )
         parts = [
-            ("atsCompatibility", 0.16, float(ats_score)),
-            ("resumeQuality", 0.24, float(quality_score)),
-            ("technicalSkills", 0.18, float(tech_score)),
-            ("experienceQuality", 0.20, float(exp_quality)),
-            ("evidenceQuality", 0.10, float(evidence)),
-            ("uniqueness", 0.07, uniqueness),
-            ("skillSet", 0.05, skill_signal),
+            ("atsCompatibility", 0.18, float(ats_score)),
+            ("resumeQuality", 0.26, float(quality_score)),
+            ("technicalSkills", 0.16, float(tech_score)),
+            ("experienceQuality", 0.22, float(exp_quality)),
+            ("evidenceQuality", 0.12, float(evidence)),
+            ("skillBreadth", 0.06, skill_signal),
         ]
         overall, weighting = _weighted_mean(parts)
-        # Tiny stable nudge from fingerprint so near-clones still diverge a bit
-        fp = _fingerprint(profile.raw)
-        try:
-            fp_nudge = (int(fp.split(":")[1], 16) % 9) - 4  # -4..+4
-        except (IndexError, ValueError):
-            fp_nudge = 0
-        overall = _soft_cap(overall + fp_nudge * 0.35, 93)
+        overall = _soft_cap(overall, 93)
         scores["evidenceQuality"] = evidence
         scores["atsCompatibility"] = ats_score
         scores["resumeQuality"] = quality_score
+        fp = _fingerprint(profile.raw)
         notes.append(
             f"Extracted {len(profile.raw.strip())} chars · {uniq} unique tokens · "
             f"{len(profile.skill_mentions)} skills · fp {fp}"
@@ -581,22 +772,29 @@ def analyze_resume(
     exp += min(12, sum(1 for m in profile.skill_mentions.values() if m.section == "experience") * 2)
     experience_match = _soft_cap(exp, 92)
 
-    # Keyword coverage = required + preferred + other blended
-    other_score, _, _, _ = _skill_dimension(profile, jd.other_keywords[:12])
-    keyword_bits = [s for s in (req_score, pref_score, other_score) if s is not None]
-    keyword_coverage = _clamp(sum(keyword_bits) / len(keyword_bits)) if keyword_bits else None
+    # Lexical JD coverage (excluding required-skill tokens already scored above)
+    required_canonicals = {r.canonical for r in jd.required if r.canonical}
+    keyword_coverage = _jd_keyword_coverage(profile, jd_text, required_canonicals)
+    if keyword_coverage is None and jd.other_keywords:
+        other_score, _, _, _ = _skill_dimension(profile, jd.other_keywords[:12])
+        keyword_coverage = other_score
 
-    # Evidence quality across matched required skills
+    # Evidence quality: prefer experience-backed strengths over skills-list hits
     evidence_vals = [
-        e["strength"]
+        float(e["strength"])
         for e in matched_skills + partial_skills
         if isinstance(e.get("strength"), (int, float))
     ]
-    evidence_quality = _clamp((sum(evidence_vals) / len(evidence_vals)) * 100) if evidence_vals else _clamp(
-        quality_score * 0.7
-    )
+    if evidence_vals:
+        ranked = sorted(evidence_vals, reverse=True)
+        top = ranked[: max(1, len(ranked) // 2)]
+        evidence_quality = _clamp((sum(top) / len(top)) * 65 + (sum(ranked) / len(ranked)) * 35)
+    else:
+        evidence_quality = _clamp(quality_score * 0.65)
     if profile.stuffing_score >= 0.35:
         evidence_quality = _clamp(evidence_quality - 18)
+    if in_exp_skills == 0 and profile.skill_mentions:
+        evidence_quality = _clamp(evidence_quality - 12)
 
     # Job title match — lexical + flavor so FE/BE/SDE titles diverge
     resume_title_best = 0.0
@@ -624,38 +822,40 @@ def analyze_resume(
     if mode == "role_match":
         parts = [
             ("atsCompatibility", 0.08, float(ats_score)),
-            ("requiredSkills", 0.28 if jd.required else 0.0, float(req_score)),
-            ("experienceMatch", 0.22, float(experience_match)),
-            ("responsibilityMatch", 0.08 if resp_score is not None else 0.0, float(resp_score or 0)),
-            ("keywordCoverage", 0.10 if keyword_coverage is not None else 0.0, float(keyword_coverage or 0)),
-            ("evidenceQuality", 0.10, float(evidence_quality)),
+            ("requiredSkills", 0.30 if jd.required else 0.0, float(req_score)),
+            ("preferredSkills", 0.08 if jd.preferred else 0.0, float(pref_score)),
+            ("experienceMatch", 0.20, float(experience_match)),
+            ("responsibilityMatch", 0.06 if resp_score is not None else 0.0, float(resp_score or 0)),
+            ("keywordCoverage", 0.08 if keyword_coverage is not None else 0.0, float(keyword_coverage or 0)),
+            ("evidenceQuality", 0.14, float(evidence_quality)),
             ("jobTitleMatch", 0.10 if effective_title else 0.0, float(job_title_match)),
-            ("roleFlavor", 0.04, float(flavor)),
+            ("skillBreadth", 0.04, float(skill_signal)),
         ]
     else:
-        # job_match suggested weights
-        edu_w = 0.05 if jd.education_required else 0.0
+        # job_match — required skills + evidence dominate; keywordCoverage is residual JD text only
+        edu_w = 0.04 if jd.education_required else 0.0
         edu_score = 80.0 if ("education" in profile.sections) else 40.0
         parts = [
-            ("requiredSkills", 0.30 if jd.required else 0.0, float(req_score)),
-            ("experienceMatch", 0.15, float(experience_match)),
-            ("responsibilityMatch", 0.15 if resp_score is not None else 0.0, float(resp_score or 0)),
-            ("preferredSkills", 0.10 if jd.preferred else 0.0, float(pref_score)),
-            ("keywordCoverage", 0.10 if keyword_coverage is not None else 0.0, float(keyword_coverage or 0)),
-            ("evidenceQuality", 0.10, float(evidence_quality)),
+            ("requiredSkills", 0.32 if jd.required else 0.0, float(req_score)),
+            ("experienceMatch", 0.14, float(experience_match)),
+            ("responsibilityMatch", 0.14 if resp_score is not None else 0.0, float(resp_score or 0)),
+            ("preferredSkills", 0.08 if jd.preferred else 0.0, float(pref_score)),
+            ("keywordCoverage", 0.08 if keyword_coverage is not None else 0.0, float(keyword_coverage or 0)),
+            ("evidenceQuality", 0.12, float(evidence_quality)),
             ("jobTitleMatch", 0.05 if effective_title else 0.0, float(job_title_match)),
             ("education", edu_w, edu_score),
             ("atsCompatibility", 0.05, float(ats_score)),
+            ("skillBreadth", 0.04, float(skill_signal)),
         ]
         if jd.too_short:
-            # lean more on role/resume
             parts = [
-                ("requiredSkills", 0.25 if jd.required else 0.0, float(req_score)),
-                ("experienceMatch", 0.20, float(experience_match)),
-                ("evidenceQuality", 0.15, float(evidence_quality)),
-                ("jobTitleMatch", 0.15 if effective_title else 0.0, float(job_title_match)),
-                ("atsCompatibility", 0.15, float(ats_score)),
-                ("resumeQuality", 0.10, float(quality_score)),
+                ("requiredSkills", 0.28 if jd.required else 0.0, float(req_score)),
+                ("experienceMatch", 0.18, float(experience_match)),
+                ("evidenceQuality", 0.16, float(evidence_quality)),
+                ("jobTitleMatch", 0.14 if effective_title else 0.0, float(job_title_match)),
+                ("atsCompatibility", 0.12, float(ats_score)),
+                ("resumeQuality", 0.08, float(quality_score)),
+                ("skillBreadth", 0.04, float(skill_signal)),
             ]
 
     overall, weighting = _weighted_mean(parts)
@@ -696,47 +896,12 @@ def analyze_resume(
     if not profile.skill_mentions:
         confidence = "low"
 
-    # Resume-specific token coverage + skill-set nudge (prevents identical / maxed scores)
     import re
 
-    stop = {
-        "with",
-        "from",
-        "that",
-        "this",
-        "your",
-        "will",
-        "have",
-        "experience",
-        "years",
-        "team",
-        "work",
-        "role",
-        "job",
-    }
     resume_tokens = set(re.findall(r"[a-z][a-z0-9+.#-]{3,}", profile.lower))
-    if (jd_text or "").strip():
-        jd_tokens = {
-            t for t in re.findall(r"[a-z][a-z0-9+.#-]{3,}", (jd_text or "").lower()) if t not in stop
-        }
-        if jd_tokens:
-            coverage = len(jd_tokens & resume_tokens) / len(jd_tokens)
-            overall = _clamp(overall * 0.78 + coverage * 100 * 0.14 + skill_signal * 0.08)
-    else:
-        # Role-only: vocabulary + skill-set + flavor so FE/SDE variants diverge
-        overall = _clamp(
-            overall * 0.82
-            + min(100, len(resume_tokens) / 2.2) * 0.08
-            + skill_signal * 0.06
-            + flavor * 0.04
-        )
-
+    # Overall is only the declared weighted mean — no post-hoc hash/coverage remix.
+    overall = _soft_cap(overall, 93)
     fp = _fingerprint(profile.raw)
-    try:
-        fp_nudge = (int(fp.split(":")[1], 16) % 9) - 4
-    except (IndexError, ValueError):
-        fp_nudge = 0
-    overall = _soft_cap(overall + fp_nudge * 0.3, 93)
     notes.append(
         f"Extracted {len(profile.raw.strip())} chars · {len(resume_tokens)} unique tokens · "
         f"{len(profile.skill_mentions)} skills · fp {fp}"

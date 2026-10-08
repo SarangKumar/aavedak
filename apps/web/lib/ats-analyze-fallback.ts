@@ -10,14 +10,20 @@ import {
   scoreBandLabel,
   type AtsAnalysis,
   type AtsImprovement,
+  type AtsIssue,
   type AtsSkillHit,
 } from "@/lib/ats-types";
 
+function issue(code: string, title: string, detail: string): AtsIssue {
+  return { code, title, detail };
+}
+
+/** Unambiguous aliases only — avoid short forms like js/ts/go/node that false-positive. */
 const ALIASES: Record<string, string[]> = {
   react: ["react", "react.js", "reactjs"],
   nextjs: ["next.js", "nextjs"],
   typescript: ["typescript"],
-  javascript: ["javascript"],
+  javascript: ["javascript", "ecmascript"],
   nodejs: ["node.js", "nodejs"],
   python: ["python"],
   postgresql: ["postgresql", "postgres"],
@@ -36,7 +42,7 @@ const ALIASES: Record<string, string[]> = {
   tailwind: ["tailwind"],
   html: ["html"],
   css: ["css"],
-  git: ["github", "gitlab"],
+  git: ["github", "gitlab", "git"],
   terraform: ["terraform"],
   linux: ["linux"],
   redis: ["redis"],
@@ -53,6 +59,14 @@ const ALIASES: Record<string, string[]> = {
   databricks: ["databricks"],
   etl: ["etl", "elt", "data pipeline"],
 };
+
+const SKILL_CATEGORIES: string[][] = [
+  ["react", "nextjs", "typescript", "javascript", "css", "html", "redux"],
+  ["nodejs", "python", "fastapi", "django", "rest", "graphql"],
+  ["postgresql", "mysql", "redis", "sql"],
+  ["aws", "gcp", "azure", "docker", "kubernetes", "terraform", "linux"],
+  ["spark", "airflow", "kafka", "snowflake", "dbt", "bigquery", "etl", "iceberg", "databricks"],
+];
 
 /** Role → weighted skill expectations (core gets more weight). */
 const ROLE_WEIGHTS: Record<string, Array<{ id: string; w: number }>> = {
@@ -282,9 +296,22 @@ function skillStrength(hit: { count: number; inExp: boolean } | undefined): {
   if (hit.inExp && hit.count <= 4)
     return { strength: 1, status: "matched", matchType: "exact_strong" };
   if (hit.inExp) return { strength: 0.9, status: "matched", matchType: "exact_strong" };
-  if (hit.count === 1) return { strength: 0.55, status: "partial", matchType: "exact_weak" };
-  if (hit.count <= 3) return { strength: 0.45, status: "partial", matchType: "exact_weak" };
-  return { strength: 0.35, status: "partial", matchType: "stuffed" };
+  // Skills-list only — partial credit, never a full match
+  if (hit.count >= 5) return { strength: 0.25, status: "partial", matchType: "stuffed" };
+  if (hit.count === 1) return { strength: 0.45, status: "partial", matchType: "exact_weak" };
+  if (hit.count <= 3) return { strength: 0.35, status: "partial", matchType: "exact_weak" };
+  return { strength: 0.3, status: "partial", matchType: "exact_weak" };
+}
+
+function skillSetSignal(skillIds: string[], inExp: number): number {
+  if (skillIds.length === 0) return 15;
+  const idSet = new Set(skillIds);
+  const categories = SKILL_CATEGORIES.filter((cat) => cat.some((id) => idSet.has(id))).length;
+  const breadth = Math.min(40, categories * 8);
+  const depth = Math.min(35, inExp * 5);
+  const volume = Math.min(25, skillIds.length * 2.5);
+  if (inExp === 0) return Math.min(55, breadth * 0.6 + volume * 0.5);
+  return Math.min(100, breadth + depth + volume);
 }
 
 export function analyzeResumeFallback(input: {
@@ -318,7 +345,13 @@ export function analyzeResumeFallback(input: {
       missingResponsibilities: [],
       strengths: [],
       improvements: [],
-      atsIssues: ["Empty or unreadable resume text"],
+      atsIssues: [
+        issue(
+          "empty_resume",
+          "Empty or unreadable resume text",
+          "No extractable text was available for this file. Re-upload a text-based PDF (selectable text), or paste the resume content if the PDF is scanned.",
+        ),
+      ],
       confidence: "low",
       error: "Could not extract readable text from this PDF.",
       engine: "fallback",
@@ -345,21 +378,81 @@ export function analyzeResumeFallback(input: {
 
   // —— ATS compatibility (continuous, harder to max) ——
   let ats = 8;
-  const atsIssues: string[] = [];
+  const atsIssues: AtsIssue[] = [];
+  const hasEmail = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text);
+  const hasPhone = /\+?\d[\d\s().-]{7,}\d/.test(text);
   ats += Math.min(16, text.length / 120); // length continuum
-  if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)) ats += 10;
-  else atsIssues.push("Add a plain-text email address");
-  if (/\+?\d[\d\s().-]{7,}\d/.test(text)) ats += 7;
-  else atsIssues.push("Include a phone number in plain text");
+  if (text.trim().length < 400) {
+    atsIssues.push(
+      issue(
+        "sparse_text",
+        "Too little readable text extracted",
+        `Only about ${text.trim().length} characters came out of this file. Many ATS systems cannot read scanned/image-only PDFs or text locked in graphics. Export a text-based PDF with selectable body text.`,
+      ),
+    );
+  }
+  if (hasEmail) ats += 10;
+  else
+    atsIssues.push(
+      issue(
+        "missing_email",
+        "No plain-text email address found",
+        "Parsers look for a normal address like name@domain.com in the header. Emails drawn as icons or image text are often skipped.",
+      ),
+    );
+  if (hasPhone) ats += 7;
+  else
+    atsIssues.push(
+      issue(
+        "missing_phone",
+        "No plain-text phone number found",
+        "Include a phone number as normal digits (with optional country code), not as an icon or image.",
+      ),
+    );
   ats += Math.min(20, sections.length * 4.5);
-  if (sections.length < 3) atsIssues.push("Use clear Experience / Education / Skills headings");
+  if (sections.length < 3) {
+    const missing = ["experience", "education", "skills"].filter((s) => !sections.includes(s));
+    atsIssues.push(
+      issue(
+        sections.length === 0 ? "no_sections" : "incomplete_sections",
+        sections.length === 0
+          ? "No standard section headings detected"
+          : `Missing clear section(s): ${missing.join(", ") || "core sections"}`,
+        "Standard labeled sections (Experience, Education, Skills) help ATS systems map content correctly. Use those words as line headings, not only in a design sidebar.",
+      ),
+    );
+  }
   if (lower.includes("linkedin")) ats += 4;
+  else if (hasEmail) {
+    atsIssues.push(
+      issue(
+        "missing_linkedin",
+        "LinkedIn URL not detected",
+        "Add your LinkedIn profile as plain text (linkedin.com/in/…) in the header so recruiters can verify identity.",
+      ),
+    );
+  }
   if (lower.includes("github")) ats += 4;
   ats += Math.min(12, skills.size * 1.2);
+  if (skills.size < 3) {
+    atsIssues.push(
+      issue(
+        "few_skills",
+        "Very few recognizable tools/skills in plain text",
+        `Only ${skills.size} known skill(s) were found. Write tool names as normal words (e.g. React, PostgreSQL)—not logos or skill bars.`,
+      ),
+    );
+  }
   ats += Math.min(8, tokens.length / 40);
   if (stuffing) {
     ats -= stuffing * 6;
-    atsIssues.push("Keyword repetition detected — reduce stuffing");
+    atsIssues.push(
+      issue(
+        "keyword_stuffing",
+        "Keyword repetition / stuffing detected",
+        "The same tools appear many times with little experience context. List each skill once in Skills, then prove it in Experience bullets with an action and outcome.",
+      ),
+    );
   }
   ats = softCap(ats, 90);
 
@@ -376,19 +469,8 @@ export function analyzeResumeFallback(input: {
   quality = softCap(quality, 88);
 
   const inExp = [...skills.values()].filter((s) => s.inExp).length;
-  // Skill-set mix so FE vs BE resumes diverge even at similar skill counts
   const skillIds = [...skills.keys()].sort();
-  let skillMix = 0;
-  for (let i = 0; i < skillIds.length; i += 1) {
-    const sid = skillIds[i]!;
-    let acc = 0;
-    for (let c = 0; c < sid.length; c += 1) acc += sid.charCodeAt(c);
-    skillMix += (acc * (i + 3)) % 97;
-  }
-  const skillSignal = Math.min(
-    100,
-    (skillMix % 40) + Math.min(35, skills.size * 3) + Math.min(25, inExp * 4),
-  );
+  const skillSignal = skillSetSignal(skillIds, inExp);
   const tech = softCap(skills.size * 6 + inExp * 4 + skillSignal * 0.35, 90);
   const expQuality = softCap(
     22 + actionBullets * 3.5 + metricHits * 4.5 + (inExp > 0 ? 8 : 0) + Math.min(14, lines.length),
@@ -436,18 +518,17 @@ export function analyzeResumeFallback(input: {
   let overall = 0;
 
   if (mode === "resume_only") {
-    scores.evidenceQuality = softCap(quality * 0.55 + (inExp / Math.max(1, skills.size)) * 40, 90);
-    const uniqueness = Math.min(100, tokens.length / 2.0);
-    const fpNudge = (parseInt(fp.split(":")[1] || "0", 16) % 9) - 4;
+    scores.evidenceQuality = softCap(
+      quality * 0.5 + (inExp / Math.max(1, skills.size)) * 45 + (stuffing ? 0 : 8),
+      90,
+    );
     overall = softCap(
-      ats * 0.16 +
-        quality * 0.24 +
-        tech * 0.18 +
-        expQuality * 0.2 +
-        (scores.evidenceQuality || 0) * 0.1 +
-        uniqueness * 0.07 +
-        skillSignal * 0.05 +
-        fpNudge * 0.35,
+      ats * 0.18 +
+        quality * 0.26 +
+        tech * 0.16 +
+        expQuality * 0.22 +
+        (scores.evidenceQuality || 0) * 0.12 +
+        skillSignal * 0.06,
       93,
     );
   } else {
@@ -469,11 +550,13 @@ export function analyzeResumeFallback(input: {
 
     let weightedSum = 0;
     let weightTotal = 0;
+    let missingCount = 0;
     for (const { id, w } of reqList) {
       weightTotal += w;
       const hit = skills.get(id);
       const { strength, status, matchType } = skillStrength(hit);
       weightedSum += strength * w;
+      if (strength < 0.3) missingCount += 1;
       const entry: AtsSkillHit = {
         skill: id,
         status,
@@ -497,7 +580,11 @@ export function analyzeResumeFallback(input: {
       }
     }
 
-    const reqScore = softCap((weightedSum / Math.max(1, weightTotal)) * 100, 95);
+    const missingRatio = missingCount / Math.max(1, reqList.length);
+    const reqScore = softCap(
+      (weightedSum / Math.max(1, weightTotal)) * 100 * (1 - 0.22 * missingRatio),
+      95,
+    );
     scores.requiredSkills = reqScore;
 
     // Role flavor alignment: title vs language markers on THIS resume
@@ -546,21 +633,16 @@ export function analyzeResumeFallback(input: {
     }
 
     overall = softCap(
-      (scores.requiredSkills || 0) * 0.26 +
-        (scores.experienceMatch || 0) * 0.2 +
-        (scores.evidenceQuality || 0) * 0.12 +
+      (scores.requiredSkills || 0) * 0.3 +
+        (scores.experienceMatch || 0) * 0.18 +
+        (scores.evidenceQuality || 0) * 0.14 +
         (scores.jobTitleMatch || 0) * 0.1 +
-        (scores.keywordCoverage || 0) * 0.1 +
-        ats * 0.06 +
+        (scores.keywordCoverage || 0) * 0.08 +
+        ats * 0.08 +
         quality * 0.08 +
-        skillSignal * 0.04 +
-        flavor * 0.04,
+        skillSignal * 0.04,
       93,
     );
-
-    const uniqNudge = Math.min(6, tokens.length / 45);
-    const fpNudge = (parseInt(fp.split(":")[1] || "0", 16) % 9) - 4;
-    overall = clamp(overall + uniqNudge * 0.35 + fpNudge * 0.3);
   }
 
   return {

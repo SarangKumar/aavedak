@@ -48,7 +48,13 @@ function emptyTextAnalysis(
     missingResponsibilities: [],
     strengths: [],
     improvements: [],
-    atsIssues: [message],
+    atsIssues: [
+      {
+        code: "analyze_error",
+        title: "Could not analyze this resume",
+        detail: message,
+      },
+    ],
     confidence: "low",
     error: message,
     engine: "fallback",

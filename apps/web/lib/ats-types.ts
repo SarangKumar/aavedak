@@ -6,6 +6,37 @@ export type AtsImprovement = {
   reason: string;
 };
 
+/** Parseability / structure problems that hurt ATS extraction. */
+export type AtsIssue = {
+  code: string;
+  title: string;
+  detail: string;
+};
+
+/** Accept structured issues or legacy plain strings from older API responses. */
+export function normalizeAtsIssues(raw: unknown): AtsIssue[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AtsIssue[] = [];
+  for (const item of raw) {
+    if (typeof item === "string" && item.trim()) {
+      out.push({ code: "legacy", title: item.trim(), detail: item.trim() });
+      continue;
+    }
+    if (item && typeof item === "object") {
+      const row = item as Record<string, unknown>;
+      const title = typeof row.title === "string" ? row.title.trim() : "";
+      const detail = typeof row.detail === "string" ? row.detail.trim() : "";
+      if (!title && !detail) continue;
+      out.push({
+        code: typeof row.code === "string" && row.code ? row.code : "issue",
+        title: title || detail,
+        detail: detail || title,
+      });
+    }
+  }
+  return out;
+}
+
 export type AtsSkillHit = {
   skill: string;
   canonical?: string;
@@ -53,7 +84,7 @@ export type AtsAnalysis = {
   missingResponsibilities: AtsResponsibilityHit[];
   strengths: string[];
   improvements: AtsImprovement[];
-  atsIssues: string[];
+  atsIssues: AtsIssue[];
   confidence: "high" | "medium" | "low";
   notes?: string[];
   weighting?: Record<string, number>;
