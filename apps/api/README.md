@@ -39,9 +39,22 @@ source .venv/bin/activate
 uvicorn app.main:app --reload --port 8000
 ```
 
-Health check: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) → `{"ok":true}`.
+Health check: [http://127.0.0.1:8000/svc/health](http://127.0.0.1:8000/svc/health) → `{"ok":true}`.
 
 OpenAPI docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+
+## Vercel (same project as Next)
+
+Root `vercel.json` deploys **web** (`apps/web`) + **api** (`apps/api`) via Vercel Services.
+
+| Environment | Health URL                              |
+| ----------- | --------------------------------------- |
+| Local       | `http://127.0.0.1:8000/svc/health`      |
+| Production  | `https://aavedak.vercel.app/svc/health` |
+
+Next.js app routes stay at `/api/*`. FastAPI is only under `/svc/*`.
+
+**Vercel project setting:** Root Directory must be the **repo root** (`.`), not `apps/web`, so both services build after you push.
 
 ## Env
 

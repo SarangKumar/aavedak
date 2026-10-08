@@ -81,12 +81,15 @@ pnpm dev
 aavedak/
 ├── apps/
 │   ├── web/          Next.js App Router + TS + Tailwind v4
-│   ├── api/          FastAPI (uvicorn)
+│   ├── api/          FastAPI (uvicorn) — Vercel path /svc/*
 │   └── extension/    Chrome extension stub
 ├── docs/             Product & architecture notes
 ├── scripts/          Bootstrap and tooling
+├── vercel.json       Vercel Services: web + api (same project)
 └── package.json      Workspace root
 ```
+
+**Deploy (one Vercel project):** Root Directory = repo root. Push triggers builds for Next (`/`) and FastAPI (`/svc/*`). Health: `https://aavedak.vercel.app/svc/health`.
 
 ### App routes (no username prefix)
 
