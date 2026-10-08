@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
 import { hasFullyOnboarded } from "@/lib/onboarding";
-import { REJECTED_APPROVAL_MESSAGE } from "@/lib/user-approval";
 
 type Props = {
   searchParams: Promise<{ next?: string }>;
@@ -26,11 +25,8 @@ export default async function AuthContinuePage({ searchParams }: Props) {
     image: session.user.image,
   });
 
-  if (profile.approvalStatus === "pending") {
+  if (profile.approvalStatus === "pending" || profile.approvalStatus === "rejected") {
     redirect("/pending-approval");
-  }
-  if (profile.approvalStatus === "rejected") {
-    redirect(`/closed?reason=${encodeURIComponent(REJECTED_APPROVAL_MESSAGE)}`);
   }
 
   const next = params.next?.startsWith("/") ? params.next : null;

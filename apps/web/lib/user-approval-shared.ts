@@ -2,7 +2,9 @@ export type ApprovalStatus = "pending" | "approved" | "rejected";
 
 export const PENDING_APPROVAL_MESSAGE = "Your account is waiting for an admin to approve access.";
 export const REJECTED_APPROVAL_MESSAGE =
-  "Your access request was not approved. Contact an admin if you think this is a mistake.";
+  "Your access request was not approved. You can request access again from this page.";
+export const APPROVED_APPROVAL_MESSAGE =
+  "You’re approved — continuing to onboarding or your dashboard.";
 
 export function isApprovalStatus(value: unknown): value is ApprovalStatus {
   return value === "pending" || value === "approved" || value === "rejected";

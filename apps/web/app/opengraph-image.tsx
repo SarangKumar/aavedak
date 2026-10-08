@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
 import { ImageResponse } from "next/og";
 
 // Node.js — Edge is not supported when deploying with Vercel Services.
@@ -6,7 +9,10 @@ export const alt = "Aavedak — Discover · Apply · Grow";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpenGraphImage() {
+export default async function OpenGraphImage() {
+  const logoBytes = await readFile(join(process.cwd(), "public/brand/logo-icon.png"));
+  const logoSrc = `data:image/png;base64,${logoBytes.toString("base64")}`;
+
   return new ImageResponse(
     <div
       style={{
@@ -32,22 +38,14 @@ export default function OpenGraphImage() {
           letterSpacing: 2,
         }}
       >
-        <div
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 14,
-            background: "linear-gradient(135deg, #D4AF37 0%, #8B7355 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#090909",
-            fontSize: 32,
-            fontWeight: 800,
-          }}
-        >
-          A
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element -- OG ImageResponse */}
+        <img
+          src={logoSrc}
+          alt=""
+          width={72}
+          height={72}
+          style={{ width: 72, height: 72, borderRadius: 16, objectFit: "contain" }}
+        />
         AAVEDAK
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

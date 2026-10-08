@@ -59,3 +59,16 @@ export async function setApprovalStatus(userId: string, status: ApprovalStatus):
   `) as Array<{ user_id: string }>;
   return Boolean(rows[0]);
 }
+
+/** Rejected users can send a new access request (back to pending). */
+export async function reRequestApproval(userId: string): Promise<boolean> {
+  await ensureAppSchema();
+  const now = new Date().toISOString();
+  const rows = (await getSql()`
+    UPDATE profiles
+    SET approval_status = 'pending', updated_at = ${now}
+    WHERE user_id = ${userId} AND approval_status = 'rejected'
+    RETURNING user_id
+  `) as Array<{ user_id: string }>;
+  return Boolean(rows[0]);
+}

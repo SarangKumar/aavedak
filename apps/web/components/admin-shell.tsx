@@ -56,7 +56,8 @@ export function AdminShell({
 }: Props) {
   const [resumeFilter, setResumeFilter] = useState<ResumeFilter>("all");
   const [pendingUsers, setPendingUsers] = useState(initialPending);
-  const [actionId, setActionId] = useState<string | null>(null);
+  /** `${userId}:approved` | `${userId}:rejected` — loader only on the clicked button. */
+  const [actionKey, setActionKey] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const filteredResumes = useMemo(() => {
@@ -73,7 +74,8 @@ export function AdminShell({
   ];
 
   async function decide(userId: string, status: "approved" | "rejected") {
-    setActionId(userId);
+    const key = `${userId}:${status}`;
+    setActionKey(key);
     setActionError(null);
     try {
       const res = await fetch(`/api/admin/users/${userId}/approval`, {
@@ -87,7 +89,7 @@ export function AdminShell({
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Could not update approval.");
     } finally {
-      setActionId(null);
+      setActionKey(null);
     }
   }
 
@@ -180,8 +182,8 @@ export function AdminShell({
                     type="button"
                     size="sm"
                     className="cursor-pointer"
-                    disabled={actionId === u.userId}
-                    loading={actionId === u.userId}
+                    disabled={actionKey?.startsWith(`${u.userId}:`) ?? false}
+                    loading={actionKey === `${u.userId}:approved`}
                     loadingText=""
                     onClick={() => void decide(u.userId, "approved")}
                   >
@@ -192,7 +194,9 @@ export function AdminShell({
                     size="sm"
                     variant="outline"
                     className="cursor-pointer"
-                    disabled={actionId === u.userId}
+                    disabled={actionKey?.startsWith(`${u.userId}:`) ?? false}
+                    loading={actionKey === `${u.userId}:rejected`}
+                    loadingText=""
                     onClick={() => void decide(u.userId, "rejected")}
                   >
                     Reject

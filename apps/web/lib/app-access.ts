@@ -32,11 +32,8 @@ async function getSessionUser(): Promise<AppSessionUser | null> {
 }
 
 function enforceApproval(profile: Profile): void {
-  if (profile.approvalStatus === "pending") {
+  if (profile.approvalStatus === "pending" || profile.approvalStatus === "rejected") {
     redirect("/pending-approval");
-  }
-  if (profile.approvalStatus === "rejected") {
-    redirect(`/closed?reason=${encodeURIComponent(REJECTED_APPROVAL_MESSAGE)}`);
   }
 }
 
@@ -68,14 +65,11 @@ export async function requireOnboardingSession(): Promise<AppAccess> {
   return { user, profile };
 }
 
-/** Session only — for the pending-approval waiting page (blocks rejected). */
+/** Session for the approval status page (pending or rejected). */
 export async function requirePendingApprovalSession(): Promise<AppAccess> {
   const user = await getSessionUser();
   if (!user) redirect("/sign-in?next=/pending-approval");
   const profile = await ensureProfile(user);
-  if (profile.approvalStatus === "rejected") {
-    redirect(`/closed?reason=${encodeURIComponent(REJECTED_APPROVAL_MESSAGE)}`);
-  }
   if (profile.approvalStatus === "approved") {
     if (await hasFullyOnboarded(user.id)) redirect("/dashboard");
     redirect("/onboarding");
