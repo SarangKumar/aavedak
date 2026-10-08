@@ -25,6 +25,13 @@ import {
   type ProfileCustomLink,
   type ProfileLinks,
 } from "@/lib/profile-links";
+import {
+  MAX_PROFILE_PROJECTS,
+  MAX_PROJECT_DESCRIPTION,
+  parseProfileProjectsJson,
+  serializeProfileProjects,
+  type ProfileProject,
+} from "@/lib/profile-projects";
 import { initialApprovalStatus } from "@/lib/user-approval";
 import { isApprovalStatus, type ApprovalStatus } from "@/lib/user-approval-shared";
 import { usernameFromUser } from "@/lib/username";
@@ -45,6 +52,7 @@ export type Profile = {
   links: ProfileLinks;
   /** User-defined title + URL pairs (stored in links_json.custom). */
   customLinks: ProfileCustomLink[];
+  projects: ProfileProject[];
   imageUrl: string | null;
   onboardingComplete: boolean;
   /** Admin gate before onboarding. Existing users are approved. */
@@ -63,6 +71,7 @@ type ProfileRow = {
   portfolio_url: string | null;
   linkedin_url: string | null;
   links_json: string | null;
+  projects_json: string | null;
   image_url: string | null;
   onboarding_complete: number | boolean;
   approval_status: string | null;
@@ -113,6 +122,7 @@ function mapRow(row: ProfileRow): Profile {
     linkedinUrl: links.linkedin ?? null,
     links,
     customLinks: parsed.custom,
+    projects: parseProfileProjectsJson(row.projects_json),
     imageUrl: row.image_url,
     onboardingComplete: Boolean(row.onboarding_complete),
     approvalStatus: isApprovalStatus(row.approval_status) ? row.approval_status : "approved",
@@ -150,7 +160,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   await ensureAppSchema();
   const rows = (await getSql()`
     SELECT user_id, username, email, name, bio, portfolio_url, linkedin_url,
-      links_json, image_url, onboarding_complete, approval_status,
+      links_json, projects_json, image_url, onboarding_complete, approval_status,
       experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
       salary_currency, preferred_locations_json, remote_preference, work_authorization,
       skills_json, job_search_status, company_size_preference, industry_preference,
@@ -164,7 +174,7 @@ export async function getProfileByUsername(username: string): Promise<Profile | 
   await ensureAppSchema();
   const rows = (await getSql()`
     SELECT user_id, username, email, name, bio, portfolio_url, linkedin_url,
-      links_json, image_url, onboarding_complete, approval_status,
+      links_json, projects_json, image_url, onboarding_complete, approval_status,
       experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
       salary_currency, preferred_locations_json, remote_preference, work_authorization,
       skills_json, job_search_status, company_size_preference, industry_preference,
@@ -230,7 +240,7 @@ export async function ensureProfile(user: {
       )
       ON CONFLICT DO NOTHING
       RETURNING user_id, username, email, name, bio, portfolio_url, linkedin_url,
-        links_json, image_url, onboarding_complete, approval_status,
+        links_json, projects_json, image_url, onboarding_complete, approval_status,
         experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
         salary_currency, preferred_locations_json, remote_preference, work_authorization,
         skills_json, job_search_status, company_size_preference, industry_preference,
@@ -264,6 +274,7 @@ export type ProfilePublicPatch = {
   linkedinUrl?: string | null;
   links?: ProfileLinks;
   customLinks?: ProfileCustomLink[];
+  projects?: ProfileProject[];
 };
 
 function normalizeOptionalText(value: string | null, max: number): string | null {
@@ -322,6 +333,26 @@ function normalizeCustomLinks(input: ProfileCustomLink[]): ProfileCustomLink[] {
   return out;
 }
 
+function normalizeProjects(input: ProfileProject[]): ProfileProject[] {
+  const out: ProfileProject[] = [];
+  for (const item of input) {
+    const title = normalizeOptionalText(item.title ?? null, 120);
+    if (!title) continue;
+    const urlRaw = item.url?.trim() ?? "";
+    const url = urlRaw ? (normalizeOptionalUrl(urlRaw) ?? "") : "";
+    const description =
+      normalizeOptionalText(item.description ?? null, MAX_PROJECT_DESCRIPTION) ?? "";
+    const faviconUrl = url && item.faviconUrl ? normalizeOptionalUrl(item.faviconUrl) : null;
+    const id =
+      typeof item.id === "string" && item.id.trim()
+        ? item.id.trim().slice(0, 64)
+        : crypto.randomUUID();
+    out.push({ id, title, url, description, imageUrl: null, faviconUrl });
+    if (out.length >= MAX_PROFILE_PROJECTS) break;
+  }
+  return out;
+}
+
 /** Owner update for shareable profile fields. */
 export async function updateProfilePublic(
   userId: string,
@@ -357,9 +388,13 @@ export async function updateProfilePublic(
       ? normalizeCustomLinks(patch.customLinks)
       : existing.customLinks;
 
+  const nextProjects =
+    patch.projects !== undefined ? normalizeProjects(patch.projects) : existing.projects;
+
   const nextPortfolio = nextLinks.portfolio ?? null;
   const nextLinkedin = nextLinks.linkedin ?? null;
   const linksJson = serializeProfileLinks(nextLinks, nextCustom);
+  const projectsJson = serializeProfileProjects(nextProjects);
 
   const now = new Date().toISOString();
   await getSql()`
@@ -369,6 +404,7 @@ export async function updateProfilePublic(
         portfolio_url = ${nextPortfolio},
         linkedin_url = ${nextLinkedin},
         links_json = ${linksJson},
+        projects_json = ${projectsJson},
         updated_at = ${now}
     WHERE user_id = ${userId}
   `;

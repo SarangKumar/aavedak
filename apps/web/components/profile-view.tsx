@@ -149,6 +149,115 @@ export function ProfileView({
         </div>
       </div>
 
+      {profile.projects.length > 0 ? (
+        <div className="border-border/80 bg-card ring-ring/10 rounded-lg border p-4 shadow-sm ring-1 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Projects</h2>
+            {isOwner ? (
+              <Link
+                href={`/${profile.username}/settings`}
+                className="text-muted-foreground hover:text-foreground text-[11px] font-medium"
+              >
+                Manage
+              </Link>
+            ) : null}
+          </div>
+          <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            {profile.projects.map((project) => {
+              let host = "";
+              let href = project.url.trim();
+              if (href) {
+                try {
+                  const parsed = new URL(href);
+                  host = parsed.hostname.replace(/^www\./, "");
+                  parsed.searchParams.set("utm_source", "aavedak");
+                  href = parsed.toString();
+                } catch {
+                  host = href;
+                  href = href.includes("?")
+                    ? `${href}&utm_source=aavedak`
+                    : `${href}?utm_source=aavedak`;
+                }
+              }
+              const body = (
+                <>
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    {project.faviconUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={project.faviconUrl}
+                        alt=""
+                        className="size-8 shrink-0 rounded-md object-contain"
+                      />
+                    ) : (
+                      <span className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md text-[12px] font-semibold uppercase">
+                        {(host || project.title).slice(0, 1)}
+                      </span>
+                    )}
+                    <p className="text-foreground truncate text-[13px] font-medium tracking-tight">
+                      {project.title}
+                    </p>
+                  </div>
+                  {project.description ? (
+                    <p className="text-muted-foreground line-clamp-2 text-[12px] leading-relaxed">
+                      {project.description}
+                    </p>
+                  ) : host ? (
+                    <p className="text-muted-foreground truncate text-[11px]">{host}</p>
+                  ) : null}
+                </>
+              );
+              const cardClass =
+                "border-border/70 bg-background/50 flex h-full flex-col gap-1.5 rounded-lg border px-3 py-2.5";
+              return (
+                <li key={project.id} className="min-w-0">
+                  {href ? (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cn(
+                        cardClass,
+                        "hover:border-border hover:bg-muted/20 transition-colors",
+                      )}
+                    >
+                      {body}
+                    </a>
+                  ) : (
+                    <div className={cardClass}>{body}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : isOwner ? (
+        <div className="border-border/80 bg-card ring-ring/10 rounded-lg border p-4 shadow-sm ring-1 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Projects</h2>
+            {onEdit ? (
+              <button
+                type="button"
+                onClick={onEdit}
+                className="text-muted-foreground hover:text-foreground cursor-pointer text-[11px] font-medium"
+              >
+                Add projects
+              </button>
+            ) : (
+              <Link
+                href={`/${profile.username}/settings`}
+                className="text-muted-foreground hover:text-foreground text-[11px] font-medium"
+              >
+                Add projects
+              </Link>
+            )}
+          </div>
+          <p className="text-muted-foreground mt-2 text-[13px]">
+            Showcase deployed work with a title, short description, and favicon.
+          </p>
+        </div>
+      ) : null}
+
       <div className="border-border/80 bg-card ring-ring/10 rounded-lg border p-4 shadow-sm ring-1 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-foreground text-[13px] font-semibold tracking-tight">

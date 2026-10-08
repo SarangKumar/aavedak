@@ -30,6 +30,8 @@ export type ProfileLinkMeta = {
    * Stored value is always the full URL.
    */
   baseUrl?: string;
+  /** Older host/path prefixes still accepted when reading stored URLs. */
+  altBaseUrls?: string[];
 };
 
 export const PROFILE_LINK_META: Record<ProfileLinkKey, ProfileLinkMeta> = {
@@ -56,6 +58,11 @@ export const PROFILE_LINK_META: Record<ProfileLinkKey, ProfileLinkMeta> = {
     label: "HackerRank",
     placeholder: "username",
     baseUrl: "https://www.hackerrank.com/profile/",
+    altBaseUrls: [
+      "https://hackerrank.com/profile/",
+      "https://www.hackerrank.com/",
+      "https://hackerrank.com/",
+    ],
   },
   twitter: {
     label: "X / Twitter",
@@ -78,6 +85,17 @@ export function emptyProfileLinks(): ProfileLinks {
   return out;
 }
 
+function hostPathPrefixes(key: ProfileLinkKey): string[] {
+  const meta = PROFILE_LINK_META[key];
+  const bases = [meta.baseUrl, ...(meta.altBaseUrls ?? [])].filter(Boolean) as string[];
+  return bases.map((b) =>
+    b
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/+$/, "")
+      .toLowerCase(),
+  );
+}
+
 /** Strip a known platform prefix (and optional trailing slash) to a username. */
 export function profileLinkUsernameFromUrl(
   key: ProfileLinkKey,
@@ -88,32 +106,56 @@ export function profileLinkUsernameFromUrl(
   const base = PROFILE_LINK_META[key].baseUrl;
   if (!base) return raw;
 
-  let path = raw;
   try {
     if (/^https?:\/\//i.test(raw)) {
       const u = new URL(raw);
-      path = `${u.host}${u.pathname}`.replace(/\/+$/, "");
-      const baseHostPath = base.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
-      if (path.toLowerCase().startsWith(baseHostPath.toLowerCase())) {
-        path = path.slice(baseHostPath.length).replace(/^\/+/, "");
-      } else {
-        // Fallback: last path segment
-        const parts = u.pathname.split("/").filter(Boolean);
-        path = parts[parts.length - 1] ?? "";
+      const path = `${u.host}${u.pathname}`.replace(/\/+$/, "").toLowerCase();
+      const prefixes = hostPathPrefixes(key).sort((a, b) => b.length - a.length);
+      for (const prefix of prefixes) {
+        if (path === prefix) return "";
+        if (path.startsWith(`${prefix}/`)) {
+          return path.slice(prefix.length + 1).split(/[/?#]/)[0] ?? "";
+        }
       }
-    } else if (path.toLowerCase().startsWith(base.toLowerCase())) {
-      path = path.slice(base.length);
-    } else {
-      const bare = base.replace(/^https?:\/\//i, "");
-      if (path.toLowerCase().startsWith(bare.toLowerCase())) {
-        path = path.slice(bare.length);
+      const parts = u.pathname.split("/").filter(Boolean);
+      const skip = new Set(["profile", "in", "u", "user"]);
+      for (let i = parts.length - 1; i >= 0; i -= 1) {
+        const seg = parts[i] ?? "";
+        if (seg && !skip.has(seg.toLowerCase())) return seg;
+      }
+      return parts[parts.length - 1] ?? "";
+    }
+
+    const lower = raw.toLowerCase();
+    for (const candidate of [base, ...(PROFILE_LINK_META[key].altBaseUrls ?? [])]) {
+      if (lower.startsWith(candidate.toLowerCase())) {
+        return (
+          raw
+            .slice(candidate.length)
+            .replace(/^\/+|\/+$/g, "")
+            .split(/[/?#]/)[0] ?? ""
+        );
+      }
+      const bare = candidate.replace(/^https?:\/\//i, "");
+      if (lower.startsWith(bare.toLowerCase())) {
+        return (
+          raw
+            .slice(bare.length)
+            .replace(/^\/+|\/+$/g, "")
+            .split(/[/?#]/)[0] ?? ""
+        );
       }
     }
   } catch {
-    // keep path as typed
+    // fall through
   }
 
-  return path.replace(/^\/+|\/+$/g, "").split(/[/?#]/)[0] ?? "";
+  return (
+    raw
+      .replace(/^@/, "")
+      .replace(/^\/+|\/+$/g, "")
+      .split(/[/?#]/)[0] ?? ""
+  );
 }
 
 /** Build a full profile URL from a username (or pasted URL). */

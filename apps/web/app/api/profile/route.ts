@@ -9,6 +9,7 @@ import {
   type ProfilePublicPatch,
 } from "@/lib/profile";
 import type { ProfileCustomLink, ProfileLinks } from "@/lib/profile-links";
+import type { ProfileProject } from "@/lib/profile-projects";
 
 async function requireUser() {
   const result = await requireApiUser();
@@ -27,6 +28,7 @@ function serialize(profile: NonNullable<Awaited<ReturnType<typeof getProfile>>>)
     linkedinUrl: profile.linkedinUrl,
     links: profile.links,
     customLinks: profile.customLinks,
+    projects: profile.projects,
     imageUrl: profile.imageUrl,
     onboardingComplete: profile.onboardingComplete,
     career: profile.career,
@@ -53,12 +55,14 @@ export async function PATCH(request: Request) {
   let body: ProfilePublicPatch & {
     links?: ProfileLinks;
     customLinks?: ProfileCustomLink[];
+    projects?: ProfileProject[];
     career?: CareerProfilePatch;
   };
   try {
     body = (await request.json()) as ProfilePublicPatch & {
       links?: ProfileLinks;
       customLinks?: ProfileCustomLink[];
+      projects?: ProfileProject[];
       career?: CareerProfilePatch;
     };
   } catch {
@@ -77,7 +81,8 @@ export async function PATCH(request: Request) {
       body.portfolioUrl !== undefined ||
       body.linkedinUrl !== undefined ||
       body.links !== undefined ||
-      body.customLinks !== undefined;
+      body.customLinks !== undefined ||
+      body.projects !== undefined;
 
     if (hasPublic) {
       profile = await updateProfilePublic(user.id, {
@@ -87,6 +92,7 @@ export async function PATCH(request: Request) {
         linkedinUrl: body.linkedinUrl,
         links: body.links,
         customLinks: body.customLinks,
+        projects: body.projects,
       });
     }
 

@@ -230,6 +230,9 @@ async function runSchema() {
   await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS approval_status TEXT NOT NULL DEFAULT 'approved'`;
   await db`CREATE INDEX IF NOT EXISTS profiles_approval_status_idx ON profiles (approval_status)`;
 
+  // Showcase projects on public profile (title, url, description, favicon)
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS projects_json TEXT NOT NULL DEFAULT '[]'`;
+
   // Shared company directory (creatable Select; used for search / match / referrals)
   await db`
     CREATE TABLE IF NOT EXISTS companies (
