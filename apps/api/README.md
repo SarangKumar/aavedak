@@ -39,7 +39,22 @@ source .venv/bin/activate
 uvicorn main:app --reload --port 8000
 ```
 
-Health: `http://127.0.0.1:8000/svc/health` → `{"ok":true,"service":"api"}`.
+Health: `GET /svc/health` → aggregate object:
+
+```json
+{
+  "ok": true,
+  "service": "api",
+  "checks": {
+    "backend": { "ok": true, "service": "api" },
+    "google": { "ok": true, "configured": true, "provider": "google" },
+    "betterAuth": { "ok": true, "configured": true, "url": "http://localhost:3000" },
+    "database": { "ok": true, "configured": true, "latencyMs": 12.3 }
+  }
+}
+```
+
+Returns **503** if any check fails. Local: `http://127.0.0.1:8000/svc/health`.
 
 ## Vercel Services (same project as Next)
 

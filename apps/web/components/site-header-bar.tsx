@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { AuthHeaderActions, type HeaderUser } from "@/components/auth-header-actions";
+import { BrandMark } from "@/components/brand-mark";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SHELL_X } from "@/lib/layout";
@@ -44,14 +44,7 @@ export function SiteHeaderBar({ user }: SiteHeaderBarProps) {
         className="group flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5"
         aria-label="Aavedak home"
       >
-        <Image
-          src="/brand/logo-icon.png"
-          alt="Aavedak logo"
-          width={28}
-          height={28}
-          className="aavedak-logo size-7"
-          priority
-        />
+        <BrandMark alt="Aavedak logo" width={28} height={28} className="size-7" priority />
         <span className="aavedak-display text-foreground text-sm">Aavedak</span>
       </Link>
 

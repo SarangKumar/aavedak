@@ -1,10 +1,11 @@
 import logging
 import time
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 
 from app.core.config import settings
 from app.core.logging import setup_logging
+from app.health import build_health_report
 
 setup_logging(settings.log_level)
 logger = logging.getLogger("aavedak.api")
@@ -34,8 +35,25 @@ async def log_requests(request: Request, call_next):
 
 
 @app.get("/svc/health")
-def health():
-    return {"ok": True, "service": "api"}
+def health(response: Response):
+    """
+    Aggregate health for backend, Google OAuth, Better Auth, and Postgres.
+
+    Example:
+    {
+      "ok": true,
+      "service": "api",
+      "checks": {
+        "backend": { "ok": true, "service": "api" },
+        "google": { "ok": true, "configured": true, "provider": "google" },
+        "betterAuth": { "ok": true, "configured": true, "url": "…" },
+        "database": { "ok": true, "configured": true, "latencyMs": 12.3 }
+      }
+    }
+    """
+    report = build_health_report()
+    response.status_code = 200 if report["ok"] else 503
+    return report
 
 
 @app.get("/svc/v1/me")

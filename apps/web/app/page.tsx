@@ -1,6 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
+
+import { BrandMark } from "@/components/brand-mark";
 
 export const metadata: Metadata = {
   robots: { index: true, follow: true },
@@ -86,12 +87,10 @@ export default function HomePage() {
         >
           <div className="relative mb-5 sm:mb-6">
             <span className="aavedak-logo-glow" aria-hidden />
-            <Image
-              src="/brand/logo-icon.png"
-              alt="Aavedak — stylized golden A mark"
+            <BrandMark
               width={96}
               height={96}
-              className="aavedak-logo relative h-[4.5rem] w-[4.5rem] sm:h-24 sm:w-24"
+              className="relative h-[4.5rem] w-[4.5rem] sm:h-24 sm:w-24"
               priority
             />
           </div>

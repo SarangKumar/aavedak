@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { BrandMark } from "@/components/brand-mark";
 import { SignInForm } from "@/components/sign-in-form";
 import { isGoogleAuthConfigured } from "@/lib/auth";
 
@@ -23,12 +23,11 @@ export default function SignInPage() {
       <div className="aavedak-fade-up relative flex w-full max-w-[22rem] flex-col items-center text-center">
         <Link href="/" className="group relative mb-7" aria-label="Aavedak home">
           <span className="aavedak-logo-glow" aria-hidden />
-          <Image
-            src="/brand/logo-icon.png"
+          <BrandMark
             alt=""
             width={88}
             height={88}
-            className="aavedak-logo relative h-[4.5rem] w-[4.5rem] sm:h-[5.5rem] sm:w-[5.5rem]"
+            className="relative h-[4.5rem] w-[4.5rem] sm:h-[5.5rem] sm:w-[5.5rem]"
             priority
           />
         </Link>
