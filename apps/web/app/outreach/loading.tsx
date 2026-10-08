@@ -1,5 +1,5 @@
 import { PageLoadingSkeleton } from "@/components/page-loading-skeleton";
 
-export default function FollowUpsLoading() {
+export default function OutreachLoading() {
   return <PageLoadingSkeleton variant="follow-ups" />;
 }

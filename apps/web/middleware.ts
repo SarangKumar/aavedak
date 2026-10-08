@@ -26,6 +26,7 @@ export const config = {
     "/documents/:path*",
     "/referrals/:path*",
     "/follow-ups/:path*",
+    "/outreach/:path*",
     "/people/:path*",
     "/onboarding/:path*",
     "/admin/:path*",

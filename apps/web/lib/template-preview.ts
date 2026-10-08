@@ -83,3 +83,4 @@ export function renderTemplatePreview(text: string, vars: Record<string, string>
 }
 
 export const DEFAULT_TEMPLATE_SUBJECT = "Referral ask — {{role}} at {{company}}";
+export const DEFAULT_FOLLOWUP_SUBJECT = "Following up — {{role}} at {{company}}";

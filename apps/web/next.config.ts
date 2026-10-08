@@ -2,6 +2,20 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@neondatabase/serverless"],
+  async redirects() {
+    return [
+      {
+        source: "/follow-ups",
+        destination: "/outreach",
+        permanent: true,
+      },
+      {
+        source: "/follow-ups/:path*",
+        destination: "/outreach/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

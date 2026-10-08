@@ -201,8 +201,8 @@ export function PeopleHub({ initialPeople, applications }: Props) {
               Referrals
             </Link>{" "}
             and track asks on{" "}
-            <Link href="/follow-ups" className="text-primary hover:underline">
-              Follow-ups
+            <Link href="/outreach" className="text-primary hover:underline">
+              Outreach
             </Link>
             .
           </p>

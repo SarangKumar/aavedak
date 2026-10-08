@@ -46,6 +46,12 @@ const features = [
     label: "Warm paths",
     description: "Track asks, follow-ups, and introductions that move the needle.",
   },
+  {
+    href: "/ats",
+    title: "ATS",
+    label: "Score",
+    description: "Check resume ATS readiness and match against a job description.",
+  },
 ] as const;
 
 const steps = [

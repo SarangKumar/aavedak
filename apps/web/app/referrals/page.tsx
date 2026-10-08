@@ -37,8 +37,8 @@ export default async function ReferralsPage() {
           <span className="text-border" aria-hidden>
             ·
           </span>
-          <Link href="/follow-ups" className="text-primary font-medium hover:underline">
-            Open follow-ups
+          <Link href="/outreach" className="text-primary font-medium hover:underline">
+            Open outreach inbox
           </Link>
         </ShellWidth>
         <ReferralsComposer
@@ -84,6 +84,7 @@ export default async function ReferralsPage() {
             personId: f.personId,
             applicationId: f.applicationId,
             notes: f.notes,
+            mailKind: f.mailKind,
             createdAt: f.createdAt,
             updatedAt: f.updatedAt,
           }))}

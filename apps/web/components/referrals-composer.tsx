@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import { CompanySelect } from "@/components/company-select";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
+import { formatDateTimeReadable } from "@/lib/format-datetime";
 import { cn } from "@/lib/utils";
 
 export type ApplicationDto = {
@@ -32,13 +34,6 @@ export type ApplicationDto = {
 };
 
 type AppReferralTab = "needs" | "sent";
-
-function hasSuccessfulReferral(appId: string, followUps: FollowUpDto[]): boolean {
-  return followUps.some(
-    (f) =>
-      f.applicationId === appId && (f.status === "sent" || f.status === "sent_stub"),
-  );
-}
 
 export type PersonDto = {
   id: string;
@@ -58,7 +53,7 @@ export type TemplateDto = {
   title: string;
   subject: string;
   body: string;
-  kind: "outreach" | "cover" | "other";
+  kind: "outreach" | "cover" | "followup" | "other";
   status: "active" | "archived";
   createdAt: string;
   updatedAt: string;
@@ -73,11 +68,13 @@ export type FollowUpDto = {
   personId: string | null;
   applicationId: string | null;
   notes: string | null;
+  mailKind?: "outreach" | "followup" | null;
   createdAt: string;
   updatedAt: string;
 };
 
 type ColumnId = "applications" | "template" | "people";
+type MailKind = "outreach" | "followup";
 
 const DEFAULT_ORDER: ColumnId[] = ["applications", "template", "people"];
 const STORAGE_KEY = "aavedak-referrals-column-order";
@@ -86,15 +83,52 @@ const DEFAULT_WIDTHS: Record<ColumnId, number> = {
   template: 2,
   people: 1,
 };
+const FOLLOWUP_COOLDOWN_MS = 60 * 60 * 1000;
 
 const COLUMN_META: Record<ColumnId, { title: string; blurb: string }> = {
   applications: {
     title: "Applications",
-    blurb: "Applied jobs only · pick needs referral or already sent",
+    blurb: "Applied jobs · Needs referral stays listed after sends",
   },
-  template: { title: "Cold email", blurb: "Template · From = your Gmail" },
-  people: { title: "People", blurb: "Check recipients, then confirm" },
+  template: { title: "Email", blurb: "Template · From = your Gmail" },
+  people: { title: "People", blurb: "Select recipients · one referral per person per job" },
 };
+
+function mailKindOf(f: FollowUpDto): MailKind {
+  if (f.mailKind === "outreach" || f.mailKind === "followup") return f.mailKind;
+  if (f.title.startsWith("Follow-up:")) return "followup";
+  return "outreach";
+}
+
+function isSuccessfulSend(f: FollowUpDto): boolean {
+  return f.status === "sent" || f.status === "sent_stub";
+}
+
+function isBlockingOutreach(f: FollowUpDto): boolean {
+  return (
+    mailKindOf(f) === "outreach" &&
+    (isSuccessfulSend(f) || f.status === "queued" || f.status === "pending")
+  );
+}
+
+function hasSuccessfulReferral(appId: string, followUps: FollowUpDto[]): boolean {
+  return followUps.some(
+    (f) => f.applicationId === appId && mailKindOf(f) === "outreach" && isSuccessfulSend(f),
+  );
+}
+
+function formatRelativeAgo(iso: string): string {
+  const ms = Math.max(0, Date.now() - new Date(iso).getTime());
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  const months = Math.floor(days / 30);
+  return `${months} month${months === 1 ? "" : "s"} ago`;
+}
 
 type ReferralsComposerProps = {
   userEmail: string;
@@ -253,18 +287,15 @@ export function ReferralsComposer({
     [applications],
   );
 
-  const needsReferralApps = useMemo(
-    () => appliedApplications.filter((app) => !hasSuccessfulReferral(app.id, followUps)),
-    [appliedApplications, followUps],
-  );
+  /** Needs tab keeps every applied job even after some referrals were sent. */
+  const needsReferralApps = appliedApplications;
 
   const referredApps = useMemo(
     () => appliedApplications.filter((app) => hasSuccessfulReferral(app.id, followUps)),
     [appliedApplications, followUps],
   );
 
-  const visibleApplications =
-    appReferralTab === "needs" ? needsReferralApps : referredApps;
+  const visibleApplications = appReferralTab === "needs" ? needsReferralApps : referredApps;
 
   const openFollowUps = useMemo(
     () =>
@@ -294,14 +325,79 @@ export function ReferralsComposer({
     });
   }, [people, selectedApp]);
 
+  const appFollowUps = useMemo(() => {
+    if (!selectedAppId) return [] as FollowUpDto[];
+    return followUps.filter((f) => f.applicationId === selectedAppId);
+  }, [followUps, selectedAppId]);
+
+  const peopleForColumn = useMemo(() => {
+    if (appReferralTab === "sent") {
+      const sentPersonIds = new Set(
+        appFollowUps
+          .filter((f) => mailKindOf(f) === "outreach" && isSuccessfulSend(f))
+          .map((f) => f.personId)
+          .filter((id): id is string => Boolean(id)),
+      );
+      return companyPeople.filter((p) => sentPersonIds.has(p.id));
+    }
+    return companyPeople;
+  }, [appReferralTab, appFollowUps, companyPeople]);
+
+  function personOutreachBlocked(personId: string): boolean {
+    return appFollowUps.some((f) => f.personId === personId && isBlockingOutreach(f));
+  }
+
+  function personFollowupCooldown(personId: string): { blocked: boolean; lastAt: string | null } {
+    const sends = appFollowUps
+      .filter((f) => f.personId === personId && isSuccessfulSend(f))
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.createdAt).getTime() -
+          new Date(a.updatedAt || a.createdAt).getTime(),
+      );
+    const last = sends[0];
+    if (!last) return { blocked: false, lastAt: null };
+    const lastAt = last.updatedAt || last.createdAt;
+    const blocked = Date.now() - new Date(lastAt).getTime() < FOLLOWUP_COOLDOWN_MS;
+    return { blocked, lastAt };
+  }
+
+  function personMailMeta(personId: string) {
+    const outreach = appFollowUps
+      .filter((f) => f.personId === personId && mailKindOf(f) === "outreach" && isSuccessfulSend(f))
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.createdAt).getTime() -
+          new Date(a.updatedAt || a.createdAt).getTime(),
+      )[0];
+    const followup = appFollowUps
+      .filter((f) => f.personId === personId && mailKindOf(f) === "followup" && isSuccessfulSend(f))
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.createdAt).getTime() -
+          new Date(a.updatedAt || a.createdAt).getTime(),
+      )[0];
+    return { outreach, followup };
+  }
+
+  const selectablePeople = useMemo(() => {
+    if (appReferralTab === "sent") {
+      return peopleForColumn.filter(
+        (p) => !personFollowupCooldown(p.id).blocked && Boolean(p.email),
+      );
+    }
+    return peopleForColumn.filter((p) => !personOutreachBlocked(p.id) && Boolean(p.email));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- helpers close over appFollowUps
+  }, [appReferralTab, peopleForColumn, appFollowUps]);
+
   useEffect(() => {
     setCheckedPeople((prev) => {
-      const allowed = new Set(companyPeople.map((p) => p.id));
+      const allowed = new Set(selectablePeople.map((p) => p.id));
       const next = new Set([...prev].filter((id) => allowed.has(id)));
       return next.size === prev.size ? prev : next;
     });
     setConfirmed(false);
-  }, [selectedAppId, companyPeople]);
+  }, [selectedAppId, appReferralTab, selectablePeople]);
 
   const baseVars = useMemo(
     () => ({
@@ -315,15 +411,33 @@ export function ReferralsComposer({
     [selectedApp, userName, userEmail],
   );
 
+  const outreachTemplates = useMemo(
+    () => templates.filter((t) => t.kind === "outreach"),
+    [templates],
+  );
+  const followupTemplates = useMemo(
+    () => templates.filter((t) => t.kind === "followup"),
+    [templates],
+  );
+  const activeTemplates = appReferralTab === "sent" ? followupTemplates : outreachTemplates;
+  const activeMailKind: MailKind = appReferralTab === "sent" ? "followup" : "outreach";
+
+  useEffect(() => {
+    if (activeTemplates.some((t) => t.id === selectedTemplateId)) return;
+    setSelectedTemplateId(activeTemplates[0]?.id ?? null);
+  }, [activeTemplates, selectedTemplateId]);
+
   const selectedTemplate = useMemo(
-    () => templates.find((t) => t.id === selectedTemplateId) ?? null,
-    [templates, selectedTemplateId],
+    () => activeTemplates.find((t) => t.id === selectedTemplateId) ?? null,
+    [activeTemplates, selectedTemplateId],
   );
 
   const subject = selectedTemplate?.subject?.trim()
     ? selectedTemplate.subject
     : selectedTemplate
-      ? "Referral ask — {{role}} at {{company}}"
+      ? activeMailKind === "followup"
+        ? "Following up — {{role}} at {{company}}"
+        : "Referral ask — {{role}} at {{company}}"
       : "";
   const body = selectedTemplate?.body ?? "";
 
@@ -362,12 +476,20 @@ export function ReferralsComposer({
   }
 
   function togglePerson(id: string) {
+    if (!selectablePeople.some((p) => p.id === id)) return;
     setCheckedPeople((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    setConfirmed(false);
+  }
+
+  function toggleSelectAll() {
+    const allIds = selectablePeople.map((p) => p.id);
+    const allSelected = allIds.length > 0 && allIds.every((id) => checkedPeople.has(id));
+    setCheckedPeople(allSelected ? new Set() : new Set(allIds));
     setConfirmed(false);
   }
 
@@ -441,6 +563,7 @@ export function ReferralsComposer({
           confirmed: true,
           sendAfterSeconds: 0,
           resumeId,
+          mailKind: activeMailKind,
         }),
       });
       const data = (await res.json()) as {
@@ -479,16 +602,12 @@ export function ReferralsComposer({
       if (sent > 0 && queuedIds.size > 0) {
         setFollowUps((list) =>
           list.map((f) =>
-            queuedIds.has(f.id) ||
-            (f.applicationId === selectedAppId && (f.status === "queued" || f.status === "pending"))
-              ? { ...f, status: "sent" as const }
-              : f,
+            queuedIds.has(f.id) ? { ...f, status: "sent" as const, mailKind: activeMailKind } : f,
           ),
         );
-        setAppReferralTab("sent");
       }
       if (sent === 0 && failed > 0) {
-        const message = `Gmail could not send ${failed} message${failed === 1 ? "" : "s"}. Check Follow-ups.`;
+        const message = `Gmail could not send ${failed} message${failed === 1 ? "" : "s"}. Check Outreach.`;
         setError(message);
         toast.add({ title: "Send failed", description: message, type: "error" });
       } else {
@@ -580,7 +699,12 @@ export function ReferralsComposer({
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3">
+        <div
+          className={cn(
+            "min-h-0 flex-1 overflow-x-hidden p-3",
+            id === "template" ? "flex flex-col overflow-hidden" : "overflow-y-auto",
+          )}
+        >
           {id === "applications" ? (
             <Tabs
               value={appReferralTab}
@@ -588,7 +712,10 @@ export function ReferralsComposer({
               className="gap-2.5"
             >
               <TabsList className="h-auto w-full" variant="default">
-                <TabsTrigger value="needs" className="min-w-0 flex-1 px-1.5 text-[11px]">
+                <TabsTrigger
+                  value="needs"
+                  className="min-w-0 flex-1 cursor-pointer px-1.5 text-[11px]"
+                >
                   Needs referral
                   {needsReferralApps.length > 0 ? (
                     <span className="text-muted-foreground tabular-nums">
@@ -596,7 +723,10 @@ export function ReferralsComposer({
                     </span>
                   ) : null}
                 </TabsTrigger>
-                <TabsTrigger value="sent" className="min-w-0 flex-1 px-1.5 text-[11px]">
+                <TabsTrigger
+                  value="sent"
+                  className="min-w-0 flex-1 cursor-pointer px-1.5 text-[11px]"
+                >
                   Already sent
                   {referredApps.length > 0 ? (
                     <span className="text-muted-foreground tabular-nums">
@@ -611,20 +741,17 @@ export function ReferralsComposer({
                     <li className="text-muted-foreground text-[12px]">
                       No applied jobs yet. Move an application to Applied on the job tracker.
                     </li>
-                  ) : needsReferralApps.length === 0 ? (
-                    <li className="text-muted-foreground text-[12px]">
-                      Every applied job already has a referral send. Use Already sent to mail again.
-                    </li>
                   ) : (
                     needsReferralApps.map((app) => {
                       const selected = app.id === selectedAppId;
+                      const needsBadge = !hasSuccessfulReferral(app.id, followUps);
                       return (
                         <li key={app.id}>
                           <button
                             type="button"
                             onClick={() => setSelectedAppId(app.id)}
                             className={cn(
-                              "w-full rounded-xl border px-2.5 py-2 text-left transition-colors",
+                              "w-full cursor-pointer rounded-xl border px-2.5 py-2 text-left transition-colors",
                               selected
                                 ? "border-primary/40 bg-primary/10"
                                 : "border-border/70 bg-muted/30 hover:bg-muted/50",
@@ -636,9 +763,11 @@ export function ReferralsComposer({
                             <p className="text-muted-foreground truncate text-[11px]">
                               {app.role} · {app.location}
                             </p>
-                            <Badge variant="secondary" className="mt-1 h-5 text-[10px]">
-                              Needs referral
-                            </Badge>
+                            {needsBadge ? (
+                              <Badge variant="secondary" className="mt-1 h-5 text-[10px]">
+                                Needs referral
+                              </Badge>
+                            ) : null}
                           </button>
                         </li>
                       );
@@ -661,7 +790,7 @@ export function ReferralsComposer({
                             type="button"
                             onClick={() => setSelectedAppId(app.id)}
                             className={cn(
-                              "w-full rounded-xl border px-2.5 py-2 text-left transition-colors",
+                              "w-full cursor-pointer rounded-xl border px-2.5 py-2 text-left transition-colors",
                               selected
                                 ? "border-primary/40 bg-primary/10"
                                 : "border-border/70 bg-muted/30 hover:bg-muted/50",
@@ -684,8 +813,8 @@ export function ReferralsComposer({
           ) : null}
 
           {id === "template" ? (
-            <div className="space-y-2.5">
-              <label className="block space-y-1">
+            <div className="flex h-full min-h-0 flex-col gap-2.5">
+              <label className="block shrink-0 space-y-1">
                 <span className="text-muted-foreground text-[11px] font-medium">From</span>
                 <input
                   readOnly
@@ -693,7 +822,7 @@ export function ReferralsComposer({
                   className="border-border bg-muted/40 text-foreground h-8 w-full cursor-not-allowed rounded-lg border px-2.5 text-[12px]"
                 />
               </label>
-              <div className="space-y-1">
+              <div className="shrink-0 space-y-1">
                 <span className="text-muted-foreground text-[11px] font-medium">To</span>
                 <div className="border-border bg-muted/30 flex min-h-8 flex-wrap items-center gap-1.5 rounded-lg border px-2 py-1.5">
                   {checkedPeople.size === 0 ? (
@@ -716,35 +845,48 @@ export function ReferralsComposer({
                   )}
                 </div>
               </div>
-              <div className="space-y-1">
+              <div className="shrink-0 space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground text-[11px] font-medium">
-                    Cold email template
+                    {activeMailKind === "followup"
+                      ? "Follow-up email template"
+                      : "Referral email template"}
                   </span>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="xs"
-                    onClick={() => setTemplatesOpen(true)}
-                    className="text-[11px]"
-                  >
-                    Manage templates
-                  </Button>
+                  {activeMailKind === "outreach" ? (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="xs"
+                      onClick={() => setTemplatesOpen(true)}
+                      className="cursor-pointer text-[11px]"
+                    >
+                      Manage templates
+                    </Button>
+                  ) : (
+                    <Link
+                      href="/documents"
+                      className="text-primary cursor-pointer text-[11px] font-medium hover:underline"
+                    >
+                      Manage on Documents
+                    </Link>
+                  )}
                 </div>
                 <Select
                   value={selectedTemplateId ?? undefined}
                   onValueChange={(v) => setSelectedTemplateId(v || null)}
-                  disabled={templates.length === 0}
+                  disabled={activeTemplates.length === 0}
                 >
                   <SelectTrigger className="border-border bg-background text-foreground h-8 w-full cursor-pointer rounded-lg border px-2 text-[12px]">
                     <SelectValue
                       placeholder={
-                        templates.length === 0 ? "No saved templates" : "Choose a saved template"
+                        activeTemplates.length === 0
+                          ? "No saved templates"
+                          : "Choose a saved template"
                       }
                     />
                   </SelectTrigger>
                   <SelectContent className="z-[240]">
-                    {templates.map((tpl) => (
+                    {activeTemplates.map((tpl) => (
                       <SelectItem key={tpl.id} value={tpl.id}>
                         {tpl.title}
                       </SelectItem>
@@ -752,19 +894,15 @@ export function ReferralsComposer({
                   </SelectContent>
                 </Select>
               </div>
-              {templates.length === 0 ? (
-                <p className="text-muted-foreground text-[11px] leading-relaxed">
-                  Template options are fixed to your saved templates only. Create one via Manage
-                  templates.
-                </p>
-              ) : (
-                <p className="text-muted-foreground text-[11px] leading-relaxed">
-                  Subject and body come from the selected saved template (read-only here). Edit copy
-                  in Manage templates / Documents.
-                </p>
-              )}
-              <div className="border-border/60 bg-muted/30 space-y-2.5 rounded-xl border p-2.5">
-                <div>
+              <p className="text-muted-foreground shrink-0 text-[11px] leading-relaxed">
+                {activeTemplates.length === 0
+                  ? activeMailKind === "followup"
+                    ? "Create a follow-up template on Documents → Follow-up Email."
+                    : "Create a referral template via Manage templates / Documents → Referral Email."
+                  : "Subject and body come from the selected saved template (read-only here)."}
+              </p>
+              <div className="border-border/60 bg-muted/30 flex min-h-0 flex-1 flex-col space-y-2.5 rounded-xl border p-2.5">
+                <div className="shrink-0">
                   <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
                     Subject
                   </p>
@@ -774,77 +912,43 @@ export function ReferralsComposer({
                       : "Select a saved template"}
                   </p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <p className="text-muted-foreground shrink-0 text-[10px] font-medium uppercase tracking-wide">
                     Body preview
                   </p>
-                  <pre className="text-muted-foreground mt-1 max-h-48 overflow-auto whitespace-pre-wrap font-sans text-[11px] leading-relaxed">
+                  <pre className="text-muted-foreground mt-1 min-h-0 flex-1 overflow-auto whitespace-pre-wrap font-sans text-[11px] leading-relaxed">
                     {selectedTemplate
                       ? previewBody || "(empty body)"
                       : "Choose a template to preview filled subject and body."}
                   </pre>
                 </div>
-                <div className="border-border/50 space-y-2 border-t pt-2.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setResumePickerOpen((open) => !open)}
-                      className="border-border bg-background text-foreground hover:bg-muted/60 inline-flex h-8 items-center rounded-lg border px-3 text-[12px] font-medium"
-                    >
-                      {resumeId ? "Change resume" : "Attach resume"}
-                    </button>
-                    {resumeId ? (
+                <div className="border-border/50 flex shrink-0 flex-wrap items-center gap-2 border-t pt-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setResumePickerOpen(true)}
+                    className="border-border bg-background text-foreground hover:bg-muted/60 inline-flex h-8 cursor-pointer items-center rounded-lg border px-3 text-[12px] font-medium"
+                  >
+                    {resumeId ? "Change resume" : "Attach resume"}
+                  </button>
+                  {resumeId ? (
+                    <>
                       <span className="text-muted-foreground truncate text-[11px]">
                         {resumeOptions.find((resume) => resume.id === resumeId)?.displayName ||
                           "resume"}
                       </span>
-                    ) : (
-                      <span className="text-muted-foreground text-[11px]">
-                        Optional · pick one uploaded resume
-                      </span>
-                    )}
-                  </div>
-                  {resumePickerOpen ? (
-                    <div className="space-y-2">
-                      <p className="text-muted-foreground text-[11px] leading-relaxed">
-                        Attach one of your uploaded resumes as a PDF. Prefer a different file?
-                        Upload it on Documents first.
-                      </p>
-                      {resumeOptions.length === 0 ? (
-                        <p className="text-muted-foreground text-[11px]">
-                          No resumes uploaded yet — add one on Documents.
-                        </p>
-                      ) : (
-                        <Select
-                          value={resumeId ?? ""}
-                          onValueChange={(value) => {
-                            setResumeId(value || null);
-                            setResumePickerOpen(false);
-                          }}
-                        >
-                          <SelectTrigger className="h-9 w-full text-[12px]">
-                            <SelectValue placeholder="Choose a resume" />
-                          </SelectTrigger>
-                          <SelectContent className="z-[240]">
-                            {resumeOptions.map((resume) => (
-                              <SelectItem key={resume.id} value={resume.id}>
-                                {resume.displayName} ({resume.status})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                      {resumeId ? (
-                        <button
-                          type="button"
-                          className="text-muted-foreground text-[11px] underline"
-                          onClick={() => setResumeId(null)}
-                        >
-                          Remove attachment
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : null}
+                      <button
+                        type="button"
+                        className="text-muted-foreground cursor-pointer text-[11px] underline"
+                        onClick={() => setResumeId(null)}
+                      >
+                        Remove
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground text-[11px]">
+                      Optional · pick one uploaded resume
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -853,45 +957,121 @@ export function ReferralsComposer({
           {id === "people" ? (
             <div className="space-y-2.5">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-muted-foreground text-[11px]">{checkedPeople.size} selected</p>
+                <p className="text-muted-foreground text-[11px]">
+                  {checkedPeople.size} selected
+                  {appReferralTab === "sent" ? " · follow-up" : " · referral"}
+                </p>
                 <button
                   type="button"
                   onClick={() => setManageOpen(true)}
-                  className="text-primary text-[11px] font-medium hover:underline"
+                  className="text-primary cursor-pointer text-[11px] font-medium hover:underline"
                 >
                   Add person
                 </button>
               </div>
+              {selectedApp && peopleForColumn.length > 0 ? (
+                <label
+                  className={cn(
+                    "border-border/70 bg-muted/20 flex items-center gap-2 rounded-xl border px-2.5 py-2",
+                    selectablePeople.length === 0
+                      ? "cursor-not-allowed opacity-60"
+                      : "cursor-pointer",
+                  )}
+                >
+                  <Checkbox
+                    checked={
+                      selectablePeople.length > 0 &&
+                      selectablePeople.every((p) => checkedPeople.has(p.id))
+                    }
+                    indeterminate={
+                      checkedPeople.size > 0 &&
+                      !selectablePeople.every((p) => checkedPeople.has(p.id))
+                    }
+                    disabled={selectablePeople.length === 0}
+                    onChange={() => toggleSelectAll()}
+                  />
+                  <span className="text-foreground text-[12px] font-medium">Select all</span>
+                  <span className="text-muted-foreground text-[11px]">
+                    ({selectablePeople.length} available)
+                  </span>
+                </label>
+              ) : null}
               <ul className="space-y-1.5">
                 {!selectedApp ? (
                   <li className="text-muted-foreground text-[12px]">
                     Select an application to see people at that company.
                   </li>
-                ) : companyPeople.length === 0 ? (
+                ) : peopleForColumn.length === 0 ? (
                   <li className="text-muted-foreground text-[12px]">
-                    No people at {selectedApp.companyName} yet — add a contact for this company.
+                    {appReferralTab === "sent"
+                      ? "No referral emails sent for this job yet."
+                      : `No people at ${selectedApp.companyName} yet — add a contact for this company.`}
                   </li>
                 ) : (
-                  companyPeople.map((person) => {
+                  peopleForColumn.map((person) => {
                     const checked = checkedPeople.has(person.id);
+                    const outreachBlocked =
+                      appReferralTab === "needs" && personOutreachBlocked(person.id);
+                    const cooldown =
+                      appReferralTab === "sent" ? personFollowupCooldown(person.id) : null;
+                    const disabled =
+                      outreachBlocked ||
+                      Boolean(cooldown?.blocked) ||
+                      !person.email ||
+                      (appReferralTab === "sent" && !personMailMeta(person.id).outreach);
+                    const meta = personMailMeta(person.id);
                     return (
                       <li key={person.id}>
                         <label
                           className={cn(
-                            "flex cursor-pointer items-center gap-2 rounded-xl border px-2.5 py-2",
+                            "flex items-start gap-2 rounded-xl border px-2.5 py-2",
+                            disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer",
                             checked
                               ? "border-primary/40 bg-primary/10"
                               : "border-border/70 bg-muted/30",
                           )}
                         >
-                          <Checkbox checked={checked} onChange={() => togglePerson(person.id)} />
-                          <span className="min-w-0">
+                          <Checkbox
+                            className="mt-0.5"
+                            checked={checked}
+                            disabled={disabled}
+                            onChange={() => togglePerson(person.id)}
+                          />
+                          <span className="min-w-0 flex-1">
                             <span className="text-foreground block truncate text-[12px] font-medium">
                               {person.name}
                             </span>
                             <span className="text-muted-foreground block truncate text-[11px]">
                               {person.email ?? "No email"}
                               {person.company ? ` · ${person.company}` : ""}
+                            </span>
+                            <span className="mt-1 flex flex-wrap gap-1">
+                              {appReferralTab === "needs" && outreachBlocked ? (
+                                <Badge variant="outline" className="h-5 text-[10px]">
+                                  Referral already sent
+                                </Badge>
+                              ) : null}
+                              {appReferralTab === "sent" && meta.outreach ? (
+                                <Badge variant="secondary" className="h-5 text-[10px]">
+                                  Referral email sent{" "}
+                                  {formatRelativeAgo(
+                                    meta.outreach.updatedAt || meta.outreach.createdAt,
+                                  )}
+                                </Badge>
+                              ) : null}
+                              {appReferralTab === "sent" && meta.followup ? (
+                                <Badge variant="outline" className="h-5 text-[10px]">
+                                  Last follow-up{" "}
+                                  {formatRelativeAgo(
+                                    meta.followup.updatedAt || meta.followup.createdAt,
+                                  )}
+                                </Badge>
+                              ) : null}
+                              {cooldown?.blocked ? (
+                                <Badge variant="outline" className="h-5 text-[10px]">
+                                  Wait 1 hour before another follow-up
+                                </Badge>
+                              ) : null}
                             </span>
                           </span>
                         </label>
@@ -949,16 +1129,19 @@ export function ReferralsComposer({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1.5">
             <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
-              Confirm & queue follow-ups
+              {activeMailKind === "followup"
+                ? "Confirm & send follow-ups"
+                : "Confirm & send referral emails"}
             </h2>
             <div className="border-border/70 bg-muted/40 rounded-lg border px-3 py-2">
               <p className="text-foreground text-[12px] font-medium leading-relaxed">
-                Creates follow-up tasks (linked to application + person), then shows a 20 second
-                countdown before Gmail sends the batch.
+                {activeMailKind === "followup"
+                  ? "Queues follow-up emails to people who already got a referral for this job, then shows a 20s countdown before Gmail sends."
+                  : "One referral email per person per job. Creates tasks, then shows a 20s countdown before Gmail sends."}
               </p>
               {resumeId ? (
                 <p className="text-muted-foreground mt-0.5 text-[12px] leading-relaxed">
-                  Resume attached from Cold email:{" "}
+                  Resume attached:{" "}
                   <span className="text-foreground font-medium">
                     {resumeOptions.find((resume) => resume.id === resumeId)?.displayName ||
                       "resume"}
@@ -966,12 +1149,12 @@ export function ReferralsComposer({
                 </p>
               ) : (
                 <p className="text-muted-foreground mt-0.5 text-[12px] leading-relaxed">
-                  Attach a resume in the Cold email preview if you want a PDF on the send.
+                  Attach a resume in the email preview if you want a PDF on the send.
                 </p>
               )}
             </div>
           </div>
-          <label className="text-foreground flex shrink-0 items-center gap-2 text-[12px]">
+          <label className="text-foreground flex shrink-0 cursor-pointer items-center gap-2 text-[12px]">
             <Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />I
             confirm these {checkedPeople.size} recipient(s)
           </label>
@@ -1004,9 +1187,13 @@ export function ReferralsComposer({
             countdownVisible
           }
           onClick={() => void queueFollowUps()}
-          className="aavedak-btn bg-primary text-primary-foreground inline-flex h-9 items-center rounded-lg px-4 text-[12px] font-semibold disabled:opacity-50"
+          className="aavedak-btn bg-primary text-primary-foreground inline-flex h-9 cursor-pointer items-center rounded-lg px-4 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {pending ? "Sending…" : "Queue & send (20s)"}
+          {pending
+            ? "Sending…"
+            : activeMailKind === "followup"
+              ? "Queue follow-up (20s)"
+              : "Queue referral (20s)"}
         </button>
       </section>
 
@@ -1024,7 +1211,7 @@ export function ReferralsComposer({
                   <p className="text-foreground truncate text-[12px] font-medium">{f.title}</p>
                   <p className="text-muted-foreground text-[11px]">
                     {f.sendAfter
-                      ? `Send after ${new Date(f.sendAfter).toLocaleString()}`
+                      ? `Send after ${formatDateTimeReadable(f.sendAfter)}`
                       : f.dueDate
                         ? `Due ${f.dueDate.slice(0, 10)}`
                         : "No schedule"}
@@ -1038,6 +1225,70 @@ export function ReferralsComposer({
           </ul>
         )}
       </section>
+
+      <Modal
+        open={resumePickerOpen}
+        onClose={() => setResumePickerOpen(false)}
+        title="Attach resume"
+        description="Pick one uploaded resume to attach as a PDF. Upload new files on Documents."
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setResumePickerOpen(false)}
+              className="border-border text-muted-foreground inline-flex h-8 cursor-pointer items-center rounded-lg border px-3 text-[12px]"
+            >
+              Cancel
+            </button>
+            {resumeId ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setResumeId(null);
+                  setResumePickerOpen(false);
+                }}
+                className="border-border text-foreground inline-flex h-8 cursor-pointer items-center rounded-lg border px-3 text-[12px]"
+              >
+                Remove attachment
+              </button>
+            ) : null}
+          </>
+        }
+      >
+        {resumeOptions.length === 0 ? (
+          <p className="text-muted-foreground text-[13px]">
+            No resumes uploaded yet — add one on Documents first.
+          </p>
+        ) : (
+          <ul className="space-y-1.5">
+            {resumeOptions.map((resume) => {
+              const selected = resumeId === resume.id;
+              return (
+                <li key={resume.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResumeId(resume.id);
+                      setResumePickerOpen(false);
+                    }}
+                    className={cn(
+                      "w-full cursor-pointer rounded-xl border px-3 py-2.5 text-left transition-colors",
+                      selected
+                        ? "border-primary/40 bg-primary/10"
+                        : "border-border/70 bg-muted/30 hover:bg-muted/50",
+                    )}
+                  >
+                    <p className="text-foreground truncate text-[13px] font-medium">
+                      {resume.displayName}
+                    </p>
+                    <p className="text-muted-foreground text-[11px]">{resume.status}</p>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Modal>
 
       <Modal
         open={manageOpen}
@@ -1104,7 +1355,7 @@ export function ReferralsComposer({
         open={templatesOpen}
         onClose={() => setTemplatesOpen(false)}
         title="Manage templates"
-        description="Same editor as Documents → Cold email templates. Preview uses a dummy application."
+        description="Same editor as Documents → Referral Email. Preview uses a dummy application."
         size="xl"
         footer={
           <button
@@ -1117,8 +1368,13 @@ export function ReferralsComposer({
         }
       >
         <ColdEmailTemplatesPanel
-          templates={templates}
-          onTemplatesChange={(next) => setTemplates(next)}
+          lockedKind="outreach"
+          listTitle="My referral templates"
+          newButtonLabel="New referral template"
+          templates={outreachTemplates}
+          onTemplatesChange={(next) =>
+            setTemplates((prev) => [...prev.filter((t) => t.kind !== "outreach"), ...next])
+          }
           fromEmail={userEmail}
           userName={userName}
         />

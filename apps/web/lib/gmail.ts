@@ -142,14 +142,25 @@ function buildRawMime(opts: {
   from: string;
   subject: string;
   body: string;
+  inReplyTo?: string | null;
+  references?: string | null;
   attachment?: { filename: string; mimeType: string; bytes: Buffer };
 }): string {
   const bodyText = opts.body.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
+  const replyHeaders: string[] = [];
+  if (opts.inReplyTo?.trim()) {
+    replyHeaders.push(`In-Reply-To: ${opts.inReplyTo.trim()}`);
+  }
+  if (opts.references?.trim()) {
+    replyHeaders.push(`References: ${opts.references.trim()}`);
+  }
+
   if (!opts.attachment) {
     const lines = [
       `To: ${opts.to}`,
       `From: ${opts.from}`,
       `Subject: ${encodeRfc2047(opts.subject)}`,
+      ...replyHeaders,
       "MIME-Version: 1.0",
       'Content-Type: text/plain; charset="UTF-8"',
       "Content-Transfer-Encoding: 7bit",
@@ -169,6 +180,7 @@ function buildRawMime(opts: {
     `To: ${opts.to}`,
     `From: ${opts.from}`,
     `Subject: ${encodeRfc2047(opts.subject)}`,
+    ...replyHeaders,
     "MIME-Version: 1.0",
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
     "",
@@ -201,6 +213,28 @@ export type SendGmailResult = {
   threadId?: string;
 };
 
+/** Fetch RFC822 Message-ID for a Gmail API message id (for In-Reply-To). */
+export async function getGmailRfcMessageId(
+  userId: string,
+  gmailMessageId: string,
+): Promise<string | null> {
+  const { accessToken } = await getGoogleAccessTokenForUser(userId);
+  const url = new URL(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(gmailMessageId)}`,
+  );
+  url.searchParams.set("format", "metadata");
+  url.searchParams.append("metadataHeaders", "Message-ID");
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as {
+    payload?: { headers?: Array<{ name?: string; value?: string }> };
+  };
+  const header = data.payload?.headers?.find((h) => h.name?.toLowerCase() === "message-id");
+  return header?.value?.trim() || null;
+}
+
 /** Send a plain-text email via Gmail API users.messages.send (user's mailbox). */
 export async function sendGmailMessage(opts: {
   userId: string;
@@ -208,6 +242,10 @@ export async function sendGmailMessage(opts: {
   from: string;
   subject: string;
   body: string;
+  /** Gmail conversation thread — required for replies to appear under the original. */
+  threadId?: string | null;
+  inReplyTo?: string | null;
+  references?: string | null;
   attachment?: { filename: string; mimeType: string; bytes: Buffer };
 }): Promise<SendGmailResult> {
   const to = opts.to.trim();
@@ -229,8 +267,15 @@ export async function sendGmailMessage(opts: {
     from: opts.from.trim() || "me",
     subject,
     body,
+    inReplyTo: opts.inReplyTo,
+    references: opts.references,
     attachment: opts.attachment,
   });
+
+  const payload: { raw: string; threadId?: string } = { raw };
+  if (opts.threadId?.trim()) {
+    payload.threadId = opts.threadId.trim();
+  }
 
   const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
     method: "POST",
@@ -238,7 +283,7 @@ export async function sendGmailMessage(opts: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ raw }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
@@ -262,6 +307,13 @@ export async function sendGmailMessage(opts: {
     throw new Error("Gmail send succeeded but no message id returned.");
   }
   return { id: data.id, threadId: data.threadId };
+}
+
+export function replySubject(originalSubject: string): string {
+  const s = originalSubject.trim();
+  if (!s) return "Re:";
+  if (/^re:\s*/i.test(s)) return s;
+  return `Re: ${s}`;
 }
 
 /** Parse Subject/To/From/Resume-Id/body from follow-up notes written by referrals queue. */

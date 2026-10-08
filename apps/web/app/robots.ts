@@ -16,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
           "/documents",
           "/referrals",
           "/follow-ups",
+          "/outreach",
           "/people",
           "/onboarding",
           "/admin",

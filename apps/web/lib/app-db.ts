@@ -102,12 +102,22 @@ async function runSchema() {
       title TEXT NOT NULL,
       body TEXT NOT NULL DEFAULT '',
       subject TEXT NOT NULL DEFAULT '',
-      kind TEXT NOT NULL DEFAULT 'other' CHECK (kind IN ('outreach', 'cover', 'other')),
+      kind TEXT NOT NULL DEFAULT 'other' CHECK (kind IN ('outreach', 'cover', 'followup', 'other')),
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`;
   await db`CREATE INDEX IF NOT EXISTS templates_user_id_idx ON templates (user_id)`;
+  // Allow follow-up email templates (widen kind check for existing DBs).
+  await db`ALTER TABLE templates DROP CONSTRAINT IF EXISTS templates_kind_check`;
+  await db`
+    DO $$ BEGIN
+      ALTER TABLE templates ADD CONSTRAINT templates_kind_check
+        CHECK (kind IN ('outreach', 'cover', 'followup', 'other'));
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+    END $$
+  `;
 
   await db`
     CREATE TABLE IF NOT EXISTS people (
@@ -157,7 +167,18 @@ async function runSchema() {
   await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS mail_subject TEXT`;
   await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS mail_body TEXT`;
   await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS gmail_message_id TEXT`;
+  await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS gmail_thread_id TEXT`;
+  await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS gmail_rfc_message_id TEXT`;
   await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS send_error TEXT`;
+  await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS mail_kind TEXT`;
+  await db`
+    DO $$ BEGIN
+      ALTER TABLE follow_up_tasks ADD CONSTRAINT follow_up_tasks_mail_kind_check
+        CHECK (mail_kind IS NULL OR mail_kind IN ('outreach', 'followup'));
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+    END $$
+  `;
   await db`CREATE INDEX IF NOT EXISTS follow_up_tasks_queued_due_idx
     ON follow_up_tasks (status, send_after) WHERE status = 'queued'`;
 

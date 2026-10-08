@@ -4,11 +4,19 @@ import { randomUUID } from "node:crypto";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 import { downloadResumePdf } from "@/lib/gcs";
-import { getGmailAuthStatus, parseQueuedMailNotes, sendGmailMessage } from "@/lib/gmail";
+import {
+  getGmailAuthStatus,
+  getGmailRfcMessageId,
+  parseQueuedMailNotes,
+  replySubject,
+  sendGmailMessage,
+} from "@/lib/gmail";
 import { getResume } from "@/lib/resumes";
 
 export type FollowUpStatus =
   "pending" | "queued" | "sent" | "sent_stub" | "failed" | "done" | "dismissed";
+
+export type FollowUpMailKind = "outreach" | "followup";
 
 export type FollowUpRecord = {
   id: string;
@@ -23,7 +31,10 @@ export type FollowUpRecord = {
   mailTo: string | null;
   mailSubject: string | null;
   mailBody: string | null;
+  mailKind: FollowUpMailKind | null;
   gmailMessageId: string | null;
+  gmailThreadId: string | null;
+  gmailRfcMessageId: string | null;
   sendError: string | null;
   createdAt: string;
   updatedAt: string;
@@ -42,11 +53,21 @@ type Row = {
   mail_to: string | null;
   mail_subject: string | null;
   mail_body: string | null;
+  mail_kind?: string | null;
   gmail_message_id: string | null;
+  gmail_thread_id?: string | null;
+  gmail_rfc_message_id?: string | null;
   send_error: string | null;
   created_at: string;
   updated_at: string;
 };
+
+function inferMailKind(row: Row): FollowUpMailKind | null {
+  if (row.mail_kind === "outreach" || row.mail_kind === "followup") return row.mail_kind;
+  if (typeof row.title === "string" && row.title.startsWith("Follow-up:")) return "followup";
+  if (typeof row.title === "string" && row.title.startsWith("Outreach:")) return "outreach";
+  return null;
+}
 
 function mapRow(row: Row): FollowUpRecord {
   return {
@@ -62,7 +83,10 @@ function mapRow(row: Row): FollowUpRecord {
     mailTo: row.mail_to ?? null,
     mailSubject: row.mail_subject ?? null,
     mailBody: row.mail_body ?? null,
+    mailKind: inferMailKind(row),
     gmailMessageId: row.gmail_message_id ?? null,
+    gmailThreadId: row.gmail_thread_id ?? null,
+    gmailRfcMessageId: row.gmail_rfc_message_id ?? null,
     sendError: row.send_error ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -147,6 +171,7 @@ export async function createFollowUp(
     mailTo?: string | null;
     mailSubject?: string | null;
     mailBody?: string | null;
+    mailKind?: FollowUpMailKind | null;
   },
 ): Promise<FollowUpRecord> {
   await ensureAppSchema();
@@ -162,13 +187,16 @@ export async function createFollowUp(
   const mailTo = optional(input.mailTo);
   const mailSubject = optional(input.mailSubject);
   const mailBody = optional(input.mailBody);
+  const mailKind =
+    input.mailKind === "outreach" || input.mailKind === "followup" ? input.mailKind : null;
   await getSql()`
     INSERT INTO follow_up_tasks
       (id, user_id, title, due_date, send_after, status, person_id, application_id, notes,
-       mail_to, mail_subject, mail_body, created_at, updated_at)
+       mail_to, mail_subject, mail_body, mail_kind, created_at, updated_at)
     VALUES (
       ${id}, ${userId}, ${title}, ${dueDate}, ${sendAfter}, ${status}, ${personId},
-      ${applicationId}, ${notes}, ${mailTo}, ${mailSubject}, ${mailBody}, ${now}, ${now}
+      ${applicationId}, ${notes}, ${mailTo}, ${mailSubject}, ${mailBody}, ${mailKind},
+      ${now}, ${now}
     )
   `;
   const created = await getFollowUp(userId, id);
@@ -182,10 +210,12 @@ export async function updateFollowUp(
   patch: Partial<{
     title: string;
     dueDate: string | null;
+    sendAfter: string | null;
     status: FollowUpStatus;
     personId: string | null;
     applicationId: string | null;
     notes: string | null;
+    clearSendError: boolean;
   }>,
 ): Promise<FollowUpRecord> {
   await ensureAppSchema();
@@ -194,23 +224,40 @@ export async function updateFollowUp(
 
   const title = patch.title !== undefined ? requireTitle(patch.title) : existing.title;
   const dueDate = patch.dueDate !== undefined ? optional(patch.dueDate) : existing.dueDate;
+  const sendAfter = patch.sendAfter !== undefined ? optional(patch.sendAfter) : existing.sendAfter;
   const status =
     patch.status !== undefined ? parseStatus(patch.status, existing.status) : existing.status;
   const personId = patch.personId !== undefined ? optional(patch.personId) : existing.personId;
   const applicationId =
     patch.applicationId !== undefined ? optional(patch.applicationId) : existing.applicationId;
   const notes = patch.notes !== undefined ? optional(patch.notes) : existing.notes;
+  const sendError = patch.clearSendError ? null : existing.sendError;
 
   const now = new Date().toISOString();
   await getSql()`
     UPDATE follow_up_tasks SET
-      title = ${title}, due_date = ${dueDate}, status = ${status}, person_id = ${personId},
-      application_id = ${applicationId}, notes = ${notes}, updated_at = ${now}
+      title = ${title}, due_date = ${dueDate}, send_after = ${sendAfter}, status = ${status},
+      person_id = ${personId}, application_id = ${applicationId}, notes = ${notes},
+      send_error = ${sendError}, updated_at = ${now}
     WHERE id = ${id} AND user_id = ${userId}
   `;
   const updated = await getFollowUp(userId, id);
   if (!updated) throw new Error("Follow-up not found after update.");
   return updated;
+}
+
+/** Re-queue a failed send for immediate processing. */
+export async function retryFailedFollowUp(userId: string, id: string): Promise<FollowUpRecord> {
+  const existing = await getFollowUp(userId, id);
+  if (!existing) throw new Error("Follow-up not found.");
+  if (existing.status !== "failed") {
+    throw new Error("Only failed sends can be retried.");
+  }
+  return updateFollowUp(userId, id, {
+    status: "queued",
+    sendAfter: new Date().toISOString(),
+    clearSendError: true,
+  });
 }
 
 export type ProcessQueueResult = {
@@ -326,24 +373,76 @@ export async function processDueQueuedFollowUps(userId?: string): Promise<Proces
           }
         }
       }
+
+      const kind = inferMailKind(row) ?? "outreach";
+      let sendSubject = mailSubject || row.title;
+      let threadId: string | null = null;
+      let inReplyTo: string | null = null;
+      let references: string | null = null;
+
+      if (kind === "followup" && row.person_id && row.application_id) {
+        const parents = (await getSql()`
+          SELECT * FROM follow_up_tasks
+          WHERE user_id = ${uid}
+            AND person_id = ${row.person_id}
+            AND application_id = ${row.application_id}
+            AND status IN ('sent', 'sent_stub')
+            AND id != ${row.id}
+          ORDER BY updated_at DESC
+          LIMIT 20
+        `) as Row[];
+        const parent =
+          parents.find((p) => inferMailKind(p) === "outreach" && p.gmail_thread_id) ||
+          parents.find((p) => inferMailKind(p) === "outreach") ||
+          parents.find((p) => p.gmail_thread_id) ||
+          parents[0];
+        if (parent) {
+          threadId = parent.gmail_thread_id ?? null;
+          inReplyTo = parent.gmail_rfc_message_id ?? null;
+          references = parent.gmail_rfc_message_id ?? null;
+          const parentSubject = (parent.mail_subject || "").trim();
+          if (parentSubject) {
+            sendSubject = replySubject(parentSubject);
+          } else if (!/^re:\s*/i.test(sendSubject)) {
+            sendSubject = replySubject(sendSubject);
+          }
+        }
+      }
+
       const result = await sendGmailMessage({
         userId: uid,
         to: mailTo,
         from: mailFrom || "me",
-        subject: mailSubject || row.title,
+        subject: sendSubject,
         body: mailBody,
+        threadId,
+        inReplyTo,
+        references,
         attachment,
       });
-      const noteSuffix = `\n\n[sent via Gmail ${now} · id ${result.id}]`;
+
+      let rfcMessageId: string | null = null;
+      try {
+        rfcMessageId = await getGmailRfcMessageId(uid, result.id);
+      } catch {
+        rfcMessageId = null;
+      }
+
+      const noteSuffix = `\n\n[sent via Gmail ${now} · id ${result.id}${
+        result.threadId ? ` · thread ${result.threadId}` : ""
+      }]`;
       const notes = (row.notes ?? "") + noteSuffix;
+      const gmailThreadId = result.threadId ?? threadId;
       await getSql()`
         UPDATE follow_up_tasks SET
           status = 'sent',
           notes = ${notes},
           mail_to = ${mailTo},
-          mail_subject = ${mailSubject},
+          mail_subject = ${sendSubject},
           mail_body = ${mailBody},
           gmail_message_id = ${result.id},
+          gmail_thread_id = ${gmailThreadId},
+          gmail_rfc_message_id = ${rfcMessageId},
           send_error = NULL,
           updated_at = ${now}
         WHERE id = ${row.id}

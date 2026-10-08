@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import {
   DEFAULT_DUMMY_APPLICATION,
+  DEFAULT_FOLLOWUP_SUBJECT,
   DEFAULT_TEMPLATE_SUBJECT,
   TEMPLATE_PREVIEW_VAR_DOCS,
   dummyApplicationToVars,
@@ -20,12 +21,19 @@ import {
 } from "@/lib/template-preview";
 import { cn } from "@/lib/utils";
 
+export type TemplateKindDto = "outreach" | "cover" | "followup" | "other";
+
+function defaultSubjectForKind(kind: TemplateKindDto): string {
+  if (kind === "followup") return DEFAULT_FOLLOWUP_SUBJECT;
+  return DEFAULT_TEMPLATE_SUBJECT;
+}
+
 export type ColdEmailTemplateDto = {
   id: string;
   title: string;
   subject: string;
   body: string;
-  kind: "outreach" | "cover" | "other";
+  kind: TemplateKindDto;
   status: "active" | "archived";
   createdAt: string;
   updatedAt: string;
@@ -34,6 +42,10 @@ export type ColdEmailTemplateDto = {
 type Props = {
   templates: ColdEmailTemplateDto[];
   onTemplatesChange: (next: ColdEmailTemplateDto[]) => void;
+  /** When set, only edit this kind and hide the kind selector. */
+  lockedKind?: TemplateKindDto;
+  listTitle?: string;
+  newButtonLabel?: string;
   /** Ignored — dummy strip always uses example.com placeholders. Kept for call-site compat. */
   fromEmail?: string;
   /** Ignored — dummy strip always uses example.com placeholders. Kept for call-site compat. */
@@ -59,16 +71,26 @@ function normalizeTemplate(
   };
 }
 
-const emptyDraft = () => ({
-  id: null as string | null,
-  title: "",
-  subject: DEFAULT_TEMPLATE_SUBJECT,
-  body: "",
-  kind: "outreach" as "outreach" | "cover" | "other",
-});
+function emptyDraft(kind: TemplateKindDto = "outreach") {
+  return {
+    id: null as string | null,
+    title: kind === "followup" ? "Follow-up — gentle nudge" : "Referral ask",
+    subject: defaultSubjectForKind(kind),
+    body: "",
+    kind,
+  };
+}
 
-export function ColdEmailTemplatesPanel({ templates, onTemplatesChange, className }: Props) {
-  const [draft, setDraft] = useState(emptyDraft);
+export function ColdEmailTemplatesPanel({
+  templates,
+  onTemplatesChange,
+  lockedKind,
+  listTitle = "Your templates",
+  newButtonLabel = "New blank template",
+  className,
+}: Props) {
+  const defaultKind = lockedKind ?? "outreach";
+  const [draft, setDraft] = useState(() => emptyDraft(defaultKind));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -83,7 +105,7 @@ export function ColdEmailTemplatesPanel({ templates, onTemplatesChange, classNam
   const previewBody = renderTemplatePreview(draft.body || "", vars);
 
   function startNew() {
-    setDraft(emptyDraft());
+    setDraft(emptyDraft(defaultKind));
     setError(null);
     queueMicrotask(() => {
       editorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -95,7 +117,7 @@ export function ColdEmailTemplatesPanel({ templates, onTemplatesChange, classNam
     setDraft({
       id: tpl.id,
       title: tpl.title,
-      subject: tpl.subject?.trim() ? tpl.subject : DEFAULT_TEMPLATE_SUBJECT,
+      subject: tpl.subject?.trim() ? tpl.subject : defaultSubjectForKind(tpl.kind),
       body: tpl.body,
       kind: tpl.kind,
     });
@@ -122,7 +144,7 @@ export function ColdEmailTemplatesPanel({ templates, onTemplatesChange, classNam
             title: draft.title.trim(),
             subject: draft.subject,
             body: draft.body,
-            kind: draft.kind,
+            kind: lockedKind ?? draft.kind,
           }),
         });
         const data = (await res.json()) as { template?: ColdEmailTemplateDto; error?: string };
@@ -148,7 +170,7 @@ export function ColdEmailTemplatesPanel({ templates, onTemplatesChange, classNam
             title: draft.title.trim(),
             subject: draft.subject,
             body: draft.body,
-            kind: draft.kind,
+            kind: lockedKind ?? draft.kind,
           }),
         });
         const data = (await res.json()) as { template?: ColdEmailTemplateDto; error?: string };
@@ -270,30 +292,33 @@ export function ColdEmailTemplatesPanel({ templates, onTemplatesChange, classNam
             placeholder="Title (e.g. Referral ask — Acme)"
             className={field}
           />
-          <Select
-            value={draft.kind}
-            onValueChange={(v) =>
-              setDraft((d) => ({
-                ...d,
-                kind: (v as "outreach" | "cover" | "other") || "outreach",
-              }))
-            }
-          >
-            <SelectTrigger className={cn(field, "px-2")}>
-              <SelectValue placeholder="Kind" />
-            </SelectTrigger>
-            <SelectContent className="z-[280]">
-              <SelectItem value="outreach">Outreach</SelectItem>
-              <SelectItem value="cover">Cover</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
+          {lockedKind ? null : (
+            <Select
+              value={draft.kind}
+              onValueChange={(v) =>
+                setDraft((d) => ({
+                  ...d,
+                  kind: (v as TemplateKindDto) || "outreach",
+                }))
+              }
+            >
+              <SelectTrigger className={cn(field, "px-2")}>
+                <SelectValue placeholder="Kind" />
+              </SelectTrigger>
+              <SelectContent className="z-[280]">
+                <SelectItem value="outreach">Referral email</SelectItem>
+                <SelectItem value="followup">Follow-up email</SelectItem>
+                <SelectItem value="cover">Cover</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <label className="block space-y-1">
             <span className="text-muted-foreground text-[11px] font-medium">Subject</span>
             <input
               value={draft.subject}
               onChange={(e) => setDraft((d) => ({ ...d, subject: e.target.value }))}
-              placeholder={DEFAULT_TEMPLATE_SUBJECT}
+              placeholder={defaultSubjectForKind(draft.kind)}
               className={field}
             />
           </label>
@@ -346,15 +371,15 @@ export function ColdEmailTemplatesPanel({ templates, onTemplatesChange, classNam
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
-            Your templates ({templates.length})
+            {listTitle} ({templates.length})
           </h2>
           <button
             type="button"
             onClick={startNew}
-            title="Create a new blank cold-email template in the editor above"
+            title="Create a new blank template in the editor above"
             className="border-border text-foreground hover:text-primary inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
           >
-            New blank template
+            {newButtonLabel}
           </button>
         </div>
         {templates.length === 0 ? (

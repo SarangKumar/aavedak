@@ -38,8 +38,8 @@ export default async function DashboardPage() {
 
   const metaStats = [
     { label: "Active apps", value: dash.activeApplicationCount, href: "/job-tracker" },
-    { label: "Follow-ups", value: dash.pendingFollowUpCount, href: "/follow-ups" },
-    { label: "Due ≤7d", value: dash.dueSoonFollowUpCount, href: "/follow-ups" },
+    { label: "Outreach", value: dash.pendingFollowUpCount, href: "/outreach" },
+    { label: "Due ≤7d", value: dash.dueSoonFollowUpCount, href: "/outreach" },
     { label: "Jobs", value: dash.jobCount, href: "/jobs" },
     { label: "Resumes", value: dash.resumeCount, href: "/documents" },
     { label: "Covers", value: dash.coverLetterCount, href: "/documents" },
@@ -228,15 +228,15 @@ export default async function DashboardPage() {
               >
                 Upcoming follow-ups
               </h2>
-              <Link href="/follow-ups" className="text-primary text-[11px] hover:underline">
+              <Link href="/outreach" className="text-primary text-[11px] hover:underline">
                 View all
               </Link>
             </div>
             {dash.upcomingFollowUps.length === 0 ? (
               <p className="text-muted-foreground text-[12px] leading-relaxed">
                 No pending follow-ups. Track asks on{" "}
-                <Link href="/follow-ups" className="text-primary hover:underline">
-                  Follow-ups
+                <Link href="/outreach" className="text-primary hover:underline">
+                  Outreach
                 </Link>{" "}
                 or compose on{" "}
                 <Link href="/referrals" className="text-primary hover:underline">

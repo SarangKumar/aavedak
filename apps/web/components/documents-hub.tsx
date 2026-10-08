@@ -39,7 +39,7 @@ import { renderTemplatePreview } from "@/lib/template-preview";
 import { CompanySelect } from "@/components/company-select";
 import { cn } from "@/lib/utils";
 
-type Tab = "resumes" | "cover_letters" | "templates";
+type Tab = "resumes" | "cover_letters" | "referral_email" | "followup_email";
 
 export type ResumeDto = {
   id: string;
@@ -79,7 +79,7 @@ export type TemplateDto = {
   title: string;
   subject: string;
   body: string;
-  kind: "outreach" | "cover" | "other";
+  kind: "outreach" | "cover" | "followup" | "other";
   status: "active" | "archived";
   createdAt: string;
   updatedAt: string;
@@ -118,6 +118,70 @@ John Doe`;
 type FooterIncludeKey = CoverFooterLinkKey | "email";
 
 type FooterInclude = Record<FooterIncludeKey, boolean>;
+
+function OpenIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M6 3H3.5A1.5 1.5 0 0 0 2 4.5v8A1.5 1.5 0 0 0 3.5 14h8A1.5 1.5 0 0 0 13 12.5V10M9 2h5v5M14 2 7 9"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function StarIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+      <path d="m8 1.5 1.8 3.6 4 .6-2.9 2.8.7 4L8 10.7 4.4 12.5l.7-4L2.2 5.7l4-.6L8 1.5Z" />
+    </svg>
+  );
+}
+
+function StarOffIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="m8 1.5 1.8 3.6 4 .6-2.9 2.8.7 4L8 10.7 4.4 12.5l.7-4L2.2 5.7l4-.6L8 1.5Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      <path d="M3 3l10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M3.5 4.5h9M6 4.5V3.2A.7.7 0 0 1 6.7 2.5h2.6a.7.7 0 0 1 .7.7v1.3M5.5 6.5l.4 6.2a.8.8 0 0 0 .8.7h2.6a.8.8 0 0 0 .8-.7l.4-6.2M7 7.5v4M9 7.5v4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ArchiveIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M2.5 4.5h11v2H2.5v-2ZM3.5 6.5v6a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-6M6.5 9h3"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 function formatBytes(n: number) {
   if (n < 1024) return `${n} B`;
@@ -174,6 +238,7 @@ export function DocumentsHub({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
+  const [resumeActionId, setResumeActionId] = useState<string | null>(null);
   const [atsScoringIds, setAtsScoringIds] = useState<Set<string>>(() => new Set());
   const [deleteTarget, setDeleteTarget] = useState<ResumeDto | null>(null);
   const [deletePending, setDeletePending] = useState(false);
@@ -397,17 +462,22 @@ export function DocumentsHub({
 
   async function patchResume(id: string, patch: { status?: string; displayName?: string }) {
     setError(null);
-    const res = await fetch(`/api/resumes/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    const data = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      setError(data.error || "Could not update resume.");
-      return;
+    setResumeActionId(id);
+    try {
+      const res = await fetch(`/api/resumes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error || "Could not update resume.");
+        return;
+      }
+      await refreshResumes();
+    } finally {
+      setResumeActionId(null);
     }
-    await refreshResumes();
   }
 
   async function confirmDeleteInactiveResume() {
@@ -430,13 +500,18 @@ export function DocumentsHub({
 
   async function archiveResume(id: string) {
     setError(null);
-    const res = await fetch(`/api/resumes/${id}`, { method: "DELETE" });
-    const data = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      setError(data.error || "Could not archive resume.");
-      return;
+    setResumeActionId(id);
+    try {
+      const res = await fetch(`/api/resumes/${id}`, { method: "DELETE" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error || "Could not archive resume.");
+        return;
+      }
+      await refreshResumes();
+    } finally {
+      setResumeActionId(null);
     }
-    await refreshResumes();
   }
 
   async function saveCoverLetter() {
@@ -530,22 +605,22 @@ export function DocumentsHub({
         </p>
         <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Documents</h1>
         <p className="text-muted-foreground text-[13px] leading-relaxed">
-          Resumes (PDF), company-specific cover letters (PDF/DOCX download), and cold-email
-          templates. Only one resume can be the active profile showcase. Resume delete archives
-          only.
+          Resumes (PDF), cover letters, referral email templates, and follow-up email templates.
+          Only one resume can be the active profile showcase.
         </p>
       </header>
 
       <div
-        className="border-border bg-card relative z-10 inline-flex h-8 items-center rounded-lg border p-0.5"
+        className="border-border bg-card relative z-10 inline-flex h-8 max-w-full flex-wrap items-center rounded-lg border p-0.5"
         role="tablist"
         aria-label="Documents sections"
       >
         {(
           [
-            { id: "resumes", label: "Resumes" },
-            { id: "cover_letters", label: "Cover letters" },
-            { id: "templates", label: "Cold email templates" },
+            { id: "resumes", label: "Resume" },
+            { id: "cover_letters", label: "Cover Letter" },
+            { id: "referral_email", label: "Referral Email" },
+            { id: "followup_email", label: "Follow-up Email" },
           ] as const
         ).map((item) => (
           <button
@@ -610,8 +685,9 @@ export function DocumentsHub({
               type="button"
               disabled={pending || !selectedPdf}
               onClick={() => void uploadResume()}
-              className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold shadow-sm ring-1 hover:opacity-90 disabled:opacity-60"
+              className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-[13px] font-semibold shadow-sm ring-1 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
+              {pending ? <Spinner className="size-3.5" label="Uploading" /> : null}
               {pending ? "Uploading…" : "Upload PDF resume"}
             </button>
           </div>
@@ -634,84 +710,126 @@ export function DocumentsHub({
               </div>
             ) : (
               <ul className="space-y-2">
-                {resumes.map((resume) => (
-                  <li
-                    key={resume.id}
-                    className="border-border/80 bg-card flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-foreground truncate text-[13px] font-medium">
-                        {resume.displayName}
-                        <span
-                          className={cn(
-                            "ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                            resume.status === "active"
-                              ? "bg-primary/15 text-primary"
-                              : "bg-muted text-muted-foreground",
-                          )}
-                        >
-                          {resume.status}
-                        </span>
-                      </p>
-                      <p className="text-muted-foreground flex items-center gap-1.5 truncate text-[11px]">
-                        <span className="truncate">
-                          {resume.originalFilename} · {formatBytes(resume.byteSize)}
-                        </span>
-                        {atsScoringIds.has(resume.id) ? (
-                          <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1">
-                            · <Spinner className="size-3" label="Scoring ATS" /> ATS…
+                {resumes.map((resume) => {
+                  const busy = resumeActionId === resume.id;
+                  return (
+                    <li
+                      key={resume.id}
+                      className="border-border/80 bg-card flex items-center gap-2 rounded-lg border p-3 sm:justify-between"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-foreground truncate text-[13px] font-medium">
+                          {resume.displayName}
+                          <span
+                            className={cn(
+                              "ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                              resume.status === "active"
+                                ? "bg-primary/15 text-primary"
+                                : "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            {resume.status}
                           </span>
-                        ) : resume.atsScore != null ? (
-                          <span className="shrink-0"> · ATS {resume.atsScore}</span>
-                        ) : null}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      <a
-                        href={`/api/resumes/${resume.id}/file`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-                      >
-                        Open
-                      </a>
-                      {resume.status !== "active" ? (
-                        <button
-                          type="button"
-                          onClick={() => void patchResume(resume.id, { status: "active" })}
-                          className="border-border text-foreground hover:text-primary inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                        </p>
+                        <p className="text-muted-foreground flex items-center gap-1.5 truncate text-[11px]">
+                          <span className="truncate">
+                            {resume.originalFilename} · {formatBytes(resume.byteSize)}
+                          </span>
+                          {atsScoringIds.has(resume.id) ? (
+                            <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1">
+                              · <Spinner className="size-3" label="Scoring ATS" /> ATS…
+                            </span>
+                          ) : resume.atsScore != null ? (
+                            <span className="shrink-0"> · ATS {resume.atsScore}</span>
+                          ) : null}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                        <a
+                          href={`/api/resumes/${resume.id}/file`}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Open"
+                          aria-label={`Open ${resume.displayName}`}
+                          className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border sm:h-8 sm:w-auto sm:px-2.5"
                         >
-                          Set as showcase
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => void patchResume(resume.id, { status: "inactive" })}
-                          className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-                        >
-                          Unset showcase
-                        </button>
-                      )}
-                      {resume.status === "inactive" ? (
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(resume)}
-                          className="border-border text-destructive hover:bg-destructive/10 inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-                        >
-                          Delete permanently
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => void archiveResume(resume.id)}
-                          className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
-                        >
-                          Archive
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                ))}
+                          <OpenIcon className="size-3.5 sm:hidden" />
+                          <span className="hidden text-[12px] sm:inline">Open</span>
+                        </a>
+                        {resume.status !== "active" ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            title="Set as showcase"
+                            aria-label={`Set ${resume.displayName} as showcase`}
+                            onClick={() => void patchResume(resume.id, { status: "active" })}
+                            className="border-border text-foreground hover:text-primary inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
+                          >
+                            {busy ? (
+                              <Spinner className="size-3.5" label="Updating" />
+                            ) : (
+                              <>
+                                <StarIcon className="size-3.5 sm:hidden" />
+                                <span className="hidden text-[12px] sm:inline">
+                                  Set as showcase
+                                </span>
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            title="Unset showcase"
+                            aria-label={`Unset showcase for ${resume.displayName}`}
+                            onClick={() => void patchResume(resume.id, { status: "inactive" })}
+                            className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
+                          >
+                            {busy ? (
+                              <Spinner className="size-3.5" label="Updating" />
+                            ) : (
+                              <>
+                                <StarOffIcon className="size-3.5 sm:hidden" />
+                                <span className="hidden text-[12px] sm:inline">Unset showcase</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                        {resume.status === "inactive" ? (
+                          <button
+                            type="button"
+                            disabled={busy || deletePending}
+                            title="Delete permanently"
+                            aria-label={`Delete ${resume.displayName} permanently`}
+                            onClick={() => setDeleteTarget(resume)}
+                            className="border-border text-destructive hover:bg-destructive/10 inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
+                          >
+                            <TrashIcon className="size-3.5 sm:hidden" />
+                            <span className="hidden text-[12px] sm:inline">Delete permanently</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            title="Archive"
+                            aria-label={`Archive ${resume.displayName}`}
+                            onClick={() => void archiveResume(resume.id)}
+                            className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
+                          >
+                            {busy ? (
+                              <Spinner className="size-3.5" label="Archiving" />
+                            ) : (
+                              <>
+                                <ArchiveIcon className="size-3.5 sm:hidden" />
+                                <span className="hidden text-[12px] sm:inline">Archive</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -1007,14 +1125,40 @@ export function DocumentsHub({
         </section>
       ) : null}
 
-      {tab === "templates" ? (
+      {tab === "referral_email" ? (
         <section className="space-y-3">
           <p className="text-muted-foreground text-[12px] leading-relaxed">
-            Cold-email templates for Referrals. Live preview uses the dummy application strip.
+            Referral email templates for Referrals outreach. Live preview uses the dummy application
+            strip.
           </p>
           <ColdEmailTemplatesPanel
-            templates={templates}
-            onTemplatesChange={(next) => setTemplates(next)}
+            lockedKind="outreach"
+            listTitle="My referral templates"
+            newButtonLabel="New referral template"
+            templates={templates.filter((t) => t.kind === "outreach")}
+            onTemplatesChange={(next) =>
+              setTemplates((prev) => [...prev.filter((t) => t.kind !== "outreach"), ...next])
+            }
+            fromEmail={userEmail}
+            userName={userName}
+          />
+        </section>
+      ) : null}
+
+      {tab === "followup_email" ? (
+        <section className="space-y-3">
+          <p className="text-muted-foreground text-[12px] leading-relaxed">
+            Follow-up email templates for later nudges. Same editor as Referral Email — stored in
+            your account. Live preview uses the dummy application strip.
+          </p>
+          <ColdEmailTemplatesPanel
+            lockedKind="followup"
+            listTitle="My follow-up templates"
+            newButtonLabel="New follow-up template"
+            templates={templates.filter((t) => t.kind === "followup")}
+            onTemplatesChange={(next) =>
+              setTemplates((prev) => [...prev.filter((t) => t.kind !== "followup"), ...next])
+            }
             fromEmail={userEmail}
             userName={userName}
           />
@@ -1034,7 +1178,7 @@ export function DocumentsHub({
               type="button"
               disabled={deletePending}
               onClick={() => setDeleteTarget(null)}
-              className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px] disabled:opacity-50"
+              className="border-border text-muted-foreground inline-flex h-8 cursor-pointer items-center rounded-lg border px-3 text-[12px] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cancel
             </button>
@@ -1042,8 +1186,9 @@ export function DocumentsHub({
               type="button"
               disabled={deletePending}
               onClick={() => void confirmDeleteInactiveResume()}
-              className="bg-destructive inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold text-white disabled:opacity-50"
+              className="bg-destructive inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
+              {deletePending ? <Spinner className="size-3.5" label="Deleting" /> : null}
               {deletePending ? "Deleting…" : "Delete permanently"}
             </button>
           </>

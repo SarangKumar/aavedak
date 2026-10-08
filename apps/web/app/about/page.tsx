@@ -86,10 +86,10 @@ export default function AboutPage() {
             — contacts CRM.
           </li>
           <li>
-            <Link href="/follow-ups" className="text-primary hover:underline">
-              Follow-ups
+            <Link href="/outreach" className="text-primary hover:underline">
+              Outreach
             </Link>{" "}
-            — pending and queued tasks.
+            — referral and follow-up inbox.
           </li>
         </ul>
         <p className="text-muted-foreground pt-1 text-[12px]">

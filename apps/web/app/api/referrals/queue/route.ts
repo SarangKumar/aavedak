@@ -2,21 +2,36 @@ import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
 import { getApplication } from "@/lib/applications";
-import { createFollowUp } from "@/lib/follow-ups";
-import { getGmailAuthStatus } from "@/lib/gmail";
+import {
+  createFollowUp,
+  listFollowUps,
+  type FollowUpMailKind,
+  type FollowUpRecord,
+} from "@/lib/follow-ups";
+import { getGmailAuthStatus, replySubject } from "@/lib/gmail";
 import { getPerson } from "@/lib/people";
 import { getResume } from "@/lib/resumes";
+
+const FOLLOWUP_COOLDOWN_MS = 60 * 60 * 1000;
 
 function fill(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => vars[key] ?? "");
 }
 
+function mailKindOf(row: FollowUpRecord): FollowUpMailKind {
+  if (row.mailKind === "outreach" || row.mailKind === "followup") return row.mailKind;
+  if (row.title.startsWith("Follow-up:")) return "followup";
+  return "outreach";
+}
+
+function isBlockingSend(status: FollowUpRecord["status"]): boolean {
+  return status === "sent" || status === "sent_stub" || status === "queued" || status === "pending";
+}
+
 /**
- * Queue outreach follow-ups for confirmed recipients.
- * Prefer sendAfterSeconds (default 0 after on-screen 20s countdown).
- * Legacy sendAfterMinutes still accepted.
+ * Queue outreach / follow-up mail for confirmed recipients.
  * Body: { applicationId, personIds, subject, body, dueDate?, sendAfterSeconds?,
- *         sendAfterMinutes?, resumeId?, confirmed: true }
+ *         resumeId?, confirmed: true, mailKind?: "outreach" | "followup" }
  */
 export async function POST(request: Request) {
   const authResult = await requireApiUser();
@@ -41,6 +56,7 @@ export async function POST(request: Request) {
     typeof body.dueDate === "string" && body.dueDate.trim() ? body.dueDate.trim() : null;
   const resumeId =
     typeof body.resumeId === "string" && body.resumeId.trim() ? body.resumeId.trim() : null;
+  const mailKind: FollowUpMailKind = body.mailKind === "followup" ? "followup" : "outreach";
 
   let sendAfterMs = 0;
   if (typeof body.sendAfterSeconds === "number" && Number.isFinite(body.sendAfterSeconds)) {
@@ -87,6 +103,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Application not found." }, { status: 404 });
   }
 
+  const existing = await listFollowUps(userId, { includeClosed: true });
+  const forApp = existing.filter((f) => f.applicationId === applicationId);
+
   const baseVars = {
     company: application.companyName,
     role: application.role,
@@ -106,18 +125,86 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    const personRows = forApp.filter((f) => f.personId === personId);
+
+    if (mailKind === "outreach") {
+      const already = personRows.some(
+        (f) => mailKindOf(f) === "outreach" && isBlockingSend(f.status),
+      );
+      if (already) {
+        return NextResponse.json(
+          {
+            error: `A referral email was already sent or queued to ${person.name} for this job.`,
+            code: "outreach_already_sent",
+          },
+          { status: 409 },
+        );
+      }
+    } else {
+      const hasOutreach = personRows.some(
+        (f) => mailKindOf(f) === "outreach" && (f.status === "sent" || f.status === "sent_stub"),
+      );
+      if (!hasOutreach) {
+        return NextResponse.json(
+          {
+            error: `Send a referral email to ${person.name} before a follow-up.`,
+            code: "outreach_required",
+          },
+          { status: 400 },
+        );
+      }
+      const lastSend = personRows
+        .filter((f) => f.status === "sent" || f.status === "sent_stub")
+        .map((f) => new Date(f.updatedAt || f.createdAt).getTime())
+        .reduce((max, t) => Math.max(max, t), 0);
+      if (lastSend && Date.now() - lastSend < FOLLOWUP_COOLDOWN_MS) {
+        const waitMin = Math.ceil((FOLLOWUP_COOLDOWN_MS - (Date.now() - lastSend)) / 60_000);
+        return NextResponse.json(
+          {
+            error: `Wait about ${waitMin} minute${waitMin === 1 ? "" : "s"} before another follow-up to ${person.name}.`,
+            code: "followup_cooldown",
+          },
+          { status: 429 },
+        );
+      }
+    }
+
     const vars = {
       ...baseVars,
       person_name: person.name,
       person_email: person.email ?? "",
     };
-    const subject = fill(subjectTpl, vars);
+    let subject = fill(subjectTpl, vars);
+    if (mailKind === "followup") {
+      const parentOutreach = personRows
+        .filter(
+          (f) =>
+            mailKindOf(f) === "outreach" &&
+            (f.status === "sent" || f.status === "sent_stub") &&
+            f.mailSubject?.trim(),
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt || b.createdAt).getTime() -
+            new Date(a.updatedAt || a.createdAt).getTime(),
+        )[0];
+      if (parentOutreach?.mailSubject) {
+        subject = replySubject(parentOutreach.mailSubject);
+      } else if (!/^re:\s*/i.test(subject)) {
+        subject = replySubject(subject);
+      }
+    }
     const renderedBody = fill(bodyTpl, vars);
-    const title = `Outreach: ${person.name} · ${application.companyName}`;
+    const title =
+      mailKind === "followup"
+        ? `Follow-up: ${person.name} · ${application.companyName}`
+        : `Outreach: ${person.name} · ${application.companyName}`;
     const notes = [
       subject ? `Subject: ${subject}` : null,
       `To: ${person.email}`,
       `From: ${session.user.email}`,
+      `Kind: ${mailKind}`,
       resumeId ? `Resume-Id: ${resumeId}` : null,
       "",
       renderedBody.trim() || "(empty body)",
@@ -136,6 +223,7 @@ export async function POST(request: Request) {
       mailTo: person.email,
       mailSubject: subject,
       mailBody: renderedBody.trim(),
+      mailKind,
     });
     created.push({
       id: followUp.id,
@@ -146,6 +234,7 @@ export async function POST(request: Request) {
       personId: followUp.personId,
       applicationId: followUp.applicationId,
       notes: followUp.notes,
+      mailKind: followUp.mailKind,
       mailTo: followUp.mailTo,
       mailSubject: followUp.mailSubject,
       createdAt: followUp.createdAt,
@@ -159,6 +248,7 @@ export async function POST(request: Request) {
       count: created.length,
       sendAfterMs,
       resumeId,
+      mailKind,
       gmail: "queued",
       note:
         sendAfterMs === 0

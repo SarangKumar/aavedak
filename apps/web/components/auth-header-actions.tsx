@@ -99,12 +99,12 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
             People
           </Link>
           <Link
-            href="/follow-ups"
+            href="/outreach"
             role="menuitem"
             onClick={close}
             className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
           >
-            Follow-ups
+            Outreach
           </Link>
           <Link
             href="/ats"

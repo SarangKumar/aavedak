@@ -7,12 +7,16 @@ import { listApplications } from "@/lib/applications";
 import { listCoverLetters } from "@/lib/cover-letters";
 import { listJobsForUser } from "@/lib/jobs";
 import { listResumes } from "@/lib/resumes";
-import { listTemplates } from "@/lib/templates";
+import {
+  ensureDefaultFollowupTemplate,
+  ensureDefaultOutreachTemplate,
+  listTemplates,
+} from "@/lib/templates";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
   title: "Documents",
-  description: "Resumes, cover letters, and reusable templates.",
+  description: "Resumes, cover letters, referral email, and follow-up email templates.",
 };
 
 export default async function DocumentsPage() {
@@ -20,6 +24,8 @@ export default async function DocumentsPage() {
   const profile = await getProfile(user.id);
   const resumes = await listResumes(user.id);
   const coverLetters = await listCoverLetters(user.id);
+  await ensureDefaultOutreachTemplate(user.id);
+  await ensureDefaultFollowupTemplate(user.id);
   const templates = await listTemplates(user.id);
   const applications = await listApplications(user.id, "active");
   const jobs = await listJobsForUser(user.id);

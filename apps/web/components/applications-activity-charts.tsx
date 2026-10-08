@@ -63,7 +63,7 @@ function seriesKey(s: SeriesDto): string {
 }
 
 export function ApplicationsActivityCharts() {
-  const [months, setMonths] = useState("3");
+  const [months, setMonths] = useState("1");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ActivityResponse | null>(null);

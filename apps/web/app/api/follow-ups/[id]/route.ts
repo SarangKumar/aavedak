@@ -21,6 +21,13 @@ function toDto(row: NonNullable<Awaited<ReturnType<typeof getFollowUp>>>) {
     personId: row.personId,
     applicationId: row.applicationId,
     notes: row.notes,
+    mailKind: row.mailKind,
+    mailTo: row.mailTo,
+    mailSubject: row.mailSubject,
+    mailBody: row.mailBody,
+    sendError: row.sendError,
+    gmailMessageId: row.gmailMessageId,
+    gmailThreadId: row.gmailThreadId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

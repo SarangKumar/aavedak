@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 
-export type TemplateKind = "outreach" | "cover" | "other";
+export type TemplateKind = "outreach" | "cover" | "followup" | "other";
 export type TemplateStatus = "active" | "archived";
 
 export type TemplateRecord = {
@@ -19,7 +19,7 @@ export type TemplateRecord = {
   updatedAt: string;
 };
 
-const KINDS: TemplateKind[] = ["outreach", "cover", "other"];
+const KINDS: TemplateKind[] = ["outreach", "cover", "followup", "other"];
 
 type Row = {
   id: string;
@@ -170,5 +170,24 @@ export async function ensureDefaultOutreachTemplate(userId: string): Promise<Tem
     subject: "Referral ask — {{role}} at {{company}}",
     body: DEFAULT_OUTREACH_BODY,
     kind: "outreach",
+  });
+}
+
+const DEFAULT_FOLLOWUP_BODY = `Hi {{person_name}},
+
+Just following up on my note about the {{role}} role at {{company}}. I remain very interested and happy to share more context if useful.
+
+Thank you,
+{{user_name}}
+`;
+
+export async function ensureDefaultFollowupTemplate(userId: string): Promise<TemplateRecord> {
+  const existing = (await listTemplates(userId)).find((t) => t.kind === "followup");
+  if (existing) return existing;
+  return createTemplate(userId, {
+    title: "Follow-up — gentle nudge",
+    subject: "Following up — {{role}} at {{company}}",
+    body: DEFAULT_FOLLOWUP_BODY,
+    kind: "followup",
   });
 }
