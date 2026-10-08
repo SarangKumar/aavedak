@@ -1,17 +1,16 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { auth, getServerSession } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
 import { hasFullyOnboarded } from "@/lib/onboarding";
-import { isUserCapError, USER_CAP_MESSAGE } from "@/lib/user-cap";
+import { REJECTED_APPROVAL_MESSAGE } from "@/lib/user-approval";
 
 type Props = {
   searchParams: Promise<{ next?: string }>;
 };
 
 /**
- * Post-OAuth gate: claim a profile slot (max 8 users) then send to onboarding/dashboard.
+ * Post-OAuth gate: create profile (pending unless admin), then route by approval + onboarding.
  */
 export default async function AuthContinuePage({ searchParams }: Props) {
   const params = await searchParams;
@@ -20,26 +19,25 @@ export default async function AuthContinuePage({ searchParams }: Props) {
     redirect("/sign-in");
   }
 
-  try {
-    await ensureProfile({
-      id: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-      image: session.user.image,
-    });
-  } catch (err) {
-    if (isUserCapError(err)) {
-      try {
-        await auth.api.signOut({ headers: await headers() });
-      } catch {
-        /* ignore */
-      }
-      redirect(`/closed?reason=${encodeURIComponent(USER_CAP_MESSAGE)}`);
-    }
-    throw err;
+  const profile = await ensureProfile({
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+    image: session.user.image,
+  });
+
+  if (profile.approvalStatus === "pending") {
+    redirect("/pending-approval");
+  }
+  if (profile.approvalStatus === "rejected") {
+    redirect(`/closed?reason=${encodeURIComponent(REJECTED_APPROVAL_MESSAGE)}`);
   }
 
   const next = params.next?.startsWith("/") ? params.next : null;
+  if (next && next !== "/onboarding" && next !== "/pending-approval") {
+    // Only send to app routes after approval; still honor deep links for approved users.
+    if (await hasFullyOnboarded(session.user.id)) redirect(next);
+  }
   if (next) redirect(next);
 
   if (await hasFullyOnboarded(session.user.id)) {

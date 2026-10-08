@@ -226,6 +226,10 @@ async function runSchema() {
   await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS company_size_preference TEXT`;
   await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS industry_preference TEXT`;
 
+  // Access approval: pending → admin approve → onboarding. Existing rows default approved.
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS approval_status TEXT NOT NULL DEFAULT 'approved'`;
+  await db`CREATE INDEX IF NOT EXISTS profiles_approval_status_idx ON profiles (approval_status)`;
+
   // Shared company directory (creatable Select; used for search / match / referrals)
   await db`
     CREATE TABLE IF NOT EXISTS companies (

@@ -6,6 +6,8 @@ export type CoverLetterFooter = {
   linkedin?: string;
   github?: string;
   leetcode?: string;
+  /** Absolute or site-relative URL to a resume PDF. */
+  resume?: string;
 };
 
 export type CoverLetterDownloadOpts = {
@@ -28,6 +30,7 @@ const FOOTER_ROW_KEYS: Array<{ key: keyof CoverLetterFooter; label: string }> = 
   { key: "linkedin", label: "linkedin" },
   { key: "portfolio", label: "portfolio" },
   { key: "leetcode", label: "leetcode" },
+  { key: "resume", label: "resume" },
 ];
 
 /** One-row footer items: email shows address; links show short labels. */

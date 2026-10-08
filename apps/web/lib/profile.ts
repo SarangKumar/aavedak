@@ -1,7 +1,6 @@
 import "server-only";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
-import { countAppUsers, MAX_APP_USERS, UserCapError } from "@/lib/user-cap";
 import {
   emptyCareerProfile,
   isCareerProfileComplete,
@@ -24,9 +23,12 @@ import {
   serializeProfileLinks,
   type ProfileLinks,
 } from "@/lib/profile-links";
+import { initialApprovalStatus } from "@/lib/user-approval";
+import { isApprovalStatus, type ApprovalStatus } from "@/lib/user-approval-shared";
 import { usernameFromUser } from "@/lib/username";
 
 export type { CareerProfile, CareerProfilePatch };
+export type { ApprovalStatus };
 
 export type Profile = {
   userId: string;
@@ -41,6 +43,8 @@ export type Profile = {
   links: ProfileLinks;
   imageUrl: string | null;
   onboardingComplete: boolean;
+  /** Admin gate before onboarding. Existing users are approved. */
+  approvalStatus: ApprovalStatus;
   career: CareerProfile;
   createdAt: string;
   updatedAt: string;
@@ -57,6 +61,7 @@ type ProfileRow = {
   links_json: string | null;
   image_url: string | null;
   onboarding_complete: number | boolean;
+  approval_status: string | null;
   experience_level: string | null;
   preferred_roles_json: string | null;
   expected_salary_min: number | null;
@@ -108,6 +113,7 @@ function mapRow(row: ProfileRow): Profile {
     links,
     imageUrl: row.image_url,
     onboardingComplete: Boolean(row.onboarding_complete),
+    approvalStatus: isApprovalStatus(row.approval_status) ? row.approval_status : "approved",
     career: mapCareer(row),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -142,7 +148,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   await ensureAppSchema();
   const rows = (await getSql()`
     SELECT user_id, username, email, name, bio, portfolio_url, linkedin_url,
-      links_json, image_url, onboarding_complete,
+      links_json, image_url, onboarding_complete, approval_status,
       experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
       salary_currency, preferred_locations_json, remote_preference, work_authorization,
       skills_json, job_search_status, company_size_preference, industry_preference,
@@ -156,7 +162,7 @@ export async function getProfileByUsername(username: string): Promise<Profile | 
   await ensureAppSchema();
   const rows = (await getSql()`
     SELECT user_id, username, email, name, bio, portfolio_url, linkedin_url,
-      links_json, image_url, onboarding_complete,
+      links_json, image_url, onboarding_complete, approval_status,
       experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
       salary_currency, preferred_locations_json, remote_preference, work_authorization,
       skills_json, job_search_status, company_size_preference, industry_preference,
@@ -180,10 +186,16 @@ export async function ensureProfile(user: {
   const imageUrl = user.image?.trim() || null;
 
   if (existing) {
+    // Admins always stay approved (covers adding someone to ADMIN_EMAILS later).
+    const nextApproval =
+      initialApprovalStatus(user.email) === "approved" && existing.approvalStatus !== "approved"
+        ? "approved"
+        : existing.approvalStatus;
     await sql`
       UPDATE profiles
       SET email = ${user.email},
           image_url = COALESCE(${imageUrl}, image_url),
+          approval_status = ${nextApproval},
           updated_at = ${now}
       WHERE user_id = ${user.id}
     `;
@@ -191,6 +203,7 @@ export async function ensureProfile(user: {
       ...existing,
       email: user.email,
       imageUrl: imageUrl ?? existing.imageUrl,
+      approvalStatus: nextApproval,
       updatedAt: now,
     };
   }
@@ -200,21 +213,22 @@ export async function ensureProfile(user: {
    * ensureProfile for a brand-new user. A plain INSERT raced → profiles_pkey violation.
    * ON CONFLICT DO NOTHING makes the claim idempotent; the loser re-reads the winner's row.
    */
+  const approvalStatus = initialApprovalStatus(user.email);
+
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const base = await allocateUsername(user.email, user.id);
     const username = attempt < 3 ? base : `${base}-${user.id.slice(0, 6).toLowerCase()}`;
-    // Atomic slot claim: only insert when under the hard user cap.
     const inserted = (await sql`
       INSERT INTO profiles
         (user_id, username, email, name, bio, portfolio_url, linkedin_url, links_json, image_url,
-         onboarding_complete, created_at, updated_at)
-      SELECT
+         onboarding_complete, approval_status, created_at, updated_at)
+      VALUES (
         ${user.id}, ${username}, ${user.email}, ${user.name ?? null}, NULL, NULL, NULL, '{}',
-        ${imageUrl}, 0, ${now}, ${now}
-      WHERE (SELECT COUNT(*)::int FROM profiles) < ${MAX_APP_USERS}
+        ${imageUrl}, 0, ${approvalStatus}, ${now}, ${now}
+      )
       ON CONFLICT DO NOTHING
       RETURNING user_id, username, email, name, bio, portfolio_url, linkedin_url,
-        links_json, image_url, onboarding_complete,
+        links_json, image_url, onboarding_complete, approval_status,
         experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
         salary_currency, preferred_locations_json, remote_preference, work_authorization,
         skills_json, job_search_status, company_size_preference, industry_preference,
@@ -226,11 +240,6 @@ export async function ensureProfile(user: {
     // Another request for this same user won the race.
     const raced = await getProfile(user.id);
     if (raced) return raced;
-
-    // No row and not ours: either the cap is full, or the username was taken concurrently.
-    if ((await countAppUsers()) >= MAX_APP_USERS) {
-      throw new UserCapError();
-    }
   }
 
   throw new Error("Could not create profile (username allocation kept colliding).");

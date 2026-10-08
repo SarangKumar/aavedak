@@ -5,7 +5,6 @@ import { getServerSession } from "@/lib/auth";
 import { downloadResumePdf, isGcsObjectKey, toObjectKey } from "@/lib/gcs";
 import { ensureProfile } from "@/lib/profile";
 import { getResume, getResumeById } from "@/lib/resumes";
-import { isUserCapError } from "@/lib/user-cap";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -14,19 +13,12 @@ export async function GET(_request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
 
   if (session?.user?.email) {
-    try {
-      await ensureProfile({
-        id: session.user.id,
-        email: session.user.email,
-        name: session.user.name,
-        image: session.user.image,
-      });
-    } catch (err) {
-      if (isUserCapError(err)) {
-        return NextResponse.json({ error: err.message }, { status: 403 });
-      }
-      throw err;
-    }
+    await ensureProfile({
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      image: session.user.image,
+    });
     const admin = isAdminEmail(session.user.email);
     const resume = admin ? await getResumeById(id) : await getResume(session.user.id, id);
     if (!resume || (resume.status === "archived" && !admin)) {

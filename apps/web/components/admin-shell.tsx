@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -13,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { AdminOverviewCounts, AdminResumeRow } from "@/lib/admin-data";
+import type { PendingUserRow } from "@/lib/user-approval-shared";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -20,6 +22,7 @@ type Props = {
   allowlist: string[];
   counts: AdminOverviewCounts;
   resumes: AdminResumeRow[];
+  pendingUsers: PendingUserRow[];
 };
 
 type ResumeFilter = "all" | "active" | "inactive" | "archived";
@@ -44,8 +47,17 @@ function formatWhen(iso: string) {
   }
 }
 
-export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
+export function AdminShell({
+  adminEmail,
+  allowlist,
+  counts,
+  resumes,
+  pendingUsers: initialPending,
+}: Props) {
   const [resumeFilter, setResumeFilter] = useState<ResumeFilter>("all");
+  const [pendingUsers, setPendingUsers] = useState(initialPending);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const filteredResumes = useMemo(() => {
     if (resumeFilter === "all") return resumes;
@@ -60,6 +72,25 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
     { key: "templates", label: "Templates" },
   ];
 
+  async function decide(userId: string, status: "approved" | "rejected") {
+    setActionId(userId);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/approval`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not update approval.");
+      setPendingUsers((list) => list.filter((u) => u.userId !== userId));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not update approval.");
+    } finally {
+      setActionId(null);
+    }
+  }
+
   return (
     <ShellWidth className="aavedak-fade-up space-y-4 py-7 sm:py-9">
       <header className="flex flex-wrap items-end justify-between gap-2">
@@ -71,7 +102,7 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
             Ops overview
           </h1>
           <p className="text-muted-foreground max-w-2xl text-[12px] leading-relaxed">
-            Local SQLite snapshot for Aavedak. Non-admins are redirected to the dashboard.
+            Approve new registrations, review resumes, and manage allowlisted admins.
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -104,6 +135,72 @@ export function AdminShell({ adminEmail, allowlist, counts, resumes }: Props) {
             </p>
           </div>
         ))}
+      </section>
+
+      <section className="border-border/80 bg-card space-y-2.5 rounded-xl border p-3.5 shadow-sm">
+        <div>
+          <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
+            Pending registrations
+            {pendingUsers.length > 0 ? (
+              <span className="text-primary ml-1.5 font-mono text-[12px]">
+                ({pendingUsers.length})
+              </span>
+            ) : null}
+          </h2>
+          <p className="text-muted-foreground text-[11px]">
+            New Google sign-ins wait here until you approve them for onboarding.
+          </p>
+        </div>
+        {actionError ? (
+          <p className="text-destructive text-[12px]" role="alert">
+            {actionError}
+          </p>
+        ) : null}
+        {pendingUsers.length === 0 ? (
+          <div className="border-border/70 text-muted-foreground rounded-xl border border-dashed px-3 py-8 text-center text-[12px]">
+            No pending access requests.
+          </div>
+        ) : (
+          <ul className="divide-border/60 border-border/70 divide-y rounded-xl border">
+            {pendingUsers.map((u) => (
+              <li
+                key={u.userId}
+                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="text-foreground truncate text-[13px] font-medium">
+                    {u.name || u.username}
+                  </p>
+                  <p className="text-muted-foreground truncate font-mono text-[11px]">
+                    {u.email || "—"} · @{u.username} · {formatWhen(u.createdAt)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="cursor-pointer"
+                    disabled={actionId === u.userId}
+                    loading={actionId === u.userId}
+                    onClick={() => void decide(u.userId, "approved")}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="cursor-pointer"
+                    disabled={actionId === u.userId}
+                    onClick={() => void decide(u.userId, "rejected")}
+                  >
+                    Reject
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="border-border/80 bg-card space-y-2.5 rounded-xl border p-3.5 shadow-sm">

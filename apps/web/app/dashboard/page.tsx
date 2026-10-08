@@ -5,6 +5,7 @@ import { requireOnboarded } from "@/lib/app-access";
 import { STATUS_LABELS } from "@/lib/application-status";
 import { getDashboardSnapshot } from "@/lib/dashboard";
 import { ApplicationsActivityCharts } from "@/components/applications-activity-charts";
+import { PipelineStatusChart } from "@/components/pipeline-status-chart";
 import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
 
@@ -22,19 +23,6 @@ function formatDue(dueDate: string | null): string {
 export default async function DashboardPage() {
   const { user, profile } = await requireOnboarded();
   const dash = await getDashboardSnapshot(user.id);
-
-  const quickLinks = [
-    { href: "/jobs", title: "Jobs", blurb: "Discover and shortlist roles" },
-    { href: "/job-tracker", title: "Job tracker", blurb: "Pipeline by stage" },
-    { href: "/documents", title: "Documents", blurb: "Resumes & cover letters" },
-    { href: "/referrals", title: "Referrals", blurb: "Warm paths & asks" },
-    {
-      href: `/${profile.username}/settings`,
-      title: "Friends",
-      blurb: "Invite + shared activity chart",
-    },
-    { href: "/ats", title: "ATS", blurb: "Resume ATS readiness & JD match" },
-  ] as const;
 
   const metaStats = [
     { label: "Active apps", value: dash.activeApplicationCount, href: "/job-tracker" },
@@ -145,20 +133,8 @@ export default async function DashboardPage() {
               Open tracker
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            {dash.highlightCounts.map((stat) => (
-              <div
-                key={stat.status}
-                className="border-border/80 bg-card rounded-lg border p-3 shadow-sm"
-              >
-                <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
-                  {stat.label}
-                </p>
-                <p className="aavedak-display text-foreground mt-0.5 text-xl tabular-nums">
-                  {stat.count}
-                </p>
-              </div>
-            ))}
+          <div className="border-border/80 bg-card rounded-lg border p-4 shadow-sm">
+            <PipelineStatusChart data={dash.highlightCounts} />
           </div>
         </section>
 
@@ -271,31 +247,6 @@ export default async function DashboardPage() {
             )}
           </section>
         </div>
-
-        <section aria-labelledby="quick-heading" className="space-y-2.5">
-          <h2
-            id="quick-heading"
-            className="text-foreground text-[13px] font-semibold tracking-tight"
-          >
-            Workspace
-          </h2>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {quickLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="aavedak-card-lift border-border/80 bg-card hover:border-primary/25 group rounded-lg border p-4 shadow-sm"
-              >
-                <p className="text-foreground text-[13px] font-semibold tracking-tight">
-                  {link.title}
-                </p>
-                <p className="text-muted-foreground mt-1 text-[12px] leading-relaxed">
-                  {link.blurb}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
       </ShellWidth>
     </div>
   );

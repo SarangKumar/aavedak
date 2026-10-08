@@ -19,6 +19,7 @@ export default function robots(): MetadataRoute.Robots {
           "/outreach",
           "/people",
           "/onboarding",
+          "/pending-approval",
           "/admin",
           "/api/",
           "/auth/",

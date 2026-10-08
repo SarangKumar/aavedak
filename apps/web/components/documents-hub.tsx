@@ -115,7 +115,7 @@ Thank you for your time and consideration.
 Sincerely,
 John Doe`;
 
-type FooterIncludeKey = CoverFooterLinkKey | "email";
+type FooterIncludeKey = CoverFooterLinkKey | "email" | "resume";
 
 type FooterInclude = Record<FooterIncludeKey, boolean>;
 
@@ -194,20 +194,21 @@ function defaultFooterInclude(
   profileLinks: ProfileLinks | undefined,
 ): FooterInclude {
   const links = profileLinks ?? {};
-  const out = {
+  return {
     email: Boolean(profileEmail?.trim()),
     portfolio: Boolean(links.portfolio?.trim()),
     linkedin: Boolean(links.linkedin?.trim()),
     github: Boolean(links.github?.trim()),
     leetcode: Boolean(links.leetcode?.trim()),
-  } as FooterInclude;
-  return out;
+    resume: false,
+  };
 }
 
 function buildFooterFromProfile(
   include: FooterInclude,
   profileEmail: string | null | undefined,
   profileLinks: ProfileLinks | undefined,
+  resumeUrl?: string | null,
 ): CoverLetterFooter {
   const links = profileLinks ?? {};
   return {
@@ -216,6 +217,7 @@ function buildFooterFromProfile(
     linkedin: include.linkedin ? links.linkedin?.trim() || undefined : undefined,
     github: include.github ? links.github?.trim() || undefined : undefined,
     leetcode: include.leetcode ? links.leetcode?.trim() || undefined : undefined,
+    resume: include.resume ? resumeUrl?.trim() || undefined : undefined,
   };
 }
 
@@ -260,6 +262,15 @@ export function DocumentsHub({
   const [clFooterInclude, setClFooterInclude] = useState<FooterInclude>(() =>
     defaultFooterInclude(profileEmail, profileLinks),
   );
+  const usableResumes = useMemo(
+    () => resumes.filter((r) => r.status === "active" || r.status === "inactive"),
+    [resumes],
+  );
+  const [clFooterResumeId, setClFooterResumeId] = useState<string>(() => {
+    const list = initialResumes.filter((r) => r.status === "active" || r.status === "inactive");
+    const active = list.find((r) => r.status === "active");
+    return active?.id ?? list[0]?.id ?? "";
+  });
   const [clOverflowsPage, setClOverflowsPage] = useState(false);
   const onClOverflowChange = useCallback((overflows: boolean) => {
     setClOverflowsPage(overflows);
@@ -280,6 +291,8 @@ export function DocumentsHub({
     setClCustomRole("");
     setClApplicationId("");
     setClFooterInclude(defaultFooterInclude(profileEmail, profileLinks));
+    const active = usableResumes.find((r) => r.status === "active");
+    setClFooterResumeId(active?.id ?? usableResumes[0]?.id ?? "");
   }
 
   const jobsById = useMemo(() => new Map(jobs.map((j) => [j.id, j])), [jobs]);
@@ -315,9 +328,15 @@ export function DocumentsHub({
     };
   }, [coverTarget]);
 
+  const clFooterResumeUrl = useMemo(() => {
+    if (!clFooterInclude.resume || !clFooterResumeId) return null;
+    if (typeof window === "undefined") return `/api/resumes/${clFooterResumeId}/file`;
+    return `${window.location.origin}/api/resumes/${clFooterResumeId}/file`;
+  }, [clFooterInclude.resume, clFooterResumeId]);
+
   const clFooter = useMemo(
-    () => buildFooterFromProfile(clFooterInclude, profileEmail, profileLinks),
-    [clFooterInclude, profileEmail, profileLinks],
+    () => buildFooterFromProfile(clFooterInclude, profileEmail, profileLinks, clFooterResumeUrl),
+    [clFooterInclude, profileEmail, profileLinks, clFooterResumeUrl],
   );
 
   const previewTitle = renderTemplatePreview(clTitle || "", coverVars);
@@ -989,6 +1008,54 @@ export function DocumentsHub({
                       </label>
                     );
                   })}
+                  <div
+                    className={cn(
+                      "border-border/70 space-y-1.5 rounded-lg border px-2.5 py-2",
+                      usableResumes.length > 0 ? "bg-background/50" : "bg-muted/30 opacity-70",
+                    )}
+                  >
+                    <label className="flex items-center gap-2">
+                      <Checkbox
+                        checked={clFooterInclude.resume && usableResumes.length > 0}
+                        disabled={usableResumes.length === 0}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setClFooterInclude((prev) => ({ ...prev, resume: checked }));
+                          if (checked && !clFooterResumeId && usableResumes[0]) {
+                            setClFooterResumeId(usableResumes[0].id);
+                          }
+                        }}
+                      />
+                      <span className="min-w-0">
+                        <span className="text-foreground block text-[11px] font-medium">
+                          Resume link
+                        </span>
+                        <span className="text-muted-foreground block truncate text-[10px]">
+                          {usableResumes.length > 0
+                            ? "Add a resume PDF link to the footer"
+                            : "Upload a resume first"}
+                        </span>
+                      </span>
+                    </label>
+                    {clFooterInclude.resume && usableResumes.length > 0 ? (
+                      <Select
+                        value={clFooterResumeId || undefined}
+                        onValueChange={(v) => setClFooterResumeId(v || "")}
+                      >
+                        <SelectTrigger className="border-border bg-background text-foreground h-8 w-full cursor-pointer rounded-lg border px-2 text-[12px]">
+                          <SelectValue placeholder="Choose resume" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[240]">
+                          {usableResumes.map((r) => (
+                            <SelectItem key={r.id} value={r.id} className="text-[12px]">
+                              {r.displayName}
+                              {r.status === "active" ? " · active" : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : null}
+                  </div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">

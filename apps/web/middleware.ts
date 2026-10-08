@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 /**
  * Cookie existence check only (optimistic redirect).
- * Real validation + 8-user cap happen via auth.api.getSession / ensureProfile.
+ * Approval + onboarding gates run in requireOnboarded / auth/continue.
  * See https://www.better-auth.com/docs/integrations/next
  */
 export function middleware(request: NextRequest) {
@@ -29,6 +29,7 @@ export const config = {
     "/outreach/:path*",
     "/people/:path*",
     "/onboarding/:path*",
+    "/pending-approval/:path*",
     "/admin/:path*",
     "/auth/continue",
     "/friends/invite/:path*",

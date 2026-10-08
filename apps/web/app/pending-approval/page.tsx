@@ -1,20 +1,16 @@
-import Link from "next/link";
 import type { Metadata } from "next";
+import Link from "next/link";
 
-import { REJECTED_APPROVAL_MESSAGE } from "@/lib/user-approval-shared";
+import { requirePendingApprovalSession } from "@/lib/app-access";
 
 export const metadata: Metadata = {
-  title: "Access closed",
-  description: REJECTED_APPROVAL_MESSAGE,
+  robots: { index: false, follow: false },
+  title: "Waiting for approval",
+  description: "An admin must approve your Aavedak access before onboarding.",
 };
 
-type Props = {
-  searchParams: Promise<{ reason?: string }>;
-};
-
-export default async function ClosedPage({ searchParams }: Props) {
-  const params = await searchParams;
-  const reason = params.reason?.trim() || REJECTED_APPROVAL_MESSAGE;
+export default async function PendingApprovalPage() {
+  const { user, profile } = await requirePendingApprovalSession();
 
   return (
     <div className="relative overflow-hidden">
@@ -24,21 +20,23 @@ export default async function ClosedPage({ searchParams }: Props) {
           आवेदक
         </p>
         <h1 className="aavedak-display text-foreground text-xl sm:text-2xl">
-          Access not available
+          Waiting for approval
         </h1>
         <p className="text-muted-foreground mt-3 max-w-sm text-center text-[13px] leading-relaxed">
-          {reason}
+          Thanks{user.name ? `, ${user.name.split(" ")[0]}` : ""}. Your sign-in worked — an admin
+          needs to approve{" "}
+          <span className="text-foreground font-medium">{profile.email ?? user.email}</span> before
+          you can start onboarding and use Aavedak.
         </p>
         <p className="text-muted-foreground mt-2 max-w-sm text-center text-[12px] leading-relaxed">
-          New accounts need admin approval before onboarding. If you already have access, sign in
-          with the same Google account.
+          Refresh this page after you hear back. Admins see a notification when someone new joins.
         </p>
         <div className="mt-6 flex gap-3">
           <Link
-            href="/sign-in"
+            href="/pending-approval"
             className="aavedak-btn bg-primary text-primary-foreground inline-flex h-9 items-center rounded-lg px-3.5 text-[13px] font-semibold"
           >
-            Sign in
+            Check again
           </Link>
           <Link
             href="/"

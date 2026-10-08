@@ -278,7 +278,7 @@ export function SelectTrigger({
       disabled={disabled}
       data-slot="select-trigger"
       className={cn(
-        "border-input bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background aria-invalid:border-destructive aria-invalid:ring-destructive/20 relative box-border flex h-9 max-h-9 min-h-9 w-full min-w-0 items-center justify-between rounded-md border pl-3 pr-9 text-sm leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "border-input bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background aria-invalid:border-destructive aria-invalid:ring-destructive/20 relative box-border flex h-9 max-h-9 min-h-9 w-full min-w-0 cursor-pointer items-center justify-between rounded-md border pl-3 pr-9 text-sm leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       ref={(node) => {
@@ -807,7 +807,7 @@ export function SelectItem({ value, disabled, children, className }: SelectItemP
       aria-disabled={disabled || undefined}
       data-highlighted={highlighted ? "" : undefined}
       className={cn(
-        "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground relative flex w-full cursor-default select-none items-center rounded-sm py-2 pl-2 pr-8 text-sm outline-none",
+        "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground relative flex w-full cursor-pointer select-none items-center rounded-sm py-2 pl-2 pr-8 text-sm outline-none",
         disabled && "pointer-events-none opacity-50",
         className,
       )}

@@ -66,7 +66,7 @@
   --input: oklch(0.92 0.01 260 / 14%);
   --ring: oklch(0.8 0.12 92);
   --chart-1: oklch(0.72 0.12 210);
-  --chart-2: oklch(0.70 0.14 290);
+  --chart-2: oklch(0.7 0.14 290);
   --chart-3: oklch(0.72 0.12 160);
   --chart-4: oklch(0.72 0.13 20);
   --chart-5: oklch(0.68 0.12 250);
@@ -135,6 +135,18 @@
   :focus-visible {
     @apply ring-ring/60 ring-offset-background outline-none ring-2 ring-offset-2;
   }
+
+  /* Clickable controls use the hand cursor (disabled → not-allowed). */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a.aavedak-btn {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 @layer utilities {
@@ -179,18 +191,19 @@
     @apply bg-primary size-1.5 shrink-0 rounded-full shadow-[0_0_8px_var(--glow)];
   }
 
-  /* Logo: idle pulse + hover/active glow (brand guide) */
+  /* Logo: soft idle glow; underglow breathes separately (see .aavedak-logo-glow) */
   .aavedak-logo {
+    position: relative;
+    z-index: 1;
     transition:
-      transform 200ms ease,
-      filter 200ms ease,
-      box-shadow 200ms ease;
-    animation: aavedak-logo-pulse 3.2s ease-in-out infinite;
+      transform 220ms ease,
+      filter 220ms ease;
+    filter: drop-shadow(0 0 6px color-mix(in oklch, var(--logo-glow) 55%, transparent));
   }
 
   .aavedak-logo:hover,
   .group:hover .aavedak-logo {
-    filter: drop-shadow(0 0 10px var(--logo-glow));
+    filter: drop-shadow(0 0 12px var(--logo-glow));
     transform: scale(1.04);
   }
 
@@ -200,13 +213,49 @@
     transform: scale(0.98);
   }
 
+  /* Soft light pooled under the mark — slow ease for a breathing feel */
+  .aavedak-logo-glow {
+    pointer-events: none;
+    position: absolute;
+    left: 50%;
+    bottom: -10%;
+    z-index: 0;
+    width: 78%;
+    height: 34%;
+    border-radius: 9999px;
+    background: radial-gradient(
+      ellipse at center,
+      var(--logo-glow) 0%,
+      color-mix(in oklch, var(--logo-glow) 40%, transparent) 45%,
+      transparent 72%
+    );
+    filter: blur(10px);
+    transform: translateX(-50%) scale(0.94);
+    transform-origin: center;
+    animation: aavedak-logo-breathe 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .aavedak-logo-glow {
+      animation: none;
+      opacity: 0.55;
+      transform: translateX(-50%) scale(1);
+    }
+  }
+
   .aavedak-btn {
+    cursor: pointer;
     transition:
       transform 140ms ease,
       opacity 140ms ease,
       background-color 140ms ease,
       color 140ms ease,
       box-shadow 140ms ease;
+  }
+
+  .aavedak-btn:disabled,
+  .aavedak-btn[aria-disabled="true"] {
+    cursor: not-allowed;
   }
 
   .aavedak-btn:active:not(:disabled) {
@@ -243,13 +292,27 @@
   }
 }
 
-@keyframes aavedak-logo-pulse {
+@keyframes aavedak-logo-breathe {
   0%,
   100% {
-    filter: drop-shadow(0 0 4px transparent);
+    opacity: 0.32;
+    transform: translateX(-50%) scale(0.9);
+    filter: blur(11px);
+  }
+  25% {
+    opacity: 0.5;
+    transform: translateX(-50%) scale(0.97);
+    filter: blur(10px);
   }
   50% {
-    filter: drop-shadow(0 0 8px var(--logo-glow));
+    opacity: 0.88;
+    transform: translateX(-50%) scale(1.1);
+    filter: blur(8px);
+  }
+  75% {
+    opacity: 0.52;
+    transform: translateX(-50%) scale(0.98);
+    filter: blur(10px);
   }
 }
 

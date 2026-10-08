@@ -186,22 +186,6 @@ function DashboardSkeleton() {
             </section>
           ))}
         </div>
-
-        {/* Workspace: Jobs, Tracker, Documents, Referrals, Friends, ATS */}
-        <section className="space-y-2.5">
-          <Skeleton className="h-4 w-24" />
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="border-border/80 bg-card space-y-2 rounded-lg border p-4 shadow-sm"
-              >
-                <Skeleton className="h-3.5 w-24" />
-                <Skeleton className="h-3 w-40 max-w-full" />
-              </div>
-            ))}
-          </div>
-        </section>
       </ShellWidth>
     </div>
   );

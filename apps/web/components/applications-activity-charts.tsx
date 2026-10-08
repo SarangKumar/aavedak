@@ -35,12 +35,9 @@ const RANGES = [
   { value: "12", label: "12 months" },
 ] as const;
 
-/**
- * Distinct series colors (you first, then friends).
- * Avoid yellow / gold / amber brand hues so lines stay readable vs the UI chrome.
- */
-const SERIES_COLORS = [
-  "oklch(0.58 0.14 210)", // teal-blue — you
+/** Friend lines only — the current user always uses CSS `--primary` (brand yellow). */
+const FRIEND_COLORS = [
+  "oklch(0.58 0.14 210)", // teal-blue
   "oklch(0.55 0.18 290)", // violet
   "oklch(0.58 0.16 160)", // green
   "oklch(0.58 0.17 20)", // coral
@@ -52,6 +49,13 @@ const SERIES_COLORS = [
   "oklch(0.56 0.13 30)", // terracotta
   "oklch(0.48 0.11 230)", // slate-blue
 ] as const;
+
+const YOU_COLOR = "var(--primary)";
+
+function strokeForSeries(s: SeriesDto, friendIndex: number): string {
+  if (s.isMe) return YOU_COLOR;
+  return FRIEND_COLORS[friendIndex % FRIEND_COLORS.length]!;
+}
 
 function seriesLabel(s: SeriesDto): string {
   if (s.isMe) return "You";
@@ -93,13 +97,16 @@ export function ApplicationsActivityCharts() {
 
   const chartConfig = useMemo(() => {
     const cfg: ChartConfig = {};
-    series.forEach((s, i) => {
+    let friendIndex = 0;
+    for (const s of series) {
       const key = seriesKey(s);
+      const color = strokeForSeries(s, friendIndex);
+      if (!s.isMe) friendIndex += 1;
       cfg[key] = {
         label: seriesLabel(s),
-        color: SERIES_COLORS[i % SERIES_COLORS.length]!,
+        color,
       };
-    });
+    }
     return cfg;
   }, [series]);
 
@@ -152,11 +159,11 @@ export function ApplicationsActivityCharts() {
             No application activity in this range yet.
           </p>
         ) : (
-          <ChartContainer config={chartConfig} className="aspect-auto h-[280px] w-full pb-10">
+          <ChartContainer config={chartConfig} className="aspect-auto h-[300px] w-full pb-12">
             <LineChart
               data={chartData}
               accessibilityLayer
-              margin={{ left: 4, right: 8, top: 8, bottom: 8 }}
+              margin={{ left: 4, right: 8, top: 8, bottom: 28 }}
             >
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
               <XAxis
@@ -185,13 +192,14 @@ export function ApplicationsActivityCharts() {
                 }
               />
               <Legend
-                verticalAlign="top"
+                verticalAlign="bottom"
                 align="left"
-                wrapperStyle={{ fontSize: 11, paddingBottom: 8 }}
+                wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
               />
               {series.map((s, i) => {
                 const key = seriesKey(s);
-                const stroke = SERIES_COLORS[i % SERIES_COLORS.length]!;
+                const friendIndex = series.slice(0, i).filter((x) => !x.isMe).length;
+                const stroke = strokeForSeries(s, friendIndex);
                 return (
                   <Line
                     key={s.userId}

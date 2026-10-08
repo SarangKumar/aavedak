@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
-import { isUserCapError } from "@/lib/user-cap";
+import { PENDING_APPROVAL_MESSAGE, REJECTED_APPROVAL_MESSAGE } from "@/lib/user-approval-shared";
 
 export type ApiUser = {
   id: string;
@@ -14,8 +14,8 @@ export type ApiUser = {
 };
 
 /**
- * Session + profile for API routes. Returns null if unauthenticated.
- * Returns a 403 NextResponse if the hard 8-user cap blocks a new account.
+ * Session + approved profile for API routes.
+ * Returns 401 if unauthenticated, 403 if pending/rejected.
  */
 export async function requireApiUser(): Promise<
   { user: ApiUser; error?: undefined } | { user?: undefined; error: NextResponse }
@@ -24,18 +24,21 @@ export async function requireApiUser(): Promise<
   if (!session?.user?.email) {
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
-  try {
-    await ensureProfile({
-      id: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-      image: session.user.image,
-    });
-  } catch (err) {
-    if (isUserCapError(err)) {
-      return { error: NextResponse.json({ error: err.message }, { status: 403 }) };
-    }
-    throw err;
+  const profile = await ensureProfile({
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+    image: session.user.image,
+  });
+  if (profile.approvalStatus === "pending") {
+    return {
+      error: NextResponse.json({ error: PENDING_APPROVAL_MESSAGE }, { status: 403 }),
+    };
+  }
+  if (profile.approvalStatus === "rejected") {
+    return {
+      error: NextResponse.json({ error: REJECTED_APPROVAL_MESSAGE }, { status: 403 }),
+    };
   }
   return {
     user: {
