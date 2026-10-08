@@ -111,7 +111,19 @@ Transparent **ATS Match & Resume Quality** engine (not a vendor ATS oracle).
 
 Modes (auto): `resume_only` · `role_match` · `job_match` (JD without title infers title).
 
-Modules: `skill_taxonomy`, `resume_profile`, `jd_profile`, `evidence`, `analyze`.
+Modules: `skill_taxonomy`, `resume_profile`, `jd_profile`, `evidence`, `analyze`, `version`.
+
+Engine version is emitted as `engineVersion` (see `app/ats/version.py`). Audit notes: `app/ats/AUDIT.md`.
+
+### Benchmarks
+
+```bash
+cd apps/api
+python3 tests/test_ats_benchmark.py
+# or: python3 -m pytest tests/test_ats_benchmark.py -q
+```
+
+Fixtures live in `app/ats/benchmarks/fixtures.py` (ordering: excellent → unrelated for a backend JD).
 
 The Next.js `/api/ats` route calls these endpoints and falls back to local heuristics if the API is unreachable.
 

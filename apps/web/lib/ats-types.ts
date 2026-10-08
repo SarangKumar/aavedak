@@ -42,8 +42,15 @@ export type AtsSkillHit = {
   canonical?: string;
   status: "matched" | "partial" | "missing";
   matchType?: string;
+  /** direct | related | indirect | missing */
+  matchKind?: string;
   strength?: number;
+  /** 0 missing … 5 strong impact evidence */
+  evidenceLevel?: number;
+  evidenceLabel?: string;
   evidence?: string;
+  importance?: number;
+  confidence?: number;
 };
 
 export type AtsResponsibilityHit = {
@@ -90,6 +97,8 @@ export type AtsAnalysis = {
   weighting?: Record<string, number>;
   blurb?: string;
   engine: "fastapi" | "fallback";
+  /** Scoring formula version (Python primary emits this; fallback mirrors when aligned). */
+  engineVersion?: string;
   error?: string;
   /** Diagnostic: extracted text length used for this score */
   textChars?: number;

@@ -4,10 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.ats.evidence import evidence_strength, responsibility_match, title_similarity
+from app.ats.evidence import (
+    LEVEL_LABEL,
+    evidence_strength,
+    responsibility_match,
+    title_similarity,
+)
 from app.ats.jd_profile import parse_jd
 from app.ats.resume_profile import parse_resume, bullet_has_action, bullet_has_metric
 from app.ats.skill_taxonomy import display_name, infer_role_key
+from app.ats.version import ENGINE_VERSION
 
 
 def _clamp(n: float) -> int:
@@ -449,22 +455,29 @@ def _weighted_mean(parts: list[tuple[str, float, float]]) -> tuple[int, dict[str
 
 def _skill_dimension(
     profile, requirements: list, *, core_weight_boost: bool = False
-) -> tuple[int, list[dict], list[dict], list[dict]]:
+) -> tuple[int, list[dict], list[dict], list[dict], float]:
+    """
+    Returns score, matched, partial, missing, critical_gap (0..1).
+    critical_gap = weighted fraction of high-importance requirements with weak evidence.
+    """
     matched: list[dict] = []
     partial: list[dict] = []
     missing: list[dict] = []
     if not requirements:
-        return 0, matched, partial, missing
+        return 0, matched, partial, missing, 0.0
 
     scores: list[float] = []
     weights: list[float] = []
+    critical_gap_num = 0.0
+    critical_gap_den = 0.0
+
     for idx, req in enumerate(requirements):
-        # Core / earlier requirements weigh more (role buckets put core first).
+        importance = float(getattr(req, "importance", 1.0) or 1.0)
         if core_weight_boost:
             half = max(1, len(requirements) // 2)
-            w = 1.6 if idx < half else 1.0
+            w = importance * (1.5 if idx < half else 1.0)
         else:
-            w = 1.0
+            w = importance
 
         if not req.canonical:
             status, strength, ev = responsibility_match(profile, req.text)
@@ -473,6 +486,8 @@ def _skill_dimension(
                 "status": status,
                 "strength": round(strength, 2),
                 "evidence": ev,
+                "evidenceLevel": 3 if strength >= 0.78 else 1 if strength >= 0.28 else 0,
+                "importance": importance,
             }
             if status == "matched":
                 matched.append(entry)
@@ -482,36 +497,71 @@ def _skill_dimension(
                 missing.append(entry)
             scores.append(strength)
             weights.append(w)
+            if importance >= 1.15:
+                critical_gap_den += importance
+                critical_gap_num += importance * max(0.0, 1.0 - strength)
             continue
 
-        strength, label, ev = evidence_strength(profile, req.canonical)
+        strength, label, ev, level = evidence_strength(profile, req.canonical)
+        # Status: professional+ = matched; mention/project = partial; else missing
+        if level >= 3 or strength >= 0.78:
+            status = "matched"
+        elif level >= 1 or strength >= 0.28:
+            status = "partial"
+        else:
+            status = "missing"
+        match_kind = (
+            "related"
+            if label == "related"
+            else "indirect"
+            if label == "indirect"
+            else "direct"
+            if level >= 1
+            else "missing"
+        )
         entry = {
             "skill": req.text or display_name(req.canonical),
             "canonical": req.canonical,
-            "status": "matched"
-            if strength >= 0.85
-            else "partial"
-            if strength >= 0.3
-            else "missing",
+            "status": status,
             "matchType": label,
+            "matchKind": match_kind,
             "strength": round(strength, 2),
             "evidence": ev,
+            "evidenceLevel": level,
+            "evidenceLabel": LEVEL_LABEL.get(level, "missing"),
+            "importance": importance,
+            "confidence": float(getattr(req, "confidence", 0.85) or 0.85),
         }
-        if entry["status"] == "matched":
+        if status == "matched":
             matched.append(entry)
-        elif entry["status"] == "partial":
+        elif status == "partial":
             partial.append(entry)
         else:
             missing.append(entry)
         scores.append(strength)
         weights.append(w)
+        if importance >= 1.15:
+            critical_gap_den += importance
+            critical_gap_num += importance * max(0.0, 1.0 - strength)
 
     weight_total = sum(weights) or 1.0
     avg = (sum(s * w for s, w in zip(scores, weights)) / weight_total) * 100
-    # Gaps in the required set hurt more than a flat mean implies.
-    missing_ratio = sum(1 for s in scores if s < 0.3) / len(scores)
-    avg *= 1.0 - 0.22 * missing_ratio
-    return _clamp(avg), matched, partial, missing
+    missing_ratio = sum(1 for s in scores if s < 0.28) / len(scores)
+    avg *= 1.0 - 0.25 * missing_ratio
+    critical_gap = (critical_gap_num / critical_gap_den) if critical_gap_den else 0.0
+    return _clamp(avg), matched, partial, missing, critical_gap
+
+
+def _apply_critical_protection(overall: float, critical_gap: float) -> int:
+    """
+    Smooth ceiling when high-importance required skills lack evidence.
+    critical_gap 0 → no change; 1 → ~42% reduction + soft max ~55.
+    """
+    if critical_gap <= 0.02:
+        return _soft_cap(overall, 93)
+    reduced = overall * (1.0 - 0.38 * critical_gap)
+    soft_max = 93.0 - 38.0 * critical_gap
+    return _soft_cap(reduced, soft_max)
 
 
 def _jd_keyword_coverage(profile, jd_text: str, required_canonicals: set[str]) -> int | None:
@@ -619,6 +669,7 @@ def analyze_resume(
             "notes": notes,
             "weighting": {},
             "engine": "fastapi",
+            "engineVersion": ENGINE_VERSION,
         }
 
     ats_score, ats_signals, ats_issues = score_ats_compatibility(profile)
@@ -720,10 +771,10 @@ def analyze_resume(
         )
 
     # Role / Job match dimensions
-    req_score, m1, p1, miss1 = _skill_dimension(
+    req_score, m1, p1, miss1, critical_gap = _skill_dimension(
         profile, jd.required, core_weight_boost=(mode == "role_match")
     )
-    pref_score, m2, p2, miss2 = _skill_dimension(profile, jd.preferred)
+    pref_score, m2, p2, miss2, _pref_gap = _skill_dimension(profile, jd.preferred)
     matched_skills = m1 + m2
     partial_skills = p1 + p2
     missing_skills = miss1 + miss2
@@ -776,7 +827,7 @@ def analyze_resume(
     required_canonicals = {r.canonical for r in jd.required if r.canonical}
     keyword_coverage = _jd_keyword_coverage(profile, jd_text, required_canonicals)
     if keyword_coverage is None and jd.other_keywords:
-        other_score, _, _, _ = _skill_dimension(profile, jd.other_keywords[:12])
+        other_score, _, _, _, _ = _skill_dimension(profile, jd.other_keywords[:12])
         keyword_coverage = other_score
 
     # Evidence quality: prefer experience-backed strengths over skills-list hits
@@ -818,68 +869,81 @@ def analyze_resume(
         }
     )
 
-    # Build weights per mode — redistribute missing categories
+    # v2 weights — parseability is barely in job match (suitability ≠ formatting).
     if mode == "role_match":
         parts = [
-            ("atsCompatibility", 0.08, float(ats_score)),
-            ("requiredSkills", 0.30 if jd.required else 0.0, float(req_score)),
-            ("preferredSkills", 0.08 if jd.preferred else 0.0, float(pref_score)),
+            ("requiredSkills", 0.32 if jd.required else 0.0, float(req_score)),
             ("experienceMatch", 0.20, float(experience_match)),
+            ("evidenceQuality", 0.18, float(evidence_quality)),
+            ("jobTitleMatch", 0.12 if effective_title else 0.0, float(job_title_match)),
+            ("preferredSkills", 0.08 if jd.preferred else 0.0, float(pref_score)),
             ("responsibilityMatch", 0.06 if resp_score is not None else 0.0, float(resp_score or 0)),
-            ("keywordCoverage", 0.08 if keyword_coverage is not None else 0.0, float(keyword_coverage or 0)),
-            ("evidenceQuality", 0.14, float(evidence_quality)),
-            ("jobTitleMatch", 0.10 if effective_title else 0.0, float(job_title_match)),
-            ("skillBreadth", 0.04, float(skill_signal)),
+            ("atsCompatibility", 0.04, float(ats_score)),
         ]
     else:
-        # job_match — required skills + evidence dominate; keywordCoverage is residual JD text only
-        edu_w = 0.04 if jd.education_required else 0.0
-        edu_score = 80.0 if ("education" in profile.sections) else 40.0
+        # Suggested job_match blend (validated via benchmarks)
         parts = [
-            ("requiredSkills", 0.32 if jd.required else 0.0, float(req_score)),
-            ("experienceMatch", 0.14, float(experience_match)),
-            ("responsibilityMatch", 0.14 if resp_score is not None else 0.0, float(resp_score or 0)),
-            ("preferredSkills", 0.08 if jd.preferred else 0.0, float(pref_score)),
-            ("keywordCoverage", 0.08 if keyword_coverage is not None else 0.0, float(keyword_coverage or 0)),
-            ("evidenceQuality", 0.12, float(evidence_quality)),
-            ("jobTitleMatch", 0.05 if effective_title else 0.0, float(job_title_match)),
-            ("education", edu_w, edu_score),
-            ("atsCompatibility", 0.05, float(ats_score)),
-            ("skillBreadth", 0.04, float(skill_signal)),
+            ("requiredSkills", 0.30 if jd.required else 0.0, float(req_score)),
+            ("responsibilityMatch", 0.20 if resp_score is not None else 0.0, float(resp_score or 0)),
+            ("evidenceQuality", 0.20, float(evidence_quality)),
+            ("experienceMatch", 0.15, float(experience_match)),
+            ("jobTitleMatch", 0.10 if effective_title else 0.0, float(job_title_match)),
+            ("preferredSkills", 0.05 if jd.preferred else 0.0, float(pref_score)),
         ]
         if jd.too_short:
             parts = [
                 ("requiredSkills", 0.28 if jd.required else 0.0, float(req_score)),
-                ("experienceMatch", 0.18, float(experience_match)),
-                ("evidenceQuality", 0.16, float(evidence_quality)),
-                ("jobTitleMatch", 0.14 if effective_title else 0.0, float(job_title_match)),
-                ("atsCompatibility", 0.12, float(ats_score)),
-                ("resumeQuality", 0.08, float(quality_score)),
-                ("skillBreadth", 0.04, float(skill_signal)),
+                ("experienceMatch", 0.20, float(experience_match)),
+                ("evidenceQuality", 0.20, float(evidence_quality)),
+                ("jobTitleMatch", 0.16 if effective_title else 0.0, float(job_title_match)),
+                ("resumeQuality", 0.10, float(quality_score)),
+                ("atsCompatibility", 0.06, float(ats_score)),
             ]
 
     overall, weighting = _weighted_mean(parts)
+    overall = _apply_critical_protection(float(overall), critical_gap)
+    if critical_gap >= 0.35:
+        notes.append(
+            f"Critical required-skill gap ({critical_gap:.0%}) limited the overall score — "
+            "preferred keywords cannot fully compensate for missing core requirements."
+        )
 
-    # Strengths / improvements from skills
+    # Strengths / improvements from skills — grounded in evidence level
     for item in matched_skills[:4]:
-        strengths.append(f"Strong {item['skill']} evidence")
+        lvl = item.get("evidenceLabel") or "professional"
+        strengths.append(f"{item['skill']} — {lvl.replace('_', ' ')} evidence")
     required_missing = {m.get("skill") for m in miss1}
     for item in missing_skills[:5]:
         improvements.append(
             {
                 "priority": "high" if item.get("skill") in required_missing else "medium",
-                "text": f"If you have experience with {item['skill']}, make it explicit in an experience bullet — do not invent it.",
-                "reason": f"{item['skill']} appears as a requirement but was not evidenced.",
+                "text": (
+                    f"{item['skill']} appears in the posting but not on this resume. "
+                    "Only add it if you have genuine experience — do not invent it."
+                ),
+                "reason": f"{item['skill']} is a requirement without resume evidence.",
             }
         )
     for item in partial_skills[:3]:
-        improvements.append(
-            {
-                "priority": "high",
-                "text": f"Make {item['skill']} experience more explicit (tool name + action + outcome).",
-                "reason": "Only partial/indirect evidence found.",
-            }
-        )
+        if item.get("evidenceLevel", 0) <= 1:
+            improvements.append(
+                {
+                    "priority": "high",
+                    "text": (
+                        f"{item['skill']} is listed but the resume has no supporting experience bullet. "
+                        f"If you have professional {item['skill']} experience, make it explicit in one relevant bullet."
+                    ),
+                    "reason": "Skills-list / mention-only evidence (level 1).",
+                }
+            )
+        else:
+            improvements.append(
+                {
+                    "priority": "medium",
+                    "text": f"Strengthen {item['skill']} with a clearer action + context in Experience or Projects.",
+                    "reason": f"Partial evidence ({item.get('evidenceLabel', 'partial')}).",
+                }
+            )
 
     # Deduplicate improvements by text
     seen_imp: set[str] = set()
@@ -899,12 +963,10 @@ def analyze_resume(
     import re
 
     resume_tokens = set(re.findall(r"[a-z][a-z0-9+.#-]{3,}", profile.lower))
-    # Overall is only the declared weighted mean — no post-hoc hash/coverage remix.
-    overall = _soft_cap(overall, 93)
     fp = _fingerprint(profile.raw)
     notes.append(
-        f"Extracted {len(profile.raw.strip())} chars · {len(resume_tokens)} unique tokens · "
-        f"{len(profile.skill_mentions)} skills · fp {fp}"
+        f"engine {ENGINE_VERSION} · {len(profile.raw.strip())} chars · "
+        f"{len(resume_tokens)} tokens · {len(profile.skill_mentions)} skills · fp {fp}"
     )
 
     return _pack(
@@ -980,8 +1042,12 @@ def _pack(
         "confidence": confidence,
         "notes": notes,
         "weighting": weighting,
-        "blurb": "Calculated from ATS compatibility, skills, experience, responsibilities, keywords, and evidence.",
+        "blurb": (
+            "Evidence-based match: required skills, responsibilities, experience, and "
+            "evidence strength — not keyword stuffing. Parseability is reported separately."
+        ),
         "engine": "fastapi",
+        "engineVersion": ENGINE_VERSION,
         "textChars": len((resume_text or "").strip()),
         "textFingerprint": _fingerprint(resume_text or ""),
         # Back-compat for older clients

@@ -14,6 +14,9 @@ import {
   type AtsSkillHit,
 } from "@/lib/ats-types";
 
+/** Keep in sync with apps/api/app/ats/version.py when formulas change. */
+const ENGINE_VERSION = "2.0-fallback";
+
 function issue(code: string, title: string, detail: string): AtsIssue {
   return { code, title, detail };
 }
@@ -355,6 +358,7 @@ export function analyzeResumeFallback(input: {
       confidence: "low",
       error: "Could not extract readable text from this PDF.",
       engine: "fallback",
+      engineVersion: ENGINE_VERSION,
       textChars: 0,
       textFingerprint: "empty",
     };
@@ -664,8 +668,9 @@ export function analyzeResumeFallback(input: {
     atsIssues: atsIssues.slice(0, 8),
     confidence: text.length > 900 ? "high" : text.length > 400 ? "medium" : "low",
     blurb:
-      "Calculated from ATS compatibility, skills, experience, responsibilities, keywords, and evidence — unique to this resume’s extracted text.",
+      "Evidence-weighted local fallback when the Python ATS API is unreachable. Prefer the primary engine for full v2 calibration.",
     engine: "fallback",
+    engineVersion: ENGINE_VERSION,
     atsScore: overall,
     textChars: text.trim().length,
     textFingerprint: fp,
@@ -675,7 +680,7 @@ export function analyzeResumeFallback(input: {
             "Not enough job-description information for a reliable job match. Showing role/resume-weighted analysis.",
           ]
         : []),
-      `Extracted ${text.trim().length} chars · ${tokens.length} unique tokens · ${skills.size} skills`,
+      `fallback ${ENGINE_VERSION} · ${text.trim().length} chars · ${tokens.length} tokens · ${skills.size} skills`,
     ],
   };
 }

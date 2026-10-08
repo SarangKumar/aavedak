@@ -1,4 +1,4 @@
-"""Evidence strength for skill mentions — rewards context, not stuffing."""
+"""Evidence strength — levels 0–5; rewards demonstrated context, not stuffing."""
 
 from __future__ import annotations
 
@@ -10,40 +10,102 @@ from app.ats.resume_profile import (
 )
 from app.ats.skill_taxonomy import ALIAS_TO_CANONICAL, related_skills
 
+# Map evidence level → continuous strength used in weighted averages.
+LEVEL_TO_STRENGTH = {
+    0: 0.0,
+    1: 0.28,  # mentioned only (skills list / summary)
+    2: 0.55,  # project evidence
+    3: 0.78,  # professional experience
+    4: 0.90,  # repeated / multi-bullet professional
+    5: 1.00,  # strong + impact / ownership / production cues
+}
 
-def evidence_strength(profile: ResumeProfile, canonical: str) -> tuple[float, str, str]:
+LEVEL_LABEL = {
+    0: "missing",
+    1: "mentioned",
+    2: "project",
+    3: "professional",
+    4: "strong_professional",
+    5: "strong_impact",
+}
+
+_PRODUCTION_CUES = (
+    "production",
+    "prod ",
+    "customers",
+    "users",
+    "scale",
+    "latency",
+    "throughput",
+    "p95",
+    "p99",
+    "revenue",
+    "pipeline",
+    "migrat",
+    "led ",
+    "owned ",
+    "shipped",
+)
+
+# Concept buckets for responsibility matching (synonym-aware, deterministic).
+_RESP_CONCEPTS: dict[str, frozenset[str]] = {
+    "build": frozenset(
+        {"build", "built", "develop", "developed", "implement", "implemented", "create", "created", "ship", "shipped"}
+    ),
+    "design": frozenset({"design", "designed", "architect", "architected", "prototype"}),
+    "api": frozenset(
+        {"api", "apis", "rest", "restful", "endpoint", "endpoints", "graphql", "grpc", "service", "services", "http"}
+    ),
+    "backend": frozenset({"backend", "back-end", "server", "serverside", "microservice", "microservices"}),
+    "frontend": frozenset({"frontend", "front-end", "ui", "ux", "react", "component", "components", "dashboard"}),
+    "data": frozenset({"data", "etl", "pipeline", "warehouse", "analytics", "ingestion", "spark", "sql"}),
+    "scale": frozenset({"scale", "scalable", "scaling", "throughput", "latency", "performance", "optimize", "optimized"}),
+    "deploy": frozenset({"deploy", "deployed", "ci", "cd", "kubernetes", "docker", "infra", "terraform"}),
+    "test": frozenset({"test", "tested", "testing", "qa", "unit", "integration"}),
+    "collaborate": frozenset({"collaborate", "collaborated", "cross-functional", "stakeholders", "partnered"}),
+    "database": frozenset({"database", "databases", "sql", "postgres", "postgresql", "mysql", "mongodb", "query", "schema"}),
+    "cloud": frozenset({"aws", "gcp", "azure", "cloud"}),
+}
+
+
+def evidence_strength(profile: ResumeProfile, canonical: str) -> tuple[float, str, str, int]:
     """
-    Returns (0..1 strength, label, evidence snippet).
-    Labels: exact_strong | exact_weak | related | indirect | missing
+    Returns (strength 0..1, matchType, evidence snippet, evidenceLevel 0..5).
+    matchType: exact_strong | exact_weak | related | indirect | missing
     """
     mention = profile.skill_mentions.get(canonical)
     if mention:
-        return _from_mention(profile, mention)
+        level, snippet = _level_from_mention(profile, mention)
+        strength = LEVEL_TO_STRENGTH[level]
+        label = "exact_strong" if level >= 3 else "exact_weak" if level >= 1 else "missing"
+        return strength, label, snippet, level
 
-    # Related technology — partial only
+    # Related technology — capped (never full credit)
+    best_rel = 0
+    best_snip = ""
     for rel in related_skills(canonical):
         rel_m = profile.skill_mentions.get(rel)
-        if rel_m and rel_m.section in ("experience", "projects"):
-            return (
-                0.5,
-                "related",
-                rel_m.context or rel_m.original,
-            )
-        if rel_m:
-            return (0.28, "related", rel_m.context or rel_m.original)
+        if not rel_m:
+            continue
+        lvl, snip = _level_from_mention(profile, rel_m)
+        # Related maxes at project-ish credit
+        capped = min(2, lvl) if lvl >= 2 else 1 if lvl >= 1 else 0
+        if capped > best_rel:
+            best_rel = capped
+            best_snip = snip or rel_m.context or rel_m.original
+    if best_rel:
+        return LEVEL_TO_STRENGTH[best_rel] * 0.85, "related", best_snip, best_rel
 
-    # Indirect: relational databases language without specific engine
     if canonical in ("postgresql", "mysql") and "relational database" in profile.lower:
-        return (0.22, "indirect", "Mentions relational databases (not the specific engine).")
+        return LEVEL_TO_STRENGTH[1] * 0.8, "indirect", "Mentions relational databases (not the specific engine).", 1
 
     if canonical == "rest" and ("api" in profile.lower and "http" in profile.lower):
-        return (0.28, "indirect", "Mentions APIs / HTTP without explicit REST.")
+        return LEVEL_TO_STRENGTH[1] * 0.9, "indirect", "Mentions APIs / HTTP without explicit REST.", 1
 
-    return (0.0, "missing", "")
+    return 0.0, "missing", "", 0
 
 
-def _from_mention(profile: ResumeProfile, mention: SkillMention) -> tuple[float, str, str]:
-    # Find best bullet containing the skill (canonical or original alias)
+def _level_from_mention(profile: ResumeProfile, mention: SkillMention) -> tuple[int, str]:
     needles = {
         mention.canonical.replace("_", " "),
         mention.original.lower(),
@@ -52,55 +114,85 @@ def _from_mention(profile: ResumeProfile, mention: SkillMention) -> tuple[float,
         if can == mention.canonical and len(alias) >= 3:
             needles.add(alias)
 
-    best_bullet = ""
-    best_score = 0
+    matching_bullets: list[str] = []
     for bullet in profile.bullets:
         bl = bullet.lower()
-        if not any(n and n in bl for n in needles):
-            continue
-        rank = 1
-        if bullet_has_action(bullet):
-            rank += 1
-        if bullet_has_metric(bullet):
-            rank += 1
-        if rank > best_score or (rank == best_score and len(bullet) > len(best_bullet)):
-            best_score = rank
-            best_bullet = bullet
+        if any(n and n in bl for n in needles):
+            matching_bullets.append(bullet)
 
-    evidence = best_bullet or mention.context or mention.original
-    has_action = bullet_has_action(best_bullet) if best_bullet else False
-    has_metric = bullet_has_metric(best_bullet) if best_bullet else False
-    # Skills-section listings must never become "experience" just because the
-    # whole skills line was extracted as a long bullet.
-    in_experience = mention.section in ("experience", "projects")
-    if (
-        not in_experience
-        and best_bullet
-        and has_action
-        and mention.section not in ("skills", "education")
-    ):
-        in_experience = True
+    best = matching_bullets[0] if matching_bullets else ""
+    # Prefer action + metric bullet as primary snippet
+    for b in matching_bullets:
+        if bullet_has_action(b) and bullet_has_metric(b):
+            best = b
+            break
+        if bullet_has_action(b) and (not best or not bullet_has_action(best)):
+            best = b
 
-    # Experience + action + metric is the only path to a perfect hit.
-    if in_experience and has_action and has_metric:
-        return (1.0, "exact_strong", evidence)
-    if in_experience and has_action:
-        return (0.92, "exact_strong", evidence)
-    if in_experience:
-        return (0.85, "exact_strong", evidence)
-
-    # Skills-only / summary listings are partial credit — not a match.
-    if mention.section == "skills":
+    evidence = best or mention.context or mention.original
+    in_projects = mention.section == "projects" or any(
+        "project" in b.lower() for b in matching_bullets[:3]
+    )
+    in_experience = mention.section == "experience" or (
+        bool(matching_bullets)
+        and mention.section not in ("skills", "education", "summary")
+        and any(bullet_has_action(b) for b in matching_bullets)
+        and mention.section != "skills"
+    )
+    # Hard rule: skills-section listing alone is never professional evidence
+    if mention.section == "skills" and not matching_bullets:
         if mention.count >= 5:
-            return (0.25, "exact_weak", evidence)
-        if mention.count >= 3:
-            return (0.35, "exact_weak", evidence)
-        return (0.45, "exact_weak", evidence)
+            return 1, evidence
+        return 1, evidence
+
+    if mention.section == "skills" and matching_bullets:
+        # Skill also appears in a narrative bullet elsewhere
+        in_experience = any(
+            bullet_has_action(b) and mention.section != "skills"
+            for b in matching_bullets
+        )
+        # Re-check: bullets from experience often still match
+        for b in matching_bullets:
+            if bullet_has_action(b):
+                in_experience = True
+                best = b
+                evidence = b
+                break
+
+    if not matching_bullets and mention.section in ("skills", "summary", "body", "education"):
+        return 1, evidence
+
+    if not matching_bullets:
+        return 1, evidence
+
+    action_hits = sum(1 for b in matching_bullets if bullet_has_action(b))
+    metric_hits = sum(1 for b in matching_bullets if bullet_has_metric(b))
+    prod_hits = sum(
+        1 for b in matching_bullets if any(c in b.lower() for c in _PRODUCTION_CUES)
+    )
+
+    if in_experience or (mention.section == "experience"):
+        if action_hits >= 2 or (action_hits >= 1 and len(matching_bullets) >= 2):
+            if metric_hits or prod_hits:
+                return 5, evidence
+            return 4, evidence
+        if action_hits >= 1:
+            if metric_hits or prod_hits:
+                return 5, evidence
+            return 3, evidence
+        return 3, evidence
+
+    if in_projects or mention.section == "projects":
+        if action_hits and (metric_hits or prod_hits):
+            return 3, evidence
+        if action_hits:
+            return 2, evidence
+        return 2, evidence
 
     if mention.section == "summary":
-        return (0.5, "exact_weak", evidence)
+        return 1, evidence
 
-    return (0.55, "exact_weak", evidence)
+    return 1, evidence
 
 
 _RESP_STOP = frozenset(
@@ -128,49 +220,67 @@ _RESP_STOP = frozenset(
         "their",
         "about",
         "within",
+        "experience",
+        "strong",
     }
 )
+
+
+def _concepts_in_text(text: str) -> set[str]:
+    tokens = set(re_tokens(text))
+    lower = (text or "").lower()
+    found: set[str] = set()
+    for name, syns in _RESP_CONCEPTS.items():
+        if tokens & syns or any(s in lower for s in syns if len(s) > 4):
+            found.add(name)
+    return found
 
 
 def responsibility_match(
     profile: ResumeProfile, responsibility: str
 ) -> tuple[str, float, str]:
     """Return status matched|partial|missing, score, evidence."""
+    jd_concepts = _concepts_in_text(responsibility)
     tokens = [t for t in re_tokens(responsibility) if len(t) > 3 and t not in _RESP_STOP]
-    if not tokens:
+    if not tokens and not jd_concepts:
         return ("missing", 0.0, "")
 
-    # Tokens that are known skills weigh more than filler verbs/nouns.
-    skill_tokens = {t for t in tokens if t in ALIAS_TO_CANONICAL or t.replace("-", "") in ALIAS_TO_CANONICAL}
-    weights = {t: (2.2 if t in skill_tokens else 1.0) for t in tokens}
-    weight_total = sum(weights.values())
+    skill_tokens = {
+        t for t in tokens if t in ALIAS_TO_CANONICAL or t.replace("-", "") in ALIAS_TO_CANONICAL
+    }
+    weights = {t: (2.0 if t in skill_tokens else 1.0) for t in tokens}
+    weight_total = sum(weights.values()) or 1.0
 
     best_score = 0.0
     best_ev = ""
     for bullet in profile.bullets:
         bl = bullet.lower()
-        hit_w = sum(weights[t] for t in tokens if t in bl)
-        ratio = hit_w / weight_total
-        # Action + metric bullets that hit the responsibility are stronger evidence.
+        token_ratio = sum(weights[t] for t in tokens if t in bl) / weight_total if tokens else 0.0
+        bullet_concepts = _concepts_in_text(bullet)
+        if jd_concepts:
+            concept_ratio = len(jd_concepts & bullet_concepts) / len(jd_concepts)
+        else:
+            concept_ratio = 0.0
+        # Blend: concepts carry semantic weight; tokens catch specific tools.
+        ratio = 0.55 * concept_ratio + 0.45 * token_ratio if jd_concepts else token_ratio
         bonus = 0.0
         if ratio >= 0.25:
             if bullet_has_action(bullet):
-                bonus += 0.06
+                bonus += 0.05
             if bullet_has_metric(bullet):
-                bonus += 0.06
+                bonus += 0.05
         score = min(1.0, ratio + bonus)
         if score > best_score:
             best_score = score
             best_ev = bullet
 
-    # Light full-text fallback when no bullet is close enough.
-    if best_score < 0.3:
+    if best_score < 0.28 and tokens:
         hit_w = sum(weights[t] for t in tokens if t in profile.lower)
-        best_score = max(best_score, (hit_w / weight_total) * 0.65)
+        best_score = max(best_score, (hit_w / weight_total) * 0.6)
 
-    if best_score >= 0.55:
+    if best_score >= 0.52:
         return ("matched", min(1.0, best_score), best_ev)
-    if best_score >= 0.28:
+    if best_score >= 0.26:
         return ("partial", best_score, best_ev)
     return ("missing", 0.0, "")
 
@@ -201,8 +311,15 @@ def title_similarity(a: str, b: str) -> float:
     inter = len(ta & tb)
     union = len(ta | tb)
     jaccard = inter / union if union else 0.0
-    # boost if engineer/developer family overlaps
     family = {"engineer", "developer", "sde", "swe"}
     if (ta & family) and (tb & family):
         jaccard = min(1.0, jaccard + 0.25)
+    # Domain mismatch penalty (frontend vs backend)
+    domains = (
+        ({"frontend", "front", "ui", "react"}, {"backend", "back", "api", "server"}),
+        ({"data", "etl", "pipeline"}, {"frontend", "ui", "design"}),
+    )
+    for a_set, b_set in domains:
+        if (ta & a_set and tb & b_set) or (ta & b_set and tb & a_set):
+            jaccard *= 0.55
     return jaccard
