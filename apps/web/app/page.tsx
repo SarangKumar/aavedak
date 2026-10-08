@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { BrandMark } from "@/components/brand-mark";
+import { getOptionalAccess } from "@/lib/app-access";
+import { hasFullyOnboarded } from "@/lib/onboarding";
 
 export const metadata: Metadata = {
   robots: { index: true, follow: true },
@@ -73,7 +75,26 @@ const steps = [
   },
 ] as const;
 
-export default function HomePage() {
+export default async function HomePage() {
+  const access = await getOptionalAccess();
+  let primaryHref = "/sign-in";
+  let primaryLabel = "Get started";
+  if (access) {
+    if (
+      access.profile.approvalStatus === "pending" ||
+      access.profile.approvalStatus === "rejected"
+    ) {
+      primaryHref = "/pending-approval";
+      primaryLabel = "Check approval status";
+    } else if (await hasFullyOnboarded(access.user.id)) {
+      primaryHref = "/dashboard";
+      primaryLabel = "Open dashboard";
+    } else {
+      primaryHref = "/onboarding";
+      primaryLabel = "Continue onboarding";
+    }
+  }
+
   return (
     <div className="relative">
       <div
@@ -128,17 +149,19 @@ export default function HomePage() {
 
           <div className="aavedak-fade-up aavedak-fade-up-delay-2 mt-6 flex w-full max-w-sm flex-col items-stretch gap-2 sm:mt-8 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
             <Link
-              href="/sign-in"
+              href={primaryHref}
               className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-10 cursor-pointer items-center justify-center rounded-lg px-6 text-[14px] font-semibold shadow-md shadow-black/15 ring-1 hover:opacity-90"
             >
-              Get started
+              {primaryLabel}
             </Link>
-            <Link
-              href="/dashboard"
-              className="aavedak-btn border-border bg-card text-foreground ring-ring/10 hover:text-primary inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border px-6 text-[14px] font-medium shadow-sm ring-1 backdrop-blur-sm"
-            >
-              Open dashboard
-            </Link>
+            {primaryHref === "/dashboard" ? (
+              <Link
+                href="/ats"
+                className="aavedak-btn border-border bg-card text-foreground ring-ring/10 hover:text-primary inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border px-6 text-[14px] font-medium shadow-sm ring-1 backdrop-blur-sm"
+              >
+                Check ATS Score
+              </Link>
+            ) : null}
           </div>
         </section>
 

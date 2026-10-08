@@ -40,6 +40,7 @@ import {
 } from "@/lib/profile-links";
 import { renderTemplatePreview } from "@/lib/template-preview";
 import { CompanySelect } from "@/components/company-select";
+import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import { cn } from "@/lib/utils";
 
 type Tab = "resumes" | "cover_letters" | "referral_email" | "followup_email";
@@ -275,6 +276,7 @@ export function DocumentsHub({
   const [jobs] = useState(initialJobs);
   const [clTitle, setClTitle] = useState(DEFAULT_COVER_TITLE);
   const [clBody, setClBody] = useState(DEFAULT_COVER_BODY);
+  const { ref: clBodyRef, resize: resizeClBody } = useAutosizeTextarea(clBody);
   const [clMode, setClMode] = useState<"job" | "custom">(initialJobs[0] ? "job" : "custom");
   const [clJobId, setClJobId] = useState<string>(initialJobs[0]?.id ?? "");
   const [clCustomCompany, setClCustomCompany] = useState("");
@@ -1067,13 +1069,17 @@ export function DocumentsHub({
                   className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
                 />
                 <textarea
+                  ref={clBodyRef}
                   value={clBody}
-                  onChange={(e) => setClBody(e.target.value)}
+                  onChange={(e) => {
+                    setClBody(e.target.value);
+                    resizeClBody();
+                  }}
                   placeholder={
                     "Dear Hiring Manager,\n\nI am writing to apply for the {{role}} role at {{company}}…"
                   }
-                  rows={8}
-                  className="border-border bg-background text-foreground max-h-64 min-h-[10rem] w-full overflow-y-auto rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
+                  rows={1}
+                  className="border-border bg-background text-foreground box-border h-auto max-h-[min(80vh,800px)] min-h-[10rem] w-full resize-none rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
                 />
                 <div className="space-y-1.5">
                   <p className="text-foreground text-[11px] font-semibold tracking-tight">

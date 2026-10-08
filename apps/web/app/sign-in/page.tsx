@@ -1,9 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { BrandMark } from "@/components/brand-mark";
 import { SignInForm } from "@/components/sign-in-form";
+import { getOptionalAccess } from "@/lib/app-access";
 import { isGoogleAuthConfigured } from "@/lib/auth";
+import { hasFullyOnboarded } from "@/lib/onboarding";
 
 export const metadata: Metadata = {
   robots: { index: true, follow: true },
@@ -11,7 +14,28 @@ export const metadata: Metadata = {
   description: "Sign in to Aavedak with Google to continue your job search.",
 };
 
-export default function SignInPage() {
+type Props = {
+  searchParams: Promise<{ next?: string }>;
+};
+
+export default async function SignInPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const access = await getOptionalAccess();
+  if (access) {
+    const { profile, user } = access;
+    if (profile.approvalStatus === "pending" || profile.approvalStatus === "rejected") {
+      redirect("/pending-approval");
+    }
+    const next = params.next?.startsWith("/") ? params.next : null;
+    if (next && next !== "/sign-in" && (await hasFullyOnboarded(user.id))) {
+      redirect(next);
+    }
+    if (await hasFullyOnboarded(user.id)) {
+      redirect("/dashboard");
+    }
+    redirect("/onboarding");
+  }
+
   return (
     <div className="relative flex min-h-[calc(100dvh-3rem)] items-center justify-center overflow-hidden px-4 py-10 sm:px-6">
       <div
@@ -20,7 +44,7 @@ export default function SignInPage() {
       />
       <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-40" aria-hidden />
 
-      <div className="aavedak-fade-up relative flex w-full max-w-[22rem] flex-col items-center text-center">
+      <div className="aavedak-fade-up max-w-88 relative flex w-full flex-col items-center text-center">
         <Link href="/" className="group relative mb-7" aria-label="Aavedak home">
           <span className="aavedak-logo-glow" aria-hidden />
           <BrandMark

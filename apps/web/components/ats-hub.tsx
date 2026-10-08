@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import { ShellWidth } from "@/components/shell-width";
+import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import {
   Accordion,
   AccordionContent,
@@ -455,6 +456,7 @@ export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
   const [expandedResumeId, setExpandedResumeId] = useState<string | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [previewResume, setPreviewResume] = useState<ResumeRow | null>(null);
+  const { ref: jdTextareaRef, resize: resizeJdTextarea } = useAutosizeTextarea(jdText);
 
   const previewMode = detectAtsMode(role, jdText);
   const progressPct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
@@ -587,11 +589,15 @@ export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
         <label className="block space-y-1 text-[12px]">
           <span className="text-muted-foreground">Job description (optional)</span>
           <textarea
+            ref={jdTextareaRef}
             value={jdText}
-            onChange={(e) => setJdText(e.target.value)}
-            rows={8}
+            onChange={(e) => {
+              setJdText(e.target.value);
+              resizeJdTextarea();
+            }}
+            rows={1}
             placeholder="Paste the JD for the strongest job-match analysis…"
-            className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] leading-relaxed"
+            className="border-border bg-background text-foreground min-h-26 box-border h-auto max-h-[min(80vh,800px)] w-full resize-none rounded-lg border px-3 py-2 text-[13px] leading-relaxed"
           />
         </label>
         <p className="text-muted-foreground text-[11px]">

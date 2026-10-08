@@ -243,13 +243,13 @@ export function ColdEmailTemplatesPanel({
 
       {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
 
-      {/* 2) Create/edit | live preview */}
-      <div className="grid gap-3 lg:grid-cols-2">
+      {/* 2) Create/edit | live preview — equal height columns; preview fills remainder */}
+      <div className="grid items-stretch gap-3 lg:grid-cols-2">
         <div
           ref={editorRef}
-          className="border-border/80 bg-card space-y-2 rounded-xl border p-3 shadow-sm"
+          className="border-border/80 bg-card flex h-full min-h-[16rem] flex-col gap-2 rounded-xl border p-3 shadow-sm"
         >
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex shrink-0 items-center justify-between gap-2">
             <p className="text-foreground text-[12px] font-semibold tracking-tight">
               {draft.id ? "Edit template" : "New template"}
             </p>
@@ -291,7 +291,7 @@ export function ColdEmailTemplatesPanel({
             value={draft.title}
             onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
             placeholder="Title (e.g. Referral ask — Acme)"
-            className={field}
+            className={cn(field, "shrink-0")}
           />
           {lockedKind ? null : (
             <Select
@@ -303,7 +303,7 @@ export function ColdEmailTemplatesPanel({
                 }))
               }
             >
-              <SelectTrigger className={cn(field, "px-2")}>
+              <SelectTrigger className={cn(field, "shrink-0 px-2")}>
                 <SelectValue placeholder="Kind" />
               </SelectTrigger>
               <SelectContent className="z-[280]">
@@ -314,7 +314,7 @@ export function ColdEmailTemplatesPanel({
               </SelectContent>
             </Select>
           )}
-          <label className="block space-y-1">
+          <label className="block shrink-0 space-y-1">
             <span className="text-muted-foreground text-[11px] font-medium">Subject</span>
             <input
               value={draft.subject}
@@ -323,8 +323,8 @@ export function ColdEmailTemplatesPanel({
               className={field}
             />
           </label>
-          <label className="block space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium">Body</span>
+          <label className="flex min-h-0 flex-1 flex-col space-y-1">
+            <span className="text-muted-foreground shrink-0 text-[11px] font-medium">Body</span>
             <textarea
               value={draft.body}
               onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))}
@@ -332,7 +332,7 @@ export function ColdEmailTemplatesPanel({
               rows={14}
               className={cn(
                 field,
-                "h-auto max-h-[28rem] min-h-[16rem] overflow-y-auto py-2 font-mono text-[11px] leading-relaxed",
+                "box-border h-auto min-h-[16rem] w-full flex-1 resize-y overflow-y-auto py-2 font-mono text-[11px] leading-relaxed",
               )}
             />
           </label>
@@ -341,15 +341,17 @@ export function ColdEmailTemplatesPanel({
             size="sm"
             loading={pending}
             onClick={() => void save()}
-            className="h-8"
+            className="h-8 shrink-0 self-start"
           >
             {draft.id ? "Update template" : "Create template"}
           </Button>
         </div>
 
-        <div className="border-border/80 bg-card flex min-h-[28rem] flex-col rounded-xl border p-3 shadow-sm">
-          <p className="text-foreground text-[12px] font-semibold tracking-tight">Live preview</p>
-          <p className="text-muted-foreground mb-2 text-[11px]">
+        <div className="border-border/80 bg-card flex h-full min-h-[16rem] flex-col overflow-hidden rounded-xl border p-3 shadow-sm">
+          <p className="text-foreground shrink-0 text-[12px] font-semibold tracking-tight">
+            Live preview
+          </p>
+          <p className="text-muted-foreground mb-2 shrink-0 text-[11px]">
             Updates as you type subject and body.
           </p>
           <div className="border-border/70 bg-background/50 min-h-0 flex-1 overflow-y-auto rounded-xl border p-3">
