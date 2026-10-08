@@ -8,7 +8,7 @@ import {
   updateProfilePublic,
   type ProfilePublicPatch,
 } from "@/lib/profile";
-import type { ProfileLinks } from "@/lib/profile-links";
+import type { ProfileCustomLink, ProfileLinks } from "@/lib/profile-links";
 
 async function requireUser() {
   const result = await requireApiUser();
@@ -26,6 +26,7 @@ function serialize(profile: NonNullable<Awaited<ReturnType<typeof getProfile>>>)
     portfolioUrl: profile.portfolioUrl,
     linkedinUrl: profile.linkedinUrl,
     links: profile.links,
+    customLinks: profile.customLinks,
     imageUrl: profile.imageUrl,
     onboardingComplete: profile.onboardingComplete,
     career: profile.career,
@@ -49,10 +50,15 @@ export async function PATCH(request: Request) {
   if ("error" in authResult) return authResult.error;
   const user = authResult.user;
 
-  let body: ProfilePublicPatch & { links?: ProfileLinks; career?: CareerProfilePatch };
+  let body: ProfilePublicPatch & {
+    links?: ProfileLinks;
+    customLinks?: ProfileCustomLink[];
+    career?: CareerProfilePatch;
+  };
   try {
     body = (await request.json()) as ProfilePublicPatch & {
       links?: ProfileLinks;
+      customLinks?: ProfileCustomLink[];
       career?: CareerProfilePatch;
     };
   } catch {
@@ -70,7 +76,8 @@ export async function PATCH(request: Request) {
       body.bio !== undefined ||
       body.portfolioUrl !== undefined ||
       body.linkedinUrl !== undefined ||
-      body.links !== undefined;
+      body.links !== undefined ||
+      body.customLinks !== undefined;
 
     if (hasPublic) {
       profile = await updateProfilePublic(user.id, {
@@ -79,6 +86,7 @@ export async function PATCH(request: Request) {
         portfolioUrl: body.portfolioUrl,
         linkedinUrl: body.linkedinUrl,
         links: body.links,
+        customLinks: body.customLinks,
       });
     }
 

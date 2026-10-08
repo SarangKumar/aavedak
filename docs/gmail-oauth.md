@@ -43,15 +43,34 @@ Better Auth Google provider is configured with:
 
 ## Publish for any Google account
 
-1. Google Auth Platform → **Branding**: app name, support email, logo (optional), app home page
-   `https://aavedak.vercel.app`, privacy policy `https://aavedak.vercel.app/privacy`, terms
-   `https://aavedak.vercel.app/terms`, authorized domain `aavedak.vercel.app`.
+1. Google Auth Platform → **Branding**: app name, support email, logo (optional), app home page,
+   privacy policy, terms, and authorized domains (see domain ownership below).
 2. **Audience** → Publishing status → **Publish app** → confirm (In production).
 3. Sign-in (basic scopes) works for everyone immediately — no verification needed.
 4. Until `gmail.send` is verified, Authorize Gmail send shows "Google hasn't verified this app"
-   (Advanced → Go to aavedak.vercel.app (unsafe)); 100-user lifetime cap for unverified sensitive scopes.
-5. To remove that screen: **Verification Center** → submit for sensitive-scope verification
+   (Advanced → Continue); 100-user lifetime cap for unverified sensitive scopes.
+5. To remove that screen: **Verification Center** → submit for sensitive-scope / brand verification
    (justification + demo video of the Gmail send flow; homepage, privacy, terms must be live).
+
+### Fix: “home page URL is not registered to you”
+
+Google will **not** accept `*.vercel.app` as a domain you own for brand / sensitive-scope
+verification. You need a **custom domain** you control (e.g. `aavedak.com` or `app.aavedak.com`).
+
+1. Buy / own a domain and attach it to the Vercel project (**Settings → Domains**).
+2. In [Google Search Console](https://search.google.com/search-console), add a **Domain** property
+   for the root (e.g. `aavedak.com`) and verify via **DNS TXT** (same Google account that is
+   Owner/Editor on the GCP project).
+3. Wait until Search Console shows Verified (often minutes; Google says wait up to 24h before retry).
+4. OAuth consent **Branding**:
+   - Home page: `https://yourdomain.com/` (public, not login-only; describe the app)
+   - Privacy: `https://yourdomain.com/privacy`
+   - Terms: `https://yourdomain.com/terms`
+   - Authorized domains: `yourdomain.com` (root only)
+5. OAuth client: add origins/redirects for the custom domain
+   (`https://yourdomain.com/api/auth/callback/google`).
+6. Update `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL` to the custom domain, redeploy, then retry
+   verification.
 
 ## Troubleshooting
 

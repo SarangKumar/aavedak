@@ -197,6 +197,16 @@ export default function HomePage() {
             ))}
           </div>
         </section>
+
+        <footer className="aavedak-fade-up text-muted-foreground border-border/60 mt-14 flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-6 text-[12px] sm:mt-16">
+          <span>Aavedak · Discover · Apply · Grow</span>
+          <Link href="/privacy" className="text-primary underline-offset-2 hover:underline">
+            Privacy
+          </Link>
+          <Link href="/terms" className="text-primary underline-offset-2 hover:underline">
+            Terms
+          </Link>
+        </footer>
       </div>
     </div>
   );

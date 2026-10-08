@@ -6,6 +6,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DragDrop,
+  DragDropHandle,
+  DragDropItem,
+  DragDropList,
+  type DragDropItems,
+} from "@/components/ui/drag-and-drop";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Modal } from "@/components/ui/modal";
 import {
@@ -92,7 +99,10 @@ const COLUMN_META: Record<ColumnId, { title: string; blurb: string }> = {
     blurb: "Applied jobs · Needs referral stays listed after sends",
   },
   template: { title: "Email", blurb: "Template · From = your Gmail" },
-  people: { title: "People", blurb: "Select recipients · one referral per person per job" },
+  people: {
+    title: "People",
+    blurb: "Select recipients · confirm & send below",
+  },
 };
 
 function mailKindOf(f: FollowUpDto): MailKind {
@@ -179,7 +189,6 @@ export function ReferralsComposer({
   const [followUps, setFollowUps] = useState(initialFollowUps);
 
   const [columnOrder, setColumnOrder] = useState<ColumnId[]>(DEFAULT_ORDER);
-  const [dragCol, setDragCol] = useState<ColumnId | null>(null);
 
   const [appReferralTab, setAppReferralTab] = useState<AppReferralTab>(() => {
     const applied = initialApplications.filter((app) => app.status === "applied");
@@ -454,26 +463,11 @@ export function ReferralsComposer({
     }
   }, []);
 
-  function onColDragStart(id: ColumnId) {
-    setDragCol(id);
-  }
-
-  function onColDrop(target: ColumnId) {
-    if (!dragCol || dragCol === target) {
-      setDragCol(null);
-      return;
-    }
-    const next = [...columnOrder];
-    const from = next.indexOf(dragCol);
-    const to = next.indexOf(target);
-    if (from < 0 || to < 0) {
-      setDragCol(null);
-      return;
-    }
-    next.splice(from, 1);
-    next.splice(to, 0, dragCol);
-    persistOrder(next);
-    setDragCol(null);
+  function onColumnReorder(next: DragDropItems) {
+    if (!Array.isArray(next)) return;
+    const order = next.filter((id): id is ColumnId => DEFAULT_ORDER.includes(id as ColumnId));
+    if (order.length !== DEFAULT_ORDER.length) return;
+    persistOrder(order);
   }
 
   function togglePerson(id: string) {
@@ -666,38 +660,250 @@ export function ReferralsComposer({
     }
   }
 
+  function renderColumnDragHandle(title: string) {
+    return (
+      <DragDropHandle
+        aria-label={`Drag to reorder ${title} column`}
+        title="Drag to reorder"
+        className="size-8"
+      >
+        <GripVerticalIcon className="size-4" />
+      </DragDropHandle>
+    );
+  }
+
+  function renderConfirmPanel() {
+    return (
+      <section className="border-border/80 bg-card shrink-0 space-y-2.5 rounded-xl border p-3 shadow-sm">
+        <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
+          {activeMailKind === "followup"
+            ? "Confirm & send follow-ups"
+            : "Confirm & send referral emails"}
+        </h2>
+        <label className="text-foreground flex cursor-pointer items-center gap-2 text-[12px]">
+          <Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />I confirm
+          these {checkedPeople.size} recipient(s)
+        </label>
+        <button
+          type="button"
+          disabled={
+            pending ||
+            !confirmed ||
+            checkedPeople.size === 0 ||
+            !selectedAppId ||
+            !selectedTemplateId ||
+            countdownVisible
+          }
+          onClick={() => void queueFollowUps()}
+          className="aavedak-btn bg-primary text-primary-foreground inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-lg px-4 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {pending
+            ? "Sending…"
+            : activeMailKind === "followup"
+              ? "Queue follow-up (20s)"
+              : "Queue referral (20s)"}
+        </button>
+      </section>
+    );
+  }
+
   function renderColumn(id: ColumnId) {
     const meta = COLUMN_META[id];
+
+    // Right column: People + Confirm as two stacked cards, one drag unit
+    if (id === "people") {
+      return (
+        <div className="relative flex h-full min-w-0 flex-col gap-3">
+          <section className="border-border/80 bg-card flex min-h-0 flex-1 flex-col rounded-xl border shadow-sm">
+            <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-foreground text-[13px] font-semibold tracking-tight">
+                  {meta.title}
+                </p>
+                <p className="text-muted-foreground text-[11px] leading-relaxed">{meta.blurb}</p>
+              </div>
+              {renderColumnDragHandle(`${meta.title} & confirm`)}
+            </header>
+            <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-muted-foreground text-[11px]">
+                  {checkedPeople.size} selected
+                  {appReferralTab === "sent" ? " · follow-up" : " · referral"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setManageOpen(true)}
+                  className="text-primary cursor-pointer text-[11px] font-medium hover:underline"
+                >
+                  Add person
+                </button>
+              </div>
+              {selectedApp && peopleForColumn.length > 0 ? (
+                <label
+                  className={cn(
+                    "border-border/70 bg-muted/20 flex items-center gap-2 rounded-xl border px-2.5 py-2",
+                    selectablePeople.length === 0
+                      ? "cursor-not-allowed opacity-60"
+                      : "cursor-pointer",
+                  )}
+                >
+                  <Checkbox
+                    checked={
+                      selectablePeople.length > 0 &&
+                      selectablePeople.every((p) => checkedPeople.has(p.id))
+                    }
+                    indeterminate={
+                      checkedPeople.size > 0 &&
+                      !selectablePeople.every((p) => checkedPeople.has(p.id))
+                    }
+                    disabled={selectablePeople.length === 0}
+                    onChange={() => toggleSelectAll()}
+                  />
+                  <span className="text-foreground text-[12px] font-medium">Select all</span>
+                  <span className="text-muted-foreground text-[11px]">
+                    ({selectablePeople.length} available)
+                  </span>
+                </label>
+              ) : null}
+              <ul className="space-y-1.5">
+                {!selectedApp ? (
+                  <li className="text-muted-foreground text-[12px]">
+                    Select an application to see people at that company.
+                  </li>
+                ) : peopleForColumn.length === 0 ? (
+                  <li className="text-muted-foreground text-[12px]">
+                    {appReferralTab === "sent"
+                      ? "No referral emails sent for this job yet."
+                      : `No people at ${selectedApp.companyName} yet — add a contact for this company.`}
+                  </li>
+                ) : (
+                  peopleForColumn.map((person) => {
+                    const checked = checkedPeople.has(person.id);
+                    const outreachBlocked =
+                      appReferralTab === "needs" && personOutreachBlocked(person.id);
+                    const cooldown =
+                      appReferralTab === "sent" ? personFollowupCooldown(person.id) : null;
+                    const disabled =
+                      outreachBlocked ||
+                      Boolean(cooldown?.blocked) ||
+                      !person.email ||
+                      (appReferralTab === "sent" && !personMailMeta(person.id).outreach);
+                    const mailMeta = personMailMeta(person.id);
+                    return (
+                      <li key={person.id}>
+                        <label
+                          className={cn(
+                            "flex items-start gap-2 rounded-xl border px-2.5 py-2",
+                            disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer",
+                            checked
+                              ? "border-primary/40 bg-primary/10"
+                              : "border-border/70 bg-muted/30",
+                          )}
+                        >
+                          <Checkbox
+                            className="mt-0.5"
+                            checked={checked}
+                            disabled={disabled}
+                            onChange={() => togglePerson(person.id)}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="text-foreground min-w-0 truncate text-[12px] font-medium">
+                                {person.name}
+                              </span>
+                              {appReferralTab === "sent" &&
+                              (mailMeta.outreach || mailMeta.followup || cooldown?.blocked) ? (
+                                <HoverCard openDelay={80} closeDelay={100}>
+                                  <HoverCardTrigger
+                                    className="text-muted-foreground hover:text-foreground border-border/70 hover:border-border inline-flex size-5 shrink-0 items-center justify-center rounded-full border"
+                                    aria-label="Mail status details"
+                                    onClick={(e) => e.preventDefault()}
+                                  >
+                                    <QuestionMarkIcon className="size-3" />
+                                  </HoverCardTrigger>
+                                  <HoverCardContent side="top" align="end" className="space-y-1.5">
+                                    <p className="text-foreground text-[11px] font-semibold tracking-tight">
+                                      Mail status
+                                    </p>
+                                    {mailMeta.outreach ? (
+                                      <p className="text-muted-foreground leading-snug">
+                                        Referral email sent{" "}
+                                        <span className="text-foreground">
+                                          {formatRelativeAgo(
+                                            mailMeta.outreach.updatedAt ||
+                                              mailMeta.outreach.createdAt,
+                                          )}
+                                        </span>
+                                      </p>
+                                    ) : null}
+                                    {mailMeta.followup ? (
+                                      <p className="text-muted-foreground leading-snug">
+                                        Last follow-up{" "}
+                                        <span className="text-foreground">
+                                          {formatRelativeAgo(
+                                            mailMeta.followup.updatedAt ||
+                                              mailMeta.followup.createdAt,
+                                          )}
+                                        </span>
+                                      </p>
+                                    ) : (
+                                      <p className="text-muted-foreground leading-snug">
+                                        No follow-up sent yet
+                                      </p>
+                                    )}
+                                    {cooldown?.blocked ? (
+                                      <p className="text-primary leading-snug">
+                                        Wait 1 hour before another follow-up
+                                      </p>
+                                    ) : (
+                                      <p className="text-muted-foreground leading-snug">
+                                        Ready for another follow-up
+                                      </p>
+                                    )}
+                                  </HoverCardContent>
+                                </HoverCard>
+                              ) : null}
+                            </span>
+                            <span className="text-muted-foreground block truncate text-[11px]">
+                              {person.email ?? "No email"}
+                              {person.company ? ` · ${person.company}` : ""}
+                            </span>
+                            {appReferralTab === "needs" && outreachBlocked ? (
+                              <span className="mt-1 block">
+                                <Badge variant="outline" className="h-5 text-[10px]">
+                                  Referral already sent
+                                </Badge>
+                              </span>
+                            ) : null}
+                            {appReferralTab === "sent" && cooldown?.blocked ? (
+                              <span className="mt-1 block">
+                                <Badge variant="outline" className="h-5 text-[10px]">
+                                  Wait 1 hour before another follow-up
+                                </Badge>
+                              </span>
+                            ) : null}
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+          </section>
+          {renderConfirmPanel()}
+        </div>
+      );
+    }
+
     return (
-      <section
-        key={id}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={() => onColDrop(id)}
-        style={{
-          flex: `${DEFAULT_WIDTHS[id]} 1 0%`,
-          minWidth: 240,
-        }}
-        className={cn(
-          "border-border/80 bg-card relative flex h-[min(70vh,44rem)] min-w-0 flex-col rounded-xl border shadow-sm",
-          dragCol === id && "ring-primary/40 opacity-70 ring-2",
-        )}
-      >
+      <section className="border-border/80 bg-card relative flex h-full min-w-0 flex-col rounded-xl border shadow-sm">
         <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
           <div className="min-w-0">
             <p className="text-foreground text-[13px] font-semibold tracking-tight">{meta.title}</p>
             <p className="text-muted-foreground text-[11px] leading-relaxed">{meta.blurb}</p>
           </div>
-          <button
-            type="button"
-            draggable
-            onDragStart={() => onColDragStart(id)}
-            onDragEnd={() => setDragCol(null)}
-            className="text-muted-foreground hover:text-foreground inline-flex size-8 shrink-0 cursor-grab items-center justify-center rounded-md active:cursor-grabbing"
-            aria-label={`Drag to reorder ${meta.title} column`}
-            title="Drag to reorder"
-          >
-            <GripVerticalIcon className="size-4" />
-          </button>
+          {renderColumnDragHandle(meta.title)}
         </header>
 
         <div
@@ -954,175 +1160,6 @@ export function ReferralsComposer({
               </div>
             </div>
           ) : null}
-
-          {id === "people" ? (
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-muted-foreground text-[11px]">
-                  {checkedPeople.size} selected
-                  {appReferralTab === "sent" ? " · follow-up" : " · referral"}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setManageOpen(true)}
-                  className="text-primary cursor-pointer text-[11px] font-medium hover:underline"
-                >
-                  Add person
-                </button>
-              </div>
-              {selectedApp && peopleForColumn.length > 0 ? (
-                <label
-                  className={cn(
-                    "border-border/70 bg-muted/20 flex items-center gap-2 rounded-xl border px-2.5 py-2",
-                    selectablePeople.length === 0
-                      ? "cursor-not-allowed opacity-60"
-                      : "cursor-pointer",
-                  )}
-                >
-                  <Checkbox
-                    checked={
-                      selectablePeople.length > 0 &&
-                      selectablePeople.every((p) => checkedPeople.has(p.id))
-                    }
-                    indeterminate={
-                      checkedPeople.size > 0 &&
-                      !selectablePeople.every((p) => checkedPeople.has(p.id))
-                    }
-                    disabled={selectablePeople.length === 0}
-                    onChange={() => toggleSelectAll()}
-                  />
-                  <span className="text-foreground text-[12px] font-medium">Select all</span>
-                  <span className="text-muted-foreground text-[11px]">
-                    ({selectablePeople.length} available)
-                  </span>
-                </label>
-              ) : null}
-              <ul className="space-y-1.5">
-                {!selectedApp ? (
-                  <li className="text-muted-foreground text-[12px]">
-                    Select an application to see people at that company.
-                  </li>
-                ) : peopleForColumn.length === 0 ? (
-                  <li className="text-muted-foreground text-[12px]">
-                    {appReferralTab === "sent"
-                      ? "No referral emails sent for this job yet."
-                      : `No people at ${selectedApp.companyName} yet — add a contact for this company.`}
-                  </li>
-                ) : (
-                  peopleForColumn.map((person) => {
-                    const checked = checkedPeople.has(person.id);
-                    const outreachBlocked =
-                      appReferralTab === "needs" && personOutreachBlocked(person.id);
-                    const cooldown =
-                      appReferralTab === "sent" ? personFollowupCooldown(person.id) : null;
-                    const disabled =
-                      outreachBlocked ||
-                      Boolean(cooldown?.blocked) ||
-                      !person.email ||
-                      (appReferralTab === "sent" && !personMailMeta(person.id).outreach);
-                    const meta = personMailMeta(person.id);
-                    return (
-                      <li key={person.id}>
-                        <label
-                          className={cn(
-                            "flex items-start gap-2 rounded-xl border px-2.5 py-2",
-                            disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer",
-                            checked
-                              ? "border-primary/40 bg-primary/10"
-                              : "border-border/70 bg-muted/30",
-                          )}
-                        >
-                          <Checkbox
-                            className="mt-0.5"
-                            checked={checked}
-                            disabled={disabled}
-                            onChange={() => togglePerson(person.id)}
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="text-foreground block truncate text-[12px] font-medium">
-                              {person.name}
-                            </span>
-                            <span className="text-muted-foreground block truncate text-[11px]">
-                              {person.email ?? "No email"}
-                              {person.company ? ` · ${person.company}` : ""}
-                            </span>
-                            {appReferralTab === "needs" && outreachBlocked ? (
-                              <span className="mt-1 block">
-                                <Badge variant="outline" className="h-5 text-[10px]">
-                                  Referral already sent
-                                </Badge>
-                              </span>
-                            ) : null}
-                            {appReferralTab === "sent" &&
-                            (meta.outreach || meta.followup || cooldown?.blocked) ? (
-                              <span className="mt-1 flex items-center gap-1">
-                                {cooldown?.blocked ? (
-                                  <Badge variant="outline" className="h-5 text-[10px]">
-                                    Wait 1 hour before another follow-up
-                                  </Badge>
-                                ) : null}
-                                <HoverCard openDelay={80} closeDelay={100}>
-                                  <HoverCardTrigger
-                                    className="text-muted-foreground hover:text-foreground border-border/70 hover:border-border inline-flex size-5 shrink-0 items-center justify-center rounded-full border"
-                                    aria-label="Mail status details"
-                                    onClick={(e) => e.preventDefault()}
-                                  >
-                                    <QuestionMarkIcon className="size-3" />
-                                  </HoverCardTrigger>
-                                  <HoverCardContent
-                                    side="top"
-                                    align="start"
-                                    className="space-y-1.5"
-                                  >
-                                    <p className="text-foreground text-[11px] font-semibold tracking-tight">
-                                      Mail status
-                                    </p>
-                                    {meta.outreach ? (
-                                      <p className="text-muted-foreground leading-snug">
-                                        Referral email sent{" "}
-                                        <span className="text-foreground">
-                                          {formatRelativeAgo(
-                                            meta.outreach.updatedAt || meta.outreach.createdAt,
-                                          )}
-                                        </span>
-                                      </p>
-                                    ) : null}
-                                    {meta.followup ? (
-                                      <p className="text-muted-foreground leading-snug">
-                                        Last follow-up{" "}
-                                        <span className="text-foreground">
-                                          {formatRelativeAgo(
-                                            meta.followup.updatedAt || meta.followup.createdAt,
-                                          )}
-                                        </span>
-                                      </p>
-                                    ) : (
-                                      <p className="text-muted-foreground leading-snug">
-                                        No follow-up sent yet
-                                      </p>
-                                    )}
-                                    {cooldown?.blocked ? (
-                                      <p className="text-primary leading-snug">
-                                        Wait 1 hour before another follow-up
-                                      </p>
-                                    ) : (
-                                      <p className="text-muted-foreground leading-snug">
-                                        Ready for another follow-up
-                                      </p>
-                                    )}
-                                  </HoverCardContent>
-                                </HoverCard>
-                              </span>
-                            ) : null}
-                          </span>
-                        </label>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </div>
-          ) : null}
         </div>
       </section>
     );
@@ -1161,81 +1198,29 @@ export function ReferralsComposer({
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
       {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
 
-      <div className="flex w-full gap-3 overflow-x-auto pb-1">
-        {columnOrder.map((id) => renderColumn(id))}
-      </div>
-
-      <section className="border-border/80 bg-card space-y-3 rounded-xl border p-4 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1.5">
-            <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
-              {activeMailKind === "followup"
-                ? "Confirm & send follow-ups"
-                : "Confirm & send referral emails"}
-            </h2>
-            <div className="border-border/70 bg-muted/40 rounded-lg border px-3 py-2">
-              <p className="text-foreground text-[12px] font-medium leading-relaxed">
-                {activeMailKind === "followup"
-                  ? "Queues follow-up emails to people who already got a referral for this job, then shows a 20s countdown before Gmail sends."
-                  : "One referral email per person per job. Creates tasks, then shows a 20s countdown before Gmail sends."}
-              </p>
-              {resumeId ? (
-                <p className="text-muted-foreground mt-0.5 text-[12px] leading-relaxed">
-                  Resume attached:{" "}
-                  <span className="text-foreground font-medium">
-                    {resumeOptions.find((resume) => resume.id === resumeId)?.displayName ||
-                      "resume"}
-                  </span>
-                </p>
-              ) : (
-                <p className="text-muted-foreground mt-0.5 text-[12px] leading-relaxed">
-                  Attach a resume in the email preview if you want a PDF on the send.
-                </p>
-              )}
-            </div>
-          </div>
-          <label className="text-foreground flex shrink-0 cursor-pointer items-center gap-2 text-[12px]">
-            <Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />I
-            confirm these {checkedPeople.size} recipient(s)
-          </label>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {checkedPeople.size === 0 ? (
-            <p className="text-muted-foreground text-[12px]">No recipients selected yet.</p>
-          ) : (
-            people
-              .filter((p) => checkedPeople.has(p.id))
-              .map((p) => (
-                <Badge
-                  key={p.id}
-                  variant="secondary"
-                  className="h-7 max-w-full truncate px-2.5 text-[11px] font-medium"
-                >
-                  {p.name} | {p.email || "no email"}
-                </Badge>
-              ))
-          )}
-        </div>
-        <button
-          type="button"
-          disabled={
-            pending ||
-            !confirmed ||
-            checkedPeople.size === 0 ||
-            !selectedAppId ||
-            !selectedTemplateId ||
-            countdownVisible
-          }
-          onClick={() => void queueFollowUps()}
-          className="aavedak-btn bg-primary text-primary-foreground inline-flex h-9 cursor-pointer items-center rounded-lg px-4 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {pending
-            ? "Sending…"
-            : activeMailKind === "followup"
-              ? "Queue follow-up (20s)"
-              : "Queue referral (20s)"}
-        </button>
-      </section>
+      <DragDrop
+        items={columnOrder}
+        orientation="horizontal"
+        onReorder={onColumnReorder}
+        className="w-full min-w-0"
+      >
+        <DragDropList className="h-[min(70vh,44rem)] w-full gap-3 overflow-x-auto pb-1">
+          {columnOrder.map((id) => (
+            <DragDropItem
+              key={id}
+              id={id}
+              style={{
+                flex: `${DEFAULT_WIDTHS[id]} 1 0%`,
+                minWidth: 240,
+                height: "100%",
+              }}
+              className="border-border/0 bg-transparent p-0 shadow-none hover:bg-transparent data-[dragging]:opacity-40"
+            >
+              {renderColumn(id)}
+            </DragDropItem>
+          ))}
+        </DragDropList>
+      </DragDrop>
 
       <section className="border-border/80 bg-card space-y-2 rounded-xl border p-4">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">

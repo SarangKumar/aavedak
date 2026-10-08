@@ -158,10 +158,13 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
           id={`${idPrefix}-skills`}
           value={value.skills}
           onChange={(e) => set("skills", e.target.value)}
-          placeholder="TypeScript, React, PostgreSQL, System Design"
+          placeholder="e.g. Python, SQL, PySpark, Airflow, Kafka"
           className="h-9 rounded-lg text-[13px]"
         />
-        <p className={hintClass}>Comma-separated highlights.</p>
+        <p className={hintClass}>
+          Enter skills as a comma-separated list (e.g. TypeScript, React, PostgreSQL). Used for job
+          matching.
+        </p>
       </label>
 
       <div className={grid}>

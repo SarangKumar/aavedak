@@ -18,9 +18,11 @@ import {
 } from "@/lib/career-profile";
 import {
   emptyProfileLinks,
+  MAX_CUSTOM_PROFILE_LINKS,
   mergeLegacyLinks,
   parseProfileLinksJson,
   serializeProfileLinks,
+  type ProfileCustomLink,
   type ProfileLinks,
 } from "@/lib/profile-links";
 import { initialApprovalStatus } from "@/lib/user-approval";
@@ -41,6 +43,8 @@ export type Profile = {
   /** @deprecated Prefer `links.linkedin` — kept in sync for older readers. */
   linkedinUrl: string | null;
   links: ProfileLinks;
+  /** User-defined title + URL pairs (stored in links_json.custom). */
+  customLinks: ProfileCustomLink[];
   imageUrl: string | null;
   onboardingComplete: boolean;
   /** Admin gate before onboarding. Existing users are approved. */
@@ -97,11 +101,8 @@ function mapCareer(row: ProfileRow): CareerProfile {
 }
 
 function mapRow(row: ProfileRow): Profile {
-  const links = mergeLegacyLinks(
-    parseProfileLinksJson(row.links_json),
-    row.portfolio_url,
-    row.linkedin_url,
-  );
+  const parsed = parseProfileLinksJson(row.links_json);
+  const links = mergeLegacyLinks(parsed.links, row.portfolio_url, row.linkedin_url);
   return {
     userId: row.user_id,
     username: row.username,
@@ -111,6 +112,7 @@ function mapRow(row: ProfileRow): Profile {
     portfolioUrl: links.portfolio ?? null,
     linkedinUrl: links.linkedin ?? null,
     links,
+    customLinks: parsed.custom,
     imageUrl: row.image_url,
     onboardingComplete: Boolean(row.onboarding_complete),
     approvalStatus: isApprovalStatus(row.approval_status) ? row.approval_status : "approved",
@@ -261,6 +263,7 @@ export type ProfilePublicPatch = {
   portfolioUrl?: string | null;
   linkedinUrl?: string | null;
   links?: ProfileLinks;
+  customLinks?: ProfileCustomLink[];
 };
 
 function normalizeOptionalText(value: string | null, max: number): string | null {
@@ -307,6 +310,18 @@ function normalizeLinks(input: ProfileLinks | undefined, fallback: ProfileLinks)
   return out;
 }
 
+function normalizeCustomLinks(input: ProfileCustomLink[]): ProfileCustomLink[] {
+  const out: ProfileCustomLink[] = [];
+  for (const item of input) {
+    const title = normalizeOptionalText(item.title ?? null, 80);
+    const url = normalizeOptionalUrl(item.url ?? null);
+    if (!title || !url) continue;
+    out.push({ title, url });
+    if (out.length >= MAX_CUSTOM_PROFILE_LINKS) break;
+  }
+  return out;
+}
+
 /** Owner update for shareable profile fields. */
 export async function updateProfilePublic(
   userId: string,
@@ -337,9 +352,14 @@ export async function updateProfilePublic(
     }
   }
 
+  const nextCustom =
+    patch.customLinks !== undefined
+      ? normalizeCustomLinks(patch.customLinks)
+      : existing.customLinks;
+
   const nextPortfolio = nextLinks.portfolio ?? null;
   const nextLinkedin = nextLinks.linkedin ?? null;
-  const linksJson = serializeProfileLinks(nextLinks);
+  const linksJson = serializeProfileLinks(nextLinks, nextCustom);
 
   const now = new Date().toISOString();
   await getSql()`

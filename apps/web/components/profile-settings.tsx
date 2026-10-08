@@ -27,8 +27,13 @@ import {
 import { emptyCareerProfile, type CareerProfile } from "@/lib/career-profile";
 import {
   emptyProfileLinks,
+  MAX_CUSTOM_PROFILE_LINKS,
   PROFILE_LINK_KEYS,
   PROFILE_LINK_META,
+  profileLinkUrlFromUsername,
+  profileLinkUsernameFromUrl,
+  type ProfileCustomLink,
+  type ProfileLinkKey,
   type ProfileLinks,
 } from "@/lib/profile-links";
 import { cn } from "@/lib/utils";
@@ -40,6 +45,7 @@ export type ProfileSettingsProfile = {
   portfolioUrl: string | null;
   linkedinUrl: string | null;
   links?: ProfileLinks;
+  customLinks?: ProfileCustomLink[];
   career?: CareerProfile;
 };
 
@@ -80,6 +86,9 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
   const [name, setName] = useState(profile.name ?? "");
   const [bio, setBio] = useState(profile.bio ?? "");
   const [links, setLinks] = useState<ProfileLinks>(() => linksFromProfile(profile));
+  const [customLinks, setCustomLinks] = useState<ProfileCustomLink[]>(() =>
+    (profile.customLinks ?? []).map((c) => ({ title: c.title, url: c.url })),
+  );
   const [career, setCareer] = useState<CareerFormState>(() =>
     careerToFormState(profile.career ?? emptyCareerProfile()),
   );
@@ -96,13 +105,39 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const [wipeOpen, setWipeOpen] = useState(false);
+  const [wipeConfirm, setWipeConfirm] = useState("");
+  const [wiping, setWiping] = useState(false);
+  const [wipeError, setWipeError] = useState<string | null>(null);
+  const [wipeSaved, setWipeSaved] = useState(false);
+
   const showcaseId = useMemo(
     () => resumes.find((r) => r.status === "active")?.id ?? null,
     [resumes],
   );
 
-  function setLink(key: (typeof PROFILE_LINK_KEYS)[number], value: string) {
+  function setLink(key: ProfileLinkKey, value: string) {
     setLinks((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function setUsernameLink(key: ProfileLinkKey, username: string) {
+    const url = profileLinkUrlFromUsername(key, username);
+    setLinks((prev) => ({ ...prev, [key]: url }));
+  }
+
+  function setCustomLink(index: number, patch: Partial<ProfileCustomLink>) {
+    setCustomLinks((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  function addCustomLink() {
+    setCustomLinks((prev) => {
+      if (prev.length >= MAX_CUSTOM_PROFILE_LINKS) return prev;
+      return [...prev, { title: "", url: "" }];
+    });
+  }
+
+  function removeCustomLink(index: number) {
+    setCustomLinks((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function saveProfile() {
@@ -114,6 +149,9 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
       for (const key of PROFILE_LINK_KEYS) {
         payloadLinks[key] = links[key]?.trim() || null;
       }
+      const payloadCustom = customLinks
+        .map((c) => ({ title: c.title.trim(), url: c.url.trim() }))
+        .filter((c) => c.title && c.url);
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -121,6 +159,7 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
           name: name.trim() || null,
           bio: bio.trim() || null,
           links: payloadLinks,
+          customLinks: payloadCustom,
         }),
       });
       const data = (await res.json()) as { error?: string };
@@ -199,12 +238,35 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
     }
   }
 
+  async function wipeAccountData() {
+    setWiping(true);
+    setWipeError(null);
+    setWipeSaved(false);
+    try {
+      const res = await fetch("/api/account/wipe-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: wipeConfirm.trim() }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not delete account data.");
+      setWipeOpen(false);
+      setWipeConfirm("");
+      setWipeSaved(true);
+      setResumes([]);
+      router.refresh();
+    } catch (err) {
+      setWipeError(err instanceof Error ? err.message : "Could not delete account data.");
+    } finally {
+      setWiping(false);
+    }
+  }
+
   const fieldClass =
     "border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]";
 
-  const canDelete =
-    deleteConfirm.trim() === "DELETE" ||
-    deleteConfirm.trim().toLowerCase() === profile.username.toLowerCase();
+  const canDelete = deleteConfirm.trim().toLowerCase() === profile.username.toLowerCase();
+  const canWipe = wipeConfirm.trim().toLowerCase() === profile.username.toLowerCase();
 
   return (
     <ShellWidth className="aavedak-fade-up space-y-4 py-7 sm:py-9">
@@ -272,30 +334,116 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
           </label>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div>
             <h3 className="text-foreground text-[12px] font-semibold tracking-tight">Links</h3>
             <p className="text-muted-foreground text-[11px] leading-relaxed">
-              Add as many as you want — empty fields stay hidden on your public profile and are
-              disabled in cover-letter footers.
+              Platform links only need your username. Empty fields stay hidden on your public
+              profile and are disabled in cover-letter footers.
             </p>
           </div>
           <div className="grid gap-2.5 sm:grid-cols-2">
-            {PROFILE_LINK_KEYS.map((key) => (
-              <label key={key} className="space-y-1">
-                <span className="text-muted-foreground text-[11px] font-medium">
-                  {PROFILE_LINK_META[key].label}
-                </span>
-                <input
-                  value={links[key] ?? ""}
-                  onChange={(e) => setLink(key, e.target.value)}
-                  className={fieldClass}
-                  placeholder={PROFILE_LINK_META[key].placeholder}
-                  inputMode="url"
-                  autoComplete="url"
-                />
-              </label>
-            ))}
+            {PROFILE_LINK_KEYS.map((key) => {
+              const meta = PROFILE_LINK_META[key];
+              const baseUrl = meta.baseUrl;
+              if (baseUrl) {
+                return (
+                  <label key={key} className="space-y-1">
+                    <span className="text-muted-foreground text-[11px] font-medium">
+                      {meta.label}
+                    </span>
+                    <div className="border-border bg-background flex h-8 overflow-hidden rounded-lg border focus-within:ring-2 focus-within:ring-[color:var(--ring)]">
+                      <span className="bg-muted/60 text-muted-foreground border-border flex shrink-0 items-center border-r px-2 text-[10px] leading-none sm:text-[11px]">
+                        {baseUrl}
+                      </span>
+                      <input
+                        value={profileLinkUsernameFromUrl(key, links[key])}
+                        onChange={(e) => setUsernameLink(key, e.target.value)}
+                        className="text-foreground h-full min-w-0 flex-1 bg-transparent px-2 text-[12px] outline-none"
+                        placeholder={meta.placeholder}
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                    </div>
+                  </label>
+                );
+              }
+              return (
+                <label key={key} className="space-y-1">
+                  <span className="text-muted-foreground text-[11px] font-medium">
+                    {meta.label}
+                  </span>
+                  <input
+                    value={links[key] ?? ""}
+                    onChange={(e) => setLink(key, e.target.value)}
+                    className={fieldClass}
+                    placeholder={meta.placeholder}
+                    inputMode="url"
+                    autoComplete="url"
+                  />
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="space-y-2 pt-1">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h3 className="text-foreground text-[12px] font-semibold tracking-tight">
+                  Other links
+                </h3>
+                <p className="text-muted-foreground text-[11px] leading-relaxed">
+                  Add any link with your own title (blog, Behance, personal site, …).
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={customLinks.length >= MAX_CUSTOM_PROFILE_LINKS}
+                onClick={addCustomLink}
+              >
+                Add link
+              </Button>
+            </div>
+            {customLinks.length === 0 ? (
+              <p className="text-muted-foreground text-[11px]">No custom links yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {customLinks.map((row, index) => (
+                  <li
+                    key={`custom-${index}`}
+                    className="grid gap-2 sm:grid-cols-[minmax(0,0.4fr)_minmax(0,1fr)_auto]"
+                  >
+                    <input
+                      value={row.title}
+                      onChange={(e) => setCustomLink(index, { title: e.target.value })}
+                      className={fieldClass}
+                      placeholder="Title"
+                      maxLength={80}
+                      autoComplete="off"
+                    />
+                    <input
+                      value={row.url}
+                      onChange={(e) => setCustomLink(index, { url: e.target.value })}
+                      className={fieldClass}
+                      placeholder="https://…"
+                      inputMode="url"
+                      autoComplete="url"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => removeCustomLink(index)}
+                    >
+                      Remove
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
@@ -422,28 +570,113 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
         <GmailConnectBanner callbackURL={`/${profile.username}/settings`} />
       </section>
 
-      <section className="border-destructive/40 bg-card ring-destructive/10 space-y-3 rounded-lg border p-4 shadow-sm ring-1">
-        <div>
+      <section className="border-destructive/40 bg-card ring-destructive/10 space-y-0 overflow-hidden rounded-lg border shadow-sm ring-1">
+        <div className="border-destructive/20 space-y-1 border-b p-4">
           <h2 className="text-destructive text-[13px] font-semibold tracking-tight">Danger zone</h2>
           <p className="text-muted-foreground text-[11px] leading-relaxed">
-            Permanently delete your account and personal data (resumes, templates, cover letters,
-            applications, jobs, follow-ups). People you added for referrals stay in the shared
+            Irreversible actions. People you added for referrals are never removed from the shared
             directory.
           </p>
+          {wipeSaved ? (
+            <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+              Account data deleted. Your account and people contacts were kept.
+            </p>
+          ) : null}
         </div>
-        <Button
-          type="button"
-          variant="destructive"
-          size="sm"
-          onClick={() => {
-            setDeleteConfirm("");
-            setDeleteError(null);
-            setDeleteOpen(true);
-          }}
-        >
-          Delete account
-        </Button>
+
+        <div className="border-destructive/20 flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-foreground text-[12px] font-medium">Delete all account data</p>
+            <p className="text-muted-foreground text-[11px] leading-relaxed">
+              Remove applications, resumes, jobs, templates, cover letters, and follow-ups. Keeps
+              your account and people you added.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="shrink-0"
+            onClick={() => {
+              setWipeConfirm("");
+              setWipeError(null);
+              setWipeSaved(false);
+              setWipeOpen(true);
+            }}
+          >
+            Delete data
+          </Button>
+        </div>
+
+        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-foreground text-[12px] font-medium">Delete account</p>
+            <p className="text-muted-foreground text-[11px] leading-relaxed">
+              Permanently delete your account and all personal data. You will be signed out.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="shrink-0"
+            onClick={() => {
+              setDeleteConfirm("");
+              setDeleteError(null);
+              setDeleteOpen(true);
+            }}
+          >
+            Delete account
+          </Button>
+        </div>
       </section>
+
+      <Modal
+        open={wipeOpen}
+        onClose={() => (!wiping ? setWipeOpen(false) : undefined)}
+        title="Delete all account data"
+        description="This cannot be undone. Applications, resumes, jobs, and related data will be removed. Your account and people contacts stay."
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={wiping}
+              onClick={() => setWipeOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              loading={wiping}
+              loadingText="Deleting…"
+              disabled={!canWipe}
+              onClick={() => void wipeAccountData()}
+            >
+              Delete data
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-muted-foreground text-[12px] leading-relaxed">
+            Type your username{" "}
+            <span className="text-foreground font-semibold">@{profile.username}</span> to confirm.
+          </p>
+          <Input
+            value={wipeConfirm}
+            onChange={(e) => setWipeConfirm(e.target.value)}
+            placeholder={profile.username}
+            autoComplete="off"
+            className="h-9 rounded-lg text-[13px]"
+            disabled={wiping}
+          />
+          {wipeError ? <p className="text-destructive text-[12px]">{wipeError}</p> : null}
+        </div>
+      </Modal>
 
       <Modal
         open={deleteOpen}
@@ -477,13 +710,13 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
       >
         <div className="space-y-3">
           <p className="text-muted-foreground text-[12px] leading-relaxed">
-            Type <span className="text-foreground font-semibold">DELETE</span> or your username{" "}
+            Type your username{" "}
             <span className="text-foreground font-semibold">@{profile.username}</span> to confirm.
           </p>
           <Input
             value={deleteConfirm}
             onChange={(e) => setDeleteConfirm(e.target.value)}
-            placeholder="DELETE"
+            placeholder={profile.username}
             autoComplete="off"
             className="h-9 rounded-lg text-[13px]"
             disabled={deleting}

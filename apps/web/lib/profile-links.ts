@@ -14,30 +14,53 @@ export type ProfileLinkKey = (typeof PROFILE_LINK_KEYS)[number];
 
 export type ProfileLinks = Partial<Record<ProfileLinkKey, string | null>>;
 
-export const PROFILE_LINK_META: Record<ProfileLinkKey, { label: string; placeholder: string }> = {
+export type ProfileCustomLink = {
+  title: string;
+  url: string;
+};
+
+export const MAX_CUSTOM_PROFILE_LINKS = 12;
+
+export type ProfileLinkMeta = {
+  label: string;
+  /** Full-URL fields (portfolio, website). Username fields use `baseUrl` instead. */
+  placeholder: string;
+  /**
+   * When set, the settings UI shows this prefix and the user only enters a username.
+   * Stored value is always the full URL.
+   */
+  baseUrl?: string;
+};
+
+export const PROFILE_LINK_META: Record<ProfileLinkKey, ProfileLinkMeta> = {
   portfolio: {
     label: "Portfolio",
     placeholder: "https://example.com",
   },
   linkedin: {
     label: "LinkedIn",
-    placeholder: "https://www.linkedin.com/in/username/",
+    placeholder: "username",
+    baseUrl: "https://www.linkedin.com/in/",
   },
   github: {
     label: "GitHub",
-    placeholder: "https://github.com/username",
+    placeholder: "username",
+    baseUrl: "https://github.com/",
   },
   leetcode: {
     label: "LeetCode",
-    placeholder: "https://leetcode.com/u/username/",
+    placeholder: "username",
+    baseUrl: "https://leetcode.com/u/",
   },
   hackerrank: {
     label: "HackerRank",
-    placeholder: "https://www.hackerrank.com/username",
+    placeholder: "username",
+    baseUrl: "https://www.hackerrank.com/profile/",
   },
   twitter: {
     label: "X / Twitter",
-    placeholder: "https://x.com/username",
+    placeholder: "username",
+    baseUrl: "https://x.com/",
   },
   website: {
     label: "Website",
@@ -55,31 +78,130 @@ export function emptyProfileLinks(): ProfileLinks {
   return out;
 }
 
-export function parseProfileLinksJson(raw: string | null | undefined): ProfileLinks {
-  if (!raw?.trim()) return emptyProfileLinks();
+/** Strip a known platform prefix (and optional trailing slash) to a username. */
+export function profileLinkUsernameFromUrl(
+  key: ProfileLinkKey,
+  stored: string | null | undefined,
+): string {
+  const raw = stored?.trim() ?? "";
+  if (!raw) return "";
+  const base = PROFILE_LINK_META[key].baseUrl;
+  if (!base) return raw;
+
+  let path = raw;
+  try {
+    if (/^https?:\/\//i.test(raw)) {
+      const u = new URL(raw);
+      path = `${u.host}${u.pathname}`.replace(/\/+$/, "");
+      const baseHostPath = base.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+      if (path.toLowerCase().startsWith(baseHostPath.toLowerCase())) {
+        path = path.slice(baseHostPath.length).replace(/^\/+/, "");
+      } else {
+        // Fallback: last path segment
+        const parts = u.pathname.split("/").filter(Boolean);
+        path = parts[parts.length - 1] ?? "";
+      }
+    } else if (path.toLowerCase().startsWith(base.toLowerCase())) {
+      path = path.slice(base.length);
+    } else {
+      const bare = base.replace(/^https?:\/\//i, "");
+      if (path.toLowerCase().startsWith(bare.toLowerCase())) {
+        path = path.slice(bare.length);
+      }
+    }
+  } catch {
+    // keep path as typed
+  }
+
+  return path.replace(/^\/+|\/+$/g, "").split(/[/?#]/)[0] ?? "";
+}
+
+/** Build a full profile URL from a username (or pasted URL). */
+export function profileLinkUrlFromUsername(
+  key: ProfileLinkKey,
+  usernameOrUrl: string | null | undefined,
+): string | null {
+  const raw = usernameOrUrl?.trim() ?? "";
+  if (!raw) return null;
+  const base = PROFILE_LINK_META[key].baseUrl;
+  if (!base) {
+    return raw;
+  }
+  // Pasted full URL → extract username, then recompose.
+  if (/^https?:\/\//i.test(raw)) {
+    const extracted = profileLinkUsernameFromUrl(key, raw);
+    if (!extracted) return null;
+    return `${base}${extracted}`;
+  }
+  const username =
+    raw
+      .replace(/^@/, "")
+      .replace(/^\/+|\/+$/g, "")
+      .split(/[/?#]/)[0] ?? "";
+  if (!username) return null;
+  return `${base}${username}`;
+}
+
+export function parseCustomProfileLinks(raw: unknown): ProfileCustomLink[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ProfileCustomLink[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const title =
+      typeof (item as { title?: unknown }).title === "string"
+        ? (item as { title: string }).title.trim()
+        : "";
+    const url =
+      typeof (item as { url?: unknown }).url === "string"
+        ? (item as { url: string }).url.trim()
+        : "";
+    if (!title || !url) continue;
+    out.push({ title: title.slice(0, 80), url });
+    if (out.length >= MAX_CUSTOM_PROFILE_LINKS) break;
+  }
+  return out;
+}
+
+export function parseProfileLinksJson(raw: string | null | undefined): {
+  links: ProfileLinks;
+  custom: ProfileCustomLink[];
+} {
+  if (!raw?.trim()) return { links: emptyProfileLinks(), custom: [] };
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return emptyProfileLinks();
+      return { links: emptyProfileLinks(), custom: [] };
     }
-    const out = emptyProfileLinks();
+    const obj = parsed as Record<string, unknown>;
+    const links = emptyProfileLinks();
     for (const key of PROFILE_LINK_KEYS) {
-      const v = (parsed as Record<string, unknown>)[key];
-      if (typeof v === "string" && v.trim()) out[key] = v.trim();
-      else out[key] = null;
+      const v = obj[key];
+      if (typeof v === "string" && v.trim()) links[key] = v.trim();
+      else links[key] = null;
     }
-    return out;
+    return { links, custom: parseCustomProfileLinks(obj.custom) };
   } catch {
-    return emptyProfileLinks();
+    return { links: emptyProfileLinks(), custom: [] };
   }
 }
 
-export function serializeProfileLinks(links: ProfileLinks): string {
-  const slim: Record<string, string> = {};
+export function serializeProfileLinks(
+  links: ProfileLinks,
+  custom: ProfileCustomLink[] = [],
+): string {
+  const slim: Record<string, unknown> = {};
   for (const key of PROFILE_LINK_KEYS) {
     const v = links[key]?.trim();
     if (v) slim[key] = v;
   }
+  const customSlim = custom
+    .map((c) => ({
+      title: c.title.trim().slice(0, 80),
+      url: c.url.trim(),
+    }))
+    .filter((c) => c.title && c.url)
+    .slice(0, MAX_CUSTOM_PROFILE_LINKS);
+  if (customSlim.length) slim.custom = customSlim;
   return JSON.stringify(slim);
 }
 
@@ -95,24 +217,34 @@ export function mergeLegacyLinks(
   };
 }
 
-export function profileLinkEntries(links: ProfileLinks): Array<{
-  key: ProfileLinkKey;
+export function profileLinkEntries(
+  links: ProfileLinks,
+  custom: ProfileCustomLink[] = [],
+): Array<{
+  key: string;
   label: string;
   url: string;
 }> {
-  const entries: Array<{ key: ProfileLinkKey; label: string; url: string }> = [];
+  const entries: Array<{ key: string; label: string; url: string }> = [];
   for (const key of PROFILE_LINK_KEYS) {
     const url = links[key]?.trim();
     if (!url) continue;
     entries.push({ key, label: PROFILE_LINK_META[key].label, url });
   }
+  custom.forEach((c, i) => {
+    const url = c.url?.trim();
+    const title = c.title?.trim();
+    if (!url || !title) return;
+    entries.push({ key: `custom-${i}`, label: title, url });
+  });
   return entries;
 }
 
 /** Short lowercase label for one-row footers (github, linkedin, …). */
-export function footerLinkShortLabel(key: ProfileLinkKey | "email"): string {
+export function footerLinkShortLabel(key: string): string {
   if (key === "email") return "email";
   if (key === "twitter") return "x";
+  if (key.startsWith("custom-")) return key; // caller should use custom title
   return key;
 }
 

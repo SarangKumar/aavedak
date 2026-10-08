@@ -269,7 +269,7 @@ export function OnboardingForm({
             type="button"
             loading={savingCareer}
             onClick={() => void saveCareerAndNext()}
-            className="w-full sm:w-auto"
+            className="w-full"
           >
             Save & continue to resume
           </Button>

@@ -44,6 +44,7 @@ export default async function ProfileSettingsPage({ params }: Props) {
         portfolioUrl: profile.portfolioUrl,
         linkedinUrl: profile.linkedinUrl,
         links: profile.links,
+        customLinks: profile.customLinks,
         career: profile.career,
       }}
       initialResumes={resumes}

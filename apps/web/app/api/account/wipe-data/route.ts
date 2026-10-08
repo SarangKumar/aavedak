@@ -1,17 +1,16 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { deleteUserAccount } from "@/lib/account-delete";
+import { wipeUserAccountData } from "@/lib/account-delete";
 import { requireApiUser } from "@/lib/api-session";
-import { auth } from "@/lib/auth";
 import { getProfile } from "@/lib/profile";
 
 /**
- * DELETE /api/account
+ * POST /api/account/wipe-data
  * Body: { confirm: "<username>" }
- * Deletes the account and user-owned data; keeps global people rows.
+ * Deletes applications, resumes, jobs, templates, cover letters, follow-ups, etc.
+ * Keeps the account and people the user added.
  */
-export async function DELETE(request: Request) {
+export async function POST(request: Request) {
   const authResult = await requireApiUser();
   if (authResult.error) return authResult.error;
   const user = authResult.user;
@@ -27,23 +26,17 @@ export async function DELETE(request: Request) {
   const confirm = (body.confirm ?? "").trim();
   if (!profile?.username || confirm.toLowerCase() !== profile.username.toLowerCase()) {
     return NextResponse.json(
-      { error: "Type your username to confirm account deletion." },
+      { error: "Type your username to confirm deleting all account data." },
       { status: 400 },
     );
   }
 
   try {
-    await deleteUserAccount(user.id);
+    await wipeUserAccountData(user.id);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Account deletion failed.";
+    const message = err instanceof Error ? err.message : "Could not delete account data.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
-  try {
-    await auth.api.signOut({ headers: await headers() });
-  } catch {
-    /* session already gone */
-  }
-
-  return NextResponse.json({ ok: true, redirectTo: "/" });
+  return NextResponse.json({ ok: true });
 }

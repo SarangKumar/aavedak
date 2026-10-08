@@ -35,7 +35,8 @@ type RowItem = { key: string; label: string; href: string };
 
 function buildProfileFooterRow(profile: Profile): RowItem[] {
   const items: RowItem[] = [];
-  const byKey = new Map(profileLinkEntries(profile.links).map((e) => [e.key, e]));
+  const entries = profileLinkEntries(profile.links, profile.customLinks);
+  const byKey = new Map(entries.map((e) => [e.key, e]));
   for (const key of FOOTER_ROW_ORDER) {
     if (key === "email") {
       const email = profile.email?.trim();
@@ -47,6 +48,14 @@ function buildProfileFooterRow(profile: Profile): RowItem[] {
     items.push({
       key: entry.key,
       label: footerLinkShortLabel(entry.key),
+      href: entry.url,
+    });
+  }
+  for (const entry of entries) {
+    if (!entry.key.startsWith("custom-")) continue;
+    items.push({
+      key: entry.key,
+      label: entry.label,
       href: entry.url,
     });
   }

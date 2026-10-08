@@ -44,9 +44,6 @@ import { cn } from "@/lib/utils";
 
 type Tab = "resumes" | "cover_letters" | "referral_email" | "followup_email";
 
-const DOC_TAB_TRIGGER =
-  "cursor-pointer px-2.5 text-[12px] hover:bg-transparent hover:text-foreground/60 data-[state=active]:hover:bg-primary data-[state=active]:hover:text-primary-foreground dark:hover:text-muted-foreground";
-
 export type ResumeDto = {
   id: string;
   displayName: string;
@@ -725,16 +722,16 @@ export function DocumentsHub({
           aria-label="Documents sections"
           className="border-border bg-card h-auto max-w-full flex-wrap border p-0.5"
         >
-          <TabsTrigger value="resumes" className={DOC_TAB_TRIGGER}>
+          <TabsTrigger value="resumes" className="cursor-pointer px-2.5 text-[12px]">
             Resume
           </TabsTrigger>
-          <TabsTrigger value="cover_letters" className={DOC_TAB_TRIGGER}>
+          <TabsTrigger value="cover_letters" className="cursor-pointer px-2.5 text-[12px]">
             Cover Letter
           </TabsTrigger>
-          <TabsTrigger value="referral_email" className={DOC_TAB_TRIGGER}>
+          <TabsTrigger value="referral_email" className="cursor-pointer px-2.5 text-[12px]">
             Referral Email
           </TabsTrigger>
-          <TabsTrigger value="followup_email" className={DOC_TAB_TRIGGER}>
+          <TabsTrigger value="followup_email" className="cursor-pointer px-2.5 text-[12px]">
             Follow-up Email
           </TabsTrigger>
         </TabsList>
