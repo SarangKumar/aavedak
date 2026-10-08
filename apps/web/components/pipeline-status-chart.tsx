@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import {
   ChartContainer,
@@ -14,15 +14,6 @@ export type PipelineStatusPoint = {
   label: string;
   count: number;
 };
-
-const BAR_COLORS = [
-  "var(--primary)",
-  "oklch(0.58 0.14 210)",
-  "oklch(0.55 0.18 290)",
-  "oklch(0.58 0.16 160)",
-  "oklch(0.58 0.17 20)",
-  "oklch(0.52 0.14 250)",
-] as const;
 
 const chartConfig = {
   count: { label: "Applications", color: "var(--primary)" },
@@ -57,11 +48,13 @@ export function PipelineStatusChart({ data }: Props) {
         />
         <YAxis allowDecimals={false} width={24} tickLine={false} axisLine={false} tickMargin={4} />
         <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="count" name="Applications" radius={[6, 6, 0, 0]} maxBarSize={36}>
-          {data.map((entry, i) => (
-            <Cell key={entry.status} fill={BAR_COLORS[i % BAR_COLORS.length]!} />
-          ))}
-        </Bar>
+        <Bar
+          dataKey="count"
+          name="Applications"
+          fill="var(--color-count)"
+          radius={[6, 6, 0, 0]}
+          maxBarSize={36}
+        />
       </BarChart>
     </ChartContainer>
   );

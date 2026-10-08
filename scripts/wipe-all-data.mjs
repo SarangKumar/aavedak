@@ -40,8 +40,6 @@ function loadEnvFile(path) {
   }
 }
 
-loadEnvFile(resolve(root, ".env"));
-loadEnvFile(resolve(root, ".env.local"));
 loadEnvFile(resolve(webRoot, ".env"));
 loadEnvFile(resolve(webRoot, ".env.local"));
 
