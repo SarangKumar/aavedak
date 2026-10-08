@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ApprovalStatusCard } from "@/components/approval-status-card";
+import { ReduxProvider } from "@/components/redux-provider";
 import { requirePendingApprovalSession } from "@/lib/app-access";
 
 export const metadata: Metadata = {
@@ -22,11 +23,13 @@ export default async function PendingApprovalPage() {
       />
       <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-40" aria-hidden />
       <div className="aavedak-fade-up relative w-full max-w-md">
-        <ApprovalStatusCard
-          initialStatus={status}
-          email={profile.email ?? user.email}
-          firstName={firstName}
-        />
+        <ReduxProvider>
+          <ApprovalStatusCard
+            initialStatus={status}
+            email={profile.email ?? user.email}
+            firstName={firstName}
+          />
+        </ReduxProvider>
       </div>
     </div>
   );

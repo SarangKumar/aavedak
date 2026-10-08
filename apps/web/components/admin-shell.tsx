@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { AdminOverviewCounts, AdminResumeRow } from "@/lib/admin-data";
+import { formatDateTimeFixed } from "@/lib/format-datetime";
 import type { PendingUserRow } from "@/lib/user-approval-shared";
 import { cn } from "@/lib/utils";
 
@@ -31,20 +32,6 @@ function formatBytes(n: number) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatWhen(iso: string) {
-  try {
-    return new Date(iso).toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso.slice(0, 16);
-  }
 }
 
 export function AdminShell({
@@ -174,7 +161,7 @@ export function AdminShell({
                     {u.name || u.username}
                   </p>
                   <p className="text-muted-foreground truncate font-mono text-[11px]">
-                    {u.email || "—"} · @{u.username} · {formatWhen(u.createdAt)}
+                    {u.email || "—"} · @{u.username} · {formatDateTimeFixed(u.createdAt)}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -307,7 +294,7 @@ export function AdminShell({
                       </span>
                     </td>
                     <td className="text-muted-foreground px-2.5 py-2 align-top tabular-nums">
-                      {formatWhen(row.createdAt)}
+                      {formatDateTimeFixed(row.createdAt)}
                     </td>
                     <td className="px-2.5 py-2 align-top">
                       {row.fileExists ? (

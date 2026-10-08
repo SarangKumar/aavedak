@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { AdminNotificationsMenu } from "@/components/admin-notifications-menu";
 import { HeaderMenu } from "@/components/header-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { signOutAndRedirect } from "@/lib/auth-client";
@@ -16,25 +17,6 @@ export type HeaderUser = {
   isAdmin?: boolean;
   pendingApprovals?: number;
 };
-
-function BellIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M8 1.75a3.5 3.5 0 0 0-3.5 3.5v1.2c0 .5-.16.98-.46 1.38L3.2 9.1A.75.75 0 0 0 3.8 10.3h8.4a.75.75 0 0 0 .6-1.2l-.84-1.27a2.25 2.25 0 0 1-.46-1.38V5.25A3.5 3.5 0 0 0 8 1.75Z"
-        stroke="currentColor"
-        strokeWidth="1.35"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M6.4 12.2a1.75 1.75 0 0 0 3.2 0"
-        stroke="currentColor"
-        strokeWidth="1.35"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 function AdminStar({ className }: { className?: string }) {
   return (
@@ -101,28 +83,7 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
   return (
     <div className="flex items-center gap-1.5">
       {user.isAdmin ? (
-        <Link
-          href="/admin"
-          title={
-            pendingCount > 0
-              ? `${pendingCount} pending registration${pendingCount === 1 ? "" : "s"}`
-              : "Admin notifications"
-          }
-          aria-label={
-            pendingCount > 0 ? `${pendingCount} pending registrations` : "Admin notifications"
-          }
-          className={cn(
-            "relative inline-flex size-8 cursor-pointer items-center justify-center rounded-full",
-            "text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors",
-          )}
-        >
-          <BellIcon className="size-4" />
-          {pendingCount > 0 ? (
-            <span className="bg-primary text-primary-foreground absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
-              {pendingCount > 9 ? "9+" : pendingCount}
-            </span>
-          ) : null}
-        </Link>
+        <AdminNotificationsMenu pendingCount={pendingCount} onCountChange={setPendingCount} />
       ) : null}
 
       <HeaderMenu

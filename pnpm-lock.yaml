@@ -68,6 +68,9 @@ importers:
       '@neondatabase/serverless':
         specifier: ^1.2.0
         version: 1.2.0
+      '@reduxjs/toolkit':
+        specifier: ^2.13.0
+        version: 2.13.0(react-redux@9.3.0(@types/react@19.2.3)(react@19.2.3)(redux@5.0.1))(react@19.2.3)
       '@vercel/analytics':
         specifier: ^2.0.1
         version: 2.0.1(next@15.5.27(@types/node@22.20.5)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)
@@ -98,6 +101,9 @@ importers:
       react-dom:
         specifier: 19.2.3
         version: 19.2.3(react@19.2.3)
+      react-redux:
+        specifier: ^9.3.0
+        version: 9.3.0(@types/react@19.2.3)(react@19.2.3)(redux@5.0.1)
       recharts:
         specifier: ^3.10.1
         version: 3.10.1(@types/react@19.2.3)(react-dom@19.2.3(react@19.2.3))(react-is@16.13.1)(react@19.2.3)(redux@5.0.1)

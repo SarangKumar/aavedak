@@ -11,6 +11,8 @@ type Variant =
   | "referrals"
   | "onboarding"
   | "profile"
+  | "admin"
+  | "fallback"
   /** @deprecated use a specific variant */
   | "default"
   | "form"
@@ -639,11 +641,106 @@ function ProfileSkeleton() {
   );
 }
 
+function AdminSkeleton() {
+  return (
+    <ShellWidth className="space-y-4 py-7 sm:py-9" aria-busy="true" aria-label="Loading admin">
+      <header className="flex flex-wrap items-end justify-between gap-2">
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-36" />
+          <Skeleton className="h-7 w-40 sm:h-8" />
+          <Skeleton className="h-3 w-72 max-w-full" />
+        </div>
+        <div className="flex gap-1.5">
+          <Skeleton className="h-8 w-24 rounded-lg" />
+          <Skeleton className="h-8 w-20 rounded-lg" />
+        </div>
+      </header>
+
+      <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div
+            key={i}
+            className="border-border/80 bg-card space-y-1.5 rounded-xl border px-3 py-2.5 shadow-sm"
+          >
+            <Skeleton className="h-2.5 w-14" />
+            <Skeleton className="h-7 w-10" />
+          </div>
+        ))}
+      </section>
+
+      <section className="border-border/80 bg-card space-y-2.5 rounded-xl border p-3.5 shadow-sm">
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-44" />
+          <Skeleton className="h-3 w-64 max-w-full" />
+        </div>
+        <div className="border-border/70 divide-border/60 divide-y rounded-xl border">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-3.5 w-36 max-w-full" />
+                <Skeleton className="h-3 w-52 max-w-full" />
+              </div>
+              <div className="flex shrink-0 gap-1.5">
+                <Skeleton className="h-8 w-16 rounded-md" />
+                <Skeleton className="h-8 w-14 rounded-md" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-border/80 bg-card space-y-2.5 rounded-xl border p-3.5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="space-y-1.5">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-56 max-w-full" />
+          </div>
+          <Skeleton className="h-8 w-36 rounded-lg" />
+        </div>
+        <div className="border-border/70 space-y-0 overflow-hidden rounded-xl border">
+          <div className="bg-muted/40 flex gap-4 px-2.5 py-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-3 w-16" />
+            ))}
+          </div>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="border-border/60 flex gap-4 border-t px-2.5 py-2.5">
+              <Skeleton className="h-3.5 w-28" />
+              <Skeleton className="h-3.5 w-24" />
+              <Skeleton className="h-3.5 w-16" />
+              <Skeleton className="h-3.5 w-20" />
+              <Skeleton className="h-3.5 w-14" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </ShellWidth>
+  );
+}
+
+/** Generic route placeholder when no page-specific skeleton exists. */
+function FallbackSkeleton() {
+  return (
+    <ShellWidth className="space-y-5 py-8 sm:py-10" aria-busy="true" aria-label="Loading">
+      <PageHeaderSkeleton titleWidth="w-36" blurbWidth="w-64" />
+      <div className="border-border/80 bg-card space-y-3 rounded-xl border p-4 shadow-sm sm:p-5">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-3 w-full max-w-xl" />
+        <Skeleton className="h-3 w-3/4 max-w-md" />
+        <div className="mt-2 space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full rounded-lg" />
+          ))}
+        </div>
+      </div>
+    </ShellWidth>
+  );
+}
+
 /** Route-level placeholder while RSC / navigation loads — mirrors each page layout. */
-export function PageLoadingSkeleton({ variant = "dashboard" }: { variant?: Variant }) {
+export function PageLoadingSkeleton({ variant = "fallback" }: { variant?: Variant }) {
   switch (variant) {
     case "dashboard":
-    case "default":
       return <DashboardSkeleton />;
     case "documents":
       return <DocumentsSkeleton />;
@@ -663,7 +760,11 @@ export function PageLoadingSkeleton({ variant = "dashboard" }: { variant?: Varia
       return <OnboardingSkeleton />;
     case "profile":
       return <ProfileSkeleton />;
+    case "admin":
+      return <AdminSkeleton />;
+    case "fallback":
+    case "default":
     default:
-      return <DashboardSkeleton />;
+      return <FallbackSkeleton />;
   }
 }
