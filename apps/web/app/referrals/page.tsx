@@ -23,7 +23,8 @@ export default async function ReferralsPage() {
   const applications = await listApplications(user.id, "active");
   const people = await listPeople();
   const templates = await listTemplates(user.id);
-  const followUps = await listFollowUps(user.id, { includeClosed: false });
+  // Include sent follow-ups so Applications can split Needs referral vs Already sent.
+  const followUps = await listFollowUps(user.id, { includeClosed: true });
 
   return (
     <div className="relative overflow-hidden">

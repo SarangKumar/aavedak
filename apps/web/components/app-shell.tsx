@@ -1,6 +1,7 @@
 import { CommandPalette } from "@/components/command-palette";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { Toaster } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 type AppShellProps = {
@@ -15,6 +16,7 @@ export function AppShell({ children, className }: AppShellProps) {
       <main className="flex-1">{children}</main>
       <SiteFooter />
       <CommandPalette />
+      <Toaster position="bottom-right" />
     </div>
   );
 }

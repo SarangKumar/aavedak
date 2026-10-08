@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/components/ui/toast";
+import type { ApplicationStatus } from "@/lib/application-status";
 import { CompanySelect } from "@/components/company-select";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
@@ -28,6 +30,15 @@ export type ApplicationDto = {
   status: ApplicationStatus;
   updatedAt: string;
 };
+
+type AppReferralTab = "needs" | "sent";
+
+function hasSuccessfulReferral(appId: string, followUps: FollowUpDto[]): boolean {
+  return followUps.some(
+    (f) =>
+      f.applicationId === appId && (f.status === "sent" || f.status === "sent_stub"),
+  );
+}
 
 export type PersonDto = {
   id: string;
@@ -77,7 +88,10 @@ const DEFAULT_WIDTHS: Record<ColumnId, number> = {
 };
 
 const COLUMN_META: Record<ColumnId, { title: string; blurb: string }> = {
-  applications: { title: "Applications", blurb: "Context for {{company}} / {{role}}" },
+  applications: {
+    title: "Applications",
+    blurb: "Applied jobs only · pick needs referral or already sent",
+  },
   template: { title: "Cold email", blurb: "Template · From = your Gmail" },
   people: { title: "People", blurb: "Check recipients, then confirm" },
 };
@@ -132,9 +146,12 @@ export function ReferralsComposer({
   const [columnOrder, setColumnOrder] = useState<ColumnId[]>(DEFAULT_ORDER);
   const [dragCol, setDragCol] = useState<ColumnId | null>(null);
 
-  const [selectedAppId, setSelectedAppId] = useState<string | null>(
-    initialApplications[0]?.id ?? null,
-  );
+  const [appReferralTab, setAppReferralTab] = useState<AppReferralTab>(() => {
+    const applied = initialApplications.filter((app) => app.status === "applied");
+    const needs = applied.some((app) => !hasSuccessfulReferral(app.id, initialFollowUps));
+    return needs ? "needs" : "sent";
+  });
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
     initialTemplates.find((t) => t.kind === "outreach")?.id ?? initialTemplates[0]?.id ?? null,
   );
@@ -151,6 +168,7 @@ export function ReferralsComposer({
   const [countdownVisible, setCountdownVisible] = useState(false);
   const [countdown, setCountdown] = useState(20);
   const [countdownArmed, setCountdownArmed] = useState(false);
+  const sendToastIdRef = useRef<string | null>(null);
 
   const [manageOpen, setManageOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -179,29 +197,92 @@ export function ReferralsComposer({
     })();
   }, []);
 
+  const sendToastDescription = useCallback(() => {
+    const count = checkedPeople.size;
+    return `${count} recipient${count === 1 ? "" : "s"}${
+      resumeId ? " · resume attached" : ""
+    } via Gmail`;
+  }, [checkedPeople.size, resumeId]);
+
+  const dismissSendToast = useCallback(() => {
+    const id = sendToastIdRef.current;
+    // Clear before dismiss so onDismiss does not treat this as a user cancel.
+    sendToastIdRef.current = null;
+    if (id) toast.dismiss(id);
+  }, []);
+
+  const cancelCountdown = useCallback(() => {
+    dismissSendToast();
+    setCountdownVisible(false);
+    setCountdownArmed(false);
+    setCountdown(20);
+    toast.add({
+      title: "Send cancelled",
+      description: "Nothing was queued.",
+      type: "info",
+    });
+  }, [dismissSendToast]);
+
   useEffect(() => {
     if (!countdownVisible || !countdownArmed) return;
     if (countdown <= 0) {
       setCountdownArmed(false);
+      dismissSendToast();
       void finalizeQueuedSend();
       return;
+    }
+    const id = sendToastIdRef.current;
+    if (id) {
+      toast.update(id, {
+        title: `Sending in ${countdown}s`,
+        description: sendToastDescription(),
+        type: "loading",
+        actionProps: {
+          children: "Undo",
+          onClick: cancelCountdown,
+        },
+      });
     }
     const timer = window.setTimeout(() => setCountdown((value) => value - 1), 1000);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- countdown tick only
   }, [countdownVisible, countdown, countdownArmed]);
 
-  function cancelCountdown() {
-    setCountdownVisible(false);
-    setCountdownArmed(false);
-    setCountdown(20);
-    setNotice("Send cancelled. Nothing was queued.");
-  }
+  const appliedApplications = useMemo(
+    () => applications.filter((app) => app.status === "applied"),
+    [applications],
+  );
+
+  const needsReferralApps = useMemo(
+    () => appliedApplications.filter((app) => !hasSuccessfulReferral(app.id, followUps)),
+    [appliedApplications, followUps],
+  );
+
+  const referredApps = useMemo(
+    () => appliedApplications.filter((app) => hasSuccessfulReferral(app.id, followUps)),
+    [appliedApplications, followUps],
+  );
+
+  const visibleApplications =
+    appReferralTab === "needs" ? needsReferralApps : referredApps;
+
+  const openFollowUps = useMemo(
+    () =>
+      followUps.filter(
+        (f) => f.status === "pending" || f.status === "queued" || f.status === "failed",
+      ),
+    [followUps],
+  );
 
   const selectedApp = useMemo(
-    () => applications.find((a) => a.id === selectedAppId) ?? null,
-    [applications, selectedAppId],
+    () => appliedApplications.find((a) => a.id === selectedAppId) ?? null,
+    [appliedApplications, selectedAppId],
   );
+
+  useEffect(() => {
+    if (visibleApplications.some((app) => app.id === selectedAppId)) return;
+    setSelectedAppId(visibleApplications[0]?.id ?? null);
+  }, [visibleApplications, selectedAppId]);
 
   const companyPeople = useMemo(() => {
     if (!selectedApp) return [] as PersonDto[];
@@ -309,15 +390,40 @@ export function ReferralsComposer({
       setError("Confirm recipients before queueing.");
       return;
     }
+    dismissSendToast();
     setCountdown(20);
     setCountdownArmed(true);
     setCountdownVisible(true);
+    sendToastIdRef.current = toast.add({
+      title: "Sending in 20s",
+      description: sendToastDescription(),
+      type: "loading",
+      actionProps: {
+        children: "Undo",
+        onClick: () => cancelCountdown(),
+      },
+      onDismiss: () => {
+        // × / Escape — only cancel if this toast is still the active countdown.
+        if (sendToastIdRef.current) {
+          sendToastIdRef.current = null;
+          setCountdownVisible(false);
+          setCountdownArmed(false);
+          setCountdown(20);
+          toast.add({
+            title: "Send cancelled",
+            description: "Nothing was queued.",
+            type: "info",
+          });
+        }
+      },
+    });
   }
 
   async function finalizeQueuedSend() {
     if (!selectedAppId) return;
     setPending(true);
     setCountdownVisible(false);
+    dismissSendToast();
     try {
       const due = new Date();
       due.setUTCDate(due.getUTCDate() + 3);
@@ -349,6 +455,7 @@ export function ReferralsComposer({
         }
         throw new Error(data.error || "Queue failed.");
       }
+      const queuedIds = new Set((data.followUps ?? []).map((f) => f.id));
       if (data.followUps?.length) {
         setFollowUps((list) => [...data.followUps!, ...list]);
       }
@@ -369,21 +476,38 @@ export function ReferralsComposer({
       }
       const sent = sendData.sent ?? 0;
       const failed = sendData.failed ?? 0;
+      if (sent > 0 && queuedIds.size > 0) {
+        setFollowUps((list) =>
+          list.map((f) =>
+            queuedIds.has(f.id) ||
+            (f.applicationId === selectedAppId && (f.status === "queued" || f.status === "pending"))
+              ? { ...f, status: "sent" as const }
+              : f,
+          ),
+        );
+        setAppReferralTab("sent");
+      }
       if (sent === 0 && failed > 0) {
-        setError(
-          `Gmail could not send ${failed} message${failed === 1 ? "" : "s"}. Check Follow-ups.`,
-        );
+        const message = `Gmail could not send ${failed} message${failed === 1 ? "" : "s"}. Check Follow-ups.`;
+        setError(message);
+        toast.add({ title: "Send failed", description: message, type: "error" });
       } else {
-        setNotice(
-          `Sent ${sent} via Gmail${failed ? ` · ${failed} failed` : ""}${
-            resumeId ? " (resume attached)" : ""
-          }.`,
-        );
+        const message = `Sent ${sent} via Gmail${failed ? ` · ${failed} failed` : ""}${
+          resumeId ? " (resume attached)" : ""
+        }.`;
+        setNotice(message);
+        toast.add({
+          title: sent > 0 ? "Email sent" : "Send finished",
+          description: message,
+          type: failed ? "warning" : "success",
+        });
       }
       setCheckedPeople(new Set());
       setConfirmed(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Queue failed.");
+      const message = err instanceof Error ? err.message : "Queue failed.";
+      setError(message);
+      toast.add({ title: "Send failed", description: message, type: "error" });
     } finally {
       setPending(false);
     }
@@ -434,7 +558,7 @@ export function ReferralsComposer({
           minWidth: 240,
         }}
         className={cn(
-          "border-border/80 bg-card relative flex h-[min(70vh,42rem)] min-w-0 flex-col rounded-xl border shadow-sm",
+          "border-border/80 bg-card relative flex h-[min(70vh,44rem)] min-w-0 flex-col rounded-xl border shadow-sm",
           dragCol === id && "ring-primary/40 opacity-70 ring-2",
         )}
       >
@@ -458,39 +582,105 @@ export function ReferralsComposer({
 
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3">
           {id === "applications" ? (
-            <ul className="space-y-1.5">
-              {applications.length === 0 ? (
-                <li className="text-muted-foreground text-[12px]">No applications yet.</li>
-              ) : (
-                applications.map((app) => {
-                  const selected = app.id === selectedAppId;
-                  return (
-                    <li key={app.id}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedAppId(app.id)}
-                        className={cn(
-                          "w-full rounded-xl border px-2.5 py-2 text-left transition-colors",
-                          selected
-                            ? "border-primary/40 bg-primary/10"
-                            : "border-border/70 bg-muted/30 hover:bg-muted/50",
-                        )}
-                      >
-                        <p className="text-foreground truncate text-[12px] font-medium">
-                          {app.companyName}
-                        </p>
-                        <p className="text-muted-foreground truncate text-[11px]">
-                          {app.role} · {app.location}
-                        </p>
-                        <Badge variant="secondary" className="mt-1 h-5 text-[10px]">
-                          {STATUS_LABELS[app.status]}
-                        </Badge>
-                      </button>
+            <Tabs
+              value={appReferralTab}
+              onValueChange={(value) => setAppReferralTab(value as AppReferralTab)}
+              className="gap-2.5"
+            >
+              <TabsList className="h-auto w-full" variant="default">
+                <TabsTrigger value="needs" className="min-w-0 flex-1 px-1.5 text-[11px]">
+                  Needs referral
+                  {needsReferralApps.length > 0 ? (
+                    <span className="text-muted-foreground tabular-nums">
+                      {needsReferralApps.length}
+                    </span>
+                  ) : null}
+                </TabsTrigger>
+                <TabsTrigger value="sent" className="min-w-0 flex-1 px-1.5 text-[11px]">
+                  Already sent
+                  {referredApps.length > 0 ? (
+                    <span className="text-muted-foreground tabular-nums">
+                      {referredApps.length}
+                    </span>
+                  ) : null}
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="needs" className="mt-0 outline-none focus-visible:ring-0">
+                <ul className="space-y-1.5">
+                  {appliedApplications.length === 0 ? (
+                    <li className="text-muted-foreground text-[12px]">
+                      No applied jobs yet. Move an application to Applied on the job tracker.
                     </li>
-                  );
-                })
-              )}
-            </ul>
+                  ) : needsReferralApps.length === 0 ? (
+                    <li className="text-muted-foreground text-[12px]">
+                      Every applied job already has a referral send. Use Already sent to mail again.
+                    </li>
+                  ) : (
+                    needsReferralApps.map((app) => {
+                      const selected = app.id === selectedAppId;
+                      return (
+                        <li key={app.id}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAppId(app.id)}
+                            className={cn(
+                              "w-full rounded-xl border px-2.5 py-2 text-left transition-colors",
+                              selected
+                                ? "border-primary/40 bg-primary/10"
+                                : "border-border/70 bg-muted/30 hover:bg-muted/50",
+                            )}
+                          >
+                            <p className="text-foreground truncate text-[12px] font-medium">
+                              {app.companyName}
+                            </p>
+                            <p className="text-muted-foreground truncate text-[11px]">
+                              {app.role} · {app.location}
+                            </p>
+                            <Badge variant="secondary" className="mt-1 h-5 text-[10px]">
+                              Needs referral
+                            </Badge>
+                          </button>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              </TabsContent>
+              <TabsContent value="sent" className="mt-0 outline-none focus-visible:ring-0">
+                <ul className="space-y-1.5">
+                  {referredApps.length === 0 ? (
+                    <li className="text-muted-foreground text-[12px]">
+                      No referral emails sent yet for applied jobs.
+                    </li>
+                  ) : (
+                    referredApps.map((app) => {
+                      const selected = app.id === selectedAppId;
+                      return (
+                        <li key={app.id}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAppId(app.id)}
+                            className={cn(
+                              "w-full rounded-xl border px-2.5 py-2 text-left transition-colors",
+                              selected
+                                ? "border-primary/40 bg-primary/10"
+                                : "border-border/70 bg-muted/30 hover:bg-muted/50",
+                            )}
+                          >
+                            <p className="text-foreground truncate text-[12px] font-medium">
+                              {app.companyName}
+                            </p>
+                            <p className="text-muted-foreground truncate text-[11px]">
+                              {app.role} · {app.location}
+                            </p>
+                          </button>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              </TabsContent>
+            </Tabs>
           ) : null}
 
           {id === "template" ? (
@@ -824,11 +1014,11 @@ export function ReferralsComposer({
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
           Pending follow-ups
         </h2>
-        {followUps.length === 0 ? (
+        {openFollowUps.length === 0 ? (
           <p className="text-muted-foreground text-[12px]">None queued yet.</p>
         ) : (
           <ul className="divide-border/60 divide-y">
-            {followUps.slice(0, 12).map((f) => (
+            {openFollowUps.slice(0, 12).map((f) => (
               <li key={f.id} className="flex items-start justify-between gap-2 py-2">
                 <div className="min-w-0">
                   <p className="text-foreground truncate text-[12px] font-medium">{f.title}</p>
@@ -848,34 +1038,6 @@ export function ReferralsComposer({
           </ul>
         )}
       </section>
-
-      {countdownVisible ? (
-        <div
-          role="status"
-          aria-live="polite"
-          className="border-border bg-card fixed bottom-4 right-4 z-[300] flex w-[min(28rem,calc(100vw-2rem))] items-center gap-3 rounded-xl border px-3.5 py-3 shadow-lg"
-        >
-          <div className="bg-primary/15 text-primary flex size-10 shrink-0 items-center justify-center rounded-lg">
-            <span className="aavedak-display text-lg tabular-nums leading-none">{countdown}</span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-foreground text-[13px] font-semibold tracking-tight">
-              Sending in {countdown}s
-            </p>
-            <p className="text-muted-foreground truncate text-[11px] leading-relaxed">
-              {checkedPeople.size} recipient{checkedPeople.size === 1 ? "" : "s"}
-              {resumeId ? " · resume attached" : ""} via Gmail
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={cancelCountdown}
-            className="border-border text-foreground hover:bg-muted/60 inline-flex h-8 shrink-0 items-center rounded-lg border px-3 text-[12px] font-semibold"
-          >
-            Undo
-          </button>
-        </div>
-      ) : null}
 
       <Modal
         open={manageOpen}

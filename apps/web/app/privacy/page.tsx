@@ -35,7 +35,13 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Content you add:</strong> career preferences, resumes (PDF), cover letters,
-                templates, job applications, follow-ups, and contacts you enter.
+                templates, job applications, follow-ups, and people/contacts you enter.
+              </li>
+              <li>
+                <strong>Shared people directory:</strong> when you add a person (name, email,
+                company, role, notes, and related contact fields), that entry is contributed to
+                Aavedak&rsquo;s global shared directory and may be visible to other users of the
+                website worldwide.
               </li>
               <li>
                 <strong>Gmail send (optional):</strong> only if you click &ldquo;Authorize Gmail
@@ -76,31 +82,49 @@ export default function PrivacyPage() {
         {
           title: "Storage and sharing",
           body: (
-            <p>
-              Account and app data are stored in Neon Postgres; resume files in Google Cloud
-              Storage; the app runs on Vercel. These processors host data on our behalf. We do not
-              share your data with anyone else. People/contact entries you add to the shared
-              directory (name, company, public profile links) are visible to other Aavedak users.
-            </p>
+            <>
+              <p>
+                Account and app data are stored in Neon Postgres; resume files in Google Cloud
+                Storage; the app runs on Vercel. These processors host data on our behalf. We do not
+                sell your personal account data.
+              </p>
+              <p>
+                <strong>People you add are shared globally.</strong> Contact entries you create in
+                People / Referrals are contributed to a website-wide directory. Other Aavedak users
+                may see and use that contributed people data (for example name, company, role, and
+                contact details you entered). Do not add anyone you are not comfortable contributing
+                to this shared directory.
+              </p>
+            </>
           ),
         },
         {
           title: "Retention and deletion",
           body: (
-            <p>
-              Data stays until you delete it. Profile → Danger Zone deletes your account, resumes,
-              templates, cover letters, applications, and stored Google tokens. You can also revoke
-              Aavedak at{" "}
-              <a
-                className="text-primary hover:underline"
-                href="https://myaccount.google.com/permissions"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Google Account → Third-party access
-              </a>
-              .
-            </p>
+            <>
+              <p>
+                Personal account data stays until you delete it. Profile → Danger Zone deletes your
+                account, resumes, templates, cover letters, applications, follow-ups tied to you, and
+                stored Google tokens. You can also revoke Aavedak at{" "}
+                <a
+                  className="text-primary hover:underline"
+                  href="https://myaccount.google.com/permissions"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Google Account → Third-party access
+                </a>
+                .
+              </p>
+              <p>
+                <strong>Deleting your account may not delete people you added.</strong> Because
+                people entries are contributed to the global shared directory, they may remain
+                available to other users after your account is deleted. Your private ownership link
+                to those records is removed, but the shared contact data itself is not guaranteed to
+                be erased. Contact us if you need a specific shared-person entry reviewed for
+                removal.
+              </p>
+            </>
           ),
         },
         {

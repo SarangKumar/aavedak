@@ -4,3 +4,11 @@ packages:
 allowBuilds:
   unrs-resolver: true
   core-js: true
+
+# Next 15.5 ships Flight clients for React ≤19.2; 19.3 breaks RSC streaming
+# (chunk.reason.enqueueModel is not a function).
+overrides:
+  react: 19.2.3
+  react-dom: 19.2.3
+  "@types/react": 19.2.3
+  "@types/react-dom": 19.2.3

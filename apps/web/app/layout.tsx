@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { cookies, headers } from "next/headers";
 
 import { AppShell } from "@/components/app-shell";
-import { themeInitScript } from "@/lib/theme-script";
 import { parseThemeMode, serverPrefersDark, THEME_KEY } from "@/lib/theme";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -139,7 +138,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         {/* Blocking theme sync before first paint (cookie SSR is primary; this is the client backup). */}
-        <script id="aavedak-theme-init" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/* eslint-disable-next-line @next/next/no-sync-scripts -- must run before paint to avoid theme flash */}
+        <script id="aavedak-theme-init" src="/theme-init.js" />
       </head>
       {/*
         suppressHydrationWarning: browser extensions (e.g. Grammarly) inject attributes like
@@ -150,10 +150,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         className="bg-background text-foreground min-h-screen font-sans text-[15px] antialiased"
         suppressHydrationWarning
       >
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <script type="application/ld+json">
+          {JSON.stringify(jsonLd).replace(/</g, "\\u003c")}
+        </script>
         <AppShell>{children}</AppShell>
       </body>
     </html>

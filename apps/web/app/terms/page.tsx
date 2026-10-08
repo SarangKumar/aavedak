@@ -39,9 +39,30 @@ export default function TermsPage() {
           body: (
             <p>
               You sign in with Google and are responsible for activity on your account. You own the
-              content you upload and grant Aavedak permission to store and process it only to run
-              the service for you.
+              content you upload and grant Aavedak permission to store and process it to run the
+              service. For resumes, templates, applications, and similar private workspace content,
+              that use is to provide the product to you. For people/contacts, see the section below.
             </p>
+          ),
+        },
+        {
+          title: "Shared people directory",
+          body: (
+            <>
+              <p>
+                When you add people (referral contacts) in Aavedak, you contribute that data to a{" "}
+                <strong>global, website-wide directory</strong>. Other users of Aavedak may see and
+                use people entries contributed through the service. By adding a person, you confirm
+                you have a legitimate reason to do so and that you understand the entry is not
+                private to your account alone.
+              </p>
+              <p>
+                <strong>Account deletion may not remove people you added.</strong> Deleting your
+                account removes your personal workspace data, but people records you contributed may
+                remain in the shared directory for other users. If you need a specific shared entry
+                reviewed for removal, contact us.
+              </p>
+            </>
           ),
         },
         {
@@ -77,9 +98,11 @@ export default function TermsPage() {
           title: "Termination and changes",
           body: (
             <p>
-              You can delete your account anytime from Profile → Danger Zone. We may suspend
-              accounts that violate these terms and may update them; continued use means you accept
-              the updated terms.
+              You can delete your account anytime from Profile → Danger Zone. Deletion removes your
+              account and private workspace data; it does not guarantee removal of people/contacts
+              you previously contributed to the global directory (see &ldquo;Shared people
+              directory&rdquo;). We may suspend accounts that violate these terms and may update
+              them; continued use means you accept the updated terms.
             </p>
           ),
         },

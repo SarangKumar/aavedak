@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { blockToHtml, parseChangelog, readChangelogMarkdown } from "@/lib/changelog";
+import {
+  ChangelogBlockView,
+  parseChangelog,
+  readChangelogMarkdown,
+} from "@/lib/changelog";
 import { APP_VERSION } from "@/lib/version";
 import { ShellWidth } from "@/components/shell-width";
 
@@ -12,9 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default function ChangelogPage() {
-  const md = readChangelogMarkdown();
-  const blocks = parseChangelog(md);
-  const html = blocks.map(blockToHtml).join("\n");
+  const blocks = parseChangelog(readChangelogMarkdown());
 
   return (
     <div className="relative overflow-hidden">
@@ -23,7 +25,11 @@ export default function ChangelogPage() {
         <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
           आवेदक
         </p>
-        <div className="prose-aavedak" dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="prose-aavedak space-y-0">
+          {blocks.map((block, i) => (
+            <ChangelogBlockView key={i} block={block} />
+          ))}
+        </div>
         <p className="text-muted-foreground border-border/60 mt-10 border-t pt-4 text-[12px]">
           Current version <span className="font-mono text-[11px]">v{APP_VERSION}</span>
           {" · "}
