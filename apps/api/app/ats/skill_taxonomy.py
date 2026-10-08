@@ -38,6 +38,17 @@ SKILL_ALIASES: dict[str, tuple[str, tuple[str, ...]]] = {
     "graphql": ("GraphQL", ("graphql",)),
     "kafka": ("Kafka", ("kafka", "apache kafka")),
     "elasticsearch": ("Elasticsearch", ("elasticsearch", "elastic search")),
+    "spark": ("Apache Spark", ("spark", "apache spark", "pyspark", "py spark")),
+    "airflow": ("Apache Airflow", ("airflow", "apache airflow")),
+    "snowflake": ("Snowflake", ("snowflake",)),
+    "bigquery": ("BigQuery", ("bigquery", "big query")),
+    "dbt": ("dbt", ("dbt", "data build tool")),
+    "iceberg": ("Apache Iceberg", ("iceberg", "apache iceberg")),
+    "delta_lake": ("Delta Lake", ("delta lake", "deltalake")),
+    "duckdb": ("DuckDB", ("duckdb", "duck db")),
+    "trino": ("Trino", ("trino", "presto")),
+    "databricks": ("Databricks", ("databricks",)),
+    "etl": ("ETL", ("etl", "elt", "data pipeline", "data pipelines")),
     "html": ("HTML", ("html", "html5")),
     "css": ("CSS", ("css", "css3")),
     "tailwind": ("Tailwind CSS", ("tailwind", "tailwindcss", "tailwind css")),
@@ -75,8 +86,15 @@ RELATED: dict[str, tuple[str, ...]] = {
     "docker": ("kubernetes", "ci_cd"),
     "kubernetes": ("docker",),
     "aws": ("terraform", "docker"),
-    "python": ("fastapi", "django", "flask"),
+    "python": ("fastapi", "django", "flask", "spark"),
     "fastapi": ("python",),
+    "spark": ("python", "kafka", "airflow"),
+    "airflow": ("python", "spark", "etl"),
+    "snowflake": ("sql", "dbt", "bigquery"),
+    "bigquery": ("sql", "gcp", "snowflake"),
+    "dbt": ("sql", "snowflake", "bigquery"),
+    "iceberg": ("spark", "delta_lake"),
+    "delta_lake": ("spark", "iceberg"),
 }
 
 # Role title -> core / common / optional / specialized skill ids
@@ -112,10 +130,10 @@ ROLE_PROFILES: dict[str, dict[str, tuple[str, ...]]] = {
         "specialized": ("kafka", "elasticsearch"),
     },
     "data engineer": {
-        "core": ("python", "sql", "postgresql"),
-        "common": ("aws", "kafka", "docker", "git"),
-        "optional": ("redis", "elasticsearch"),
-        "specialized": ("machine_learning",),
+        "core": ("python", "sql", "spark", "airflow"),
+        "common": ("kafka", "snowflake", "aws", "dbt", "bigquery"),
+        "optional": ("iceberg", "docker", "gcp", "duckdb", "etl"),
+        "specialized": ("delta_lake", "trino", "databricks"),
     },
     "product designer": {
         "core": ("figma",),
@@ -165,15 +183,20 @@ def related_skills(canonical: str) -> tuple[str, ...]:
 
 
 def infer_role_key(title: str) -> str | None:
-    t = (title or "").lower()
+    t = (title or "").lower().strip()
     if not t:
         return None
+    # Common typos: "enginner" / "enginering"
+    t = t.replace("enginner", "engineer").replace("enginering", "engineering")
     # order matters — more specific first
     keys = sorted(ROLE_PROFILES.keys(), key=len, reverse=True)
     for key in keys:
         if key in t:
             return key
-    if "sde" in t or "software" in t or "developer" in t or "engineer" in t:
+    # Heuristics before generic "engineer"
+    if "data" in t and ("engin" in t or "platform" in t or "pipeline" in t):
+        return "data engineer"
+    if "sde" in t or "software" in t or "developer" in t or "engineer" in t or "engin" in t:
         if "front" in t:
             return "frontend engineer"
         if "back" in t:

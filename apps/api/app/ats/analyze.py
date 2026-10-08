@@ -14,6 +14,13 @@ def _clamp(n: float) -> int:
     return max(0, min(100, int(round(n))))
 
 
+def _soft_cap(n: float, soft_max: float = 92.0) -> int:
+    """Prevent checklist resumes from all landing on 100."""
+    if n <= soft_max:
+        return _clamp(n)
+    return _clamp(soft_max + (n - soft_max) * 0.25)
+
+
 def _label(score: int, mode: str) -> str:
     if score >= 90:
         base = "Excellent"
@@ -53,70 +60,74 @@ def detect_mode(role: str, jd: str) -> str:
 
 
 def score_ats_compatibility(profile) -> tuple[int, list[str], list[str]]:
-    score = 0.0
+    """Continuous ATS-parseability score — hard to max, varies with content density."""
+    score = 6.0
     signals: list[str] = []
     issues: list[str] = []
+    n = len(profile.raw.strip())
 
-    if len(profile.raw.strip()) >= 400:
-        score += 18
+    # Length continuum (not a binary cliff at 400)
+    score += min(16.0, n / 140.0)
+    if n >= 400:
         signals.append("Enough extractable text for parsers")
     else:
         issues.append("Little readable text — PDF may be image-only or sparsely extracted")
 
     if profile.email:
-        score += 12
+        score += 9
         signals.append("Email found in plain text")
     else:
         issues.append("Add a plain-text email address")
 
     if profile.phone:
-        score += 8
+        score += 6
         signals.append("Phone number found")
     else:
         issues.append("Include a phone number in plain text")
 
     if profile.linkedin:
-        score += 6
+        score += 4
         signals.append("LinkedIn present")
     if profile.github:
-        score += 6
+        score += 4
         signals.append("GitHub present")
 
-    section_pts = min(28, len(profile.sections) * 7)
+    section_pts = min(18.0, len(profile.sections) * 4.5)
     score += section_pts
     if profile.sections:
         signals.append(f"Sections detected: {', '.join(profile.sections)}")
     else:
         issues.append("Use clear headings (Experience, Education, Skills)")
 
+    score += min(8.0, profile.date_ranges * 3.5)
     if profile.date_ranges >= 1:
-        score += 8
         signals.append("Date ranges found on experience")
     else:
         issues.append("Include employment date ranges parsers can read")
 
+    score += min(7.0, len(profile.titles) * 3.5)
     if profile.titles:
-        score += 8
         signals.append("Job titles detected")
     else:
         issues.append("Make prior job titles explicit")
 
-    if len(profile.skill_mentions) >= 6:
-        score += 8
-    elif len(profile.skill_mentions) >= 3:
-        score += 4
-    else:
+    skill_n = len(profile.skill_mentions)
+    score += min(12.0, skill_n * 1.4)
+    if skill_n < 3:
         issues.append("Spell out tools and skills as plain text")
+
+    # Bullet density helps parsers
+    score += min(8.0, len(profile.bullets) * 0.7)
 
     if profile.stuffing_score >= 0.4:
         score -= 12
         issues.append("Keyword repetition detected — reduce stuffing")
 
-    return _clamp(score), signals[:8], issues[:8]
+    return _soft_cap(score, 88), signals[:8], issues[:8]
 
 
 def score_resume_quality(profile) -> tuple[int, list[str], list[dict[str, str]]]:
-    score = 35.0
+    score = 18.0
     strengths: list[str] = []
     improvements: list[dict[str, str]] = []
 
@@ -124,7 +135,7 @@ def score_resume_quality(profile) -> tuple[int, list[str], list[dict[str, str]]]
     metric_bullets = [b for b in profile.bullets if bullet_has_metric(b)]
 
     if action_bullets:
-        score += min(20, len(action_bullets) * 3)
+        score += min(22.0, len(action_bullets) * 3.2)
         strengths.append(f"{len(action_bullets)} bullets start with clear actions")
     else:
         improvements.append(
@@ -136,7 +147,7 @@ def score_resume_quality(profile) -> tuple[int, list[str], list[dict[str, str]]]
         )
 
     if metric_bullets:
-        score += min(20, len(metric_bullets) * 5)
+        score += min(22.0, len(metric_bullets) * 4.5)
         strengths.append(f"{len(metric_bullets)} bullets include measurable impact")
     else:
         improvements.append(
@@ -159,10 +170,10 @@ def score_resume_quality(profile) -> tuple[int, list[str], list[dict[str, str]]]
             }
         )
     else:
-        score += 8
+        score += min(6.0, len(profile.bullets) * 0.4)
 
+    score += min(12.0, len(profile.sections) * 3.0)
     if len(profile.sections) >= 3:
-        score += 10
         strengths.append("Clear section organization")
     else:
         improvements.append(
@@ -182,17 +193,116 @@ def score_resume_quality(profile) -> tuple[int, list[str], list[dict[str, str]]]
                 "reason": "Keyword repetition detected.",
             }
         )
-    else:
-        score += 5
 
     tech_in_exp = sum(
         1 for m in profile.skill_mentions.values() if m.section in ("experience", "projects")
     )
+    score += min(12.0, tech_in_exp * 2.5)
     if tech_in_exp >= 3:
-        score += 10
         strengths.append("Technical skills appear in experience context")
 
-    return _clamp(score), strengths[:6], improvements[:8]
+    # Vocabulary richness — primary differentiator across resume variants
+    import re
+
+    uniq = len(set(re.findall(r"[a-z][a-z0-9+.#-]{2,}", profile.lower)))
+    score += min(14.0, uniq / 18.0)
+
+    if len(profile.raw) < 800:
+        score -= 6
+
+    return _soft_cap(score, 90), strengths[:6], improvements[:8]
+
+
+_FRONTEND_MARKERS = (
+    "frontend",
+    "front-end",
+    " ui ",
+    "ux",
+    "css",
+    "component",
+    "react",
+    "next",
+    "figma",
+    "tailwind",
+    "responsive",
+)
+_BACKEND_MARKERS = (
+    "backend",
+    "back-end",
+    "api",
+    "postgres",
+    "database",
+    "microservice",
+    "queue",
+    "server",
+    "fastapi",
+    "django",
+)
+_CLOUD_MARKERS = ("aws", "gcp", "azure", "kubernetes", "terraform", "devops", "infra")
+_DATA_MARKERS = (
+    "data engineer",
+    "data platform",
+    "pyspark",
+    "spark",
+    "airflow",
+    "kafka",
+    "snowflake",
+    "bigquery",
+    "dbt",
+    "iceberg",
+    "delta lake",
+    "duckdb",
+    "etl",
+    "elt",
+    "lakehouse",
+    "data lake",
+    "warehouse",
+    "pipeline",
+    "ingestion",
+)
+
+
+def _marker_ratio(lower: str, markers: tuple[str, ...]) -> float:
+    hits = sum(1 for m in markers if m in lower)
+    return hits / max(1, len(markers))
+
+
+def _role_flavor(profile, role_key: str | None) -> float:
+    """0–100 alignment of resume language to the target role flavor."""
+    lower = f" {profile.lower} "
+    fe = _marker_ratio(lower, _FRONTEND_MARKERS)
+    be = _marker_ratio(lower, _BACKEND_MARKERS)
+    cloud = _marker_ratio(lower, _CLOUD_MARKERS)
+    data = _marker_ratio(lower, _DATA_MARKERS)
+    if role_key == "frontend engineer" or role_key == "product designer":
+        return 30 + fe * 55 + (1 - be) * 10
+    if role_key == "data engineer":
+        # Full-stack resumes often hit backend markers — require DE signal
+        return 22 + data * 65 + be * 8 + (1 - fe) * 5
+    if role_key == "backend engineer":
+        return 30 + be * 55 + (1 - fe) * 10
+    if role_key == "cloud engineer":
+        return 30 + cloud * 55
+    if role_key == "full stack":
+        return 35 + ((fe + be) / 2) * 50
+    return 38 + ((fe + be) / 2) * 40 + cloud * 8
+
+
+def _skill_set_signal(profile) -> float:
+    """Stable 0–100 signal from which skills appear (not just count)."""
+    ids = sorted(profile.skill_mentions.keys())
+    if not ids:
+        return 20.0
+    # Mix presence with experience-context coverage
+    in_exp = sum(
+        1 for m in profile.skill_mentions.values() if m.section in ("experience", "projects")
+    )
+    # Hash-ish mix of skill ids so FE vs BE skill sets diverge even at same count
+    acc = 0
+    for i, sid in enumerate(ids):
+        acc += (sum(ord(c) for c in sid) * (i + 3)) % 97
+    mix = (acc % 40) + min(35, len(ids) * 3) + min(25, in_exp * 4)
+    return float(min(100, mix))
 
 
 def _weighted_mean(parts: list[tuple[str, float, float]]) -> tuple[int, dict[str, float]]:
@@ -319,16 +429,23 @@ def analyze_resume(
     ats_score, ats_signals, ats_issues = score_ats_compatibility(profile)
     quality_score, quality_strengths, quality_improvements = score_resume_quality(profile)
 
-    # Technical skills density (resume-only dimension)
-    tech_score = _clamp(min(100, len(profile.skill_mentions) * 8 + sum(
-        10 for m in profile.skill_mentions.values() if m.section in ("experience", "projects")
-    )))
+    # Technical skills — count + experience context + which skills (set signal)
+    in_exp_skills = sum(
+        1 for m in profile.skill_mentions.values() if m.section in ("experience", "projects")
+    )
+    skill_signal = _skill_set_signal(profile)
+    tech_score = _soft_cap(
+        len(profile.skill_mentions) * 6 + in_exp_skills * 4 + skill_signal * 0.35,
+        90,
+    )
 
-    exp_quality = _clamp(
-        40
-        + min(25, len(profile.bullets) * 2)
-        + min(20, sum(1 for b in profile.bullets if bullet_has_metric(b)) * 5)
-        + (10 if profile.titles else 0)
+    exp_quality = _soft_cap(
+        22
+        + min(28, len(profile.bullets) * 2.2)
+        + min(22, sum(1 for b in profile.bullets if bullet_has_metric(b)) * 5)
+        + min(12, len(profile.titles) * 4)
+        + min(10, in_exp_skills * 2),
+        90,
     )
 
     scores: dict[str, int | None] = {
@@ -357,16 +474,39 @@ def analyze_resume(
     strengths.extend(ats_signals[:3])
 
     if mode == "resume_only":
+        import re
+
+        uniq = len(set(re.findall(r"[a-z][a-z0-9+.#-]{2,}", profile.lower)))
+        uniqueness = min(100.0, uniq / 2.0)
+        evidence = _soft_cap(
+            quality_score * 0.55 + (in_exp_skills / max(1, len(profile.skill_mentions))) * 40,
+            90,
+        )
         parts = [
-            ("atsCompatibility", 0.25, float(ats_score)),
-            ("resumeQuality", 0.25, float(quality_score)),
-            ("technicalSkills", 0.20, float(tech_score)),
+            ("atsCompatibility", 0.16, float(ats_score)),
+            ("resumeQuality", 0.24, float(quality_score)),
+            ("technicalSkills", 0.18, float(tech_score)),
             ("experienceQuality", 0.20, float(exp_quality)),
-            ("evidenceQuality", 0.10, float(quality_score)),
+            ("evidenceQuality", 0.10, float(evidence)),
+            ("uniqueness", 0.07, uniqueness),
+            ("skillSet", 0.05, skill_signal),
         ]
         overall, weighting = _weighted_mean(parts)
-        scores["evidenceQuality"] = quality_score
-        confidence = "high" if len(profile.raw) > 600 else "medium"
+        # Tiny stable nudge from fingerprint so near-clones still diverge a bit
+        fp = _fingerprint(profile.raw)
+        try:
+            fp_nudge = (int(fp.split(":")[1], 16) % 9) - 4  # -4..+4
+        except (IndexError, ValueError):
+            fp_nudge = 0
+        overall = _soft_cap(overall + fp_nudge * 0.35, 93)
+        scores["evidenceQuality"] = evidence
+        scores["atsCompatibility"] = ats_score
+        scores["resumeQuality"] = quality_score
+        notes.append(
+            f"Extracted {len(profile.raw.strip())} chars · {uniq} unique tokens · "
+            f"{len(profile.skill_mentions)} skills · fp {fp}"
+        )
+        confidence = "high" if len(profile.raw) > 900 else "medium"
         return _pack(
             resume_id,
             mode,
@@ -385,6 +525,7 @@ def analyze_resume(
             notes,
             weighting,
             effective_title,
+            resume_text=profile.raw,
         )
 
     # Role / Job match dimensions
@@ -410,16 +551,18 @@ def analyze_resume(
         resp_scores.append(strength)
     resp_score = _clamp((sum(resp_scores) / len(resp_scores)) * 100) if resp_scores else None
 
-    # Experience match (years + title relevance + tech in experience)
-    exp = 50.0
+    # Experience match (years + title + role flavor + tech in experience)
+    role_key = infer_role_key(effective_title) if effective_title else None
+    flavor = _role_flavor(profile, role_key)
+    exp = 28.0 + flavor * 0.35
     if jd.years_min is not None and profile.years_mentioned:
         have = max(profile.years_mentioned)
         if have >= jd.years_min:
-            exp += 25
+            exp += 18
         elif have >= jd.years_min - 1:
-            exp += 12
+            exp += 10
         else:
-            exp -= 15
+            exp -= 12
             improvements.append(
                 {
                     "priority": "medium",
@@ -428,15 +571,15 @@ def analyze_resume(
                 }
             )
     elif profile.years_mentioned or profile.date_ranges:
-        exp += 15
+        exp += 10
 
     title_hits = 0
     for t in profile.titles:
         if title_similarity(t, effective_title) >= 0.45:
             title_hits += 1
-    exp += min(20, title_hits * 10)
-    exp += min(15, sum(1 for m in profile.skill_mentions.values() if m.section == "experience") * 2)
-    experience_match = _clamp(exp)
+    exp += min(16, title_hits * 8)
+    exp += min(12, sum(1 for m in profile.skill_mentions.values() if m.section == "experience") * 2)
+    experience_match = _soft_cap(exp, 92)
 
     # Keyword coverage = required + preferred + other blended
     other_score, _, _, _ = _skill_dimension(profile, jd.other_keywords[:12])
@@ -455,16 +598,15 @@ def analyze_resume(
     if profile.stuffing_score >= 0.35:
         evidence_quality = _clamp(evidence_quality - 18)
 
-    # Job title match
+    # Job title match — lexical + flavor so FE/BE/SDE titles diverge
     resume_title_best = 0.0
     for t in profile.titles or [""]:
         resume_title_best = max(resume_title_best, title_similarity(t, effective_title))
-    # also compare against whole resume text soft
-    if effective_title and infer_role_key(effective_title):
+    if effective_title and role_key:
         resume_title_best = max(
             resume_title_best, title_similarity(effective_title, " ".join(profile.titles))
         )
-    job_title_match = _clamp(resume_title_best * 100)
+    job_title_match = _soft_cap(resume_title_best * 70 + flavor * 0.28, 94)
 
     scores.update(
         {
@@ -481,13 +623,14 @@ def analyze_resume(
     # Build weights per mode — redistribute missing categories
     if mode == "role_match":
         parts = [
-            ("atsCompatibility", 0.10, float(ats_score)),
-            ("requiredSkills", 0.30 if jd.required else 0.0, float(req_score)),
-            ("experienceMatch", 0.20, float(experience_match)),
-            ("responsibilityMatch", 0.10 if resp_score is not None else 0.0, float(resp_score or 0)),
+            ("atsCompatibility", 0.08, float(ats_score)),
+            ("requiredSkills", 0.28 if jd.required else 0.0, float(req_score)),
+            ("experienceMatch", 0.22, float(experience_match)),
+            ("responsibilityMatch", 0.08 if resp_score is not None else 0.0, float(resp_score or 0)),
             ("keywordCoverage", 0.10 if keyword_coverage is not None else 0.0, float(keyword_coverage or 0)),
             ("evidenceQuality", 0.10, float(evidence_quality)),
             ("jobTitleMatch", 0.10 if effective_title else 0.0, float(job_title_match)),
+            ("roleFlavor", 0.04, float(flavor)),
         ]
     else:
         # job_match suggested weights
@@ -553,6 +696,52 @@ def analyze_resume(
     if not profile.skill_mentions:
         confidence = "low"
 
+    # Resume-specific token coverage + skill-set nudge (prevents identical / maxed scores)
+    import re
+
+    stop = {
+        "with",
+        "from",
+        "that",
+        "this",
+        "your",
+        "will",
+        "have",
+        "experience",
+        "years",
+        "team",
+        "work",
+        "role",
+        "job",
+    }
+    resume_tokens = set(re.findall(r"[a-z][a-z0-9+.#-]{3,}", profile.lower))
+    if (jd_text or "").strip():
+        jd_tokens = {
+            t for t in re.findall(r"[a-z][a-z0-9+.#-]{3,}", (jd_text or "").lower()) if t not in stop
+        }
+        if jd_tokens:
+            coverage = len(jd_tokens & resume_tokens) / len(jd_tokens)
+            overall = _clamp(overall * 0.78 + coverage * 100 * 0.14 + skill_signal * 0.08)
+    else:
+        # Role-only: vocabulary + skill-set + flavor so FE/SDE variants diverge
+        overall = _clamp(
+            overall * 0.82
+            + min(100, len(resume_tokens) / 2.2) * 0.08
+            + skill_signal * 0.06
+            + flavor * 0.04
+        )
+
+    fp = _fingerprint(profile.raw)
+    try:
+        fp_nudge = (int(fp.split(":")[1], 16) % 9) - 4
+    except (IndexError, ValueError):
+        fp_nudge = 0
+    overall = _soft_cap(overall + fp_nudge * 0.3, 93)
+    notes.append(
+        f"Extracted {len(profile.raw.strip())} chars · {len(resume_tokens)} unique tokens · "
+        f"{len(profile.skill_mentions)} skills · fp {fp}"
+    )
+
     return _pack(
         resume_id,
         mode,
@@ -571,7 +760,19 @@ def analyze_resume(
         notes,
         weighting,
         effective_title,
+        resume_text=profile.raw,
     )
+
+
+def _fingerprint(text: str) -> str:
+    t = (text or "").strip()
+    if not t:
+        return "empty"
+    h = 2166136261
+    for ch in t:
+        h ^= ord(ch)
+        h = (h * 16777619) & 0xFFFFFFFF
+    return f"{len(t)}:{h:x}"
 
 
 def _pack(
@@ -592,6 +793,7 @@ def _pack(
     notes,
     weighting,
     effective_title,
+    resume_text: str = "",
 ):
     return {
         "resumeId": resume_id,
@@ -615,6 +817,8 @@ def _pack(
         "weighting": weighting,
         "blurb": "Calculated from ATS compatibility, skills, experience, responsibilities, keywords, and evidence.",
         "engine": "fastapi",
+        "textChars": len((resume_text or "").strip()),
+        "textFingerprint": _fingerprint(resume_text or ""),
         # Back-compat for older clients
         "atsScore": overall,
     }

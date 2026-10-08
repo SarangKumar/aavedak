@@ -104,12 +104,27 @@ def _section_for_offset(text: str, offset: int) -> str:
 
 
 def _extract_bullets(text: str) -> list[str]:
-    lines = []
+    lines: list[str] = []
     for line in text.splitlines():
         cleaned = re.sub(r"^[\s•\-*●◦▪]+", "", line).strip()
         if len(cleaned) >= 28:
             lines.append(cleaned)
-    return lines[:80]
+    # Flattened PDF text often has few newlines — split long runs on sentence boundaries.
+    if len(lines) <= 2 and text.strip():
+        for chunk in re.split(r"(?<=[.!;])\s+|\s+[•●◦▪]\s+", text):
+            cleaned = re.sub(r"^[\s•\-*●◦▪]+", "", chunk).strip()
+            if len(cleaned) >= 28:
+                lines.append(cleaned)
+    # de-dupe preserve order
+    seen: set[str] = set()
+    out: list[str] = []
+    for b in lines:
+        key = b.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(b)
+    return out[:80]
 
 
 def _extract_titles(text: str) -> list[str]:

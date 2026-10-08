@@ -60,9 +60,24 @@ export type AtsAnalysis = {
   blurb?: string;
   engine: "fastapi" | "fallback";
   error?: string;
+  /** Diagnostic: extracted text length used for this score */
+  textChars?: number;
+  /** Diagnostic: short fingerprint so identical extracts are obvious */
+  textFingerprint?: string;
   /** @deprecated use overallScore */
   atsScore?: number;
 };
+
+export function fingerprintText(text: string): string {
+  const t = text.trim();
+  if (!t) return "empty";
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i += 1) {
+    h ^= t.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return `${t.length}:${(h >>> 0).toString(16)}`;
+}
 
 export function detectAtsMode(role: string, jd: string): AtsMode {
   const hasRole = Boolean(role.trim());

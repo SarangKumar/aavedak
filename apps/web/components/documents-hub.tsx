@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { CoverLetterPdfPreview } from "@/components/cover-letter-pdf-preview";
 import { ShellWidth } from "@/components/shell-width";
+import { Modal } from "@/components/ui/modal";
 import {
   Select,
   SelectContent,
@@ -135,6 +136,20 @@ function OpenIcon({ className }: { className?: string }) {
   );
 }
 
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <circle cx="7" cy="7" r="4.25" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M10.2 10.2 13.5 13.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function StarIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 16 16" fill="currentColor" aria-hidden>
@@ -246,6 +261,11 @@ export function DocumentsHub({
   const [atsScoringIds, setAtsScoringIds] = useState<Set<string>>(() => new Set());
   const [deleteTarget, setDeleteTarget] = useState<ResumeDto | null>(null);
   const [deletePending, setDeletePending] = useState(false);
+  const [previewResume, setPreviewResume] = useState<ResumeDto | null>(null);
+  const [editingResumeId, setEditingResumeId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const renameSkipBlurRef = useRef(false);
 
   // Resume upload state
   const [displayName, setDisplayName] = useState("Primary Resume");
@@ -481,7 +501,10 @@ export function DocumentsHub({
     }
   }
 
-  async function patchResume(id: string, patch: { status?: string; displayName?: string }) {
+  async function patchResume(
+    id: string,
+    patch: { status?: string; displayName?: string },
+  ): Promise<boolean> {
     setError(null);
     setResumeActionId(id);
     try {
@@ -490,16 +513,72 @@ export function DocumentsHub({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as { resume?: ResumeDto; error?: string };
       if (!res.ok) {
         setError(data.error || "Could not update resume.");
-        return;
+        return false;
       }
-      await refreshResumes();
+      if (data.resume) {
+        setResumes((list) =>
+          list.map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  ...data.resume!,
+                  atsScore: data.resume!.atsScore ?? r.atsScore,
+                }
+              : r,
+          ),
+        );
+      } else {
+        await refreshResumes();
+      }
+      return true;
+    } catch {
+      setError("Could not update resume.");
+      return false;
     } finally {
       setResumeActionId(null);
     }
   }
+
+  function startRename(resume: ResumeDto) {
+    renameSkipBlurRef.current = false;
+    setEditingResumeId(resume.id);
+    setEditName(resume.displayName);
+  }
+
+  function cancelRename() {
+    renameSkipBlurRef.current = true;
+    setEditingResumeId(null);
+    setEditName("");
+  }
+
+  async function commitRename(resume: ResumeDto) {
+    if (renameSkipBlurRef.current) {
+      renameSkipBlurRef.current = false;
+      return;
+    }
+    const next = editName.trim();
+    setEditingResumeId(null);
+    if (!next || next === resume.displayName) {
+      setEditName("");
+      return;
+    }
+    const ok = await patchResume(resume.id, { displayName: next });
+    if (!ok) {
+      // Revert local draft; list still has the previous name
+      setEditName("");
+    }
+  }
+
+  useEffect(() => {
+    if (!editingResumeId) return;
+    const el = renameInputRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, [editingResumeId]);
 
   async function confirmDeleteInactiveResume() {
     if (!deleteTarget) return;
@@ -728,17 +807,47 @@ export function DocumentsHub({
                 <ul className="space-y-2">
                   {resumes.map((resume) => {
                     const busy = resumeActionId === resume.id;
+                    const renaming = editingResumeId === resume.id;
                     return (
                       <li
                         key={resume.id}
                         className="border-border/80 bg-card flex items-center gap-2 rounded-lg border p-3 sm:justify-between"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="text-foreground truncate text-[13px] font-medium">
-                            {resume.displayName}
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            {renaming ? (
+                              <input
+                                ref={renameInputRef}
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                onBlur={() => void commitRename(resume)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    e.currentTarget.blur();
+                                  }
+                                  if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    cancelRename();
+                                  }
+                                }}
+                                maxLength={120}
+                                aria-label="Resume display name"
+                                className="border-border bg-background text-foreground h-7 min-w-0 flex-1 rounded-md border px-2 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+                              />
+                            ) : (
+                              <button
+                                type="button"
+                                title="Click to rename"
+                                onClick={() => startRename(resume)}
+                                className="text-primary hover:text-primary/80 max-w-full cursor-text truncate text-left text-[13px] font-medium"
+                              >
+                                {resume.displayName}
+                              </button>
+                            )}
                             <span
                               className={cn(
-                                "ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
                                 resume.status === "active"
                                   ? "bg-primary/15 text-primary"
                                   : "bg-muted text-muted-foreground",
@@ -746,7 +855,7 @@ export function DocumentsHub({
                             >
                               {resume.status}
                             </span>
-                          </p>
+                          </div>
                           <p className="text-muted-foreground flex items-center gap-1.5 truncate text-[11px]">
                             <span className="truncate">
                               {resume.originalFilename} · {formatBytes(resume.byteSize)}
@@ -761,6 +870,15 @@ export function DocumentsHub({
                           </p>
                         </div>
                         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            title="Preview"
+                            aria-label={`Preview ${resume.displayName}`}
+                            onClick={() => setPreviewResume(resume)}
+                            className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border"
+                          >
+                            <SearchIcon className="size-3.5" />
+                          </button>
                           <a
                             href={`/api/resumes/${resume.id}/file`}
                             target="_blank"
@@ -1239,6 +1357,49 @@ export function DocumentsHub({
           </section>
         </TabsContent>
       </Tabs>
+
+      <Modal
+        open={Boolean(previewResume)}
+        onClose={() => setPreviewResume(null)}
+        title={previewResume?.displayName ?? "Resume preview"}
+        description={
+          previewResume
+            ? `${previewResume.originalFilename} · ${formatBytes(previewResume.byteSize)}`
+            : undefined
+        }
+        size="xl"
+        className="max-w-5xl"
+        footer={
+          previewResume ? (
+            <>
+              <a
+                href={`/api/resumes/${previewResume.id}/file`}
+                target="_blank"
+                rel="noreferrer"
+                className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+              >
+                Open in new tab
+              </a>
+              <button
+                type="button"
+                onClick={() => setPreviewResume(null)}
+                className="bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold"
+              >
+                Close
+              </button>
+            </>
+          ) : null
+        }
+      >
+        {previewResume ? (
+          <iframe
+            key={previewResume.id}
+            src={`/api/resumes/${previewResume.id}/file`}
+            title={`Preview of ${previewResume.displayName}`}
+            className="bg-background h-[min(72vh,46rem)] w-full rounded-md border-0"
+          />
+        ) : null}
+      </Modal>
 
       <AlertDialog
         open={Boolean(deleteTarget)}

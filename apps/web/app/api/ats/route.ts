@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
-import { analyzeResumesBatchViaService, analyzeResumeViaService } from "@/lib/ats-service";
-import { detectAtsMode } from "@/lib/ats-types";
-import { getProfile } from "@/lib/profile";
-import { getActiveResume, getResume, listResumes } from "@/lib/resumes";
+import { analyzeResumeViaService } from "@/lib/ats-service";
+import { detectAtsMode, fingerprintText } from "@/lib/ats-types";
+import type { AtsAnalysis } from "@/lib/ats-types";
+import { ensureResumeText, getActiveResume, getResume, listResumes } from "@/lib/resumes";
 
 export async function GET() {
   const authResult = await requireApiUser();
@@ -18,8 +18,43 @@ export async function GET() {
       atsScore: r.atsScore,
       byteSize: r.byteSize,
       updatedAt: r.updatedAt,
+      hasText: Boolean(r.textExcerpt && r.textExcerpt.trim().length >= 40),
     })),
   });
+}
+
+function emptyTextAnalysis(
+  resumeId: string,
+  mode: ReturnType<typeof detectAtsMode>,
+  message: string,
+): AtsAnalysis {
+  return {
+    resumeId,
+    mode,
+    scoreName:
+      mode === "resume_only"
+        ? "Resume Quality Score"
+        : mode === "role_match"
+          ? "Role Match Score"
+          : "ATS Match Score",
+    overallScore: 0,
+    scoreLabel: "Could not analyze",
+    scores: {},
+    matchedSkills: [],
+    partialSkills: [],
+    missingSkills: [],
+    matchedResponsibilities: [],
+    partialResponsibilities: [],
+    missingResponsibilities: [],
+    strengths: [],
+    improvements: [],
+    atsIssues: [message],
+    confidence: "low",
+    error: message,
+    engine: "fallback",
+    textChars: 0,
+    textFingerprint: "empty",
+  };
 }
 
 export async function POST(request: Request) {
@@ -35,40 +70,20 @@ export async function POST(request: Request) {
 
   const jdText = typeof body.jdText === "string" ? body.jdText : "";
   const role = typeof body.role === "string" ? body.role.trim() : "";
-  const scoreAll = body.scoreAll === true;
   const resumeId = typeof body.resumeId === "string" ? body.resumeId : "";
-
-  const profile = await getProfile(authResult.user.id);
+  const forceExtract = body.forceExtract === true;
   const mode = detectAtsMode(role, jdText);
 
-  if (scoreAll) {
+  // List ids only — used by the client to drive sequential analysis.
+  if (body.listOnly === true) {
     const resumes = await listResumes(authResult.user.id);
-    if (resumes.length === 0) {
-      return NextResponse.json({ error: "Upload a resume on Documents first." }, { status: 400 });
-    }
-
-    const { results, engine } = await analyzeResumesBatchViaService({
-      jdText,
-      role,
-      resumes: resumes.map((resume) => ({
-        id: resume.id,
-        text: resume.textExcerpt || "",
-      })),
-    });
-
     return NextResponse.json({
-      engine,
       mode,
-      role: role || null,
-      profileSkills: profile?.career?.skills ?? [],
-      results: results.map((row) => {
-        const resume = resumes.find((r) => r.id === row.resumeId);
-        return {
-          ...row,
-          displayName: resume?.displayName ?? row.resumeId,
-          status: resume?.status ?? "unknown",
-        };
-      }),
+      resumes: resumes.map((r) => ({
+        id: r.id,
+        displayName: r.displayName,
+        status: r.status,
+      })),
     });
   }
 
@@ -79,9 +94,47 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Resume not found." }, { status: 404 });
   }
 
+  let ensured: Awaited<ReturnType<typeof ensureResumeText>>;
+  try {
+    ensured = await ensureResumeText(authResult.user.id, resume.id, {
+      force: forceExtract,
+    });
+  } catch (err) {
+    return NextResponse.json({
+      resume: {
+        id: resume.id,
+        displayName: resume.displayName,
+        status: resume.status,
+      },
+      ...emptyTextAnalysis(
+        resume.id,
+        mode,
+        err instanceof Error ? err.message : "Could not read resume PDF.",
+      ),
+      mode,
+    });
+  }
+
+  if (!ensured.text.trim() || ensured.text.trim().length < 40) {
+    return NextResponse.json({
+      resume: {
+        id: resume.id,
+        displayName: resume.displayName,
+        status: resume.status,
+      },
+      ...emptyTextAnalysis(
+        resume.id,
+        mode,
+        ensured.extractError ||
+          "Could not extract readable text from this PDF. Re-upload a text-based resume on Documents.",
+      ),
+      mode,
+    });
+  }
+
   const scored = await analyzeResumeViaService({
     resumeId: resume.id,
-    resumeText: resume.textExcerpt || "",
+    resumeText: ensured.text,
     jdText,
     role,
   });
@@ -90,9 +143,13 @@ export async function POST(request: Request) {
     resume: {
       id: resume.id,
       displayName: resume.displayName,
+      status: resume.status,
       atsScore: resume.atsScore ?? scored.scores.atsCompatibility ?? null,
     },
     ...scored,
+    resumeId: resume.id,
     mode: scored.mode ?? mode,
+    textChars: scored.textChars ?? ensured.text.trim().length,
+    textFingerprint: scored.textFingerprint ?? fingerprintText(ensured.text),
   });
 }

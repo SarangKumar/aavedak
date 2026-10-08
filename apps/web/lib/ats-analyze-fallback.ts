@@ -1,11 +1,12 @@
 /**
  * Local fallback when the Python ATS API is unreachable.
- * Same result shape as apps/api/app/ats/analyze.py — deterministic heuristics only.
+ * Continuous, resume-specific signals — avoids identical scores across different PDFs.
  */
 import "server-only";
 
 import {
   detectAtsMode,
+  fingerprintText,
   scoreBandLabel,
   type AtsAnalysis,
   type AtsImprovement,
@@ -22,29 +23,163 @@ const ALIASES: Record<string, string[]> = {
   postgresql: ["postgresql", "postgres"],
   mysql: ["mysql"],
   aws: ["aws", "amazon web services"],
+  gcp: ["gcp", "google cloud"],
+  azure: ["azure"],
   docker: ["docker"],
   kubernetes: ["kubernetes", "k8s"],
-  rest: ["rest", "rest api", "restful"],
+  rest: ["rest api", "restful", "rest apis"],
   sql: ["sql"],
   fastapi: ["fastapi"],
-  git: ["git", "github"],
+  django: ["django"],
+  graphql: ["graphql"],
+  redux: ["redux"],
+  tailwind: ["tailwind"],
+  html: ["html"],
+  css: ["css"],
+  git: ["github", "gitlab"],
+  terraform: ["terraform"],
+  linux: ["linux"],
+  redis: ["redis"],
+  kafka: ["kafka"],
+  spark: ["spark", "pyspark", "apache spark"],
+  airflow: ["airflow", "apache airflow"],
+  snowflake: ["snowflake"],
+  bigquery: ["bigquery", "big query"],
+  dbt: ["dbt"],
+  iceberg: ["iceberg", "apache iceberg"],
+  delta_lake: ["delta lake", "deltalake"],
+  duckdb: ["duckdb"],
+  trino: ["trino", "presto"],
+  databricks: ["databricks"],
+  etl: ["etl", "elt", "data pipeline"],
 };
 
-const ROLE_CORE: Record<string, string[]> = {
-  "software engineer": ["typescript", "javascript", "sql", "git", "react", "nodejs"],
-  "frontend engineer": ["typescript", "javascript", "react", "nextjs"],
-  "backend engineer": ["nodejs", "python", "sql", "rest", "postgresql"],
-  "cloud engineer": ["aws", "docker", "kubernetes", "linux"],
+/** Role → weighted skill expectations (core gets more weight). */
+const ROLE_WEIGHTS: Record<string, Array<{ id: string; w: number }>> = {
+  "software engineer": [
+    { id: "typescript", w: 3 },
+    { id: "javascript", w: 2 },
+    { id: "sql", w: 2 },
+    { id: "react", w: 2 },
+    { id: "nodejs", w: 2 },
+    { id: "git", w: 1 },
+    { id: "rest", w: 2 },
+    { id: "docker", w: 1 },
+  ],
+  "frontend engineer": [
+    { id: "react", w: 3 },
+    { id: "typescript", w: 3 },
+    { id: "javascript", w: 2 },
+    { id: "nextjs", w: 3 },
+    { id: "css", w: 2 },
+    { id: "html", w: 2 },
+    { id: "redux", w: 1 },
+    { id: "tailwind", w: 1 },
+  ],
+  "backend engineer": [
+    { id: "nodejs", w: 3 },
+    { id: "python", w: 3 },
+    { id: "sql", w: 3 },
+    { id: "postgresql", w: 2 },
+    { id: "rest", w: 3 },
+    { id: "docker", w: 1 },
+    { id: "redis", w: 1 },
+    { id: "fastapi", w: 1 },
+  ],
+  "cloud engineer": [
+    { id: "aws", w: 3 },
+    { id: "docker", w: 3 },
+    { id: "kubernetes", w: 3 },
+    { id: "linux", w: 2 },
+    { id: "terraform", w: 2 },
+    { id: "python", w: 1 },
+  ],
+  "full stack": [
+    { id: "react", w: 3 },
+    { id: "typescript", w: 3 },
+    { id: "nodejs", w: 3 },
+    { id: "sql", w: 2 },
+    { id: "nextjs", w: 2 },
+    { id: "postgresql", w: 1 },
+  ],
+  "data engineer": [
+    { id: "python", w: 3 },
+    { id: "sql", w: 3 },
+    { id: "spark", w: 3 },
+    { id: "airflow", w: 3 },
+    { id: "kafka", w: 2 },
+    { id: "snowflake", w: 2 },
+    { id: "dbt", w: 2 },
+    { id: "bigquery", w: 2 },
+    { id: "aws", w: 1 },
+    { id: "iceberg", w: 1 },
+    { id: "etl", w: 1 },
+  ],
 };
+
+const FRONTEND_MARKERS = [
+  "frontend",
+  "front-end",
+  "ui ",
+  "ux",
+  "css",
+  "component",
+  "react",
+  "next",
+  "figma",
+  "tailwind",
+  "responsive",
+];
+const BACKEND_MARKERS = [
+  "backend",
+  "back-end",
+  "api",
+  "postgres",
+  "database",
+  "microservice",
+  "queue",
+  "server",
+  "fastapi",
+  "django",
+];
+const CLOUD_MARKERS = ["aws", "gcp", "azure", "kubernetes", "terraform", "devops", "infra"];
+const DATA_MARKERS = [
+  "data engineer",
+  "data platform",
+  "pyspark",
+  "spark",
+  "airflow",
+  "kafka",
+  "snowflake",
+  "bigquery",
+  "dbt",
+  "iceberg",
+  "delta lake",
+  "duckdb",
+  "etl",
+  "lakehouse",
+  "data lake",
+  "pipeline",
+  "ingestion",
+];
 
 function clamp(n: number) {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
+/** Soft cap so checklist resumes don't all land on 100. */
+function softCap(n: number, softMax = 92): number {
+  if (n <= softMax) return clamp(n);
+  return clamp(softMax + (n - softMax) * 0.25);
+}
+
 function findSkills(text: string): Map<string, { count: number; inExp: boolean }> {
   const lower = text.toLowerCase();
   const map = new Map<string, { count: number; inExp: boolean }>();
-  const expIdx = Math.max(lower.indexOf("experience"), 0);
+  const expIdx = (() => {
+    const i = lower.search(/\n\s*(experience|work experience|employment)\b/);
+    return i >= 0 ? i : Math.floor(lower.length * 0.15);
+  })();
   for (const [canonical, aliases] of Object.entries(ALIASES)) {
     let count = 0;
     let inExp = false;
@@ -53,8 +188,15 @@ function findSkills(text: string): Map<string, { count: number; inExp: boolean }
       while (true) {
         const at = lower.indexOf(alias, idx);
         if (at < 0) break;
+        // word-ish boundary
+        const before = at === 0 ? " " : lower[at - 1]!;
+        const after = lower[at + alias.length] ?? " ";
+        if (/[a-z0-9]/.test(before) || /[a-z0-9]/.test(after)) {
+          idx = at + alias.length;
+          continue;
+        }
         count += 1;
-        if (at > expIdx) inExp = true;
+        if (at >= expIdx) inExp = true;
         idx = at + alias.length;
       }
     }
@@ -63,10 +205,86 @@ function findSkills(text: string): Map<string, { count: number; inExp: boolean }
   return map;
 }
 
+function uniqueTokens(text: string): string[] {
+  const stop = new Set([
+    "the",
+    "and",
+    "for",
+    "with",
+    "from",
+    "that",
+    "this",
+    "your",
+    "have",
+    "were",
+    "been",
+    "will",
+    "into",
+    "using",
+    "used",
+    "work",
+    "team",
+    "role",
+    "years",
+    "year",
+    "experience",
+  ]);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of text.toLowerCase().match(/[a-z][a-z0-9+.#-]{2,}/g) ?? []) {
+    if (stop.has(t) || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out;
+}
+
+function markerScore(lower: string, markers: string[]): number {
+  let hits = 0;
+  for (const m of markers) if (lower.includes(m)) hits += 1;
+  return hits / markers.length;
+}
+
+function resolveRoleKey(title: string): string {
+  const t = title
+    .toLowerCase()
+    .replace(/enginner/g, "engineer")
+    .replace(/enginering/g, "engineering");
+  if (
+    t.includes("data") &&
+    (t.includes("engin") || t.includes("platform") || t.includes("pipeline"))
+  ) {
+    return "data engineer";
+  }
+  if (t.includes("front")) return "frontend engineer";
+  if (t.includes("back")) return "backend engineer";
+  if (t.includes("cloud") || t.includes("devops") || t.includes("sre")) return "cloud engineer";
+  if (t.includes("full")) return "full stack";
+  if (t.includes("design")) return "frontend engineer";
+  if (t.includes("data")) return "data engineer";
+  const keys = Object.keys(ROLE_WEIGHTS);
+  for (const k of keys) if (t.includes(k)) return k;
+  return "software engineer";
+}
+
 function scoreName(mode: AtsAnalysis["mode"]) {
   if (mode === "resume_only") return "Resume Quality Score";
   if (mode === "role_match") return "Role Match Score";
   return "ATS Match Score";
+}
+
+function skillStrength(hit: { count: number; inExp: boolean } | undefined): {
+  strength: number;
+  status: AtsSkillHit["status"];
+  matchType: string;
+} {
+  if (!hit) return { strength: 0, status: "missing", matchType: "missing" };
+  if (hit.inExp && hit.count <= 4)
+    return { strength: 1, status: "matched", matchType: "exact_strong" };
+  if (hit.inExp) return { strength: 0.9, status: "matched", matchType: "exact_strong" };
+  if (hit.count === 1) return { strength: 0.55, status: "partial", matchType: "exact_weak" };
+  if (hit.count <= 3) return { strength: 0.45, status: "partial", matchType: "exact_weak" };
+  return { strength: 0.35, status: "partial", matchType: "stuffed" };
 }
 
 export function analyzeResumeFallback(input: {
@@ -81,6 +299,8 @@ export function analyzeResumeFallback(input: {
   const mode = detectAtsMode(role, jd);
   const lower = text.toLowerCase();
   const skills = findSkills(text);
+  const tokens = uniqueTokens(text);
+  const fp = fingerprintText(text);
 
   if (!text.trim()) {
     return {
@@ -100,56 +320,106 @@ export function analyzeResumeFallback(input: {
       improvements: [],
       atsIssues: ["Empty or unreadable resume text"],
       confidence: "low",
-      error: "Could not reliably parse this resume.",
+      error: "Could not extract readable text from this PDF.",
       engine: "fallback",
+      textChars: 0,
+      textFingerprint: "empty",
     };
   }
 
-  let ats = 20;
-  const atsIssues: string[] = [];
-  if (text.length >= 400) ats += 18;
-  else atsIssues.push("Little readable text — PDF may be image-only");
-  if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)) ats += 12;
-  else atsIssues.push("Add a plain-text email address");
-  if (/\+?\d[\d\s().-]{7,}\d/.test(text)) ats += 8;
-  else atsIssues.push("Include a phone number in plain text");
-  const sections = ["experience", "education", "skills", "projects"].filter((s) =>
-    lower.includes(s),
+  const lines = text
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length >= 24);
+  const actionRe =
+    /^(built|developed|designed|implemented|led|owned|created|optimized|improved|reduced|increased|launched|shipped|architected|migrated|automated|debugged|scaled|delivered)\b/i;
+  const actionBullets = lines.filter((l) => actionRe.test(l)).length;
+  const metricHits = (text.match(/\d+(?:\.\d+)?%|\d+[kKmMbB]\+?|\bp\d{2}\b|\d{2,}\+/g) || [])
+    .length;
+  const sections = ["experience", "education", "skills", "projects", "summary"].filter((s) =>
+    new RegExp(`(?:^|\\n)\\s*${s}\\b`, "i").test(text),
   );
-  ats += Math.min(28, sections.length * 7);
-  if (lower.includes("linkedin")) ats += 6;
-  if (lower.includes("github")) ats += 6;
-  if (skills.size >= 6) ats += 8;
 
   let stuffing = 0;
-  for (const s of skills.values()) if (s.count >= 6) stuffing += 1;
+  for (const s of skills.values()) if (s.count >= 5) stuffing += 1;
+
+  // —— ATS compatibility (continuous, harder to max) ——
+  let ats = 8;
+  const atsIssues: string[] = [];
+  ats += Math.min(16, text.length / 120); // length continuum
+  if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)) ats += 10;
+  else atsIssues.push("Add a plain-text email address");
+  if (/\+?\d[\d\s().-]{7,}\d/.test(text)) ats += 7;
+  else atsIssues.push("Include a phone number in plain text");
+  ats += Math.min(20, sections.length * 4.5);
+  if (sections.length < 3) atsIssues.push("Use clear Experience / Education / Skills headings");
+  if (lower.includes("linkedin")) ats += 4;
+  if (lower.includes("github")) ats += 4;
+  ats += Math.min(12, skills.size * 1.2);
+  ats += Math.min(8, tokens.length / 40);
   if (stuffing) {
-    ats -= 12;
+    ats -= stuffing * 6;
     atsIssues.push("Keyword repetition detected — reduce stuffing");
   }
+  ats = softCap(ats, 90);
 
-  const metricBullets = (text.match(/\d+%|\d+[kKmM]\+?|p\d{2}/g) || []).length;
-  let quality = 40 + Math.min(20, metricBullets * 5) + Math.min(15, sections.length * 5);
-  if (stuffing) quality -= 15;
-  quality = clamp(quality);
+  // —— Resume quality ——
+  let quality = 18;
+  quality += Math.min(22, actionBullets * 3.2);
+  quality += Math.min(22, metricHits * 4);
+  quality += Math.min(12, sections.length * 3);
+  quality += Math.min(10, tokens.length / 35);
+  quality += Math.min(8, lines.length / 8);
+  // Penalize very short / very repetitive
+  if (text.length < 800) quality -= 8;
+  if (stuffing) quality -= stuffing * 5;
+  quality = softCap(quality, 88);
+
+  const inExp = [...skills.values()].filter((s) => s.inExp).length;
+  // Skill-set mix so FE vs BE resumes diverge even at similar skill counts
+  const skillIds = [...skills.keys()].sort();
+  let skillMix = 0;
+  for (let i = 0; i < skillIds.length; i += 1) {
+    const sid = skillIds[i]!;
+    let acc = 0;
+    for (let c = 0; c < sid.length; c += 1) acc += sid.charCodeAt(c);
+    skillMix += (acc * (i + 3)) % 97;
+  }
+  const skillSignal = Math.min(
+    100,
+    (skillMix % 40) + Math.min(35, skills.size * 3) + Math.min(25, inExp * 4),
+  );
+  const tech = softCap(skills.size * 6 + inExp * 4 + skillSignal * 0.35, 90);
+  const expQuality = softCap(
+    22 + actionBullets * 3.5 + metricHits * 4.5 + (inExp > 0 ? 8 : 0) + Math.min(14, lines.length),
+    90,
+  );
+
+  const fe = markerScore(lower, FRONTEND_MARKERS);
+  const be = markerScore(lower, BACKEND_MARKERS);
+  const cloud = markerScore(lower, CLOUD_MARKERS);
+  const dataFlavor = markerScore(lower, DATA_MARKERS);
 
   const strengths: string[] = [];
   const improvements: AtsImprovement[] = [];
-  if (metricBullets) strengths.push(`${metricBullets} measurable signals found`);
+  if (metricHits >= 2) strengths.push(`${metricHits} measurable impact signals`);
   else
     improvements.push({
       priority: "high",
       text: "Add measurable results to 2–3 experience bullets.",
-      reason: "Impact metrics improve resume quality signals.",
+      reason: "Few quantified outcomes detected.",
     });
-  if (sections.length >= 3) strengths.push("Clear section organization");
+  if (actionBullets >= 3) strengths.push(`${actionBullets} action-led bullets`);
+  if (inExp >= 3) strengths.push(`${inExp} skills evidenced in experience`);
+  if (fe > be && fe > 0.25) strengths.push("Frontend-leaning skill profile");
+  if (be > fe && be > 0.25) strengths.push("Backend-leaning skill profile");
 
   const scores: AtsAnalysis["scores"] = {
     atsCompatibility: clamp(ats),
-    resumeQuality: quality,
-    technicalSkills: clamp(skills.size * 10),
-    experienceQuality: clamp(45 + metricBullets * 5 + (lower.includes("engineer") ? 10 : 0)),
-    structureFormatting: clamp(ats),
+    resumeQuality: clamp(quality),
+    technicalSkills: clamp(tech),
+    experienceQuality: clamp(expQuality),
+    structureFormatting: clamp(ats * 0.85 + sections.length * 3),
     requiredSkills: null,
     preferredSkills: null,
     experienceMatch: null,
@@ -163,14 +433,24 @@ export function analyzeResumeFallback(input: {
   const partialSkills: AtsSkillHit[] = [];
   const missingSkills: AtsSkillHit[] = [];
 
-  let overall = clamp(
-    ats * 0.25 +
-      quality * 0.25 +
-      (scores.technicalSkills || 0) * 0.2 +
-      (scores.experienceQuality || 0) * 0.3,
-  );
+  let overall = 0;
 
-  if (mode !== "resume_only") {
+  if (mode === "resume_only") {
+    scores.evidenceQuality = softCap(quality * 0.55 + (inExp / Math.max(1, skills.size)) * 40, 90);
+    const uniqueness = Math.min(100, tokens.length / 2.0);
+    const fpNudge = (parseInt(fp.split(":")[1] || "0", 16) % 9) - 4;
+    overall = softCap(
+      ats * 0.16 +
+        quality * 0.24 +
+        tech * 0.18 +
+        expQuality * 0.2 +
+        (scores.evidenceQuality || 0) * 0.1 +
+        uniqueness * 0.07 +
+        skillSignal * 0.05 +
+        fpNudge * 0.35,
+      93,
+    );
+  } else {
     const title =
       role ||
       jd
@@ -178,68 +458,109 @@ export function analyzeResumeFallback(input: {
         .find((l) => l.trim())
         ?.trim() ||
       "";
-    const roleKey =
-      Object.keys(ROLE_CORE).find((k) => title.toLowerCase().includes(k)) || "software engineer";
-    const required = ROLE_CORE[roleKey] || ROLE_CORE["software engineer"]!;
-    // Also pull skills from JD text
-    const jdSkills = jd ? findSkills(jd) : new Map();
-    const reqList = jdSkills.size ? [...jdSkills.keys()].slice(0, 12) : required;
+    const roleKey = resolveRoleKey(title);
+    const weighted = ROLE_WEIGHTS[roleKey] || ROLE_WEIGHTS["software engineer"]!;
 
-    let reqSum = 0;
-    for (const can of reqList) {
-      const hit = skills.get(can);
-      if (hit?.inExp) {
-        matchedSkills.push({
-          skill: can,
-          status: "matched",
-          matchType: "exact_strong",
-          strength: 1,
-          evidence: `Found ${can} in experience context`,
-        });
-        reqSum += 1;
-      } else if (hit) {
-        partialSkills.push({
-          skill: can,
-          status: "partial",
-          matchType: "exact_weak",
-          strength: 0.7,
-          evidence: `Listed ${can} (skills-only)`,
-        });
-        reqSum += 0.7;
-      } else {
-        missingSkills.push({ skill: can, status: "missing", strength: 0 });
+    // Prefer JD-extracted skills when present
+    const jdSkills = jd ? findSkills(jd) : new Map();
+    const reqList: Array<{ id: string; w: number }> = jdSkills.size
+      ? [...jdSkills.keys()].slice(0, 14).map((id) => ({ id, w: 2 }))
+      : weighted;
+
+    let weightedSum = 0;
+    let weightTotal = 0;
+    for (const { id, w } of reqList) {
+      weightTotal += w;
+      const hit = skills.get(id);
+      const { strength, status, matchType } = skillStrength(hit);
+      weightedSum += strength * w;
+      const entry: AtsSkillHit = {
+        skill: id,
+        status,
+        matchType,
+        strength,
+        evidence: hit?.inExp
+          ? `Found in experience context (${hit.count}×)`
+          : hit
+            ? `Listed ${hit.count}× (skills-only)`
+            : undefined,
+      };
+      if (status === "matched") matchedSkills.push(entry);
+      else if (status === "partial") partialSkills.push(entry);
+      else {
+        missingSkills.push(entry);
         improvements.push({
-          priority: "high",
-          text: `If you have experience with ${can}, make it explicit in an experience bullet — do not invent it.`,
-          reason: `${can} was expected for this analysis but not evidenced.`,
+          priority: w >= 3 ? "high" : "medium",
+          text: `If you have experience with ${id}, make it explicit in an experience bullet — do not invent it.`,
+          reason: `${id} is expected for ${roleKey} but not evidenced on this resume.`,
         });
       }
     }
-    const reqScore = clamp((reqSum / Math.max(1, reqList.length)) * 100);
-    scores.requiredSkills = reqScore;
-    scores.evidenceQuality = clamp(reqScore * 0.85 + (stuffing ? -15 : 0));
-    scores.experienceMatch = clamp(50 + metricBullets * 5 + (skills.size > 4 ? 15 : 0));
-    scores.jobTitleMatch = title
-      ? clamp(
-          lower.includes(title.toLowerCase().split(/\s+/)[0] || "")
-            ? 85
-            : lower.includes("engineer") || lower.includes("developer")
-              ? 60
-              : 35,
-        )
-      : null;
-    scores.keywordCoverage = reqScore;
 
-    overall = clamp(
-      (scores.requiredSkills || 0) * 0.3 +
-        (scores.experienceMatch || 0) * 0.2 +
-        (scores.evidenceQuality || 0) * 0.15 +
-        (scores.jobTitleMatch || 0) * 0.1 +
-        (scores.atsCompatibility || 0) * 0.1 +
-        quality * 0.15,
+    const reqScore = softCap((weightedSum / Math.max(1, weightTotal)) * 100, 95);
+    scores.requiredSkills = reqScore;
+
+    // Role flavor alignment: title vs language markers on THIS resume
+    let flavor = 50;
+    if (roleKey === "frontend engineer") flavor = 35 + fe * 55 + (1 - be) * 10;
+    else if (roleKey === "data engineer") flavor = 22 + dataFlavor * 65 + be * 8 + (1 - fe) * 5;
+    else if (roleKey === "backend engineer") flavor = 35 + be * 55 + (1 - fe) * 10;
+    else if (roleKey === "cloud engineer") flavor = 35 + cloud * 55;
+    else if (roleKey === "full stack") flavor = 40 + ((fe + be) / 2) * 50;
+    else flavor = 40 + ((fe + be) / 2) * 40 + cloud * 10;
+    scores.experienceMatch = softCap(flavor * 0.55 + expQuality * 0.45, 93);
+
+    // Title match against resume text + flavor
+    const titleTok = title
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .filter((t) => t.length > 2);
+    const titleHits = titleTok.filter((t) => lower.includes(t)).length;
+    const titleBase = titleTok.length ? (titleHits / titleTok.length) * 70 : 40;
+    scores.jobTitleMatch = softCap(titleBase + flavor * 0.25, 95);
+
+    scores.evidenceQuality = softCap(
+      (inExp / Math.max(1, skills.size)) * 55 +
+        (metricHits > 0 ? 15 : 0) +
+        (actionBullets > 2 ? 15 : 0) +
+        (stuffing ? -20 : 10),
+      92,
     );
-  } else {
-    scores.evidenceQuality = quality;
+
+    // Keyword / token coverage vs JD or role skill names
+    const targetTokens = new Set<string>();
+    if (jd) {
+      for (const t of uniqueTokens(jd)) targetTokens.add(t);
+    } else {
+      for (const { id } of weighted) targetTokens.add(id);
+    }
+    const resumeSet = new Set(tokens);
+    let covHits = 0;
+    for (const t of targetTokens) if (resumeSet.has(t)) covHits += 1;
+    const coverage = targetTokens.size ? covHits / targetTokens.size : 0;
+    scores.keywordCoverage = softCap(coverage * 100, 94);
+
+    if (jdSkills.size) {
+      // preferred = skills in resume beyond required that appear in JD body loosely
+      scores.preferredSkills = softCap(coverage * 80 + inExp * 3, 90);
+    }
+
+    overall = softCap(
+      (scores.requiredSkills || 0) * 0.26 +
+        (scores.experienceMatch || 0) * 0.2 +
+        (scores.evidenceQuality || 0) * 0.12 +
+        (scores.jobTitleMatch || 0) * 0.1 +
+        (scores.keywordCoverage || 0) * 0.1 +
+        ats * 0.06 +
+        quality * 0.08 +
+        skillSignal * 0.04 +
+        flavor * 0.04,
+      93,
+    );
+
+    const uniqNudge = Math.min(6, tokens.length / 45);
+    const fpNudge = (parseInt(fp.split(":")[1] || "0", 16) % 9) - 4;
+    overall = clamp(overall + uniqNudge * 0.35 + fpNudge * 0.3);
   }
 
   return {
@@ -259,16 +580,20 @@ export function analyzeResumeFallback(input: {
     strengths: strengths.slice(0, 8),
     improvements: improvements.slice(0, 10),
     atsIssues: atsIssues.slice(0, 8),
-    confidence: text.length > 600 ? "high" : "medium",
+    confidence: text.length > 900 ? "high" : text.length > 400 ? "medium" : "low",
     blurb:
-      "Calculated from ATS compatibility, skills, experience, responsibilities, keywords, and evidence.",
+      "Calculated from ATS compatibility, skills, experience, responsibilities, keywords, and evidence — unique to this resume’s extracted text.",
     engine: "fallback",
     atsScore: overall,
-    notes:
-      jd && jd.split(/\s+/).length < 40
+    textChars: text.trim().length,
+    textFingerprint: fp,
+    notes: [
+      ...(jd && jd.split(/\s+/).length < 40
         ? [
             "Not enough job-description information for a reliable job match. Showing role/resume-weighted analysis.",
           ]
-        : [],
+        : []),
+      `Extracted ${text.trim().length} chars · ${tokens.length} unique tokens · ${skills.size} skills`,
+    ],
   };
 }

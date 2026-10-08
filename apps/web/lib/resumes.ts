@@ -278,21 +278,58 @@ export async function setResumeExtractedText(
   `;
 }
 
-/** Download PDF from GCS, extract text, persist ATS readiness score. */
-export async function scoreResumeAts(
+/**
+ * Ensure resume has extracted text (download PDF if needed).
+ * Returns text + optional soft error when the file has no extractable content.
+ */
+export async function ensureResumeText(
   userId: string,
   resumeId: string,
-): Promise<ResumeRecord> {
+  opts?: { force?: boolean },
+): Promise<{ text: string; resume: ResumeRecord; extractError?: string }> {
   await ensureAppSchema();
   const existing = await getResume(userId, resumeId);
   if (!existing) throw new Error("Resume not found.");
 
   let excerpt = existing.textExcerpt?.trim() || "";
-  if (!excerpt) {
-    const bytes = await downloadResumePdf(existing.storagePath);
-    if (!bytes) throw new Error("Resume PDF not found in storage.");
-    excerpt = extractPdfText(bytes);
+  if (!opts?.force && excerpt.length >= 40) {
+    return { text: excerpt, resume: existing };
   }
+
+  const bytes = await downloadResumePdf(existing.storagePath);
+  if (!bytes) {
+    return {
+      text: "",
+      resume: existing,
+      extractError: "Resume PDF not found in storage. Re-upload the file on Documents.",
+    };
+  }
+
+  excerpt = (await extractResumePdfText(bytes)).trim();
+  const now = new Date().toISOString();
+  await getSql()`
+    UPDATE resumes
+       SET extracted_text = ${excerpt || null},
+           updated_at = ${now}
+     WHERE id = ${resumeId} AND user_id = ${userId}
+  `;
+  const updated = (await getResume(userId, resumeId)) ?? existing;
+  if (!excerpt || excerpt.length < 40) {
+    return {
+      text: excerpt,
+      resume: updated,
+      extractError:
+        "Could not extract readable text from this PDF. It may be scanned/image-only — upload a text-based PDF.",
+    };
+  }
+  return { text: excerpt, resume: updated };
+}
+
+/** Download PDF from GCS, extract text, persist ATS readiness score. */
+export async function scoreResumeAts(userId: string, resumeId: string): Promise<ResumeRecord> {
+  const { text: excerpt, extractError } = await ensureResumeText(userId, resumeId);
+  if (!excerpt && extractError) throw new Error(extractError);
+
   const readiness = scoreResumeAtsReadiness(excerpt);
   const now = new Date().toISOString();
   await getSql()`
@@ -305,4 +342,24 @@ export async function scoreResumeAts(
   const updated = await getResume(userId, resumeId);
   if (!updated) throw new Error("Resume not found after scoring.");
   return updated;
+}
+
+/** Prefer unpdf; fall back to heuristic extractor. Keep newlines for section/bullet parsing. */
+async function extractResumePdfText(bytes: Buffer): Promise<string> {
+  try {
+    const { extractText, getDocumentProxy } = await import("unpdf");
+    const pdf = await getDocumentProxy(new Uint8Array(bytes));
+    const { text } = await extractText(pdf, { mergePages: true });
+    const joined = Array.isArray(text) ? text.join("\n") : String(text ?? "");
+    // Preserve line structure — collapsing to a single line made every resume score identically.
+    const cleaned = joined
+      .replace(/\r\n?/g, "\n")
+      .replace(/[^\S\n]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    if (cleaned.length >= 40) return cleaned.slice(0, 20_000);
+  } catch {
+    /* fall through */
+  }
+  return extractPdfText(bytes);
 }

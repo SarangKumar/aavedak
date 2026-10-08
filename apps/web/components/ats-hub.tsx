@@ -11,10 +11,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
+import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import type { AtsAnalysis, AtsMode, AtsScores } from "@/lib/ats-types";
 import { detectAtsMode } from "@/lib/ats-types";
 import { cn } from "@/lib/utils";
+
+type CardStatus = "idle" | "queued" | "analyzing" | "done" | "error";
 
 type ResumeRow = {
   id: string;
@@ -79,13 +83,37 @@ function Chevron({ open, className }: { open: boolean; className?: string }) {
   );
 }
 
-function ScoreBar({ value }: { value: number }) {
-  const pct = Math.max(0, Math.min(100, value));
+function DownloadIcon({ className }: { className?: string }) {
   return (
-    <div className="bg-muted/60 h-1.5 w-full overflow-hidden rounded-full">
-      <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
-    </div>
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M8 2.5v7M5.5 7.5 8 10l2.5-2.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M3 12.5h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
   );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <circle cx="7" cy="7" r="4.25" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M10.2 10.2 13.5 13.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ScoreBar({ value }: { value: number }) {
+  return <Progress value={Math.max(0, Math.min(100, value))} max={100} className="h-1.5" />;
 }
 
 function DimensionRow({
@@ -256,27 +284,33 @@ function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
 
   return (
     <div className="border-border/60 mt-3 space-y-4 border-t pt-3">
-      <div className="text-center">
-        <p className="text-foreground font-mono text-3xl font-semibold tabular-nums tracking-tight">
-          {points(analysis.overallScore)}
-          <span className="text-muted-foreground text-base font-medium"> / 100</span>
-        </p>
-        <p className="text-foreground mt-1 text-[13px] font-medium">{analysis.scoreLabel}</p>
-        <p className="text-muted-foreground mt-0.5 text-[11px]">
-          {analysis.scoreName}
-          {analysis.targetTitle ? ` · ${analysis.targetTitle}` : ""}
-        </p>
-        <div className="mx-auto mt-2 max-w-xs">
-          <ScoreBar value={analysis.overallScore} />
-        </div>
-        {analysis.blurb ? (
-          <p className="text-muted-foreground mx-auto mt-2 max-w-md text-[10px] leading-relaxed">
-            {analysis.blurb}
+      <div className="space-y-2">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-foreground text-[12px] font-semibold tracking-tight">
+              {analysis.scoreLabel}
+            </p>
+            <p className="text-muted-foreground mt-0.5 truncate text-[11px]">
+              {analysis.scoreName}
+              {analysis.targetTitle ? ` · ${analysis.targetTitle}` : ""}
+            </p>
+          </div>
+          <p className="text-foreground shrink-0 font-mono text-[15px] font-semibold tabular-nums">
+            {points(analysis.overallScore)}
+            <span className="text-muted-foreground text-[11px] font-medium"> / 100</span>
           </p>
-        ) : null}
+        </div>
+        <ScoreBar value={analysis.overallScore} />
         {analysis.notes?.length ? (
-          <p className="text-muted-foreground mx-auto mt-1 max-w-md text-[11px] leading-relaxed">
-            {analysis.notes[0]}
+          <p className="text-muted-foreground text-[11px] leading-relaxed">{analysis.notes[0]}</p>
+        ) : null}
+        {analysis.blurb ? (
+          <p className="text-muted-foreground text-[10px] leading-relaxed">{analysis.blurb}</p>
+        ) : null}
+        {analysis.textChars != null ? (
+          <p className="text-muted-foreground font-mono text-[10px] tabular-nums">
+            text {analysis.textChars} chars
+            {analysis.textFingerprint ? ` · fp ${analysis.textFingerprint}` : ""}
           </p>
         ) : null}
       </div>
@@ -412,14 +446,18 @@ export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
   const [jdText, setJdText] = useState("");
   const [role, setRole] = useState(defaultRole);
   const [byId, setById] = useState<Record<string, AtsAnalysis | null>>({});
+  const [statusById, setStatusById] = useState<Record<string, CardStatus>>({});
   const [scoring, setScoring] = useState(false);
-  const [stage, setStage] = useState<string | null>(null);
+  const [progress, setProgress] = useState({ done: 0, total: 0, currentName: "" });
   const [error, setError] = useState<string | null>(null);
   const [scoredOnce, setScoredOnce] = useState(false);
   const [engine, setEngine] = useState<"fastapi" | "fallback" | null>(null);
   const [expandedResumeId, setExpandedResumeId] = useState<string | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [previewResume, setPreviewResume] = useState<ResumeRow | null>(null);
 
   const previewMode = detectAtsMode(role, jdText);
+  const progressPct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   async function runAnalyze() {
     if (initialResumes.length === 0) {
@@ -427,57 +465,93 @@ export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
       return;
     }
 
+    const queue = [...initialResumes];
     setScoring(true);
     setError(null);
+    setDuplicateWarning(null);
     setScoredOnce(true);
     setById({});
     setEngine(null);
     setExpandedResumeId(null);
+    setProgress({ done: 0, total: queue.length, currentName: "" });
 
-    const stages = [
-      "Parsing resumes",
-      "Extracting experience",
-      "Analyzing skills",
-      "Matching requirements",
-      "Evaluating evidence",
-      "Calculating scores",
-    ];
-    let stageIdx = 0;
-    setStage(stages[0]!);
-    const tick = window.setInterval(() => {
-      stageIdx = Math.min(stageIdx + 1, stages.length - 1);
-      setStage(stages[stageIdx]!);
-    }, 700);
+    const queued: Record<string, CardStatus> = {};
+    for (const r of queue) queued[r.id] = "queued";
+    setStatusById(queued);
+
+    const fingerprints = new Map<string, string[]>();
+    let lastEngine: "fastapi" | "fallback" | null = null;
 
     try {
-      const res = await fetch("/api/ats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jdText: jdText.trim(),
-          role: role.trim(),
-          scoreAll: true,
-        }),
-      });
-      const data = (await res.json()) as {
-        engine?: "fastapi" | "fallback";
-        results?: AtsAnalysis[];
-        error?: string;
-      };
-      if (!res.ok) throw new Error(data.error || "Analysis failed.");
+      for (let i = 0; i < queue.length; i += 1) {
+        const resume = queue[i]!;
+        setProgress({
+          done: i,
+          total: queue.length,
+          currentName: resume.displayName,
+        });
+        setStatusById((prev) => ({ ...prev, [resume.id]: "analyzing" }));
 
-      const next: Record<string, AtsAnalysis | null> = {};
-      for (const row of data.results ?? []) {
-        next[row.resumeId] = row;
+        const res = await fetch("/api/ats", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jdText: jdText.trim(),
+            role: role.trim(),
+            resumeId: resume.id,
+            forceExtract: true,
+          }),
+        });
+        const data = (await res.json()) as AtsAnalysis & {
+          error?: string;
+          engine?: "fastapi" | "fallback";
+          resumeId?: string;
+        };
+
+        if (!res.ok && !data.resumeId) {
+          throw new Error(data.error || "Analysis failed.");
+        }
+
+        const analysis: AtsAnalysis = {
+          ...data,
+          resumeId: data.resumeId || resume.id,
+          overallScore: data.overallScore ?? data.atsScore ?? 0,
+          engine: data.engine ?? "fallback",
+        };
+        lastEngine = analysis.engine;
+
+        if (analysis.textFingerprint && analysis.textFingerprint !== "empty") {
+          const names = fingerprints.get(analysis.textFingerprint) ?? [];
+          names.push(resume.displayName);
+          fingerprints.set(analysis.textFingerprint, names);
+        }
+
+        setById((prev) => ({ ...prev, [resume.id]: analysis }));
+        setStatusById((prev) => ({
+          ...prev,
+          [resume.id]: analysis.error ? "error" : "done",
+        }));
+        setProgress({
+          done: i + 1,
+          total: queue.length,
+          currentName: resume.displayName,
+        });
+        setEngine(lastEngine);
       }
-      setById(next);
-      setEngine(data.engine ?? null);
+
+      const dupes = [...fingerprints.entries()].filter(([, names]) => names.length > 1);
+      if (dupes.length) {
+        setDuplicateWarning(
+          `Some resumes share identical extracted text (${dupes
+            .map(([, names]) => names.join(" · "))
+            .join("; ")}). Scores will match until the PDFs differ.`,
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed.");
     } finally {
-      window.clearInterval(tick);
-      setStage(null);
       setScoring(false);
+      setProgress((p) => ({ ...p, currentName: "" }));
     }
   }
 
@@ -537,16 +611,34 @@ export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
               Engine: {engine === "fastapi" ? "Python API" : "local fallback"}
             </span>
           ) : null}
-          {scoring && stage ? (
-            <span className="text-muted-foreground inline-flex items-center gap-1.5 text-[11px]">
-              <Spinner className="size-3.5" label="Analyzing" />
-              {stage}
-            </span>
-          ) : null}
         </div>
+        {scoring || (scoredOnce && progress.total > 0) ? (
+          <div className="space-y-1.5">
+            <div className="text-muted-foreground flex items-center justify-between gap-2 text-[11px]">
+              <span>
+                {scoring
+                  ? `Analyzing ${progress.done + (progress.currentName ? 1 : 0)} of ${progress.total}${
+                      progress.currentName ? ` · ${progress.currentName}` : ""
+                    }`
+                  : `Analyzed ${progress.done} of ${progress.total}`}
+              </span>
+              <span className="font-mono tabular-nums">{progressPct}%</span>
+            </div>
+            <Progress
+              value={progress.done}
+              max={Math.max(1, progress.total)}
+              aria-label="Resume analysis progress"
+            />
+          </div>
+        ) : null}
         {error ? (
           <p className="text-destructive text-[13px]" role="alert">
             {error}
+          </p>
+        ) : null}
+        {duplicateWarning ? (
+          <p className="text-muted-foreground text-[12px] leading-relaxed" role="status">
+            {duplicateWarning}
           </p>
         ) : null}
       </section>
@@ -561,7 +653,9 @@ export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
           <ul className="space-y-2">
             {initialResumes.map((resume) => {
               const analysis = byId[resume.id];
+              const status = statusById[resume.id] ?? "idle";
               const open = expandedResumeId === resume.id;
+              const showScore = status === "done" && analysis && !analysis.error;
               return (
                 <li
                   key={resume.id}
@@ -575,12 +669,14 @@ export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
                       <p className="text-muted-foreground text-[11px]">{resume.status}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      {scoring ? (
+                      {status === "analyzing" ? (
                         <span className="text-muted-foreground inline-flex items-center gap-1.5 text-[11px]">
                           <Spinner className="size-3.5" label="Analyzing" />
                           Analyzing…
                         </span>
-                      ) : scoredOnce && analysis && !analysis.error ? (
+                      ) : status === "queued" ? (
+                        <span className="text-muted-foreground text-[11px]">Queued</span>
+                      ) : showScore ? (
                         <div className="text-right">
                           <p className="text-primary font-mono text-[13px] font-semibold tabular-nums">
                             {points(analysis.overallScore)}
@@ -590,22 +686,38 @@ export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
                             {analysis.scoreLabel}
                           </p>
                         </div>
-                      ) : scoredOnce && analysis?.error ? (
-                        <span className="text-destructive text-[11px]">Parse failed</span>
-                      ) : scoredOnce ? (
-                        <span className="text-muted-foreground text-[11px]">No score</span>
-                      ) : resume.atsScore != null ? (
-                        <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
-                          Ready {points(resume.atsScore)}/100
+                      ) : status === "error" || analysis?.error ? (
+                        <span className="text-destructive max-w-[10rem] text-right text-[11px] leading-snug">
+                          No text extracted
                         </span>
+                      ) : scoredOnce ? (
+                        <span className="text-muted-foreground text-[11px]">Waiting…</span>
                       ) : (
                         <span className="text-muted-foreground text-[11px]">Not analyzed</span>
                       )}
                       <button
                         type="button"
+                        title="Preview"
+                        aria-label={`Preview ${resume.displayName}`}
+                        onClick={() => setPreviewResume(resume)}
+                        className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border"
+                      >
+                        <SearchIcon className="size-3.5" />
+                      </button>
+                      <a
+                        href={`/api/resumes/${resume.id}/file`}
+                        download
+                        title="Download resume"
+                        aria-label={`Download ${resume.displayName}`}
+                        className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-lg border"
+                      >
+                        <DownloadIcon className="size-3.5" />
+                      </a>
+                      <button
+                        type="button"
                         aria-expanded={open}
                         aria-label={open ? "Collapse analysis" : "Expand analysis"}
-                        disabled={!analysis || scoring}
+                        disabled={!analysis || status === "analyzing" || status === "queued"}
                         onClick={() => toggleExpand(resume.id)}
                         className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-40"
                       >
@@ -618,9 +730,20 @@ export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
                     <AnalysisDetails analysis={analysis} />
                   ) : null}
                   {open && analysis?.error ? (
-                    <p className="text-destructive border-border/60 mt-3 border-t pt-3 text-[12px]">
-                      {analysis.error}
-                    </p>
+                    <div className="border-border/60 mt-3 space-y-1.5 border-t pt-3">
+                      <p className="text-destructive text-[12px]">{analysis.error}</p>
+                      <p className="text-muted-foreground text-[11px] leading-relaxed">
+                        Open{" "}
+                        <Link
+                          href="/documents"
+                          className="text-primary underline underline-offset-2"
+                        >
+                          Documents
+                        </Link>{" "}
+                        and re-upload a text-selectable PDF (not a scanned image), then analyze
+                        again.
+                      </p>
+                    </div>
                   ) : null}
                 </li>
               );
@@ -641,6 +764,45 @@ export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
           </AccordionItem>
         </Accordion>
       </div>
+
+      <Modal
+        open={Boolean(previewResume)}
+        onClose={() => setPreviewResume(null)}
+        title={previewResume?.displayName ?? "Resume preview"}
+        description={previewResume ? `${previewResume.status} resume` : undefined}
+        size="xl"
+        className="max-w-5xl"
+        footer={
+          previewResume ? (
+            <>
+              <a
+                href={`/api/resumes/${previewResume.id}/file`}
+                target="_blank"
+                rel="noreferrer"
+                className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+              >
+                Open in new tab
+              </a>
+              <button
+                type="button"
+                onClick={() => setPreviewResume(null)}
+                className="bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold"
+              >
+                Close
+              </button>
+            </>
+          ) : null
+        }
+      >
+        {previewResume ? (
+          <iframe
+            key={previewResume.id}
+            src={`/api/resumes/${previewResume.id}/file`}
+            title={`Preview of ${previewResume.displayName}`}
+            className="bg-background h-[min(72vh,46rem)] w-full rounded-md border-0"
+          />
+        ) : null}
+      </Modal>
     </ShellWidth>
   );
 }
