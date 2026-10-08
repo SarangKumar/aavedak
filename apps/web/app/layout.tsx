@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies, headers } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
 
 import { AppShell } from "@/components/app-shell";
 import { parseThemeMode, serverPrefersDark, THEME_KEY } from "@/lib/theme";
@@ -154,6 +155,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {JSON.stringify(jsonLd).replace(/</g, "\\u003c")}
         </script>
         <AppShell>{children}</AppShell>
+        <Analytics />
       </body>
     </html>
   );
