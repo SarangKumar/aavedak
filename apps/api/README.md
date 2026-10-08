@@ -6,10 +6,12 @@ FastAPI backend for Aavedak.
 
 ```
 apps/api/
+├── main.py               # Vercel entrypoint (main:app)
+├── pyproject.toml
 ├── app/
-│   ├── main.py           # FastAPI app, middleware, /health
+│   ├── main.py           # FastAPI routes under /svc/*
 │   └── core/
-│       ├── config.py     # pydantic-settings
+│       ├── config.py
 │       └── logging.py
 ├── requirements.txt
 ├── requirements-dev.txt
@@ -19,42 +21,55 @@ apps/api/
 
 ## Setup
 
-Local virtualenv targets **Python 3.12** (Homebrew `python@3.12` / `python3.12`). `scripts/setup.sh` prefers 3.12, then 3.13, 3.11, 3.14, then `python3`.
-
 ```bash
 cd apps/api
-/opt/homebrew/bin/python3.12 -m venv .venv   # or: python3.12 -m venv .venv
-source .venv/bin/activate                    # Windows: .venv\Scripts\activate
+python3.12 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
 cp .env.example .env
 ```
 
-Or use the monorepo bootstrap: `pnpm setup` / `./scripts/setup.sh`.
+Or: `pnpm setup` / `./scripts/setup.sh`.
 
-## Run
+## Run (API only)
 
 ```bash
 cd apps/api
 source .venv/bin/activate
-uvicorn app.main:app --reload --port 8000
+uvicorn main:app --reload --port 8000
 ```
 
-Health check: [http://127.0.0.1:8000/svc/health](http://127.0.0.1:8000/svc/health) → `{"ok":true}`.
+Health: `http://127.0.0.1:8000/svc/health` → `{"ok":true,"service":"api"}`.
 
-OpenAPI docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+## Vercel Services (same project as Next)
 
-## Vercel (same project as Next)
+Root `vercel.json` builds **web** + **api** together.
 
-Root `vercel.json` deploys **web** (`apps/web`) + **api** (`apps/api`) via Vercel Services.
+| Environment                    | Health URL                              |
+| ------------------------------ | --------------------------------------- |
+| `vercel dev` / `vercel dev -L` | `http://localhost:3000/svc/health`      |
+| API-only uvicorn               | `http://127.0.0.1:8000/svc/health`      |
+| Production                     | `https://aavedak.vercel.app/svc/health` |
 
-| Environment | Health URL                              |
-| ----------- | --------------------------------------- |
-| Local       | `http://127.0.0.1:8000/svc/health`      |
-| Production  | `https://aavedak.vercel.app/svc/health` |
+Next.js stays at `/` and `/api/*`. FastAPI is only under `/svc/*`.
 
-Next.js app routes stay at `/api/*`. FastAPI is only under `/svc/*`.
+### Critical: Root Directory
 
-**Vercel project setting:** Root Directory must be the **repo root** (`.`), not `apps/web`, so both services build after you push.
+In **Vercel → Project → Settings → General → Root Directory**, set **`.` (repository root)**. Clear / remove `apps/web` if that is set.
+
+If Root Directory is `apps/web`, Services are ignored and `/svc/health` shows the **Next.js** 404 (Aavedak chrome) — that is the production failure mode.
+
+### Local (web + api like production)
+
+```bash
+# from repo root
+npx vercel login
+npx vercel link          # link this repo root to the aavedak project
+pnpm dev:vercel          # vercel dev
+pnpm dev:vercel:local    # vercel dev -L  (fully local; -L = --local)
+```
+
+There is no `vercel run` for Services. Use **`vercel dev`** / **`vercel dev -L`**.
 
 ## Env
 
@@ -65,8 +80,6 @@ Next.js app routes stay at `/api/*`. FastAPI is only under `/svc/*`.
 | `CRON_SECRET`  | No                       | Protected cron routes later                |
 | `R2_*`         | No                       | Object storage later                       |
 
-Copy from `.env.example`. Never commit secrets.
-
 ## Logging
 
-Request middleware in `app/main.py` logs method, path, status, and duration. Level comes from `LOG_LEVEL` via `app.core.logging.setup_logging`.
+Request middleware in `app/main.py` logs method, path, status, and duration.

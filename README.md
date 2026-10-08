@@ -89,7 +89,10 @@ aavedak/
 └── package.json      Workspace root
 ```
 
-**Deploy (one Vercel project):** Root Directory = repo root. Push triggers builds for Next (`/`) and FastAPI (`/svc/*`). Health: `https://aavedak.vercel.app/svc/health`.
+**Deploy (one Vercel project):** In Vercel settings, **Root Directory must be `.` (repo root)**, not `apps/web`. Otherwise Services never activate and `/svc/health` is a Next.js 404.
+
+- Health: `https://aavedak.vercel.app/svc/health` → `{"ok":true,"service":"api"}`
+- Local (both services): `pnpm dev:vercel` or `pnpm dev:vercel:local` (`vercel dev` / `vercel dev -L`)
 
 ### App routes (no username prefix)
 

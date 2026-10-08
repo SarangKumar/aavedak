@@ -1,4 +1,5 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "services": {
     "web": {
       "root": "apps/web",
@@ -9,12 +10,16 @@
     "api": {
       "root": "apps/api",
       "framework": "fastapi",
-      "entrypoint": "app.main:app"
+      "entrypoint": "main:app"
     }
   },
   "rewrites": [
     {
-      "source": "/svc/(.*)",
+      "source": "/svc",
+      "destination": { "service": "api" }
+    },
+    {
+      "source": "/svc/:path*",
       "destination": { "service": "api" }
     },
     {

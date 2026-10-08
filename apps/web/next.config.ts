@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@neondatabase/serverless"],
+  // Lint in CI / husky; skip during `next build` so missing root ESLint deps
+  // (e.g. Vercel Services install) cannot fail image generation.
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   async redirects() {
     return [
       {

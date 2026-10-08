@@ -14,6 +14,9 @@
     "prepare": "husky",
     "dev:web": "pnpm --filter web dev",
     "build:web": "pnpm --filter web build",
+    "dev:vercel": "vercel dev",
+    "dev:vercel:local": "vercel dev -L",
+    "dev:api": "cd apps/api && .venv/bin/uvicorn main:app --reload --port 8000",
     "dev:extension": "pnpm --filter extension dev",
     "build:extension": "pnpm --filter extension build"
   },
