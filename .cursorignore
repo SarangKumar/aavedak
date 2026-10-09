@@ -1,0 +1,29 @@
+# Dependencies and caches
+
+node_modules/
+.pnpm-store/
+.turbo/
+.cache/
+
+# Build and test output
+
+.next/
+dist/
+build/
+coverage/
+
+# Local environment files
+
+.env
+.env.*
+!.env.example
+
+# Logs and temporary files
+
+*.log
+tmp/
+temp/
+
+# Deployment output
+
+.vercel/
