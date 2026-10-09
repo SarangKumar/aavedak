@@ -25,7 +25,8 @@ export type AtsScoreType =
   | "ats_scan"
   | "ats_readiness"
   | "skill_similarity_match"
-  | "hybrid_match";
+  | "hybrid_match"
+  | "resume_validation";
 
 export type EngineCapability = {
   id: AtsEngineId;

@@ -81,26 +81,55 @@ def test_registry_has_four_new_unique_engines():
 @pytest.mark.parametrize(
     "engine_id,modes",
     [
-        ("open_ats", ("job_match",)),
+        ("open_ats", ("resume_only", "role_match", "job_match")),
         ("ats_resume_checker", ("resume_only", "role_match", "job_match")),
-        ("resume_skills_extractor", ("job_match",)),
-        ("hybrid_resume_analyzer", ("job_match",)),
+        ("resume_skills_extractor", ("role_match", "job_match")),
+        ("hybrid_resume_analyzer", ("resume_only", "role_match", "job_match")),
     ],
 )
 def test_supported_modes(engine_id, modes):
     assert OSS_ENGINES[engine_id][1].modes == modes
 
 
-@pytest.mark.parametrize("engine_id", ["open_ats", "resume_skills_extractor", "hybrid_resume_analyzer"])
-def test_jd_required_engines_fail_with_missing_input(engine_id):
+@pytest.mark.parametrize(
+    "engine_id,expected",
+    [
+        ("open_ats", {"resume_only": "resume_quality", "role_match": "ats_scan", "job_match": "ats_scan"}),
+        ("ats_resume_checker", {"resume_only": "resume_quality", "role_match": "ats_readiness", "job_match": "ats_readiness"}),
+        ("resume_skills_extractor", {"role_match": "role_match", "job_match": "skill_similarity_match"}),
+        ("hybrid_resume_analyzer", {"resume_only": "resume_validation", "role_match": "role_match", "job_match": "hybrid_match"}),
+    ],
+)
+def test_runs_without_jd_or_role_where_supported(engine_id, expected):
+    inputs = {"resume_only": ("", ""), "role_match": ("Backend Engineer", ""), "job_match": ("Backend Engineer", JD)}
+    for mode, score_type in expected.items():
+        role, jd = inputs[mode]
+        r, _ = _run(engine_id, role=role, jd_text=jd)
+        assert (r["mode"], r["scoreType"]) == (mode, score_type), (engine_id, mode)
+        assert 0 <= r["overallScore"] <= 100
+
+
+def test_skills_extractor_has_no_resume_only_score():
     with pytest.raises(EngineFailure) as exc:
-        run_engine_staged(engine_id=engine_id, resume_text=RESUME, jd_text="", role="Backend Engineer")
-    assert exc.value.kind == MISSING_INPUT
+        run_engine_staged(engine_id="resume_skills_extractor", resume_text=RESUME)
+    assert exc.value.kind == UNSUPPORTED_MODE
+
+
+@pytest.mark.parametrize("engine_id", ["open_ats", "resume_skills_extractor", "hybrid_resume_analyzer"])
+def test_unknown_title_without_jd_is_missing_input(engine_id):
+    with pytest.raises(EngineFailure) as exc:
+        run_engine_staged(engine_id=engine_id, resume_text=RESUME, role="Pastry Chef")
+    assert exc.value.kind == MISSING_INPUT and "Pastry Chef" in exc.value.message
+
+
+def test_checker_unknown_title_completes_with_warning():
+    r, _ = _run("ats_resume_checker", role="Pastry Chef", jd_text="")
+    assert r["warnings"] and "keywordMatch" not in {b["key"] for b in r["breakdown"]}
 
 
 def test_unsupported_mode_is_explicit():
     with pytest.raises(EngineFailure) as exc:
-        run_engine_staged(engine_id="open_ats", resume_text=RESUME, jd_text=JD, mode="resume_only")
+        run_engine_staged(engine_id="resume_skills_extractor", resume_text=RESUME, jd_text=JD, mode="resume_only")
     assert exc.value.kind == UNSUPPORTED_MODE
 
 
@@ -124,7 +153,7 @@ def test_empty_or_malformed_resume_is_parsing_failure(engine_id, text):
 
 def test_sync_endpoint_maps_failure_to_422_with_kind():
     with pytest.raises(HTTPException) as exc:
-        run_engine_profile(engine_id="open_ats", resume_text=RESUME, jd_text="")
+        run_engine_profile(engine_id="open_ats", resume_text=RESUME, role="Pastry Chef")
     assert exc.value.status_code == 422
     assert exc.value.detail["failureKind"] == MISSING_INPUT
 
@@ -165,6 +194,42 @@ def test_open_ats_formula():
     # JD hard skills: python, fastapi, postgresql, docker, kubernetes, kafka → 5/6 matched
     assert math.isclose(b["keyword.hard"]["score"], 100 * 5 / 6, abs_tol=0.1)
     assert [m["canonical"] for m in r["missingSkills"]] == ["kafka"]
+
+
+def test_open_ats_resume_only_reweights_formatting_and_content():
+    r, _ = _run("open_ats", role="", jd_text="")
+    b = {row["key"]: row for row in r["breakdown"]}
+    assert set(b) == {"formatting", "content_quality"}
+    assert b["formatting"]["weight"] == b["content_quality"]["weight"] == 0.5
+    assert abs(round(0.5 * b["formatting"]["score"] + 0.5 * b["content_quality"]["score"]) - r["overallScore"]) <= 1
+
+
+def test_open_ats_role_match_uses_hard_and_action_only():
+    r, _ = _run("open_ats", jd_text="")
+    subs = {row["key"] for row in r["breakdown"] if row.get("parent") == "keyword"}
+    assert subs == {"keyword.hard", "keyword.action"}
+    w = {row["key"]: row["weight"] for row in r["breakdown"] if row.get("parent") == "keyword"}
+    assert math.isclose(w["keyword.hard"], 0.50 / 0.65, abs_tol=1e-3)
+
+
+def test_skills_extractor_role_mode_has_no_similarity():
+    r, _ = _run("resume_skills_extractor", jd_text="")
+    assert [row["key"] for row in r["breakdown"]] == ["keyword"]
+    assert not any(m["key"].startswith("tfidf") for m in r["metrics"])
+    assert r["overallScore"] == r["breakdown"][0]["score"]
+
+
+def test_hybrid_resume_only_is_rule_validation_score():
+    r, stages = _run("hybrid_resume_analyzer", role="", jd_text="")
+    assert r["overallScore"] == sum(row["points"] for row in r["breakdown"])
+    assert "matching_keywords" not in stages and "parsing_job_description" not in stages
+    assert any("not a quality or match score" in l for l in r["limitations"])
+
+
+def test_hybrid_role_mode_rubric_out_of_60():
+    r, _ = _run("hybrid_resume_analyzer", jd_text="")
+    assert "keyword" not in {row["key"] for row in r["breakdown"]}
+    assert any("max 60" in m["label"] for m in r["metrics"])
 
 
 def test_open_ats_present_is_not_a_date_inconsistency():
@@ -277,8 +342,8 @@ def test_stream_events_are_ordered_tagged_and_terminal_last():
 
 
 def test_stream_reports_failure_kind():
-    events = _stream({"engineId": "open_ats", "resumeId": "r1", "runId": "x", "resumeText": RESUME, "jdText": ""})
-    assert events[-1]["type"] == "failed" and events[-1]["failureKind"] == MISSING_INPUT
+    events = _stream({"engineId": "resume_skills_extractor", "resumeId": "r1", "runId": "x", "resumeText": RESUME, "jdText": ""})
+    assert events[-1]["type"] == "failed" and events[-1]["failureKind"] == UNSUPPORTED_MODE
 
 
 def test_stream_completed_with_warnings():

@@ -118,6 +118,11 @@ export async function runEngineProfile(input: {
   return runLocalFallback(input);
 }
 
+const SERVICE_UNAVAILABLE =
+  process.env.NODE_ENV === "development"
+    ? "Scoring service is not reachable. Start it with `pnpm dev:api` (FastAPI on :8000)."
+    : "Scoring service is unavailable for this engine. Try again shortly.";
+
 function runLocalFallback(input: {
   engineId: AtsEngineId;
   resumeId: string;
@@ -128,7 +133,7 @@ function runLocalFallback(input: {
 }): AtsAnalysis {
   if (getEngine(input.engineId)?.fallback !== "ts") {
     // No local implementation: fail explicitly rather than substitute another engine's score.
-    throw new Error("Scoring service is unavailable for this engine. Try again shortly.");
+    throw new Error(SERVICE_UNAVAILABLE);
   }
   if (input.engineId === "aavedak") {
     return analyzeResumeFallback({
@@ -175,7 +180,7 @@ export async function runEngineProfileStreamed(
     return {
       kind: "failed",
       failureKind: "service_unavailable",
-      message: "Scoring service is unavailable for this engine. Try again shortly.",
+      message: SERVICE_UNAVAILABLE,
     };
   }
   onStage({ stage: "calculating_score", message: "Local fallback", at: new Date().toISOString() });

@@ -1,15 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 
-import { CellStatusLabel, EngineBadge } from "@/components/ats-engine-badge";
-import {
-  AnalysisDetails,
-  modeHint,
-  points,
-  ScoringGuideContent,
-} from "@/components/ats-analysis-panel";
+import { CellStatusLabel, EngineLabel } from "@/components/ats-engine-badge";
+import { ScoreRing } from "@/components/ui/score-ring";
+import { AnalysisDetails, modeHint, ScoringGuideContent } from "@/components/ats-analysis-panel";
 import { ShellWidth } from "@/components/shell-width";
 import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import {
@@ -18,11 +13,17 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  FileUpload,
+  FileUploadDropzone,
+  FileUploadList,
+  type FileUploadFile,
+} from "@/components/ui/file-upload";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Modal } from "@/components/ui/modal";
 import {
   Select,
   SelectContent,
@@ -267,6 +268,9 @@ function engineNames(ids: AtsEngineId[]) {
 }
 
 export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: AtsHubProps) {
+  // Local copy so resumes uploaded here appear immediately without a full page reload.
+  const [resumes, setResumes] = useState<ResumeRow[]>(initialResumes);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedResumeIds, setSelectedResumeIds] = useState<Set<string>>(() => new Set());
   const [selectedEngineIds, setSelectedEngineIds] = useState<Set<AtsEngineId>>(
     () => new Set(["aavedak"]),
@@ -302,18 +306,18 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
   const { ref: jdTextareaRef, resize: resizeJdTextarea } = useAutosizeTextarea(jdText);
 
   const selectedResumes = useMemo(
-    () => initialResumes.filter((r) => selectedResumeIds.has(r.id)),
-    [initialResumes, selectedResumeIds],
+    () => resumes.filter((r) => selectedResumeIds.has(r.id)),
+    [resumes, selectedResumeIds],
   );
 
   const filteredResumes = useMemo(() => {
     const q = resumeQuery.trim().toLowerCase();
-    if (!q) return initialResumes;
-    return initialResumes.filter((r) => {
+    if (!q) return resumes;
+    return resumes.filter((r) => {
       const hay = `${r.displayName} ${r.originalFilename || ""} ${r.status}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [initialResumes, resumeQuery]);
+  }, [resumes, resumeQuery]);
 
   const engineRequests: EngineRunRequest[] = useMemo(
     () => [...selectedEngineIds].map((id) => ({ engineId: id })),
@@ -470,6 +474,12 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
   function clearResumes() {
     if (running) return;
     setSelectedResumeIds(new Set());
+  }
+
+  function handleUploaded(row: ResumeRow) {
+    setResumes((prev) => [row, ...prev.filter((r) => r.id !== row.id)]);
+    setSelectedResumeIds((prev) => new Set(prev).add(row.id));
+    setUploadOpen(false);
   }
 
   function toggleEngine(id: AtsEngineId) {
@@ -632,15 +642,14 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
         <button
           type="button"
           onClick={() => setDetailKey(active ? null : key)}
+          title={cell.scoreLabel || "View details"}
+          aria-label={`${cell.overallScore} — ${cell.scoreLabel || "view details"}`}
           className={cn(
-            "inline-flex min-w-[3rem] cursor-pointer flex-col items-center rounded-md px-2 py-1 tabular-nums",
-            active ? "bg-primary/15 text-primary" : "text-foreground hover:bg-muted/40",
+            "inline-flex cursor-pointer flex-col items-center gap-0.5 rounded-md p-1",
+            active ? "ring-primary/50 ring-2" : "hover:bg-muted/40",
           )}
         >
-          <span className="font-mono text-[13px] font-semibold">{points(cell.overallScore)}</span>
-          <span className="text-muted-foreground max-w-[6rem] truncate text-[9px]">
-            {cell.scoreLabel || "View"}
-          </span>
+          <ScoreRing value={cell.overallScore} size={44} />
           <CellStatusLabel cell={cell} />
         </button>
       );
@@ -665,10 +674,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
       <header className="space-y-1.5">
         <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">ATS score</h1>
         <p className="text-muted-foreground max-w-2xl text-pretty text-[13px] leading-relaxed">
-          Follow the steps below. Results fill one cell at a time — click a score for details.{" "}
-          <Link href="/documents" className="text-primary underline underline-offset-2">
-            Documents
-          </Link>
+          Follow the steps below. Results fill one cell at a time — click a score for details.
         </p>
       </header>
 
@@ -712,19 +718,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                         aria-label={`Select ${eng.name}`}
                       />
                       <span className="min-w-0 space-y-1">
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          <EngineBadge engineId={eng.id} className="text-[11px]" />
-                          <Badge
-                            variant={eng.kind === "native" ? "default" : "secondary"}
-                            className="h-4 px-1.5 text-[9px] font-medium uppercase tracking-wide"
-                          >
-                            {eng.kind === "native"
-                              ? "Native"
-                              : eng.kind === "open_source"
-                                ? "OSS"
-                                : "Ref"}
-                          </Badge>
-                        </span>
+                        <EngineLabel engineId={eng.id} />
                         <span className="text-muted-foreground block text-[10px] leading-snug">
                           {eng.shortDescription}
                         </span>
@@ -779,14 +773,18 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
               : `${selectedResumes.length} selected`
           }
         >
-          {initialResumes.length === 0 ? (
-            <p className="text-muted-foreground text-[12px]">
-              No resumes uploaded.{" "}
-              <Link href="/documents" className="text-primary underline underline-offset-2">
-                Upload on Documents
-              </Link>
-              .
-            </p>
+          {resumes.length === 0 ? (
+            <div className="flex flex-col items-start gap-2">
+              <p className="text-muted-foreground text-[12px]">No resumes yet.</p>
+              <Button
+                type="button"
+                size="sm"
+                disabled={running}
+                onClick={() => setUploadOpen(true)}
+              >
+                Upload resume
+              </Button>
+            </div>
           ) : (
             <div className="space-y-2">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -817,6 +815,14 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                     onClick={clearResumes}
                   >
                     Clear
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={running}
+                    onClick={() => setUploadOpen(true)}
+                  >
+                    Upload resume
                   </Button>
                 </div>
               </div>
@@ -1173,7 +1179,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                             key={eng.id}
                             className="text-muted-foreground min-w-[7.5rem] px-2 py-2.5 text-center font-medium"
                           >
-                            <EngineBadge engineId={eng.id} className="mx-auto" />
+                            <EngineLabel engineId={eng.id} stacked className="mx-auto" />
                             <span className="mt-0.5 block text-[9px] font-normal">
                               {sample?.scoreType
                                 ? scoreTypeLabel(sample.scoreType)
@@ -1191,7 +1197,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                           {resume.displayName}
                         </td>
                         {tableEngines.map((eng) => (
-                          <td key={eng.id} className="px-2 py-2.5 text-center align-middle">
+                          <td key={eng.id} className="h-14 px-2 py-2 text-center align-middle">
                             {renderCell(resume.id, eng.id)}
                           </td>
                         ))}
@@ -1211,9 +1217,9 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                       {tableEngines.map((eng) => (
                         <li
                           key={eng.id}
-                          className="flex items-center justify-between gap-2 text-[11px]"
+                          className="min-h-13 flex items-center justify-between gap-2 text-[11px]"
                         >
-                          <EngineBadge engineId={eng.id} className="min-w-0" />
+                          <EngineLabel engineId={eng.id} className="min-w-0" />
                           <span className="shrink-0">{renderCell(resume.id, eng.id)}</span>
                         </li>
                       ))}
@@ -1226,7 +1232,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 <div className="border-border/60 rounded-xl border p-3 md:p-4">
                   <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
                     <p className="text-foreground flex flex-wrap items-center gap-1.5 text-pretty text-[12px] font-semibold">
-                      <EngineBadge engineId={detailCell.engineId} />
+                      <EngineLabel engineId={detailCell.engineId} />
                       {selectedResumes.find((r) => r.id === detailCell.resumeId)?.displayName}
                     </p>
                     <p className="text-muted-foreground text-[10px]">
@@ -1239,7 +1245,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 </div>
               ) : detailCell?.status === "error" ? (
                 <div className="border-border/60 flex flex-wrap items-center gap-2 rounded-xl border p-3 text-[12px]">
-                  <EngineBadge engineId={detailCell.engineId} />
+                  <EngineLabel engineId={detailCell.engineId} />
                   <span className="text-destructive font-medium">
                     {detailCell.failureKind
                       ? FAILURE_LABELS[detailCell.failureKind]
@@ -1287,6 +1293,132 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
           </AccordionItem>
         </Accordion>
       </div>
+
+      <UploadResumeModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        existingNames={resumes.map((r) => r.displayName)}
+        onUploaded={handleUploaded}
+      />
     </ShellWidth>
+  );
+}
+
+function UploadResumeModal({
+  open,
+  onClose,
+  existingNames,
+  onUploaded,
+}: {
+  open: boolean;
+  onClose: () => void;
+  existingNames: string[];
+  onUploaded: (row: ResumeRow) => void;
+}) {
+  const [displayName, setDisplayName] = useState("");
+  const [files, setFiles] = useState<FileUploadFile[]>([]);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const selectedPdf = useMemo(() => files.find((f) => !f.error)?.file, [files]);
+
+  function reset() {
+    setDisplayName("");
+    setFiles([]);
+    setError(null);
+    setPending(false);
+  }
+
+  async function upload() {
+    setError(null);
+    if (!selectedPdf) {
+      setError("Choose a PDF resume to upload.");
+      return;
+    }
+    const name = displayName.trim() || selectedPdf.name.replace(/\.pdf$/i, "");
+    if (existingNames.some((n) => n.toLowerCase() === name.toLowerCase())) {
+      setError("A resume with this name already exists. Choose a different name.");
+      return;
+    }
+    setPending(true);
+    try {
+      const body = new FormData();
+      body.set("file", selectedPdf);
+      body.set("displayName", name);
+      body.set("makeActive", "true");
+      const res = await fetch("/api/resumes", { method: "POST", body });
+      const data = (await res.json()) as { resume?: ResumeRow; error?: string };
+      if (!res.ok || !data.resume) throw new Error(data.error || "Upload failed.");
+      onUploaded(data.resume);
+      reset();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={() => {
+        if (!pending) {
+          reset();
+          onClose();
+        }
+      }}
+      title="Upload resume"
+      description="Add a PDF resume to score. It is saved to your Documents."
+      footer={
+        <>
+          <Button type="button" variant="outline" size="sm" disabled={pending} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={pending || !selectedPdf}
+            onClick={() => void upload()}
+          >
+            {pending ? <Spinner className="size-3.5" /> : null}
+            {pending ? "Uploading…" : "Upload"}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <label className="block space-y-1 text-[12px]">
+          <span className="text-foreground font-medium">Name</span>
+          <input
+            type="text"
+            value={displayName}
+            disabled={pending}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder={
+              selectedPdf ? selectedPdf.name.replace(/\.pdf$/i, "") : "e.g. Primary Resume"
+            }
+            maxLength={120}
+            className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] disabled:opacity-60"
+          />
+          <span className="text-muted-foreground block text-[11px]">
+            Defaults to the file name. Must be unique.
+          </span>
+        </label>
+        <FileUpload
+          accept="application/pdf,.pdf"
+          multiple={false}
+          maxSize={10 * 1024 * 1024}
+          files={files}
+          onFilesChange={setFiles}
+          disabled={pending}
+        >
+          <FileUploadDropzone className="min-h-32 rounded-lg text-[13px]">
+            Drop a PDF resume here, or browse
+          </FileUploadDropzone>
+          <FileUploadList />
+        </FileUpload>
+        {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
+      </div>
+    </Modal>
   );
 }

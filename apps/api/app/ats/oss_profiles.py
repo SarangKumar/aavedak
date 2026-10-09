@@ -29,6 +29,7 @@ from app.ats.pipeline import (
     parse_jd_shared,
     parse_resume_shared,
     require_parsable,
+    role_expected_skills,
 )
 from app.ats.reference_signals import HARD_SKILL_ALIASES, count_phrase
 from app.ats.reference_weights import (
@@ -188,7 +189,7 @@ def _parse_inputs(inp: EngineInput, emit: Emit, *, needs_jd: bool) -> tuple[Pars
 
 # ═══ 1. Open ATS (jlynshue/open-ats, MIT) ═══════════════════════════════════
 
-OPEN_ATS_CONTRACT = EngineContract(modes=("job_match",), jd="required", title="unsupported")
+OPEN_ATS_CONTRACT = EngineContract(modes=("resume_only", "role_match", "job_match"), jd="optional", title="optional")
 
 # Adapted from open-ats src/open_ats/data/*.yaml (MIT).
 OPEN_ATS_ACTION_VERBS = frozenset(
@@ -251,29 +252,38 @@ def _subscore(matched: int, expected: int) -> float:
 
 
 def run_open_ats(inp: EngineInput, emit: Emit) -> dict[str, Any]:
-    resume, jd = _parse_inputs(inp, emit, needs_jd=True)
-
-    emit(EXTRACTING_SKILLS, "Classifying JD keywords into hard, soft and industry terms")
-    hard_exp = list(jd.hard_skills)
-    soft_exp = list(jd.soft_skills)
-    ind_exp = [
-        t for t, syn in OPEN_ATS_INDUSTRY_TERMS.items() if any(count_phrase(jd.lower, p) for p in (t, *syn))
-    ]
-
-    emit(MATCHING_KEYWORDS, None)
+    use_jd = inp.mode == "job_match"
+    resume, jd = _parse_inputs(inp, emit, needs_jd=use_jd)
     rhard = set(resume.hard_skills)
-    hard_m = [c for c in hard_exp if c in rhard]
-    soft_m = [t for t in soft_exp if t in resume.soft_skills]
-    ind_m = [t for t in ind_exp if any(count_phrase(resume.lower, p) for p in (t, *OPEN_ATS_INDUSTRY_TERMS[t]))]
     verbs_used = sorted({w for b in resume.bullets if (w := _first_word(b)) in OPEN_ATS_ACTION_VERBS})
     kw = OPEN_ATS_KEYWORD_WEIGHTS
-    sub = {
-        "hard": _subscore(len(hard_m), len(hard_exp)),
-        "soft": _subscore(len(soft_m), len(soft_exp)),
-        "action": min(100.0, 100.0 * len(verbs_used) / 10),
-        "industry": _subscore(len(ind_m), len(ind_exp)),
-    }
-    keyword = sum(kw[k] * sub[k] for k in kw)
+    hard_exp: list[str] = []
+    hard_m: list[str] = []
+    sub: dict[str, float] = {}
+    keyword: float | None = None
+
+    if inp.mode != "resume_only":
+        emit(EXTRACTING_SKILLS, "Classifying JD keywords into hard, soft and industry terms" if use_jd else "Loading the title's skill profile")
+        if use_jd:
+            hard_exp = list(jd.hard_skills)
+            soft_exp = list(jd.soft_skills)
+            ind_exp = [t for t, syn in OPEN_ATS_INDUSTRY_TERMS.items() if any(count_phrase(jd.lower, p) for p in (t, *syn))]
+        else:
+            hard_exp = list(role_expected_skills(inp.role, engine_name="Open ATS"))
+        emit(MATCHING_KEYWORDS, None)
+        hard_m = [c for c in hard_exp if c in rhard]
+        sub["hard"] = _subscore(len(hard_m), len(hard_exp))
+        if use_jd:
+            soft_m = [t for t in soft_exp if t in resume.soft_skills]
+            ind_m = [t for t in ind_exp if any(count_phrase(resume.lower, p) for p in (t, *OPEN_ATS_INDUSTRY_TERMS[t]))]
+            sub["soft"] = _subscore(len(soft_m), len(soft_exp))
+            sub["industry"] = _subscore(len(ind_m), len(ind_exp))
+        sub["action"] = min(100.0, 100.0 * len(verbs_used) / 10)
+    # Title-only has no source for soft/industry terms: weight hard + action only instead of
+    # crediting unknown categories with Open ATS's "empty JD category = 100" rule.
+    kw_w = {k: kw[k] / sum(kw[j] for j in sub) for k in sub}
+    if sub:
+        keyword = sum(kw_w[k] * sub[k] for k in sub)
 
     emit(ANALYZING_CONTENT, "Formatting penalties and content-quality checks")
     p = OPEN_ATS_FORMAT_PENALTIES
@@ -345,26 +355,30 @@ def run_open_ats(inp: EngineInput, emit: Emit) -> dict[str, Any]:
         findings.append(_finding("content_quality.too_long", "low", "content", "Resume is long",
                                  f"{wc} words; Open ATS targets ≤ 800.", "Trim older or less relevant content."))
     missing_hard = [c for c in hard_exp if c not in rhard]
+    source = "job description" if use_jd else f"{inp.role.strip()} skill profile"
     for c in missing_hard[:6]:
-        findings.append(_finding(f"keyword.missing.{c}", "high", "keyword", f"JD hard skill not found: {display_name(c)}",
-                                 "Listed in the job description but not found on the resume.",
+        findings.append(_finding(f"keyword.missing.{c}", "high", "keyword", f"Hard skill not found: {display_name(c)}",
+                                 f"Expected by the {source} but not found on the resume.",
                                  f"If you have genuine {display_name(c)} experience, show it in a bullet."))
 
     emit(CALCULATING_SCORE, None)
-    cat = OPEN_ATS_CATEGORY_WEIGHTS
-    parts = {"keyword": keyword, "formatting": formatting, "content_quality": content}
-    overall = sum(cat[k] * parts[k] for k in cat)
+    parts: dict[str, float] = {"formatting": formatting, "content_quality": content}
+    if keyword is not None:
+        parts = {"keyword": keyword, **parts}
+    cat_total = sum(OPEN_ATS_CATEGORY_WEIGHTS[k] for k in parts)
+    cat = {k: OPEN_ATS_CATEGORY_WEIGHTS[k] / cat_total for k in parts}
+    overall = sum(cat[k] * parts[k] for k in parts)
 
     emit(GENERATING_REPORT, None)
     rating = "Excellent" if overall >= 80 else "Good" if overall >= 70 else "Fair" if overall >= 60 else "Poor"
     labels = {"keyword": "Keyword", "formatting": "Formatting", "content_quality": "Content quality"}
     breakdown = [
-        {"key": k, "label": labels[k], "score": round(parts[k], 1), "weight": cat[k], "contribution": round(cat[k] * parts[k], 1)}
-        for k in cat
+        {"key": k, "label": labels[k], "score": round(parts[k], 1), "weight": round(cat[k], 4), "contribution": round(cat[k] * parts[k], 1)}
+        for k in parts
     ]
     breakdown += [
-        {"key": f"keyword.{k}", "label": f"Keyword · {k}", "score": round(sub[k], 1), "weight": kw[k], "parent": "keyword"}
-        for k in kw
+        {"key": f"keyword.{k}", "label": f"Keyword · {k}", "score": round(sub[k], 1), "weight": round(kw_w[k], 4), "parent": "keyword"}
+        for k in sub
     ]
     improvements = [
         {"priority": "high" if f["severity"] in ("critical", "high") else "medium" if f["severity"] == "medium" else "low",
@@ -372,35 +386,47 @@ def run_open_ats(inp: EngineInput, emit: Emit) -> dict[str, Any]:
         for f in sorted(findings, key=lambda f: {"critical": 0, "high": 1, "medium": 2, "low": 3}[f["severity"]])
         if f.get("recommendation")
     ]
+    formula = " + ".join(f"{labels[k].lower()}×{cat[k]:.2f}" for k in parts)
+    if sub:
+        formula += "; keyword = " + " + ".join(f"{k}×{kw_w[k]:.2f}" for k in sub)
+    mode_limits = {
+        "job_match": "A JD category with no terms scores 100, as in Open ATS.",
+        "role_match": "Title-only: hard skills come from Aavedak's role profile (core + common); soft/industry terms are skipped and keyword weights renormalized.",
+        "resume_only": "Resume-only: Open ATS's CLI always needs a JD; here keyword is skipped and formatting + content are reweighted 50/50 (both analyzers ignore the JD upstream).",
+    }
     return _result(
         inp=inp, resume=resume, engine_id="open_ats", engine_name="Open ATS", profile_id="open-ats-adapted",
-        score_type="ats_scan", score_name="Open ATS Score", overall=overall, score_label=f"{rating} (Open ATS)",
-        formula=(f"overall = keyword×{cat['keyword']} + formatting×{cat['formatting']} + content×{cat['content_quality']}; "
-                 f"keyword = hard×{kw['hard']} + soft×{kw['soft']} + action×{kw['action']} + industry×{kw['industry']}"),
+        score_type="ats_scan" if keyword is not None else "resume_quality",
+        score_name="Open ATS Score" if keyword is not None else "Open ATS Resume Score",
+        overall=overall, score_label=f"{rating} (Open ATS)",
+        formula=f"overall = {formula}",
         reference="github.com/jlynshue/open-ats (MIT)",
         breakdown=breakdown, findings=findings, improvements=improvements,
-        scores={"keywordCoverage": _r(keyword), "requiredSkills": _r(sub["hard"]), "preferredSkills": _r(sub["soft"]),
+        scores={"keywordCoverage": _r(keyword) if keyword is not None else None,
+                "requiredSkills": _r(sub["hard"]) if "hard" in sub else None,
+                "preferredSkills": _r(sub["soft"]) if "soft" in sub else None,
                 "structureFormatting": _r(formatting), "resumeQuality": _r(content)},
         strengths=[s for s in (
             f"{len(verbs_used)} distinct strong action verbs" if len(verbs_used) >= 5 else "",
             "No formatting penalties" if penalties == 0 else "",
-            f"Hard-skill coverage {int(sub['hard'])}%" if hard_exp and sub["hard"] >= 60 else "",
+            f"Hard-skill coverage {int(sub['hard'])}%" if hard_exp and sub.get("hard", 0) >= 60 else "",
         ) if s],
         matched=_skill_rows(hard_m, "matched", "Found on resume"), missing=_skill_rows(missing_hard, "missing"),
         metrics=[
             {"key": "word_count", "label": "Word count", "value": wc},
             {"key": "bullets", "label": "Bullets analyzed", "value": len(bullets)},
+            {"key": "action_verbs", "label": "Distinct strong action verbs", "value": len(verbs_used)},
             {"key": "passive", "label": "Passive sentences", "value": passive_n},
             {"key": "hedging", "label": "Hedging bullets", "value": hedging_n},
             {"key": "penalty", "label": "Formatting penalty", "value": penalties},
         ],
         limitations=[
+            mode_limits[inp.mode],
             "Runs on extracted text only: table detection is a text heuristic, not Open ATS's DOCX/PDF parser warnings.",
             "Hard/soft skills use Aavedak's taxonomy instead of Open ATS's YAML keyword database.",
             "“Present/Current” is not counted as a date format (Open ATS counts it, which flags almost every resume).",
-            "A JD category with no terms scores 100, as in Open ATS.",
         ],
-        blurb="Open ATS adaptation: transparent keyword + formatting + content-quality scan against one JD.",
+        blurb="Open ATS adaptation: transparent keyword + formatting + content-quality scan.",
     )
 
 
@@ -778,7 +804,8 @@ def run_ats_resume_checker(inp: EngineInput, emit: Emit) -> dict[str, Any]:
 
 # ═══ 3. Resume Skills Extractor (blueabstract/resume-skills-extractor) ══════
 
-SKILLS_EXTRACTOR_CONTRACT = EngineContract(modes=("job_match",), jd="required", title="unsupported")
+# No resume-only mode: the source only scores against a comparison target.
+SKILLS_EXTRACTOR_CONTRACT = EngineContract(modes=("role_match", "job_match"), jd="optional", title="optional")
 
 # Aavedak grouping of its own taxonomy, following the reference's category idea.
 SKILL_CATEGORIES: dict[str, tuple[str, ...]] = {
@@ -798,10 +825,13 @@ def _clean_for_tfidf(text: str) -> str:
 
 
 def run_resume_skills_extractor(inp: EngineInput, emit: Emit) -> dict[str, Any]:
-    resume, jd = _parse_inputs(inp, emit, needs_jd=True)
-    emit(EXTRACTING_SKILLS, None)
-    rset, jset = set(resume.hard_skills), set(jd.hard_skills)
+    use_jd = inp.mode == "job_match"
+    resume, jd = _parse_inputs(inp, emit, needs_jd=use_jd)
+    emit(EXTRACTING_SKILLS, None if use_jd else "Loading the title's skill profile")
+    rset = set(resume.hard_skills)
+    jset = set(jd.hard_skills) if use_jd else set(role_expected_skills(inp.role, engine_name="Resume Skills Extractor"))
     in_section = set(resume.skills_section_skills)
+    source = "JD" if use_jd else "role"
 
     emit(MATCHING_KEYWORDS, None)
     matched = sorted(rset & jset)
@@ -809,12 +839,31 @@ def run_resume_skills_extractor(inp: EngineInput, emit: Emit) -> dict[str, Any]:
     bonus = sorted(rset - jset)
     keyword_ratio = len(matched) / len(jset) if jset else 0.0
 
-    emit(CALCULATING_SCORE, "TF-IDF (1–3 grams) cosine similarity")
-    cosine = tfidf_cosine(_clean_for_tfidf(resume.raw), _clean_for_tfidf(jd.raw), ngram_range=(1, 3),
-                          stop_words=True, sublinear_tf=True, max_features=10000)
-    calibrated = min(100, round(cosine * SKILLS_EXTRACTOR_TFIDF_CALIBRATION))
     w = SKILLS_EXTRACTOR_WEIGHTS
-    overall = _clamp(round(calibrated * w["tfidf"] + keyword_ratio * 100 * w["keyword"]))
+    cosine: float | None = None
+    calibrated: int | None = None
+    if use_jd:
+        emit(CALCULATING_SCORE, "TF-IDF (1–3 grams) cosine similarity")
+        cosine = tfidf_cosine(_clean_for_tfidf(resume.raw), _clean_for_tfidf(jd.raw), ngram_range=(1, 3),
+                              stop_words=True, sublinear_tf=True, max_features=10000)
+        calibrated = min(100, round(cosine * SKILLS_EXTRACTOR_TFIDF_CALIBRATION))
+        overall = _clamp(round(calibrated * w["tfidf"] + keyword_ratio * 100 * w["keyword"]))
+        breakdown = [
+            {"key": "tfidf", "label": "TF-IDF similarity (calibrated)", "score": calibrated, "weight": w["tfidf"],
+             "contribution": round(calibrated * w["tfidf"], 1)},
+            {"key": "keyword", "label": "Skill keyword ratio", "score": round(keyword_ratio * 100), "weight": w["keyword"],
+             "contribution": round(keyword_ratio * 100 * w["keyword"], 1)},
+        ]
+        formula = f"overall = min(100, cosine×{SKILLS_EXTRACTOR_TFIDF_CALIBRATION})×{w['tfidf']} + keyword_ratio×100×{w['keyword']}"
+    else:
+        # A title is not a document, so TF-IDF has nothing to compare: score skill coverage alone.
+        emit(CALCULATING_SCORE, "Skill coverage against the role profile")
+        overall = _clamp(round(keyword_ratio * 100))
+        breakdown = [
+            {"key": "keyword", "label": "Role skill coverage", "score": round(keyword_ratio * 100), "weight": 1.0,
+             "contribution": round(keyword_ratio * 100, 1)},
+        ]
+        formula = "overall = role skills found / role skills × 100 (TF-IDF needs a JD)"
 
     emit(GENERATING_REPORT, None)
     categories = []
@@ -827,8 +876,8 @@ def run_resume_skills_extractor(inp: EngineInput, emit: Emit) -> dict[str, Any]:
                                "missing": [display_name(s) for s in jd_cat if s not in rset]})
     verdict = "Excellent match" if overall >= 80 else "Good match" if overall >= 60 else "Partial match" if overall >= 40 else "Low match"
     findings = [
-        _finding(f"skill.missing.{c}", "high", "skills", f"Missing JD skill: {display_name(c)}",
-                 "Detected in the job description, not on the resume.",
+        _finding(f"skill.missing.{c}", "high", "skills", f"Missing {source} skill: {display_name(c)}",
+                 "Expected by the " + ("job description" if use_jd else f"{inp.role.strip()} skill profile") + ", not on the resume.",
                  f"Add {display_name(c)} only if you have real experience with it.")
         for c in missing
     ]
@@ -836,34 +885,33 @@ def run_resume_skills_extractor(inp: EngineInput, emit: Emit) -> dict[str, Any]:
         findings.append(_finding("skill.none_in_jd", "medium", "skills", "No recognizable skills in the JD",
                                  "Keyword ratio is 0 because no taxonomy skills were found in the JD; the score is similarity only.",
                                  "Paste the full JD including its requirements section."))
+    metrics = [
+        *([{"key": "tfidf_raw", "label": "Raw TF-IDF cosine similarity", "value": round(cosine * 100, 1), "unit": "%"},
+           {"key": "tfidf_calibrated", "label": f"Calibrated similarity (×{SKILLS_EXTRACTOR_TFIDF_CALIBRATION}, capped)", "value": calibrated}]
+          if cosine is not None else []),
+        {"key": "keyword_ratio", "label": "Skill keyword ratio", "value": round(keyword_ratio * 100), "unit": "%"},
+        {"key": "bonus", "label": f"Bonus skills (not in {source})", "value": ", ".join(display_name(s) for s in bonus[:10]) or "—"},
+    ]
     return _result(
         inp=inp, resume=resume, engine_id="resume_skills_extractor", engine_name="Resume Skills Extractor",
-        profile_id="resume-skills-extractor-adapted", score_type="skill_similarity_match",
-        score_name="Skill + Similarity Match", overall=overall, score_label=verdict,
-        formula=f"overall = min(100, cosine×{SKILLS_EXTRACTOR_TFIDF_CALIBRATION})×{w['tfidf']} + keyword_ratio×100×{w['keyword']}",
+        profile_id="resume-skills-extractor-adapted",
+        score_type="skill_similarity_match" if use_jd else "role_match",
+        score_name="Skill + Similarity Match" if use_jd else "Role Skill Coverage",
+        overall=overall, score_label=verdict, formula=formula,
         reference="github.com/blueabstract/resume-skills-extractor (README states MIT; no LICENSE file — formula adapted, no code copied)",
-        breakdown=[
-            {"key": "tfidf", "label": "TF-IDF similarity (calibrated)", "score": calibrated, "weight": w["tfidf"],
-             "contribution": round(calibrated * w["tfidf"], 1)},
-            {"key": "keyword", "label": "Skill keyword ratio", "score": round(keyword_ratio * 100), "weight": w["keyword"],
-             "contribution": round(keyword_ratio * 100 * w["keyword"], 1)},
-        ],
+        breakdown=breakdown,
         findings=findings,
         improvements=[{"priority": "high", "text": f["recommendation"], "reason": f["title"], "findingId": f["id"]}
                       for f in findings if f.get("recommendation")],
-        scores={"requiredSkills": _r(keyword_ratio * 100), "keywordCoverage": _r(calibrated)},
-        strengths=[f"{len(matched)}/{len(jset)} JD skills matched"] if jset and matched else [],
+        scores={"requiredSkills": _r(keyword_ratio * 100), "keywordCoverage": _r(calibrated) if calibrated is not None else None},
+        strengths=[f"{len(matched)}/{len(jset)} {source} skills matched"] if jset and matched else [],
         matched=[{**row, "confidence": 1.0 if row["canonical"] in in_section else 0.5}
                  for row in _skill_rows(matched, "matched", "Found on resume")],
         missing=_skill_rows(missing, "missing"),
-        metrics=[
-            {"key": "tfidf_raw", "label": "Raw TF-IDF cosine similarity", "value": round(cosine * 100, 1), "unit": "%"},
-            {"key": "tfidf_calibrated", "label": f"Calibrated similarity (×{SKILLS_EXTRACTOR_TFIDF_CALIBRATION}, capped)", "value": calibrated},
-            {"key": "keyword_ratio", "label": "Skill keyword ratio", "value": round(keyword_ratio * 100), "unit": "%"},
-            {"key": "bonus", "label": "Bonus skills (not in JD)", "value": ", ".join(display_name(s) for s in bonus[:10]) or "—"},
-        ],
+        metrics=metrics,
         skill_categories=categories,
         limitations=[
+            *([] if use_jd else ["Title-only: compares against Aavedak's role profile (core + common skills); no similarity part — the source requires a JD for its score."]),
             "Text similarity is lexical TF-IDF overlap, not semantic understanding, and is not an ATS score by itself.",
             "The ×180 calibration is the reference's heuristic so typical resume/JD cosines (0.1–0.4) spread over 0–100.",
             "Skills come from Aavedak's taxonomy and category grouping, not the reference's skill list.",
@@ -875,15 +923,22 @@ def run_resume_skills_extractor(inp: EngineInput, emit: Emit) -> dict[str, Any]:
 
 # ═══ 4. Hybrid Resume Analyzer (Anirodh-Padhy/resume-analyzer, MIT) ════════
 
-HYBRID_CONTRACT = EngineContract(modes=("job_match",), jd="required", title="unsupported", min_jd_chars=21)
+HYBRID_CONTRACT = EngineContract(
+    modes=("resume_only", "role_match", "job_match"), jd="optional", title="optional", min_jd_chars=21
+)
 _HY_SECTIONS = ("education", "experience", "skills", "projects", "work experience", "internship",
                 "certifications", "achievements", "summary", "objective")
 
 
 def run_hybrid_resume_analyzer(inp: EngineInput, emit: Emit) -> dict[str, Any]:
-    resume, jd = _parse_inputs(inp, emit, needs_jd=True)
+    use_jd = inp.mode == "job_match"
+    resume, jd = _parse_inputs(inp, emit, needs_jd=use_jd)
     warnings: list[str] = []
     findings: list[dict] = []
+    common_limits = [
+        "No machine-learning model is used: the reference's pickled classifier only gates resume validity and is not loaded.",
+        "Skills use Aavedak's word-boundary taxonomy matching (the reference's substring check matches “r” or “ai” inside words).",
+    ]
 
     emit(ANALYZING_CONTENT, "Rule-based resume validation")
     rule = (min(sum(1 for s in _HY_SECTIONS if s in resume.lower) * 15, 45) + (20 if "@" in resume.raw else 0)
@@ -893,33 +948,80 @@ def run_hybrid_resume_analyzer(inp: EngineInput, emit: Emit) -> dict[str, Any]:
         findings.append(_finding("validation.low_rule_score", "medium", "validation", "Document may not be a resume",
                                  f"Rule-based validation scored {rule}/100 (sections, email, digits, length).",
                                  "Check that the uploaded file is your resume with standard sections."))
+    rule_metric = {"key": "rule_validation", "label": "Rule-based resume validation", "value": rule, "unit": "/100"}
 
-    emit(EXTRACTING_SKILLS, None)
-    required = list(jd.hard_skills)
+    if inp.mode == "resume_only":
+        # The reference's only JD-free signal is its rule validation — report exactly that, labelled as such.
+        emit(CALCULATING_SCORE, None)
+        emit(GENERATING_REPORT, None)
+        hits = [s for s in _HY_SECTIONS if s in resume.lower]
+        return _result(
+            inp=inp, resume=resume, engine_id="hybrid_resume_analyzer", engine_name="Hybrid Resume Analyzer",
+            profile_id="hybrid-resume-analyzer-adapted", score_type="resume_validation",
+            score_name="Resume Validation Score", overall=rule,
+            score_label="Recognized as a resume" if rule >= 70 else "Weak resume signals",
+            formula="overall = min(15×section keywords, 45) + 20 email + 10 digits + 25 if > 150 words",
+            reference="github.com/Anirodh-Padhy/resume-analyzer (MIT)",
+            breakdown=[
+                {"key": "sections", "label": "Section keywords", "points": min(len(hits) * 15, 45), "maxPoints": 45},
+                {"key": "email", "label": "Email (@)", "points": 20 if "@" in resume.raw else 0, "maxPoints": 20},
+                {"key": "digits", "label": "Digits (phone/dates)", "points": 10 if any(ch.isdigit() for ch in resume.raw) else 0, "maxPoints": 10},
+                {"key": "length", "label": "More than 150 words", "points": 25 if resume.word_count > 150 else 0, "maxPoints": 25},
+            ],
+            findings=findings,
+            improvements=[{"priority": "medium", "text": f["recommendation"], "reason": f["title"], "findingId": f["id"]}
+                          for f in findings if f.get("recommendation")],
+            scores={},
+            strengths=[f"Sections found: {', '.join(hits)}"] if hits else [],
+            metrics=[rule_metric, {"key": "words", "label": "Word count", "value": resume.word_count}],
+            warnings=warnings,
+            limitations=[
+                "Resume-only: this is the reference's document-validation rule score (is this a resume?), not a quality or match score.",
+                *common_limits,
+            ],
+            blurb="Hybrid Resume Analyzer, resume-only: the reference's rule-based resume validation.",
+        )
+
+    emit(EXTRACTING_SKILLS, None if use_jd else "Loading the title's skill profile")
+    required = list(jd.hard_skills) if use_jd else list(role_expected_skills(inp.role, engine_name="Hybrid Resume Analyzer"))
     rset = set(resume.hard_skills)
     matched = [c for c in required if c in rset]
     missing = [c for c in required if c not in rset]
+    source = "JD" if use_jd else "role"
 
     emit(MATCHING_KEYWORDS, None)
     P = HYBRID_RUBRIC_POINTS
     skill_pts = len(matched) / len(required) * P["skill"] if required else 0.0
-    jd_words, res_words = set(jd.lower.split()), set(resume.lower.split())
-    keyword_pts = len(jd_words & res_words) / len(jd_words) * P["keyword"] if jd_words else 0.0
+    res_words = set(resume.lower.split())
+    keyword_pts: float | None = None
+    if use_jd:
+        jd_words = set(jd.lower.split())
+        keyword_pts = len(jd_words & res_words) / len(jd_words) * P["keyword"] if jd_words else 0.0
     unique_words = len(res_words)
     length_pts = float(P["length"]) if 300 <= unique_words <= 800 else max(0.0, min(float(P["length"]), unique_words / 300 * P["length"]))
     penalty = len(missing) * P["missing_penalty_each"]
-    rubric = _clamp(skill_pts + keyword_pts + length_pts - penalty)
-    rubric_max = P["skill"] + P["keyword"] + P["length"]
-
-    emit(CALCULATING_SCORE, "TF-IDF similarity and weighted combination")
-    similarity = tfidf_cosine(resume.lower, jd.lower) * 100
-    cw = HYBRID_COMBINE_WEIGHTS
+    # Title-only: no JD words to overlap, so the rubric is out of skill + length points.
+    rubric_max = P["skill"] + P["length"] + (P["keyword"] if use_jd else 0)
+    rubric = _clamp(skill_pts + (keyword_pts or 0.0) + length_pts - penalty, 0, rubric_max)
     rubric_norm = rubric / rubric_max * 100
-    overall = _clamp(cw["rubric"] * rubric_norm + cw["similarity"] * similarity)
+
+    cw = HYBRID_COMBINE_WEIGHTS
+    similarity: float | None = None
+    if use_jd:
+        emit(CALCULATING_SCORE, "TF-IDF similarity and weighted combination")
+        similarity = tfidf_cosine(resume.lower, jd.lower) * 100
+        overall = _clamp(cw["rubric"] * rubric_norm + cw["similarity"] * similarity)
+        formula = (f"overall = {cw['rubric']}×(rubric/{rubric_max}×100) + {cw['similarity']}×tfidf%; "
+                   f"rubric = skill {P['skill']} + keyword {P['keyword']} + length {P['length']} − {P['missing_penalty_each']}×missing")
+    else:
+        emit(CALCULATING_SCORE, "Rubric against the role profile")
+        overall = rubric_norm
+        formula = (f"overall = rubric/{rubric_max}×100; rubric = skill {P['skill']} + length {P['length']} "
+                   f"− {P['missing_penalty_each']}×missing (keyword overlap and TF-IDF need a JD)")
 
     emit(GENERATING_REPORT, None)
     for c in missing:
-        findings.append(_finding(f"skill.missing.{c}", "high", "skills", f"Missing JD skill: {display_name(c)}",
+        findings.append(_finding(f"skill.missing.{c}", "high", "skills", f"Missing {source} skill: {display_name(c)}",
                                  f"Costs {P['missing_penalty_each']} rubric points.",
                                  f"If you have {display_name(c)} experience, evidence it in a bullet."))
     if unique_words < 300:
@@ -930,39 +1032,45 @@ def run_hybrid_resume_analyzer(inp: EngineInput, emit: Emit) -> dict[str, Any]:
         findings.append(_finding("skill.none_in_jd", "medium", "skills", "No recognizable skills in the JD",
                                  "The skill category scores 0 when the JD lists no taxonomy skills (as in the reference).",
                                  "Paste the full JD including its requirements section."))
+    breakdown = [
+        {"key": "skill", "label": "Skill match", "score": round(skill_pts / P["skill"] * 100), "points": round(skill_pts, 1), "maxPoints": P["skill"], "parent": "rubric"},
+        *([{"key": "keyword", "label": "Keyword overlap", "score": round(keyword_pts / P["keyword"] * 100), "points": round(keyword_pts, 1), "maxPoints": P["keyword"], "parent": "rubric"}]
+          if keyword_pts is not None else []),
+        {"key": "length", "label": "Length", "score": round(length_pts / P["length"] * 100), "points": round(length_pts, 1), "maxPoints": P["length"], "parent": "rubric"},
+        {"key": "penalty", "label": "Missing-skill penalty", "points": -penalty, "parent": "rubric"},
+        {"key": "rubric", "label": f"Rubric (normalized from /{rubric_max})", "score": round(rubric_norm, 1),
+         "weight": cw["rubric"] if use_jd else 1.0, "contribution": round((cw["rubric"] if use_jd else 1.0) * rubric_norm, 1)},
+        *([{"key": "similarity", "label": "TF-IDF similarity", "score": round(similarity, 1), "weight": cw["similarity"], "contribution": round(cw["similarity"] * similarity, 1)}]
+          if similarity is not None else []),
+    ]
     band = "Strong" if overall >= 75 else "Moderate" if overall >= 55 else "Weak"
     return _result(
         inp=inp, resume=resume, engine_id="hybrid_resume_analyzer", engine_name="Hybrid Resume Analyzer",
-        profile_id="hybrid-resume-analyzer-adapted", score_type="hybrid_match", score_name="Hybrid Match Score",
-        overall=overall, score_label=f"{band} hybrid match",
-        formula=(f"overall = {cw['rubric']}×(rubric/{rubric_max}×100) + {cw['similarity']}×tfidf%; "
-                 f"rubric = skill {P['skill']} + keyword {P['keyword']} + length {P['length']} − {P['missing_penalty_each']}×missing"),
+        profile_id="hybrid-resume-analyzer-adapted",
+        score_type="hybrid_match" if use_jd else "role_match",
+        score_name="Hybrid Match Score" if use_jd else "Hybrid Role Match",
+        overall=overall, score_label=f"{band} {'hybrid' if use_jd else 'role'} match",
+        formula=formula,
         reference="github.com/Anirodh-Padhy/resume-analyzer (MIT)",
-        breakdown=[
-            {"key": "skill", "label": "Skill match", "score": round(skill_pts / P["skill"] * 100), "points": round(skill_pts, 1), "maxPoints": P["skill"], "parent": "rubric"},
-            {"key": "keyword", "label": "Keyword overlap", "score": round(keyword_pts / P["keyword"] * 100), "points": round(keyword_pts, 1), "maxPoints": P["keyword"], "parent": "rubric"},
-            {"key": "length", "label": "Length", "score": round(length_pts / P["length"] * 100), "points": round(length_pts, 1), "maxPoints": P["length"], "parent": "rubric"},
-            {"key": "penalty", "label": "Missing-skill penalty", "points": -penalty, "parent": "rubric"},
-            {"key": "rubric", "label": f"Rubric (normalized from /{rubric_max})", "score": round(rubric_norm, 1), "weight": cw["rubric"], "contribution": round(cw["rubric"] * rubric_norm, 1)},
-            {"key": "similarity", "label": "TF-IDF similarity", "score": round(similarity, 1), "weight": cw["similarity"], "contribution": round(cw["similarity"] * similarity, 1)},
-        ],
+        breakdown=breakdown,
         findings=findings,
         improvements=[{"priority": "high" if f["severity"] == "high" else "medium", "text": f["recommendation"], "reason": f["title"], "findingId": f["id"]}
                       for f in findings if f.get("recommendation")],
-        scores={"requiredSkills": _r(skill_pts / P["skill"] * 100), "keywordCoverage": _r(keyword_pts / P["keyword"] * 100)},
-        strengths=[f"{len(matched)}/{len(required)} JD skills matched"] if matched else [],
+        scores={"requiredSkills": _r(skill_pts / P["skill"] * 100),
+                "keywordCoverage": _r(keyword_pts / P["keyword"] * 100) if keyword_pts is not None else None},
+        strengths=[f"{len(matched)}/{len(required)} {source} skills matched"] if matched else [],
         matched=_skill_rows(matched, "matched", "Found on resume"), missing=_skill_rows(missing, "missing"),
         metrics=[
-            {"key": "rubric_total", "label": f"Reference rubric total (max {rubric_max})", "value": round(rubric, 1)},
-            {"key": "tfidf", "label": "TF-IDF cosine similarity", "value": round(similarity, 1), "unit": "%"},
-            {"key": "rule_validation", "label": "Rule-based resume validation", "value": rule, "unit": "/100"},
+            {"key": "rubric_total", "label": f"Rubric total (max {rubric_max})", "value": round(rubric, 1)},
+            *([{"key": "tfidf", "label": "TF-IDF cosine similarity", "value": round(similarity, 1), "unit": "%"}] if similarity is not None else []),
+            rule_metric,
         ],
         warnings=warnings,
         limitations=[
-            "No machine-learning model is used: the reference's pickled classifier only gates resume validity and is not loaded.",
-            "TF-IDF similarity is lexical, not semantic.",
-            "Combining rubric and similarity (70/30) is an Aavedak choice; the reference reports them separately.",
-            "Skills use Aavedak's word-boundary taxonomy matching (the reference's substring check matches “r” or “ai” inside words).",
+            *(["Combining rubric and similarity (70/30) is an Aavedak choice; the reference reports them separately.",
+               "TF-IDF similarity is lexical, not semantic."] if use_jd else
+              ["Title-only: required skills come from Aavedak's role profile (core + common); keyword overlap and TF-IDF are skipped and the rubric is out of 60."]),
+            *common_limits,
             "As in the reference, resumes over 800 unique words still receive full length points.",
         ],
         blurb="Hybrid Resume Analyzer adaptation: rubric (skills, keywords, length, penalty) combined with TF-IDF similarity.",

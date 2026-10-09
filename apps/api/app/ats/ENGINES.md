@@ -2,14 +2,16 @@
 
 Single reference for all ten engines. Web registry: `apps/web/lib/ats-engines/registry.ts`. Python dispatch: `engine_runner.py`. Keep both sides consistent.
 
-| Engine id                                                                               | Kind        | Modes                              | Title        | JD           | Score type(s)                                   | Fallback when FastAPI down   |
-| --------------------------------------------------------------------------------------- | ----------- | ---------------------------------- | ------------ | ------------ | ----------------------------------------------- | ---------------------------- |
-| `aavedak`                                                                               | native      | resume_only, role_match, job_match | optional     | optional     | resume_quality / role / job_match               | TS (`ats-analyze-fallback`)  |
-| `jobscan_style`, `resume_worded_style`, `teal_style`, `rezi_style`, `skillsyncer_style` | reference   | per `registry.ts`                  | per registry | per registry | see `apps/web/lib/ats-engines/PROFILE_NOTES.md` | TS (`reference-profiles.ts`) |
-| `open_ats`                                                                              | open_source | job_match                          | unsupported  | required     | `ats_scan`                                      | none — fails explicitly      |
-| `ats_resume_checker`                                                                    | open_source | resume_only, role_match, job_match | optional     | optional     | `resume_quality` / `ats_readiness`              | none                         |
-| `resume_skills_extractor`                                                               | open_source | job_match                          | unsupported  | required     | `skill_similarity_match`                        | none                         |
-| `hybrid_resume_analyzer`                                                                | open_source | job_match (JD > 20 chars)          | unsupported  | required     | `hybrid_match`                                  | none                         |
+| Engine id                                                                               | Kind        | Modes                                              | Title        | JD           | Score type(s)                                       | Fallback when FastAPI down   |
+| --------------------------------------------------------------------------------------- | ----------- | -------------------------------------------------- | ------------ | ------------ | --------------------------------------------------- | ---------------------------- |
+| `aavedak`                                                                               | native      | resume_only, role_match, job_match                 | optional     | optional     | resume_quality / role / job_match                   | TS (`ats-analyze-fallback`)  |
+| `jobscan_style`, `resume_worded_style`, `teal_style`, `rezi_style`, `skillsyncer_style` | reference   | per `registry.ts`                                  | per registry | per registry | see `apps/web/lib/ats-engines/PROFILE_NOTES.md`     | TS (`reference-profiles.ts`) |
+| `open_ats`                                                                              | open_source | resume_only, role_match, job_match                 | optional     | optional     | `resume_quality` / `ats_scan`                       | none — fails explicitly      |
+| `ats_resume_checker`                                                                    | open_source | resume_only, role_match, job_match                 | optional     | optional     | `resume_quality` / `ats_readiness`                  | none                         |
+| `resume_skills_extractor`                                                               | open_source | role_match, job_match (no resume-only)             | optional     | optional     | `role_match` / `skill_similarity_match`             | none                         |
+| `hybrid_resume_analyzer`                                                                | open_source | resume_only, role_match, job_match (JD > 20 chars) | optional     | optional     | `resume_validation` / `role_match` / `hybrid_match` | none                         |
+
+Title-only mode uses Aavedak's role profile (`role_expected_skills`: core + common skills of `skill_taxonomy.ROLE_PROFILES`) as the comparison target; an unrecognized title fails with `missing_input` rather than scoring against nothing (ATS Resume Checker instead completes with a warning and omits keyword match).
 
 Score types are different measurements (quality, readiness, similarity, match) and are not calibrated against each other.
 
@@ -50,6 +52,7 @@ Verified in `scoring/engine.py`, `analyzers/{keyword,formatting,content_quality}
 - Rating: Excellent ≥ 80, Good ≥ 70, Fair ≥ 60, else Poor.
 - Adapted (MIT, attributed in code): action-verb, hedging, passive-marker lists; industry terms from its SWE keyword DB.
 - Aavedak choices: hard/soft skills from Aavedak's taxonomy (not Open ATS's YAML DB); table detection is a text heuristic (upstream uses DOCX/PDF parser warnings); `Present/Current` is not counted as a date shape (upstream counts it, flagging nearly every resume).
+- Without a JD (Aavedak modes; upstream CLI always requires one): **resume_only** = formatting + content reweighted 50/50 (both analyzers ignore the JD upstream), score type `resume_quality`; **role_match** = hard skills from the role profile + action verbs, keyword weights renormalized over those two (soft/industry have no source, so they are skipped instead of credited 100).
 - Not verified to match: upstream's structured resume parser (experience entries, header-only contact detection). spaCy/NLTK are declared upstream but unused by these analyzers.
 
 ## ATS Resume Checker — github.com/Jahangirhussen/ats-resume-checker (MIT, commit 9bc5875)
@@ -68,6 +71,7 @@ Verified in `assets/js/ats-checker.js`, `parser.js`, `validator.js`, `data/*.jso
 License: README says MIT but the repo has **no LICENSE file** → only the formula/technique is adapted; no code or skill lists copied. Verified in `utils/ats_scorer.py`, `utils/extractor.py`.
 
 - `overall = 0.6·min(100, round(cosine·180)) + 0.4·(matched JD skills / JD skills)·100`. Cosine: TF-IDF 1–3-grams, English stop words, sublinear tf, max 10 000 features on text cleaned to `[\w\s./#+]`.
+- **role_match** (Aavedak): `overall = role skills found / role skills × 100`, score type `role_match`; no TF-IDF (a title is not a document). **No resume_only**: upstream only scores against a JD, so with neither title nor JD the combination is "Needs input".
 - Reported separately: raw cosine %, calibrated similarity, keyword ratio, matched / missing / bonus skills, per-category coverage (Aavedak grouping of its own taxonomy), skills-section confidence.
 - The ×180 is upstream's calibration heuristic. Similarity is lexical, not semantic, and is not an ATS score on its own.
 
@@ -77,5 +81,7 @@ Verified in `src/analyzer/{ats_scorer,resume_checker,skill_analyzer}.py`, `src/m
 
 - Upstream rubric: skill `matched/required·40` + keyword `|JD words ∩ resume words| / |JD words|·30` + length (20 for 300–800 unique words, else `min(20, n/300·20)`) − 2 per missing skill → max 90. TF-IDF (default unigram) cosine ×100 is computed separately.
 - Upstream "hybrid" is resume **validation**: `0.6·rule_score + 0.4·ML probability > 0.7`, with a pickled TF-IDF + logistic-regression model. **Not used**: Aavedak never loads untrusted pickles, so no ML model runs. Only the rule score is reported (`metrics.rule_validation`); < 60 adds a warning → `completed_with_warnings`.
+- **resume_only**: the score is upstream's rule validation (sections ≤ 45 + email 20 + digits 10 + > 150 words 25), score type `resume_validation` — "is this a resume?", not quality.
+- **role_match** (Aavedak): rubric = skills 40 + length 20 − penalty against the role profile, normalized from 60; keyword overlap and TF-IDF skipped (need JD text).
 - Aavedak combination (configurable `HYBRID_COMBINE_WEIGHTS`): `overall = 0.7·(rubric/90·100) + 0.3·tfidf%`. Upstream shows these side by side and never combines them.
 - Aavedak choices: skills via taxonomy word-boundary matching (upstream substring matched "r"/"ai" inside words). Upstream quirk kept: > 800 unique words still earns full length points.

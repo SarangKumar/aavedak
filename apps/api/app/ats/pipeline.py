@@ -69,11 +69,6 @@ def resolve_mode(contract: EngineContract, *, engine_name: str, role: str, jd_te
     has_role = bool(role.strip())
     if contract.jd == "required" and not has_jd:
         raise EngineFailure(MISSING_INPUT, f"{engine_name} requires a job description.")
-    if contract.jd == "required" and len(jd_text.strip()) < contract.min_jd_chars:
-        raise EngineFailure(
-            MISSING_INPUT,
-            f"{engine_name} needs at least {contract.min_jd_chars} characters of job description.",
-        )
     if contract.title == "required" and not has_role:
         raise EngineFailure(MISSING_INPUT, f"{engine_name} requires a job title.")
     if mode is None:
@@ -82,6 +77,11 @@ def resolve_mode(contract: EngineContract, *, engine_name: str, role: str, jd_te
         raise EngineFailure(UNSUPPORTED_MODE, f"{engine_name} does not support {mode.replace('_', ' ')} mode.")
     if mode == "job_match" and not has_jd:
         raise EngineFailure(MISSING_INPUT, f"{engine_name} job match needs a job description.")
+    if mode == "job_match" and len(jd_text.strip()) < contract.min_jd_chars:
+        raise EngineFailure(
+            MISSING_INPUT,
+            f"{engine_name} needs at least {contract.min_jd_chars} characters of job description.",
+        )
     if mode == "role_match" and not has_role:
         raise EngineFailure(MISSING_INPUT, f"{engine_name} role match needs a job title.")
     return mode
@@ -212,3 +212,21 @@ def require_parsable(resume: ParsedResume) -> None:
             PARSING_FAILURE,
             "Too little readable text was extracted from this resume to analyze it.",
         )
+
+
+def role_expected_skills(role: str, *, engine_name: str) -> tuple[str, ...]:
+    """Core + common taxonomy skills for a recognized title (Aavedak role profiles).
+
+    Used as the comparison target when an engine runs in role_match without a JD.
+    Raises MISSING_INPUT when the title maps to no skill profile, rather than scoring against nothing.
+    """
+    from app.ats.skill_taxonomy import role_skill_buckets
+
+    buckets = role_skill_buckets(role)
+    skills = tuple(dict.fromkeys([*buckets.get("core", []), *buckets.get("common", [])]))
+    if not skills:
+        raise EngineFailure(
+            MISSING_INPUT,
+            f"{engine_name} has no skill profile for “{role.strip()}”. Paste a job description instead.",
+        )
+    return skills

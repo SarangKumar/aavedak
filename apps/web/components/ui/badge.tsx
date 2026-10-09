@@ -9,6 +9,10 @@ const badgeVariants = {
   outline: "border-border text-foreground",
   ghost: "border-transparent text-foreground hover:bg-accent hover:text-accent-foreground",
   link: "border-transparent text-primary underline-offset-4 hover:underline",
+  // ATS engine-kind tags — restrained, distinct, theme-token based (see components/ui/.vinyaas).
+  engineNative: "border-primary/40 bg-primary/10 text-primary",
+  engineOss: "border-border bg-secondary text-secondary-foreground",
+  engineRef: "border-border/70 text-muted-foreground",
 } as const;
 
 export type BadgeVariant = keyof typeof badgeVariants;

@@ -7,9 +7,8 @@ import assert from "node:assert/strict";
 import React, { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { CellStatusLabel, EngineBadge } from "@/components/ats-engine-badge";
+import { CellStatusLabel, EngineLabel } from "@/components/ats-engine-badge";
 
-import { ENGINE_BADGES } from "./badges";
 import { readRunStream } from "./run-stream";
 import { applyCellUpdate, cellDisplay, STAGE_LABELS } from "./stages";
 import type { AtsBatchResultCell, AtsEngineId, AtsStage } from "./types";
@@ -210,14 +209,21 @@ function testNewEngineModes() {
       }).map((c) => [c.engineId, c]),
     );
   const none = run("", "");
-  assert.equal(none.get("ats_resume_checker")!.status, "ready");
-  assert.equal(none.get("ats_resume_checker")!.mode, "resume_only");
-  for (const id of ["open_ats", "resume_skills_extractor", "hybrid_resume_analyzer"] as const) {
-    assert.equal(none.get(id)!.status, "needs_input", id);
+  for (const id of ["ats_resume_checker", "open_ats", "hybrid_resume_analyzer"] as const) {
+    assert.equal(none.get(id)!.status, "ready", id);
+    assert.equal(none.get(id)!.mode, "resume_only", id);
   }
+  assert.equal(none.get("open_ats")!.scoreType, "resume_quality");
+  assert.equal(none.get("hybrid_resume_analyzer")!.scoreType, "resume_validation");
+  const extractor = none.get("resume_skills_extractor")!;
+  assert.equal(extractor.status, "needs_input");
+  assert.match(extractor.reason ?? "", /job title or job description/);
   const titleOnly = run("Backend Engineer", "");
-  assert.equal(titleOnly.get("ats_resume_checker")!.mode, "role_match");
-  assert.equal(titleOnly.get("open_ats")!.status, "needs_input");
+  for (const id of NEW_ENGINES) {
+    assert.equal(titleOnly.get(id)!.status, "ready", id);
+    assert.equal(titleOnly.get(id)!.mode, "role_match", id);
+  }
+  assert.equal(titleOnly.get("resume_skills_extractor")!.scoreType, "role_match");
   const full = run("Backend Engineer", "Python FastAPI Docker Kubernetes");
   assert.ok([...full.values()].every((c) => c.status === "ready" && c.mode === "job_match"));
 }
@@ -225,22 +231,12 @@ function testNewEngineModes() {
 // tsx compiles component JSX with the classic runtime (Next's tsconfig uses jsx: "preserve").
 (globalThis as { React?: typeof React }).React = React;
 
-function testBadgesDistinct() {
-  const ids = ATS_ENGINES.map((e) => e.id);
-  for (const id of ids) assert.ok(ENGINE_BADGES[id], `badge for ${id}`);
-  const monograms = ids.map((id) => ENGINE_BADGES[id].monogram);
-  assert.equal(new Set(monograms).size, ids.length, "monograms must be unique");
-  const classes = ids.map((id) => ENGINE_BADGES[id].className);
-  assert.equal(new Set(classes).size, ids.length, "badge styles must be unique");
-  for (const id of ids) {
-    const html = renderToStaticMarkup(createElement(EngineBadge, { engineId: id }));
-    assert.ok(html.includes(getEngine(id)!.name.replace(/&/g, "&amp;")), `${id} name rendered`);
-    assert.ok(html.includes(ENGINE_BADGES[id].monogram));
-    assert.ok(html.includes(`data-engine="${id}"`));
-    const compact = renderToStaticMarkup(
-      createElement(EngineBadge, { engineId: id, compact: true }),
-    );
-    assert.ok(compact.includes("sr-only"), "compact badge keeps an accessible name");
+function testEngineLabelShowsNameAndKind() {
+  const kind: Record<string, string> = { native: "Native", open_source: "OSS", reference: "Ref" };
+  for (const eng of ATS_ENGINES) {
+    const html = renderToStaticMarkup(createElement(EngineLabel, { engineId: eng.id }));
+    assert.ok(html.includes(eng.name.replace(/&/g, "&amp;")), `${eng.id} name rendered`);
+    assert.ok(html.includes(kind[eng.kind]), `${eng.id} shows ${kind[eng.kind]} tag`);
   }
 }
 
@@ -366,7 +362,7 @@ async function testReadRunStream() {
 testRegistryMatrix();
 testNewEnginesRegistered();
 testNewEngineModes();
-testBadgesDistinct();
+testEngineLabelShowsNameAndKind();
 testStageDisplay();
 testCellUpdateGuards();
 testCombinationsOnlySelected();

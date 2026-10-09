@@ -19,7 +19,7 @@ pnpm build                      # web production build
 pnpm lint                       # web ESLint, --max-warnings=0
 pnpm --filter web typecheck     # tsc --noEmit
 pnpm format:check               # Prettier (tailwind plugin)
-pnpm dev:api                    # FastAPI on :8000 (uvicorn main:app, uses apps/api/.venv)
+pnpm dev:api                    # FastAPI on :8000 (python -m uvicorn, uses apps/api/.venv)
 pnpm dev:vercel                 # web + api together as on Vercel (/svc/* → FastAPI)
 ```
 
@@ -39,6 +39,8 @@ Known pre-existing failures: `tests/test_ats_benchmark.py::test_improvements_nev
 ### Agent context files
 
 `AGENTS.md` is the single shared source. Claude reads it via `CLAUDE.md` (`@AGENTS.md`); Cursor reads it natively and via `.cursor/rules/project.mdc`. Area-specific detail goes in a doc next to the code, loaded only on demand through a glob-scoped `.cursor/rules/*.mdc` and a nested `CLAUDE.md` with an `@` import. Don't copy that detail here. When you change an area, update its doc and keep this file's summary accurate.
+
+Local dev: run `pnpm dev` and `pnpm dev:api` together. In development, `next.config.ts` rewrites `/svc/*` to `API_DEV_PROXY_URL` (default `http://127.0.0.1:8000`). Without the API, the native and reference engines silently use their TS fallbacks and the open-source engines show "Service unavailable". `apps/api/.venv` was created under an old path, so its `bin/*` shebangs are broken: call `.venv/bin/python -m <tool>`, or recreate the venv.
 
 The husky pre-commit hook runs lint-staged (ESLint `--fix --max-warnings=0` + Prettier on `apps/web`, Prettier on json/md/yml/css).
 
@@ -68,7 +70,7 @@ The husky pre-commit hook runs lint-staged (ESLint `--fix --max-warnings=0` + Pr
 - Python engine (`apps/api/app/ats/`): `resume_profile` + `jd_profile` + `evidence` → `scoring`/`analyze`. It runs in the mode `resume_only`, `role_match`, or `job_match`, chosen automatically. `version.py` emits `engineVersion`; bump it when scoring changes. Notes are in `app/ats/AUDIT.md`.
 - `lib/ats-engines/` (web) adds a registry of "reference" engines that approximate third-party ATS tools (Jobscan-, Teal-, SkillSyncer-style, …). Python mirrors them in `reference_profiles.py` / `reference_signals.py` / `reference_weights.py`. Keep both sides consistent when changing weights or signals.
 - Four `open_source` engines (Open ATS, ATS Resume Checker, Resume Skills Extractor, Hybrid Resume Analyzer) live only in Python (`oss_profiles.py` on the shared `pipeline.py`). They have no TS fallback and fail explicitly when FastAPI is down.
-- The ATS page runs one resume × engine per request: `/api/ats/run` with `stream: true` → FastAPI `/score-engine/stream` (NDJSON stage events). Engine badges and stage labels are defined centrally in `lib/ats-engines/badges.ts` and `stages.ts`.
+- The ATS page runs one resume × engine per request: `/api/ats/run` with `stream: true` → FastAPI `/score-engine/stream` (NDJSON stage events). Stage/outcome labels are defined centrally in `lib/ats-engines/stages.ts`; the results-table score cell is a circular `ScoreRing` gauge (`components/ui/score-ring.tsx`). Engines are shown by name with a small Native/OSS/Ref tag (`components/ats-engine-badge.tsx`).
 - Full engine methodology, contracts, and the stage protocol are in `apps/api/app/ats/ENGINES.md`. It is auto-loaded for ATS files via `.cursor/rules/ats-engines.mdc` and nested `CLAUDE.md` files; read it before changing any engine.
 - Calibration fixtures: `apps/api/app/ats/benchmarks/fixtures.py` (expected ordering: excellent → unrelated for a backend JD) and `apps/web/lib/ats-engines/calibration/`.
 

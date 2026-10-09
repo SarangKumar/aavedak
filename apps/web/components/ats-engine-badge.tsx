@@ -1,40 +1,58 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { engineBadge } from "@/lib/ats-engines/badges";
 import { getEngine } from "@/lib/ats-engines/registry";
 import { cellDisplay } from "@/lib/ats-engines/stages";
 import type { AtsBatchResultCell, AtsEngineId } from "@/lib/ats-engines/types";
 import { cn } from "@/lib/utils";
 
-/** Engine identity: monogram + name, styled from the central ENGINE_BADGES map. */
-export function EngineBadge({
+const KIND: Record<string, { label: string; variant: BadgeVariant }> = {
+  native: { label: "Native", variant: "engineNative" },
+  open_source: { label: "OSS", variant: "engineOss" },
+  reference: { label: "Ref", variant: "engineRef" },
+};
+
+/** Small Native / OSS / Ref tag — the only badge; engines are identified by name. */
+export function EngineKindBadge({
   engineId,
-  compact = false,
   className,
 }: {
   engineId: AtsEngineId;
-  /** Monogram only (name kept for screen readers and tooltip). */
-  compact?: boolean;
   className?: string;
 }) {
-  const style = engineBadge(engineId);
-  const name = getEngine(engineId)?.name ?? engineId;
+  const kind = KIND[getEngine(engineId)?.kind ?? "reference"] ?? KIND.reference;
   return (
     <Badge
-      variant="outline"
-      title={name}
-      data-engine={engineId}
+      variant={kind.variant}
+      className={cn("h-4 px-1.5 text-[9px] font-medium uppercase tracking-wide", className)}
+    >
+      {kind.label}
+    </Badge>
+  );
+}
+
+/** Engine name plus its kind tag — used in the selector, results table and detail view. */
+export function EngineLabel({
+  engineId,
+  className,
+  stacked = false,
+}: {
+  engineId: AtsEngineId;
+  className?: string;
+  /** Name above, tag below (for narrow table columns). */
+  stacked?: boolean;
+}) {
+  const name = getEngine(engineId)?.name ?? engineId;
+  return (
+    <span
       className={cn(
-        "h-5 max-w-full gap-1 px-1.5 text-[10px] font-medium",
-        style.className,
+        "inline-flex min-w-0 gap-1",
+        stacked ? "flex-col items-center" : "flex-wrap items-center gap-1.5",
         className,
       )}
     >
-      <span aria-hidden className="font-mono text-[9px] font-semibold tracking-tight">
-        {style.monogram}
-      </span>
-      {compact ? <span className="sr-only">{name}</span> : <span className="truncate">{name}</span>}
-    </Badge>
+      <span className="text-foreground truncate text-[11px] font-medium">{name}</span>
+      <EngineKindBadge engineId={engineId} />
+    </span>
   );
 }
 
@@ -46,7 +64,7 @@ const TONE: Record<ReturnType<typeof cellDisplay>["tone"], string> = {
   destructive: "text-destructive",
 };
 
-/** Processing / outcome label — deliberately plain text, visually separate from engine badges. */
+/** Processing / outcome label — plain text, kept separate from the engine name/tag. */
 export function CellStatusLabel({ cell }: { cell: AtsBatchResultCell | undefined }) {
   const d = cellDisplay(cell);
   if (!d.label) return null;

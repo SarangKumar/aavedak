@@ -8,7 +8,7 @@
   },
   "scripts": {
     "setup": "bash scripts/setup.sh",
-    "dev": "pnpm --filter web dev",
+    "dev": "bash scripts/dev.sh",
     "build": "pnpm --filter web build",
     "start": "pnpm --filter web start",
     "lint": "pnpm --filter web lint",
@@ -19,7 +19,7 @@
     "build:web": "pnpm --filter web build",
     "dev:vercel": "vercel dev",
     "dev:vercel:local": "vercel dev -L",
-    "dev:api": "cd apps/api && .venv/bin/uvicorn main:app --reload --port 8000",
+    "dev:api": "cd apps/api && .venv/bin/python -m uvicorn main:app --reload --port 8000",
     "dev:extension": "pnpm --filter extension dev",
     "build:extension": "pnpm --filter extension build"
   },

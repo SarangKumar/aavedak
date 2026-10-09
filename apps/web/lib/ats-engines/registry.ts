@@ -141,20 +141,24 @@ export const ATS_ENGINES: EngineCapability[] = [
     kind: "open_source",
     referenceRepo: "github.com/jlynshue/open-ats",
     fallback: "none",
-    supportedModes: ["job_match"],
-    title: "unsupported",
-    jd: "required",
+    supportedModes: ["resume_only", "role_match", "job_match"],
+    title: "optional",
+    jd: "optional",
     preferredMode: "job_match",
-    scoreTypes: ["ats_scan"],
-    scoreTypeByMode: { job_match: "ats_scan" },
+    scoreTypes: ["resume_quality", "ats_scan"],
+    scoreTypeByMode: {
+      resume_only: "resume_quality",
+      role_match: "ats_scan",
+      job_match: "ats_scan",
+    },
     scoringProfileId: "open-ats-adapted",
     profileVersion: "1.0",
     limitations: [
       "Aavedak adaptation of Open ATS formulas on extracted text — not the Open ATS CLI itself.",
-      "Requires a job description. Needs the scoring service (no offline fallback).",
+      "Without a JD: title-only matches the role's skill profile; resume-only scores formatting + content 50/50. Needs the scoring service.",
     ],
     algoBlurb:
-      "Open ATS weights from its source: keyword 50% (hard 50 / soft 25 / action verbs 15 / industry 10) + formatting 25% (penalties from 100) + content quality 25% (action verbs, passive voice, hedging, length). Needs a JD.",
+      "Open ATS weights from its source: keyword 50% (hard 50 / soft 25 / action verbs 15 / industry 10) + formatting 25% (penalties from 100) + content quality 25% (action verbs, passive voice, hedging, length). Title-only matches the role's skill profile; with neither title nor JD, keyword is skipped.",
   },
   {
     id: "ats_resume_checker",
@@ -189,20 +193,20 @@ export const ATS_ENGINES: EngineCapability[] = [
     kind: "open_source",
     referenceRepo: "github.com/blueabstract/resume-skills-extractor",
     fallback: "none",
-    supportedModes: ["job_match"],
-    title: "unsupported",
-    jd: "required",
+    supportedModes: ["role_match", "job_match"],
+    title: "optional",
+    jd: "optional",
     preferredMode: "job_match",
-    scoreTypes: ["skill_similarity_match"],
-    scoreTypeByMode: { job_match: "skill_similarity_match" },
+    scoreTypes: ["role_match", "skill_similarity_match"],
+    scoreTypeByMode: { role_match: "role_match", job_match: "skill_similarity_match" },
     scoringProfileId: "resume-skills-extractor-adapted",
     profileVersion: "1.0",
     limitations: [
       "Similarity is lexical TF-IDF overlap — reported separately; it is not an ATS score by itself.",
-      "Requires a job description. Needs the scoring service.",
+      "Needs a job title or JD to compare against. Title-only = skill coverage without similarity. Needs the scoring service.",
     ],
     algoBlurb:
-      "60% TF-IDF cosine similarity (1–3 word phrases, ×180 calibration, capped) + 40% share of JD skills found on the resume. Shows matched, missing and bonus skills by category, plus the raw similarity.",
+      "60% TF-IDF cosine similarity (1–3 word phrases, ×180 calibration, capped) + 40% share of JD skills found on the resume. Shows matched, missing and bonus skills by category, plus the raw similarity. With only a title, scores coverage of that role's skill profile.",
   },
   {
     id: "hybrid_resume_analyzer",
@@ -211,20 +215,24 @@ export const ATS_ENGINES: EngineCapability[] = [
     kind: "open_source",
     referenceRepo: "github.com/Anirodh-Padhy/resume-analyzer",
     fallback: "none",
-    supportedModes: ["job_match"],
-    title: "unsupported",
-    jd: "required",
+    supportedModes: ["resume_only", "role_match", "job_match"],
+    title: "optional",
+    jd: "optional",
     preferredMode: "job_match",
-    scoreTypes: ["hybrid_match"],
-    scoreTypeByMode: { job_match: "hybrid_match" },
+    scoreTypes: ["resume_validation", "role_match", "hybrid_match"],
+    scoreTypeByMode: {
+      resume_only: "resume_validation",
+      role_match: "role_match",
+      job_match: "hybrid_match",
+    },
     scoringProfileId: "hybrid-resume-analyzer-adapted",
     profileVersion: "1.0",
     limitations: [
       "No ML model is used — the reference's classifier only validates documents and is not loaded.",
-      "The 70/30 combination is an Aavedak choice. Requires a JD. Needs the scoring service.",
+      "The 70/30 combination is an Aavedak choice. Resume-only reports the source's resume-validation rule score, not quality.",
     ],
     algoBlurb:
-      "Rubric from the reference (skills 40 + keyword overlap 30 + length 20 − 2 per missing skill, out of 90) normalized to 100, combined 70/30 with TF-IDF similarity. Both parts are shown separately.",
+      "Rubric from the reference (skills 40 + keyword overlap 30 + length 20 − 2 per missing skill, out of 90) normalized to 100, combined 70/30 with TF-IDF similarity. Both parts are shown separately. Title-only: skills + length out of 60. Resume-only: the source's rule-based resume validation.",
   },
 ];
 
@@ -271,6 +279,8 @@ export function scoreTypeLabel(t: AtsScoreType): string {
       return "Skill + Similarity Match";
     case "hybrid_match":
       return "Hybrid Match";
+    case "resume_validation":
+      return "Resume Validation";
     default:
       return t;
   }
@@ -318,6 +328,19 @@ function resolveMode(
     // Resume-only desired but engine is JD-only
     if (desired === "resume_only" && engine.supportedModes.includes("job_match") && hasJd) {
       return { mode: "job_match", ok: true };
+    }
+    // Engine needs a comparison target (title or JD) and neither was given
+    if (
+      desired === "resume_only" &&
+      !hasRole &&
+      !hasJd &&
+      engine.supportedModes.includes("role_match")
+    ) {
+      return {
+        mode: "role_match",
+        ok: false,
+        reason: `${engine.name} requires a job title or job description.`,
+      };
     }
     return {
       mode: desired,
