@@ -1250,8 +1250,8 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                     ))}
                   </colgroup>
                   <thead>
-                    <tr className="border-border/50 bg-muted/30 border-b">
-                      <th className="text-muted-foreground bg-card sticky left-0 z-10 px-3 py-2.5 text-left font-medium">
+                    <tr className="border-border/50 border-b">
+                      <th className="text-muted-foreground bg-card after:bg-border/60 sticky left-0 z-10 px-3 py-2.5 text-left align-middle font-medium after:absolute after:inset-y-0 after:right-0 after:w-px">
                         Resume
                       </th>
                       {tableEngines.map((eng) => {
@@ -1277,7 +1277,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   <tbody>
                     {tableResumes.map((resume) => (
                       <tr key={resume.id} className="border-border/40 border-b last:border-b-0">
-                        <td className="text-foreground bg-card sticky left-0 z-10 max-w-[11rem] truncate px-3 py-2.5 font-medium">
+                        <td className="text-foreground bg-card after:bg-border/60 sticky left-0 z-10 truncate px-3 py-2.5 font-medium after:absolute after:inset-y-0 after:right-0 after:w-px">
                           {resume.displayName}
                         </td>
                         {tableEngines.map((eng) => (

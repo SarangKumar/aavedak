@@ -12,7 +12,7 @@ type ResizeHandleProps = ComponentProps<"div"> & {
 /**
  * Panel resize gutter: no border line and no grip box — just three dots in the gap between
  * panels (local divergence from the Vinyaas pattern; see components/ui/.vinyaas). The gutter
- * stays 12px wide so it is easy to grab.
+ * is 8px wide (the full gap between the panels) so it is still easy to grab.
  */
 export function ResizeHandle({
   className,
@@ -27,8 +27,8 @@ export function ResizeHandle({
       data-slot="resize-handle"
       className={cn(
         "group relative z-10 flex touch-none select-none items-center justify-center",
-        orientation === "vertical" && "w-3 cursor-col-resize",
-        orientation === "horizontal" && "h-3 cursor-row-resize",
+        orientation === "vertical" && "w-2 cursor-col-resize",
+        orientation === "horizontal" && "h-2 cursor-row-resize",
         className,
       )}
       {...props}

@@ -27,6 +27,7 @@ import { toast } from "@/components/ui/toast";
 import type { ApplicationStatus } from "@/lib/application-status";
 import { CompanySelect } from "@/components/company-select";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
+import { BoardToggleLink, FullscreenBoard } from "@/components/fullscreen-board";
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
 import { formatDateTimeReadable } from "@/lib/format-datetime";
@@ -143,6 +144,8 @@ function formatRelativeAgo(iso: string): string {
 }
 
 type ReferralsComposerProps = {
+  /** "board" = full-screen columns only (/referrals/board). */
+  variant?: "page" | "board";
   userEmail: string;
   userName: string;
   isAdmin: boolean;
@@ -176,6 +179,7 @@ function loadColumnOrder(): ColumnId[] {
 }
 
 export function ReferralsComposer({
+  variant = "page",
   userEmail,
   userName,
   isAdmin,
@@ -1166,92 +1170,58 @@ export function ReferralsComposer({
     );
   }
 
-  return (
-    <ShellWidth className="aavedak-fade-up space-y-6 py-8 sm:py-10">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1">
-          <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-            आवेदक
-          </p>
-          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Referrals</h1>
-          <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-            Compose cold outreach against an application, pick people at that company, confirm, then
-            wait 20 seconds on screen before the batch sends from {userEmail} through Gmail.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {isAdmin ? (
-            <Badge variant="secondary" className="h-7 px-2.5 text-[11px]">
-              Admin
-            </Badge>
-          ) : null}
-          <Link href="/people" className={buttonVariants({ variant: "outline", size: "sm" })}>
-            Manage people
-          </Link>
-          <Link href="/outreach" className={buttonVariants({ size: "sm" })}>
-            Open outreach inbox
-          </Link>
-        </div>
-      </header>
+  const toolbar = (
+    <Card size="sm" className="flex-row items-center gap-2 px-3 py-2">
+      <p className="text-muted-foreground min-w-0 flex-1 truncate text-[12px]">
+        Pick an application, a template and people, then confirm. Drag a column by its grip to
+        reorder.
+      </p>
+      {variant === "board" ? (
+        <Link href="/outreach" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+          Outreach inbox
+        </Link>
+      ) : null}
+      <BoardToggleLink
+        expanded={variant === "board"}
+        href={variant === "board" ? "/referrals" : "/referrals/board"}
+        label="referrals board"
+      />
+    </Card>
+  );
 
-      <GmailConnectBanner callbackURL="/referrals" />
-
-      {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
-      {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
-
-      <DragDrop
-        items={columnOrder}
-        orientation="horizontal"
-        onReorder={onColumnReorder}
-        className="w-full min-w-0"
-      >
-        <DragDropList className="h-[min(70vh,44rem)] w-full gap-3 overflow-x-auto pb-1">
-          {columnOrder.map((id) => (
-            <DragDropItem
-              key={id}
-              id={id}
-              style={{
-                flex: `${DEFAULT_WIDTHS[id]} 1 0%`,
-                minWidth: 240,
-                height: "100%",
-              }}
-              className="border-border/0 bg-transparent p-0 shadow-none hover:bg-transparent data-[dragging]:opacity-40"
-            >
-              {renderColumn(id)}
-            </DragDropItem>
-          ))}
-        </DragDropList>
-      </DragDrop>
-
-      <Card className="border-border/80 bg-card gap-0 space-y-2 rounded-xl border p-4">
-        <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
-          Pending follow-ups
-        </h2>
-        {openFollowUps.length === 0 ? (
-          <p className="text-muted-foreground text-[12px]">None queued yet.</p>
-        ) : (
-          <ul className="divide-border/60 divide-y">
-            {openFollowUps.slice(0, 12).map((f) => (
-              <li key={f.id} className="flex items-start justify-between gap-2 py-2">
-                <div className="min-w-0">
-                  <p className="text-foreground truncate text-[12px] font-medium">{f.title}</p>
-                  <p className="text-muted-foreground text-[11px]">
-                    {f.sendAfter
-                      ? `Send after ${formatDateTimeReadable(f.sendAfter)}`
-                      : f.dueDate
-                        ? `Due ${f.dueDate.slice(0, 10)}`
-                        : "No schedule"}
-                  </p>
-                </div>
-                <Badge variant="outline" className="text-[10px]">
-                  {f.status}
-                </Badge>
-              </li>
-            ))}
-          </ul>
+  const columns = (
+    <DragDrop
+      items={columnOrder}
+      orientation="horizontal"
+      onReorder={onColumnReorder}
+      className={cn("w-full min-w-0", variant === "board" && "min-h-0 flex-1")}
+    >
+      <DragDropList
+        className={cn(
+          "w-full gap-3 overflow-x-auto pb-1",
+          variant === "board" ? "h-full" : "h-[min(70vh,44rem)]",
         )}
-      </Card>
+      >
+        {columnOrder.map((id) => (
+          <DragDropItem
+            key={id}
+            id={id}
+            style={{
+              flex: `${DEFAULT_WIDTHS[id]} 1 0%`,
+              minWidth: 240,
+              height: "100%",
+            }}
+            className="border-border/0 bg-transparent p-0 shadow-none hover:bg-transparent data-[dragging]:opacity-40"
+          >
+            {renderColumn(id)}
+          </DragDropItem>
+        ))}
+      </DragDropList>
+    </DragDrop>
+  );
 
+  const modals = (
+    <>
       <Modal
         open={resumePickerOpen}
         onClose={() => setResumePickerOpen(false)}
@@ -1405,6 +1375,88 @@ export function ReferralsComposer({
           userName={userName}
         />
       </Modal>
+    </>
+  );
+
+  if (variant === "board") {
+    return (
+      <FullscreenBoard>
+        {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+        {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
+
+        {toolbar}
+        {columns}
+        {modals}
+      </FullscreenBoard>
+    );
+  }
+
+  return (
+    <ShellWidth className="aavedak-fade-up space-y-6 py-8 sm:py-10">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
+            आवेदक
+          </p>
+          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Referrals</h1>
+          <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
+            Compose cold outreach against an application, pick people at that company, confirm, then
+            wait 20 seconds on screen before the batch sends from {userEmail} through Gmail.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {isAdmin ? (
+            <Badge variant="secondary" className="h-7 px-2.5 text-[11px]">
+              Admin
+            </Badge>
+          ) : null}
+          <Link href="/people" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Manage people
+          </Link>
+          <Link href="/outreach" className={buttonVariants({ size: "sm" })}>
+            Open outreach inbox
+          </Link>
+        </div>
+      </header>
+
+      <GmailConnectBanner callbackURL="/referrals" />
+
+      {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+      {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
+
+      {toolbar}
+      {columns}
+
+      <Card className="border-border/80 bg-card gap-0 space-y-2 rounded-xl border p-4">
+        <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
+          Pending follow-ups
+        </h2>
+        {openFollowUps.length === 0 ? (
+          <p className="text-muted-foreground text-[12px]">None queued yet.</p>
+        ) : (
+          <ul className="divide-border/60 divide-y">
+            {openFollowUps.slice(0, 12).map((f) => (
+              <li key={f.id} className="flex items-start justify-between gap-2 py-2">
+                <div className="min-w-0">
+                  <p className="text-foreground truncate text-[12px] font-medium">{f.title}</p>
+                  <p className="text-muted-foreground text-[11px]">
+                    {f.sendAfter
+                      ? `Send after ${formatDateTimeReadable(f.sendAfter)}`
+                      : f.dueDate
+                        ? `Due ${f.dueDate.slice(0, 10)}`
+                        : "No schedule"}
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-[10px]">
+                  {f.status}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {modals}
     </ShellWidth>
   );
 }

@@ -3,14 +3,23 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { BoardToggleLink, FullscreenBoard } from "@/components/fullscreen-board";
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ResizeHandle } from "@/components/ui/resize-handle";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateTimeReadable } from "@/lib/format-datetime";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 
@@ -120,9 +129,11 @@ type Props = {
   initialFollowUps: FollowUpDto[];
   people: PersonLite[];
   applications: ApplicationLite[];
+  /** "board" = full-screen inbox only (/outreach/board). */
+  variant?: "page" | "board";
 };
 
-export function OutreachInbox({ initialFollowUps, people, applications }: Props) {
+export function OutreachInbox({ initialFollowUps, people, applications, variant = "page" }: Props) {
   const [items, setItems] = useState(initialFollowUps);
   const [query, setQuery] = useState("");
   const [applicationId, setApplicationId] = useState<string>("");
@@ -363,36 +374,10 @@ export function OutreachInbox({ initialFollowUps, people, applications }: Props)
     );
   }
 
-  return (
-    <ShellWidth className="aavedak-fade-up space-y-4 py-6 sm:py-8">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1">
-          <p className="text-primary/90 font-mono text-[12px] tracking-wide">Inbox</p>
-          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Outreach</h1>
-          <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-            Referral and follow-up mail per person and role. Same company, different roles stay
-            separate. Follow-ups send as replies in the same Gmail thread. Compose on{" "}
-            <Link href="/referrals" className="text-primary cursor-pointer hover:underline">
-              Referrals
-            </Link>
-            .
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="cursor-pointer"
-          onClick={() => void processQueue()}
-          disabled={processing}
-          loading={processing}
-          loadingText="Processing…"
-        >
-          Process due queue
-        </Button>
-      </header>
+  const boardHref = variant === "board" ? "/outreach" : "/outreach/board";
 
-      <GmailConnectBanner callbackURL="/outreach" />
-
+  const noticesBlock = (
+    <>
       {(error || notice) && (
         <p
           className={cn(
@@ -406,213 +391,265 @@ export function OutreachInbox({ initialFollowUps, people, applications }: Props)
           {error ?? notice}
         </p>
       )}
+    </>
+  );
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search company, person, role…"
-          aria-label="Search conversations"
-          className="h-9 max-w-xs text-[13px]"
-        />
-        <select
-          value={applicationId}
-          onChange={(e) => {
-            setApplicationId(e.target.value);
-            setSelectedKey(e.target.value ? ALL_FOR_APP_KEY : null);
-          }}
+  const toolbar = (
+    <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2">
+      <Input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search company, person, role…"
+        aria-label="Search conversations"
+        className="h-8 w-full text-[13px] sm:max-w-xs"
+      />
+      <Select
+        value={applicationId || "all"}
+        onValueChange={(v) => {
+          const id = !v || v === "all" ? "" : v;
+          setApplicationId(id);
+          setSelectedKey(id ? ALL_FOR_APP_KEY : null);
+        }}
+      >
+        <SelectTrigger
+          className="border-border bg-background h-8 w-auto min-w-[10rem] max-w-[16rem] rounded-md border px-2.5 text-[12px]"
           aria-label="Filter by application"
-          className="border-border bg-card text-foreground h-9 max-w-xs cursor-pointer rounded-lg border px-2.5 text-[13px]"
         >
-          <option value="">All applications</option>
+          <SelectValue placeholder="All applications" />
+        </SelectTrigger>
+        <SelectContent className="z-[240]">
+          <SelectItem value="all" className="text-[12px]">
+            All applications
+          </SelectItem>
           {applications.map((app) => (
-            <option key={app.id} value={app.id}>
+            <SelectItem key={app.id} value={app.id} className="text-[12px]">
               {app.companyName} · {app.role}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-        <Card
-          className="border-border bg-card inline-flex h-9 items-center gap-0 rounded-lg border p-0.5"
-          role="tablist"
-          aria-label="Duration"
+        </SelectContent>
+      </Select>
+      <Tabs value={duration} onValueChange={(v) => setDuration(v as DurationFilter)}>
+        <TabsList aria-label="Duration">
+          <TabsTrigger value="all" className="text-[12px]">
+            All time
+          </TabsTrigger>
+          <TabsTrigger value="24h" className="text-[12px]">
+            24h
+          </TabsTrigger>
+          <TabsTrigger value="7d" className="text-[12px]">
+            7d
+          </TabsTrigger>
+          <TabsTrigger value="30d" className="text-[12px]">
+            30d
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+      <span className="text-muted-foreground shrink-0 text-[11px] tabular-nums">
+        {applicationId
+          ? `${applicationMessages.length} mail · ${threads.length} people`
+          : `${threads.length} conversations`}
+      </span>
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void processQueue()}
+          disabled={processing}
+          loading={processing}
+          loadingText="Processing…"
         >
-          {(
-            [
-              { id: "all", label: "All time" },
-              { id: "24h", label: "24h" },
-              { id: "7d", label: "7d" },
-              { id: "30d", label: "30d" },
-            ] as const
-          ).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={duration === item.id}
-              onClick={() => setDuration(item.id)}
-              className={cn(
-                "inline-flex h-8 cursor-pointer items-center rounded-md px-2.5 text-[12px] font-medium",
-                duration === item.id
-                  ? "bg-primary/15 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-        </Card>
-        <span className="text-muted-foreground text-[12px]">
-          {applicationId
-            ? `${applicationMessages.length} mail · ${threads.length} people`
-            : `${threads.length} conversations`}
-        </span>
+          Process due queue
+        </Button>
+        <BoardToggleLink expanded={variant === "board"} href={boardHref} label="outreach inbox" />
       </div>
+    </Card>
+  );
 
-      <Card className="border-border/80 bg-card flex h-[min(70vh,44rem)] flex-col gap-0 overflow-hidden rounded-xl border p-0 md:flex-row">
-        <aside
-          className="border-border/60 flex max-h-[42%] w-full shrink-0 flex-col overflow-hidden border-b md:h-full md:max-h-none md:w-[var(--inbox-list-width)] md:max-w-[min(100%,560px)] md:border-b-0"
-          style={{ ["--inbox-list-width" as string]: `${listWidth}px` }}
-        >
-          <div className="border-border/60 text-muted-foreground shrink-0 border-b px-3 py-2 text-[11px] font-medium uppercase tracking-wide">
-            Conversations
-          </div>
-          <ul className="min-h-0 flex-1 overflow-y-auto">
-            {applicationId && threads.length > 0 ? (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setSelectedKey(ALL_FOR_APP_KEY)}
-                  className={cn(
-                    "w-full cursor-pointer border-b px-3 py-2.5 text-left transition-colors",
-                    viewingAllForApp
-                      ? "border-primary/20 bg-primary/10"
-                      : "border-border/50 hover:bg-muted/40",
-                  )}
-                >
-                  <p className="text-foreground truncate text-[13px] font-semibold">
-                    All mail for this role
-                  </p>
-                  <p className="text-muted-foreground truncate text-[12px]">
-                    {selectedApplication
-                      ? `${selectedApplication.companyName} · ${selectedApplication.role}`
-                      : "Selected application"}
-                  </p>
-                  <p className="text-muted-foreground mt-0.5 text-[10px]">
-                    {applicationMessages.length} message
-                    {applicationMessages.length === 1 ? "" : "s"}
-                  </p>
-                </button>
-              </li>
-            ) : null}
-            {threads.length === 0 ? (
-              <li className="text-muted-foreground px-3 py-8 text-center text-[13px]">
-                No emails match this search.
-              </li>
-            ) : (
-              threads.map((thread) => {
-                const active = !viewingAllForApp && thread.key === selectedKey;
-                const last = thread.messages[thread.messages.length - 1];
-                return (
-                  <li key={thread.key}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedKey(thread.key)}
-                      className={cn(
-                        "w-full cursor-pointer border-b px-3 py-2.5 text-left transition-colors",
-                        active
-                          ? "border-primary/20 bg-primary/10"
-                          : "border-border/50 hover:bg-muted/40",
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-foreground truncate text-[13px] font-semibold">
-                          {thread.personName}
-                        </p>
-                        {thread.hasFailed ? (
-                          <Badge variant="destructive" className="h-5 shrink-0 text-[10px]">
-                            Failed
-                          </Badge>
-                        ) : last ? (
-                          <Badge
-                            variant={statusVariant(last.status)}
-                            className="h-5 shrink-0 text-[10px]"
-                          >
-                            {statusLabel(last.status)}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      <p className="text-muted-foreground truncate text-[12px]">
-                        {thread.company}
-                        {thread.role ? ` · ${thread.role}` : ""}
+  // Two cards with a small gap (conversations | mail); the gap is the resize handle.
+  const board = (
+    <div
+      className={cn(
+        "flex flex-col gap-4 md:flex-row md:gap-0",
+        variant === "board" ? "min-h-0 flex-1" : "md:h-[min(70vh,44rem)]",
+      )}
+    >
+      <Card
+        className="flex max-h-[42vh] w-full shrink-0 flex-col gap-0 overflow-hidden p-0 md:max-h-none md:w-[var(--inbox-list-width)] md:max-w-[min(100%,560px)]"
+        style={{ ["--inbox-list-width" as string]: `${listWidth}px` }}
+      >
+        <div className="border-border/60 text-muted-foreground shrink-0 border-b px-3 py-2.5 text-[11px] font-medium uppercase tracking-wide">
+          Conversations
+        </div>
+        <ul className="min-h-0 flex-1 overflow-y-auto">
+          {applicationId && threads.length > 0 ? (
+            <li>
+              <button
+                type="button"
+                onClick={() => setSelectedKey(ALL_FOR_APP_KEY)}
+                className={cn(
+                  "w-full cursor-pointer border-b px-3 py-2.5 text-left transition-colors",
+                  viewingAllForApp
+                    ? "border-primary/20 bg-primary/10"
+                    : "border-border/50 hover:bg-muted/40",
+                )}
+              >
+                <p className="text-foreground truncate text-[13px] font-semibold">
+                  All mail for this role
+                </p>
+                <p className="text-muted-foreground truncate text-[12px]">
+                  {selectedApplication
+                    ? `${selectedApplication.companyName} · ${selectedApplication.role}`
+                    : "Selected application"}
+                </p>
+                <p className="text-muted-foreground mt-0.5 text-[10px]">
+                  {applicationMessages.length} message
+                  {applicationMessages.length === 1 ? "" : "s"}
+                </p>
+              </button>
+            </li>
+          ) : null}
+          {threads.length === 0 ? (
+            <li className="text-muted-foreground px-3 py-8 text-center text-[13px]">
+              No emails match this search.
+            </li>
+          ) : (
+            threads.map((thread) => {
+              const active = !viewingAllForApp && thread.key === selectedKey;
+              const last = thread.messages[thread.messages.length - 1];
+              return (
+                <li key={thread.key}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedKey(thread.key)}
+                    className={cn(
+                      "w-full cursor-pointer border-b px-3 py-2.5 text-left transition-colors",
+                      active
+                        ? "border-primary/20 bg-primary/10"
+                        : "border-border/50 hover:bg-muted/40",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-foreground truncate text-[13px] font-semibold">
+                        {thread.personName}
                       </p>
-                      <p className="text-muted-foreground mt-0.5 text-[10px]">
-                        {thread.messages.length} message
-                        {thread.messages.length === 1 ? "" : "s"} ·{" "}
-                        {formatDateTimeReadable(thread.latestAt)}
-                      </p>
-                    </button>
-                  </li>
-                );
-              })
-            )}
-          </ul>
-        </aside>
+                      {thread.hasFailed ? (
+                        <Badge variant="destructive" className="h-5 shrink-0 text-[10px]">
+                          Failed
+                        </Badge>
+                      ) : last ? (
+                        <Badge
+                          variant={statusVariant(last.status)}
+                          className="h-5 shrink-0 text-[10px]"
+                        >
+                          {statusLabel(last.status)}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="text-muted-foreground truncate text-[12px]">
+                      {thread.company}
+                      {thread.role ? ` · ${thread.role}` : ""}
+                    </p>
+                    <p className="text-muted-foreground mt-0.5 text-[10px]">
+                      {thread.messages.length} message
+                      {thread.messages.length === 1 ? "" : "s"} ·{" "}
+                      {formatDateTimeReadable(thread.latestAt)}
+                    </p>
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      </Card>
 
+      <div className="hidden w-2 shrink-0 justify-center md:flex">
         <ResizeHandle
           aria-label="Resize inbox panes"
           onPointerDown={onResizeStart}
           onPointerMove={onResizeMove}
           onPointerUp={onResizeEnd}
-          className="hidden shrink-0 md:flex"
         />
+      </div>
 
-        <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          {viewingAllForApp ? (
-            <>
-              <header className="border-border/60 shrink-0 border-b px-4 py-3">
-                <p className="text-foreground text-[15px] font-semibold tracking-tight">
-                  All mail · {selectedApplication?.companyName}
-                  {selectedApplication?.role ? ` · ${selectedApplication.role}` : ""}
+      <Card className="flex min-h-[24rem] min-w-0 flex-1 flex-col gap-0 overflow-hidden p-0 md:min-h-0">
+        {viewingAllForApp ? (
+          <>
+            <header className="border-border/60 shrink-0 border-b px-4 py-3">
+              <p className="text-foreground text-[15px] font-semibold tracking-tight">
+                All mail · {selectedApplication?.companyName}
+                {selectedApplication?.role ? ` · ${selectedApplication.role}` : ""}
+              </p>
+              <p className="text-muted-foreground text-[12px]">
+                Every referral and follow-up sent for this application
+              </p>
+            </header>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+              {applicationMessages.length === 0 ? (
+                <p className="text-muted-foreground py-8 text-center text-[13px]">
+                  No mail for this application yet.
                 </p>
-                <p className="text-muted-foreground text-[12px]">
-                  Every referral and follow-up sent for this application
-                </p>
-              </header>
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                {applicationMessages.length === 0 ? (
-                  <p className="text-muted-foreground py-8 text-center text-[13px]">
-                    No mail for this application yet.
-                  </p>
-                ) : (
-                  applicationMessages.map(({ thread, message }) =>
-                    renderMessageCard(message, { personLabel: thread.personName }),
-                  )
-                )}
-              </div>
-            </>
-          ) : !selected ? (
-            <div className="text-muted-foreground flex flex-1 items-center justify-center p-6 text-center text-[13px]">
-              Select a conversation to read referral and follow-up mail.
+              ) : (
+                applicationMessages.map(({ thread, message }) =>
+                  renderMessageCard(message, { personLabel: thread.personName }),
+                )
+              )}
             </div>
-          ) : (
-            <>
-              <header className="border-border/60 shrink-0 border-b px-4 py-3">
-                <p className="text-foreground text-[15px] font-semibold tracking-tight">
-                  {selected.personName}
-                </p>
-                <p className="text-muted-foreground text-[12px]">
-                  {selected.company}
-                  {selected.role ? ` · ${selected.role}` : ""}
-                  {selected.personEmail ? ` · ${selected.personEmail}` : ""}
-                </p>
-              </header>
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                {selected.messages.map((msg) => renderMessageCard(msg))}
-              </div>
-            </>
-          )}
-        </section>
+          </>
+        ) : !selected ? (
+          <div className="text-muted-foreground flex flex-1 items-center justify-center p-6 text-center text-[13px]">
+            Select a conversation to read referral and follow-up mail.
+          </div>
+        ) : (
+          <>
+            <header className="border-border/60 shrink-0 border-b px-4 py-3">
+              <p className="text-foreground text-[15px] font-semibold tracking-tight">
+                {selected.personName}
+              </p>
+              <p className="text-muted-foreground text-[12px]">
+                {selected.company}
+                {selected.role ? ` · ${selected.role}` : ""}
+                {selected.personEmail ? ` · ${selected.personEmail}` : ""}
+              </p>
+            </header>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+              {selected.messages.map((msg) => renderMessageCard(msg))}
+            </div>
+          </>
+        )}
       </Card>
+    </div>
+  );
+
+  if (variant === "board") {
+    return (
+      <FullscreenBoard>
+        {noticesBlock}
+        {toolbar}
+        {board}
+      </FullscreenBoard>
+    );
+  }
+
+  return (
+    <ShellWidth className="aavedak-fade-up space-y-4 py-6 sm:py-8">
+      <header className="space-y-1">
+        <p className="text-primary/90 font-mono text-[12px] tracking-wide">Inbox</p>
+        <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Outreach</h1>
+        <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
+          Referral and follow-up mail per person and role. Same company, different roles stay
+          separate. Follow-ups send as replies in the same Gmail thread. Compose on{" "}
+          <Link href="/referrals" className="text-primary cursor-pointer hover:underline">
+            Referrals
+          </Link>
+          .
+        </p>
+      </header>
+
+      <GmailConnectBanner callbackURL="/outreach" />
+
+      {noticesBlock}
+      {toolbar}
+      {board}
     </ShellWidth>
   );
 }

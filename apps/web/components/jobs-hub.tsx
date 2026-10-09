@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CompanySelect } from "@/components/company-select";
 import { EngineKindBadge } from "@/components/ats-engine-badge";
+import { BoardToggleLink, FullscreenBoard } from "@/components/fullscreen-board";
 import { PersonVote, personInitials, type VoteSummaryDto } from "@/components/person-vote";
 import { ShellWidth } from "@/components/shell-width";
 import {
@@ -144,15 +145,6 @@ export function JobsHub({
     initialJobId ?? (initialTab === "applied" ? initialApplied : initialDiscover)[0]?.id ?? null,
   );
 
-  // Full-screen board: stop the page behind it from scrolling.
-  useEffect(() => {
-    if (variant !== "board") return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [variant]);
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [listWidth, setListWidth] = useState(360);
@@ -481,14 +473,11 @@ export function JobsHub({
           <Button type="button" variant="outline" size="sm" onClick={() => setAddOpen(true)}>
             Add job
           </Button>
-          <Link
+          <BoardToggleLink
+            expanded={variant === "board"}
             href={variant === "board" ? `/jobs?${boardQuery}` : `/jobs/board?${boardQuery}`}
-            className={buttonVariants({ variant: "outline", size: "icon-sm" })}
-            aria-label={variant === "board" ? "Collapse board" : "Expand board to full screen"}
-            title={variant === "board" ? "Collapse" : "Expand"}
-          >
-            {variant === "board" ? <CollapseIcon /> : <ExpandIcon />}
-          </Link>
+            label="jobs board"
+          />
         </div>
       </Card>
 
@@ -530,7 +519,7 @@ export function JobsHub({
         </Card>
 
         {/* The gap between the cards doubles as the resize handle. */}
-        <div className="hidden w-4 shrink-0 justify-center md:flex">
+        <div className="hidden w-2 shrink-0 justify-center md:flex">
           <ResizeHandle
             aria-label="Resize panes"
             onPointerDown={onResizeStart}
@@ -684,11 +673,11 @@ export function JobsHub({
   if (variant === "board") {
     // Full-screen board: covers the site header/footer; only the board is shown.
     return (
-      <div className="bg-background fixed inset-0 z-[60] flex flex-col gap-3 overflow-hidden p-3 sm:p-4">
+      <FullscreenBoard>
         {notices}
         {board}
         {modals}
-      </div>
+      </FullscreenBoard>
     );
   }
 
@@ -709,34 +698,6 @@ export function JobsHub({
       <HowJobsWork />
       {modals}
     </ShellWidth>
-  );
-}
-
-function ExpandIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="size-4" aria-hidden>
-      <path
-        d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CollapseIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="size-4" aria-hidden>
-      <path
-        d="M20 10h-6V4M4 14h6v6M14 10l7-7M10 14l-7 7"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 
@@ -1212,7 +1173,7 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
               <thead>
                 <tr className="border-border/40 border-b">
                   {/* Frozen first column: stays in place while engine columns scroll. */}
-                  <th className="text-muted-foreground bg-card border-border/40 sticky left-0 z-10 h-12 border-r px-3 text-left align-middle font-medium">
+                  <th className="text-muted-foreground bg-card after:bg-border/60 sticky left-0 z-10 h-12 px-3 text-left align-middle font-medium after:absolute after:inset-y-0 after:right-0 after:w-px">
                     Resume
                   </th>
                   {selectedEngines.map((eng) => (
@@ -1228,7 +1189,7 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
               <tbody>
                 {resumes.map((resume) => (
                   <tr key={resume.id} className="border-border/40 border-b last:border-b-0">
-                    <td className="bg-card border-border/40 sticky left-0 z-10 border-r px-3 align-middle">
+                    <td className="bg-card after:bg-border/60 sticky left-0 z-10 px-3 align-middle after:absolute after:inset-y-0 after:right-0 after:w-px">
                       <label className="flex min-w-0 cursor-pointer items-center gap-2">
                         <Checkbox
                           checked={resumeIds.has(resume.id)}
