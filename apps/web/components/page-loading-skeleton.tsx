@@ -320,71 +320,74 @@ function PeopleSkeleton() {
   );
 }
 
+/** Matches components/jobs-hub.tsx: tabs + search inside the panel, two scrolling panes, accordion. */
 function JobsSkeleton() {
   return (
-    <ShellWidth className="flex flex-col gap-5 py-8 sm:py-10">
+    <ShellWidth className="flex flex-col gap-4 py-6 sm:py-8">
       <PageHeaderSkeleton titleWidth="w-20" blurbWidth="w-full max-w-2xl" withToolbar />
 
-      <div className="flex flex-col gap-2.5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Skeleton className="h-8 w-full rounded-md sm:max-w-sm" />
-          <Skeleton className="h-3 w-24" />
+      <Card className="gap-0 overflow-hidden p-0 md:h-[calc(100dvh-13.5rem)] md:min-h-[32rem]">
+        <div className="border-border/60 flex flex-col gap-2 border-b px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <Skeleton className="h-9 w-64 rounded-lg" />
+          <Skeleton className="h-8 w-full rounded-md sm:w-64" />
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className="border-border/60 flex gap-1 border-b px-3 py-2">
+          {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-7 w-24 rounded-full" />
           ))}
         </div>
-      </div>
-
-      <div className="border-border/80 bg-card flex min-h-[30rem] flex-col overflow-hidden rounded-lg border md:flex-row">
-        <aside className="border-border/60 flex w-full shrink-0 flex-col border-b md:w-[320px] md:border-b-0 md:border-r">
-          <div className="max-h-[70vh] space-y-1 overflow-hidden p-2">
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          <aside className="border-border/60 w-full shrink-0 space-y-1 border-b p-2 md:w-[360px] md:border-b-0 md:border-r">
             {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="space-y-1.5 rounded-md px-2.5 py-2.5">
-                <Skeleton className="h-3.5 w-36 max-w-full" />
-                <Skeleton className="h-3 w-28" />
-                <div className="flex gap-1.5 pt-0.5">
-                  <Skeleton className="h-5 w-14 rounded-full" />
-                  <Skeleton className="h-5 w-16 rounded-full" />
+              <div key={i} className="flex gap-2.5 rounded-md px-2.5 py-2.5">
+                <Skeleton className="size-8 shrink-0 rounded-md" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-40 max-w-full" />
+                  <Skeleton className="h-3 w-28" />
+                  <div className="flex gap-1.5 pt-0.5">
+                    <Skeleton className="h-4 w-20 rounded-full" />
+                    <Skeleton className="h-4 w-14 rounded-full" />
+                  </div>
                 </div>
               </div>
             ))}
-          </div>
-        </aside>
-        <section className="min-w-0 flex-1 space-y-4 p-4 sm:p-5">
-          <div className="flex items-start gap-3">
-            <Skeleton className="size-11 shrink-0 rounded-md" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="flex flex-wrap gap-1.5">
-                <Skeleton className="h-5 w-16 rounded-full" />
-                <Skeleton className="h-5 w-14 rounded-full" />
+          </aside>
+          <section className="min-w-0 flex-1 space-y-4 p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <Skeleton className="size-10 shrink-0 rounded-md" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-6 w-64 max-w-full" />
+                <Skeleton className="h-4 w-40" />
               </div>
-              <Skeleton className="h-6 w-56 max-w-full" />
-              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-7 w-28 rounded-md" />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="space-y-1.5 rounded-lg border border-transparent p-2">
-                <Skeleton className="h-2.5 w-12" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            <Skeleton className="h-8 w-24 rounded-md" />
-            <Skeleton className="h-8 w-28 rounded-md" />
-          </div>
-          <div className="space-y-2 pt-2">
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-5/6" />
-            <Skeleton className="h-3 w-4/5" />
-            <Skeleton className="h-3 w-2/3" />
-          </div>
-        </section>
-      </div>
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-5 w-20 rounded-full" />
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <Skeleton className="h-8 w-28 rounded-md" />
+              <Skeleton className="h-8 w-24 rounded-md" />
+              <Skeleton className="h-8 w-20 rounded-md" />
+            </div>
+            <div className="space-y-2 pt-2">
+              <Skeleton className="h-3.5 w-32" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-5/6" />
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+          </section>
+        </div>
+      </Card>
+
+      <Card className="gap-0 rounded-xl p-0">
+        <div className="flex items-center justify-between px-4 py-4 md:px-5">
+          <Skeleton className="h-3.5 w-32" />
+          <Skeleton className="size-4 rounded-sm" />
+        </div>
+      </Card>
     </ShellWidth>
   );
 }

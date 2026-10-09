@@ -1,15 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CompanySelect } from "@/components/company-select";
 import { PersonVote, personInitials, type VoteSummaryDto } from "@/components/person-vote";
 import { ShellWidth } from "@/components/shell-width";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ResizeHandle } from "@/components/ui/resize-handle";
@@ -20,11 +27,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScoreRing } from "@/components/ui/score-ring";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { STATUS_LABELS, isApplicationStatus } from "@/lib/application-status";
+import { ATS_ENGINES, getEngine } from "@/lib/ats-engines/registry";
+import type { AtsEngineId } from "@/lib/ats-engines/types";
+import { saveAtsPrefill } from "@/lib/ats-prefill";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
 import type { JobDtoBase } from "@/lib/job-dto";
 import { cn } from "@/lib/utils";
@@ -33,7 +46,10 @@ export type JobDto = JobDtoBase;
 
 type JobsTab = "discover" | "applied";
 
+type ResumeLite = { id: string; displayName: string; status: string };
+
 type JobsHubProps = {
+  resumes: ResumeLite[];
   initialDiscover: JobDto[];
   initialApplied: JobDto[];
   discoveryEnabled: boolean;
@@ -107,6 +123,7 @@ function statusLabel(status: string | null | undefined): string | null {
 }
 
 export function JobsHub({
+  resumes,
   initialDiscover,
   initialApplied,
   discoveryEnabled,
@@ -158,15 +175,21 @@ export function JobsHub({
 
   const sourceCounts = useMemo(() => {
     const counts: Record<string, number> = { all: jobs.length };
-    for (const s of JOB_SOURCES) counts[s] = 0;
-    for (const job of jobs) counts[job.source] = (counts[job.source] ?? 0) + 1;
+    for (const job of jobs) counts[job.sourceLabel] = (counts[job.sourceLabel] ?? 0) + 1;
     return counts;
   }, [jobs]);
+  const sourceOptions = useMemo(
+    () =>
+      Object.keys(sourceCounts)
+        .filter((k) => k !== "all")
+        .sort(),
+    [sourceCounts],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return jobs.filter((job) => {
-      if (sourceFilter !== "all" && job.source !== sourceFilter) return false;
+      if (sourceFilter !== "all" && job.sourceLabel !== sourceFilter) return false;
       if (!q) return true;
       return (
         job.title.toLowerCase().includes(q) ||
@@ -370,17 +393,8 @@ export function JobsHub({
     }
   }
 
-  const sourceChipOrder: Array<"all" | JobSource> = [
-    "all",
-    "careers",
-    "linkedin",
-    "indeed",
-    "manual",
-    "other",
-  ];
-
   return (
-    <ShellWidth className="aavedak-fade-up flex flex-col gap-5 py-8 sm:py-10">
+    <ShellWidth className="aavedak-fade-up flex flex-col gap-4 py-6 sm:py-8">
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
@@ -389,7 +403,7 @@ export function JobsHub({
           <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Jobs</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Junior engineering roles in India, discovered daily from company career pages and ranked
-            against your resume. Jobs leave both tabs {EXPIRY_DAYS} days after posting.
+            against your resume.
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -402,8 +416,34 @@ export function JobsHub({
         </div>
       </header>
 
-      <div className="flex flex-col gap-2.5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      {tab === "discover" && !discoveryEnabled ? (
+        <Card size="sm" className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-[13px]">Daily discovery is paused</CardTitle>
+            <CardDescription className="text-[12px]">
+              You won&apos;t get new recommendations until you turn it back on. Existing ones stay
+              here until you apply or ignore them.{" "}
+              <Link href={profileSettingsHref} className="text-primary hover:underline">
+                Profile settings → Job discovery
+              </Link>
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+      {message ? (
+        <p className="text-primary text-[13px]">
+          {message}{" "}
+          <Link href="/job-tracker" className="font-medium underline-offset-2 hover:underline">
+            Open tracker
+          </Link>
+        </p>
+      ) : null}
+
+      {/* Fixed-height panel on desktop: list and detail scroll independently (no dead space). */}
+      <Card className="gap-0 overflow-hidden p-0 md:h-[calc(100dvh-13.5rem)] md:min-h-[32rem]">
+        <div className="border-border/60 flex flex-col gap-2 border-b px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
           <Tabs value={tab} onValueChange={switchTab}>
             <TabsList>
               <TabsTrigger value="discover">
@@ -424,105 +464,87 @@ export function JobsHub({
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search title, company, or description…"
-              className="h-8 w-full text-[13px] sm:w-72"
+              placeholder="Search title, company, description…"
+              className="h-8 w-full text-[13px] sm:w-64"
               aria-label="Search jobs"
             />
             <span className="text-muted-foreground shrink-0 text-[11px] tabular-nums">
-              {filtered.length} of {jobs.length}
+              {filtered.length}/{jobs.length}
             </span>
           </div>
         </div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by source">
-          {sourceChipOrder.map((key) => {
-            const count = sourceCounts[key] ?? 0;
-            if (key !== "all" && count === 0) return null;
-            const active = sourceFilter === key;
-            const label = key === "all" ? "All sources" : SOURCE_LABELS[key];
-            return (
-              <Button
-                key={key}
-                type="button"
-                size="xs"
-                variant={active ? "secondary" : "ghost"}
-                aria-pressed={active}
-                onClick={() => setSourceFilter(key)}
-                className="rounded-full"
-              >
-                {label}
-                <span className="tabular-nums opacity-70">{count}</span>
-              </Button>
-            );
-          })}
-        </div>
-      </div>
+        {sourceOptions.length > 1 ? (
+          <div
+            className="border-border/60 flex flex-wrap gap-1 border-b px-3 py-2"
+            role="group"
+            aria-label="Filter by source"
+          >
+            {["all", ...sourceOptions].map((key) => {
+              const active = sourceFilter === key;
+              return (
+                <Button
+                  key={key}
+                  type="button"
+                  size="xs"
+                  variant={active ? "secondary" : "ghost"}
+                  aria-pressed={active}
+                  onClick={() => setSourceFilter(key)}
+                  className="rounded-full"
+                >
+                  {key === "all" ? "All sources" : key}
+                  <span className="tabular-nums opacity-70">{sourceCounts[key] ?? 0}</span>
+                </Button>
+              );
+            })}
+          </div>
+        ) : null}
 
-      {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
-      {message ? (
-        <p className="text-primary text-[13px]">
-          {message}{" "}
-          <Link href="/job-tracker" className="font-medium underline-offset-2 hover:underline">
-            Open tracker
-          </Link>
-        </p>
-      ) : null}
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          <aside
+            className="border-border/60 flex max-h-[50vh] w-full shrink-0 flex-col border-b md:max-h-none md:w-[var(--jobs-list-width)] md:max-w-[min(100%,560px)] md:border-b-0 md:border-r"
+            style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
+          >
+            <JobList
+              jobs={filtered}
+              tab={tab}
+              selectedId={selected?.id ?? null}
+              onSelect={setSelectedId}
+            />
+          </aside>
 
-      {tab === "discover" && !discoveryEnabled ? (
-        <Card size="sm" className="border-dashed">
-          <CardHeader>
-            <CardTitle className="text-[13px]">Daily discovery is paused</CardTitle>
-            <CardDescription className="text-[12px]">
-              You won&apos;t get new recommendations until you turn it back on. Existing ones stay
-              here until you apply or ignore them.{" "}
-              <Link href={profileSettingsHref} className="text-primary hover:underline">
-                Profile settings → Job discovery
-              </Link>
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      ) : null}
-
-      <Card className="min-h-[30rem] gap-0 overflow-hidden p-0 md:flex-row">
-        <aside
-          className="border-border/60 flex w-full shrink-0 flex-col border-b md:w-[var(--jobs-list-width)] md:max-w-[min(100%,560px)] md:border-b-0 md:border-r"
-          style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
-        >
-          <JobList
-            jobs={filtered}
-            tab={tab}
-            selectedId={selected?.id ?? null}
-            onSelect={setSelectedId}
+          <ResizeHandle
+            aria-label="Resize panes"
+            onPointerDown={onResizeStart}
+            onPointerMove={onResizeMove}
+            onPointerUp={onResizeEnd}
+            className="hidden shrink-0 md:flex"
           />
-        </aside>
 
-        <ResizeHandle
-          aria-label="Resize panes"
-          onPointerDown={onResizeStart}
-          onPointerMove={onResizeMove}
-          onPointerUp={onResizeEnd}
-          className="hidden shrink-0 md:flex"
-        />
-
-        <section className="min-w-0 flex-1 p-4 sm:p-5">
-          {!selected ? (
-            <EmptyState
-              tab={tab}
-              hasJobs={jobs.length > 0}
-              discoveryEnabled={discoveryEnabled}
-              onAdd={() => setAddOpen(true)}
-            />
-          ) : (
-            <JobDetail
-              job={selected}
-              tab={tab}
-              pending={pending}
-              onApply={() => void createApplicationFromJob(selected, "applied")}
-              onBookmark={() => void createApplicationFromJob(selected, "bookmarked")}
-              onIgnore={() => void ignoreJob(selected.id)}
-            />
-          )}
-        </section>
+          <section className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-5">
+            {!selected ? (
+              <EmptyState
+                tab={tab}
+                hasJobs={jobs.length > 0}
+                discoveryEnabled={discoveryEnabled}
+                onAdd={() => setAddOpen(true)}
+              />
+            ) : (
+              <JobDetail
+                key={selected.id}
+                job={selected}
+                tab={tab}
+                pending={pending}
+                resumes={resumes}
+                onApply={() => void createApplicationFromJob(selected, "applied")}
+                onBookmark={() => void createApplicationFromJob(selected, "bookmarked")}
+                onIgnore={() => void ignoreJob(selected.id)}
+              />
+            )}
+          </section>
+        </div>
       </Card>
+
+      <HowJobsWork />
 
       <Modal open={addOpen} title="Add job" onClose={() => setAddOpen(false)}>
         <div className="space-y-2.5">
@@ -660,7 +682,7 @@ function EmptyState({
       : "Discovery is paused. Add a job manually or turn discovery back on in Profile settings.";
   }
   return (
-    <div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 text-center text-[13px]">
+    <div className="text-muted-foreground flex h-full min-h-48 flex-col items-center justify-center gap-2 text-center text-[13px]">
       <p className="max-w-sm">{text}</p>
       {!hasJobs && tab === "discover" ? (
         <Button type="button" variant="link" size="sm" onClick={onAdd}>
@@ -671,10 +693,39 @@ function EmptyState({
   );
 }
 
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-3.5" aria-hidden>
+      <rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+    </svg>
+  );
+}
+
+function SectionTitle({
+  children,
+  action,
+}: {
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <h3 className="text-foreground text-[12px] font-semibold tracking-tight">{children}</h3>
+      {action}
+    </div>
+  );
+}
+
 function JobDetail({
   job,
   tab,
   pending,
+  resumes,
   onApply,
   onBookmark,
   onIgnore,
@@ -682,135 +733,343 @@ function JobDetail({
   job: JobDto;
   tab: JobsTab;
   pending: boolean;
+  resumes: ResumeLite[];
   onApply: () => void;
   onBookmark: () => void;
   onIgnore: () => void;
 }) {
   const left = daysLeft(job);
   const reasons = [...(job.reasons?.skills ?? []), ...(job.reasons?.roles ?? [])].slice(0, 8);
+
+  async function copyDescription() {
+    try {
+      await navigator.clipboard.writeText(job.description);
+      toast.add({ title: "Job description copied", type: "success", duration: 2000 });
+    } catch {
+      toast.add({
+        title: "Could not copy",
+        description: "Your browser blocked clipboard access.",
+        type: "error",
+      });
+    }
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-start gap-3">
-        <Avatar className="size-11 rounded-md">
-          <AvatarFallback className="rounded-md text-[13px] font-semibold">
-            {initials(job.company)}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge
-              variant={job.discovered ? "outline" : "secondary"}
-              className="text-[10px] uppercase"
-            >
-              {job.discovered ? "Discovered" : SOURCE_LABELS[job.source]}
-            </Badge>
-            {tab === "applied" && job.applicationStatus ? (
-              <Badge className="text-[10px]">{statusLabel(job.applicationStatus)}</Badge>
-            ) : null}
-            {job.minYears != null ? (
-              <Badge variant="secondary" className="text-[10px]">
-                {job.minYears === 0 ? "Fresher friendly" : `${job.minYears}+ yrs`}
-              </Badge>
-            ) : null}
-            <span className="text-muted-foreground text-[11px]">{ageLabel(job)}</span>
-            {left !== null ? (
-              <span
-                className={cn(
-                  "text-[11px]",
-                  left <= 5 ? "text-destructive" : "text-muted-foreground",
-                )}
-              >
-                · {left === 0 ? "expires today" : `${left}d left`}
-              </span>
-            ) : null}
+    <div className="space-y-5">
+      {/* Header: identity + every fact as a compact chip */}
+      <div className="space-y-3">
+        <div className="flex items-start gap-3">
+          <Avatar className="size-10 rounded-md">
+            <AvatarFallback className="rounded-md text-[12px] font-semibold">
+              {initials(job.company)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <h2 className="aavedak-display text-foreground text-lg leading-snug sm:text-xl">
+              {job.title}
+            </h2>
+            <p className="text-muted-foreground text-[13px]">
+              <span className="text-foreground/90">{job.company}</span> · {job.location}
+            </p>
           </div>
-          <h2 className="aavedak-display text-foreground text-xl sm:text-2xl">{job.title}</h2>
-          <p className="text-foreground/90 text-[13px]">
-            {job.company}
-            <span className="text-muted-foreground"> · {job.location}</span>
-          </p>
           {job.url ? (
             <a
               href={job.url}
               target="_blank"
-              rel="noreferrer"
-              className="text-primary text-[12px] hover:underline"
+              rel="noopener noreferrer"
+              className={buttonVariants({ variant: "outline", size: "xs" })}
             >
               Original post ↗
             </a>
           ) : null}
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <MetaChip
-          label="Match"
-          value={job.compatibilityScore != null ? `${job.compatibilityScore}%` : "—"}
-        />
-        <MetaChip label="JD quality" value={job.atsScore != null ? `${job.atsScore}%` : "—"} />
-        <MetaChip
-          label="Experience"
-          value={job.minYears != null ? `${job.minYears}+ yrs` : "Not stated"}
-        />
-        <MetaChip label="Comp" value={job.salary ?? "—"} />
-      </div>
-
-      {reasons.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-muted-foreground text-[11px]">Matches your profile:</span>
-          {reasons.map((r) => (
-            <Badge key={r} variant="outline" className="text-[10px]">
-              {r}
+          <Badge variant="outline" className="text-[10px]">
+            {job.sourceLabel}
+          </Badge>
+          {tab === "applied" && job.applicationStatus ? (
+            <Badge className="text-[10px]">{statusLabel(job.applicationStatus)}</Badge>
+          ) : null}
+          {job.compatibilityScore != null ? (
+            <Badge variant="secondary" className="text-[10px] tabular-nums">
+              Match {job.compatibilityScore}%
             </Badge>
-          ))}
+          ) : null}
+          {job.atsScore != null ? (
+            <Badge
+              variant="secondary"
+              className="text-[10px] tabular-nums"
+              title="How complete and parseable the job description is"
+            >
+              JD quality {job.atsScore}%
+            </Badge>
+          ) : null}
+          <Badge variant="secondary" className="text-[10px]">
+            {job.minYears == null
+              ? "Experience not stated"
+              : job.minYears === 0
+                ? "Fresher friendly"
+                : `${job.minYears}+ yrs`}
+          </Badge>
+          {job.salary ? (
+            <Badge variant="secondary" className="text-[10px]">
+              {job.salary}
+            </Badge>
+          ) : null}
+          <span className="text-muted-foreground text-[11px]">{ageLabel(job)}</span>
+          {left !== null ? (
+            <span
+              className={cn(
+                "text-[11px]",
+                left <= 5 ? "text-destructive" : "text-muted-foreground",
+              )}
+            >
+              · {left === 0 ? "expires today" : `${left}d left`}
+            </span>
+          ) : null}
         </div>
-      ) : null}
 
-      {tab === "discover" ? (
+        {reasons.length > 0 ? (
+          <p className="text-muted-foreground text-[11px]">
+            Matches your profile: <span className="text-foreground/90">{reasons.join(", ")}</span>
+          </p>
+        ) : null}
+
         <div className="flex flex-wrap gap-1.5">
-          <Button type="button" size="sm" loading={pending} onClick={onApply}>
-            Mark applied
-          </Button>
-          <Button type="button" size="sm" variant="outline" disabled={pending} onClick={onBookmark}>
-            Bookmark
-          </Button>
-          <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={onIgnore}>
-            Ignore
-          </Button>
+          {tab === "discover" ? (
+            <>
+              <Button type="button" size="sm" loading={pending} onClick={onApply}>
+                Mark applied
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={onBookmark}
+              >
+                Bookmark
+              </Button>
+              <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={onIgnore}>
+                Ignore
+              </Button>
+            </>
+          ) : (
+            <Link
+              href="/job-tracker"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Open in tracker
+            </Link>
+          )}
           <Link
             href={`/documents?tab=cover_letters&jobId=${job.id}`}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
           >
             Cover letter
           </Link>
         </div>
-      ) : (
-        <div className="flex flex-wrap gap-1.5">
-          <Link href="/job-tracker" className={buttonVariants({ variant: "outline", size: "sm" })}>
-            Open in tracker
-          </Link>
-          <Link
-            href={`/documents?tab=cover_letters&jobId=${job.id}`}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            Cover letter
-          </Link>
-        </div>
-      )}
+      </div>
+
+      <Separator />
+
+      <section className="space-y-2">
+        <SectionTitle
+          action={
+            job.description ? (
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                onClick={() => void copyDescription()}
+                aria-label="Copy job description"
+                title="Copy job description"
+              >
+                <CopyIcon />
+              </Button>
+            ) : null
+          }
+        >
+          Job description
+        </SectionTitle>
+        <pre className="text-muted-foreground max-h-80 overflow-auto whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
+          {job.description || "No description provided."}
+        </pre>
+      </section>
+
+      <Separator />
 
       <JobPeople jobId={job.id} company={job.company} />
 
-      <Card size="sm" className="bg-muted/30">
-        <CardHeader>
-          <CardTitle className="text-[12px]">Description</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="text-muted-foreground max-h-[22rem] overflow-auto whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
-            {job.description || "No description provided."}
-          </pre>
-        </CardContent>
-      </Card>
+      <Separator />
+
+      <JobAtsCheck job={job} resumes={resumes} />
     </div>
+  );
+}
+
+type AtsResultCell = {
+  status: string;
+  overallScore?: number | null;
+  scoreName?: string;
+  scoreLabel?: string;
+  error?: string;
+  failureKind?: string;
+};
+
+/**
+ * Quick ATS check of this job against the user's resumes with one engine, plus a hand-off
+ * to the ATS page (title, JD, resumes, engine pre-filled) for the detailed report.
+ */
+function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
+  const router = useRouter();
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(resumes.map((r) => r.id)));
+  const [engineId, setEngineId] = useState<AtsEngineId>("aavedak");
+  const [results, setResults] = useState<Record<string, AtsResultCell | "running">>({});
+  const [running, setRunning] = useState(false);
+
+  function toggle(id: string, on: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function runScan() {
+    const ids = resumes.filter((r) => selected.has(r.id)).map((r) => r.id);
+    if (ids.length === 0) return;
+    setRunning(true);
+    setResults(Object.fromEntries(ids.map((id) => [id, "running" as const])));
+    for (const resumeId of ids) {
+      try {
+        const res = await fetch("/api/ats/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            resumeId,
+            engineId,
+            sharedRole: job.title,
+            sharedJdText: job.description.slice(0, 40_000),
+          }),
+        });
+        const data = (await res.json()) as { result?: AtsResultCell; error?: string };
+        setResults((prev) => ({
+          ...prev,
+          [resumeId]: data.result ?? { status: "error", error: data.error || "Scan failed." },
+        }));
+      } catch {
+        setResults((prev) => ({
+          ...prev,
+          [resumeId]: { status: "error", error: "Network error." },
+        }));
+      }
+    }
+    setRunning(false);
+  }
+
+  function openDetailed() {
+    saveAtsPrefill({
+      role: job.title,
+      jdText: job.description.slice(0, 40_000),
+      resumeIds: [...selected],
+      engineIds: [engineId],
+      job: { id: job.id, title: job.title, company: job.company, url: job.url },
+    });
+    router.push("/ats");
+  }
+
+  return (
+    <section className="space-y-3">
+      <SectionTitle>ATS check for this job</SectionTitle>
+      {resumes.length === 0 ? (
+        <p className="text-muted-foreground text-[12px]">
+          Upload a resume in{" "}
+          <Link href="/documents" className="text-primary hover:underline">
+            Documents
+          </Link>{" "}
+          to score it against this job.
+        </p>
+      ) : (
+        <>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Select value={engineId} onValueChange={(v) => v && setEngineId(v as AtsEngineId)}>
+              <SelectTrigger
+                className="border-border bg-background h-8 w-full rounded-md border px-2.5 text-[12px] sm:w-64"
+                aria-label="ATS engine"
+              >
+                <SelectValue placeholder="Engine" />
+              </SelectTrigger>
+              <SelectContent className="z-[240]">
+                {ATS_ENGINES.map((eng) => (
+                  <SelectItem key={eng.id} value={eng.id} className="text-[12px]">
+                    {eng.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-1.5">
+              <Button
+                type="button"
+                size="sm"
+                loading={running}
+                disabled={selected.size === 0}
+                onClick={() => void runScan()}
+              >
+                Run scan
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={openDetailed}>
+                Detailed scan on ATS page →
+              </Button>
+            </div>
+          </div>
+          <p className="text-muted-foreground text-[11px]">
+            {getEngine(engineId)?.shortDescription} The detailed scan opens the ATS page with this
+            job&apos;s title, description, your selected resumes and engine filled in.
+          </p>
+          <ul className="space-y-1.5">
+            {resumes.map((resume) => {
+              const result = results[resume.id];
+              return (
+                <li key={resume.id} className="flex items-center gap-2.5">
+                  <Checkbox
+                    checked={selected.has(resume.id)}
+                    onChange={(e) => toggle(resume.id, e.target.checked)}
+                    disabled={running}
+                    aria-label={`Include ${resume.displayName}`}
+                  />
+                  <span className="text-foreground min-w-0 flex-1 truncate text-[12px]">
+                    {resume.displayName}
+                    {resume.status === "active" ? (
+                      <Badge variant="outline" className="ml-1.5 px-1 py-0 text-[9px]">
+                        Active
+                      </Badge>
+                    ) : null}
+                  </span>
+                  {result === "running" ? (
+                    <Spinner className="size-3.5" label="Scanning" />
+                  ) : result && result.status === "done" && result.overallScore != null ? (
+                    <span className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-[10px]">{result.scoreName}</span>
+                      <ScoreRing value={result.overallScore} size={32} />
+                    </span>
+                  ) : result ? (
+                    <span
+                      className="text-destructive max-w-48 truncate text-[11px]"
+                      title={result.error}
+                    >
+                      {result.error || "No score"}
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -821,8 +1080,6 @@ function JobPeople({ jobId, company }: { jobId: string; company: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    setPeople(null);
-    setFailed(false);
     fetch(`/api/jobs/${jobId}/people`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("failed"))))
       .then((data: { people: JobPersonDto[] }) => {
@@ -837,90 +1094,128 @@ function JobPeople({ jobId, company }: { jobId: string; company: string }) {
   }, [jobId]);
 
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardTitle className="text-[12px]">People at {company}</CardTitle>
-        <CardDescription className="text-[11px]">
-          Possible referral contacts. Votes are a community signal, not a promise to refer.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="gap-2">
-        {failed ? (
-          <p className="text-muted-foreground text-[12px]">Could not load people.</p>
-        ) : people === null ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-2/3" />
-          </div>
-        ) : people.length === 0 ? (
-          <p className="text-muted-foreground text-[12px]">
-            No one at {company} yet.{" "}
-            <Link href="/people" className="text-primary hover:underline">
-              Add a contact
-            </Link>
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {people.map((person, index) => (
-              <li key={person.id} className="space-y-2">
-                {index > 0 ? <Separator /> : null}
-                <div className="flex items-center gap-2.5">
-                  <Avatar className="size-8">
-                    <AvatarFallback className="text-[10px]">
-                      {personInitials(person.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-foreground flex items-center gap-1.5 truncate text-[12px] font-medium">
-                      {person.name}
-                      {person.origin === "system" ? (
-                        <Badge variant="outline" className="px-1 py-0 text-[9px]">
-                          Discovered
-                        </Badge>
-                      ) : null}
-                    </p>
-                    <p className="text-muted-foreground truncate text-[11px]">
-                      {person.roleTitle ?? "Role unknown"} · {person.relevanceReason}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    {person.linkedin ? (
-                      <a
-                        href={person.linkedin}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={buttonVariants({ variant: "ghost", size: "xs" })}
-                      >
-                        LinkedIn
-                      </a>
-                    ) : null}
-                    {person.email ? (
-                      <Link
-                        href={`/referrals?personId=${person.id}`}
-                        className={buttonVariants({ variant: "ghost", size: "xs" })}
-                      >
-                        Ask
-                      </Link>
-                    ) : null}
-                    <PersonVote personId={person.id} initial={person.votes} />
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+    <section className="space-y-2">
+      <SectionTitle>People at {company}</SectionTitle>
+      {failed ? (
+        <p className="text-muted-foreground text-[12px]">Could not load people.</p>
+      ) : people === null ? (
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-2/3" />
+        </div>
+      ) : people.length === 0 ? (
+        <p className="text-muted-foreground text-[12px]">
+          No one at {company} yet.{" "}
+          <Link href="/people" className="text-primary hover:underline">
+            Add a contact
+          </Link>
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {people.map((person) => (
+            <li key={person.id} className="flex items-center gap-2.5">
+              <Avatar className="size-7">
+                <AvatarFallback className="text-[10px]">
+                  {personInitials(person.name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="text-foreground flex items-center gap-1.5 truncate text-[12px] font-medium">
+                  {person.name}
+                  {person.origin === "system" ? (
+                    <Badge variant="outline" className="px-1 py-0 text-[9px]">
+                      Discovered
+                    </Badge>
+                  ) : null}
+                </p>
+                <p className="text-muted-foreground truncate text-[11px]">
+                  {person.roleTitle ?? "Role unknown"} · {person.relevanceReason}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {person.linkedin ? (
+                  <a
+                    href={person.linkedin}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={buttonVariants({ variant: "ghost", size: "xs" })}
+                  >
+                    LinkedIn
+                  </a>
+                ) : null}
+                {person.email ? (
+                  <Link
+                    href={`/referrals?personId=${person.id}`}
+                    className={buttonVariants({ variant: "ghost", size: "xs" })}
+                  >
+                    Ask
+                  </Link>
+                ) : null}
+                <PersonVote personId={person.id} initial={person.votes} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-muted-foreground text-[10px]">
+        Votes are a community signal, not a promise to refer.
+      </p>
+    </section>
   );
 }
 
-function MetaChip({ label, value }: { label: string; value: string }) {
+/** Last section of the page, like the ATS page's "How scoring works". */
+function HowJobsWork() {
   return (
-    <Card size="sm" className="bg-muted/40 gap-0.5 px-2.5 py-2">
-      <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
-        {label}
-      </p>
-      <p className="text-foreground truncate text-[12px] font-medium">{value}</p>
+    <Card className="gap-0 overflow-hidden rounded-xl p-0">
+      <Accordion type="single" collapsible className="border-y-0">
+        <AccordionItem value="how">
+          <AccordionTrigger className="text-foreground px-4 text-[13px] font-semibold hover:no-underline md:px-5">
+            How Jobs works
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="text-muted-foreground grid gap-4 px-4 pb-1 text-[12px] leading-relaxed md:grid-cols-2 md:px-5">
+              <div className="space-y-1">
+                <p className="text-foreground font-medium">Where jobs come from</p>
+                <p>
+                  Every night (IST) Aavedak scans company career boards — Greenhouse, Lever, Ashby,
+                  SmartRecruiters, Workable and career pages that publish structured job data. Each
+                  card shows its source and links to the original post. Sites without permitted
+                  access (LinkedIn, Naukri, Indeed) are not scraped; add those jobs with Add job or
+                  Paste JD.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-foreground font-medium">What gets recommended</p>
+                <p>
+                  Only India-based engineering roles that ask for under 3 years of experience are
+                  kept. Each day you get up to 50 new matches, ranked by how well they fit your
+                  skills, preferred roles, locations and resume text. Turn this off in Profile
+                  settings → Job discovery.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-foreground font-medium">Discover, Applied and expiry</p>
+                <p>
+                  Matches stay in Discover until you mark them applied, bookmark or ignore them —
+                  applied and bookmarked jobs move to Applied and into your tracker. Jobs leave both
+                  tabs 30 days after posting; an early-stage application is then marked Rejected
+                  with a &ldquo;Job expired&rdquo; badge, and you can change it back anytime.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-foreground font-medium">ATS check and people</p>
+                <p>
+                  Run scan scores your selected resumes against this job with one engine. For the
+                  full report and improvement tips, use Detailed scan — it opens the ATS page with
+                  everything filled in. People at the company are possible referral contacts; votes
+                  from other users are a signal, not a promise to refer.
+                </p>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </Card>
   );
 }
@@ -942,7 +1237,7 @@ function JobList({
     );
   }
   return (
-    <ul className="max-h-[70vh] space-y-1 overflow-y-auto p-2">
+    <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
       {jobs.map((job) => (
         <li key={job.id} className="relative">
           <button
@@ -967,18 +1262,14 @@ function JobList({
                 {job.company} · {job.location}
               </p>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                  {job.sourceLabel}
+                </Badge>
                 {tab === "applied" && job.applicationStatus ? (
                   <Badge className="px-1.5 py-0 text-[10px]">
                     {statusLabel(job.applicationStatus)}
                   </Badge>
-                ) : (
-                  <Badge
-                    variant={job.discovered ? "outline" : "secondary"}
-                    className="px-1.5 py-0 text-[10px] uppercase"
-                  >
-                    {job.discovered ? "Discovered" : SOURCE_LABELS[job.source]}
-                  </Badge>
-                )}
+                ) : null}
                 {job.compatibilityScore != null ? (
                   <span className="text-foreground/80 text-[10px] font-medium tabular-nums">
                     Match {job.compatibilityScore}%

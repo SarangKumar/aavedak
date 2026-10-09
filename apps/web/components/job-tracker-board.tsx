@@ -64,6 +64,7 @@ import {
 } from "@/components/ui/table";
 import { CompanySelect } from "@/components/company-select";
 import { DatePickerField } from "@/components/ui/calendar";
+import { formatDateOnly } from "@/lib/format-datetime";
 import { cn } from "@/lib/utils";
 
 const LIST_PAGE_SIZES = [10, 25, 50] as const;
@@ -703,6 +704,7 @@ export function JobTrackerBoard({
                                         {app.location}
                                         {app.salaryCtc ? ` · ${app.salaryCtc}` : ""}
                                       </p>
+                                      <ApplicationDate app={app} />
                                       {app.statusReason === "job_expired" ? (
                                         <JobExpiredBadge />
                                       ) : null}
@@ -1140,6 +1142,7 @@ function ListView({
             <TableHead className="font-normal">Location</TableHead>
             <TableHead className="font-normal">CTC</TableHead>
             <TableHead className="font-normal">Status</TableHead>
+            <TableHead className="font-normal">Applied</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1168,6 +1171,9 @@ function ListView({
                   {STATUS_LABELS[app.status]}
                   {app.statusReason === "job_expired" ? <JobExpiredBadge /> : null}
                 </span>
+              </TableCell>
+              <TableCell className="text-muted-foreground whitespace-nowrap font-normal">
+                <ApplicationDate app={app} />
               </TableCell>
             </TableRow>
           ))}
@@ -1239,5 +1245,24 @@ function JobExpiredBadge() {
     >
       Job expired
     </Badge>
+  );
+}
+
+/**
+ * When the user applied (the date they set), or — for bookmarked / preparing items with no
+ * applied date yet — when it was added to the tracker.
+ */
+function ApplicationDate({ app }: { app: Pick<ApplicationDto, "appliedAt" | "createdAt"> }) {
+  return app.appliedAt ? (
+    <span className="text-muted-foreground text-[11px] leading-snug" title="Date applied">
+      Applied {formatDateOnly(app.appliedAt)}
+    </span>
+  ) : (
+    <span
+      className="text-muted-foreground/80 text-[11px] leading-snug"
+      title="Date added to the tracker"
+    >
+      Added {formatDateOnly(app.createdAt, { zone: "ist" })}
+    </span>
   );
 }

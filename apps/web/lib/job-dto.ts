@@ -15,6 +15,8 @@ export type JobDtoBase = {
   status: JobRecord["status"];
   /** True for shared, discovered jobs (vs the user's own manual/pasted ones). */
   discovered: boolean;
+  /** Where the job came from, for display: "Greenhouse", "Lever", "LinkedIn", "Company site", … */
+  sourceLabel: string;
   postedAt: string | null;
   postedAtEstimated: boolean;
   firstSeenAt: string | null;
@@ -27,6 +29,32 @@ export type JobDtoBase = {
   applicationId?: string | null;
   applicationStatus?: string | null;
 };
+
+const PROVIDER_LABELS: Record<string, string> = {
+  greenhouse: "Greenhouse",
+  lever: "Lever",
+  ashby: "Ashby",
+  smartrecruiters: "SmartRecruiters",
+  workable: "Workable",
+  jsonld: "Company site",
+  json_feed: "Job feed",
+};
+
+const MANUAL_SOURCE_LABELS: Record<string, string> = {
+  manual: "Manual",
+  linkedin: "LinkedIn",
+  careers: "Careers page",
+  indeed: "Indeed",
+  other: "Other",
+};
+
+/** Display name of a job's source: the discovery provider, or the source a user picked. */
+export function jobSourceLabel(job: Pick<JobRecord, "userId" | "feedSource" | "source">): string {
+  if (job.userId === null && job.feedSource && PROVIDER_LABELS[job.feedSource]) {
+    return PROVIDER_LABELS[job.feedSource]!;
+  }
+  return MANUAL_SOURCE_LABELS[job.source] ?? "Other";
+}
 
 export function toJobDto(
   job: JobRecord | DiscoverJob | AppliedJob,
@@ -44,6 +72,7 @@ export function toJobDto(
     salary: job.salary,
     status: job.status,
     discovered: job.userId === null,
+    sourceLabel: jobSourceLabel(job),
     postedAt: job.postedAt,
     postedAtEstimated: job.postedAtEstimated,
     firstSeenAt: job.firstSeenAt,

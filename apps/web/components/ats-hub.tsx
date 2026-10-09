@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { CellStatusLabel, EngineLabel } from "@/components/ats-engine-badge";
 import { ScoreRing } from "@/components/ui/score-ring";
@@ -47,6 +47,7 @@ import type {
   AtsEngineId,
   EngineRunRequest,
 } from "@/lib/ats-engines/types";
+import { takeAtsPrefill, type AtsPrefill } from "@/lib/ats-prefill";
 import { detectAtsMode } from "@/lib/ats-types";
 import { cn } from "@/lib/utils";
 
@@ -304,6 +305,21 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
   function setStepOpen(step: number, open: boolean) {
     setOpenSteps((prev) => ({ ...prev, [step]: open }));
   }
+
+  // Job details handed over from Jobs → "Detailed scan on ATS page" (read once, then cleared).
+  const [prefilledJob, setPrefilledJob] = useState<AtsPrefill["job"] | null>(null);
+  useEffect(() => {
+    const prefill = takeAtsPrefill();
+    if (!prefill) return;
+    setRole(prefill.role);
+    setJdText(prefill.jdText);
+    const known = new Set(initialResumes.map((r) => r.id));
+    const resumeIds = prefill.resumeIds.filter((id) => known.has(id));
+    if (resumeIds.length > 0) setSelectedResumeIds(new Set(resumeIds));
+    if (prefill.engineIds.length > 0) setSelectedEngineIds(new Set(prefill.engineIds));
+    setOpenSteps((prev) => ({ ...prev, 3: true, 4: true }));
+    setPrefilledJob(prefill.job);
+  }, [initialResumes]);
 
   const { ref: jdTextareaRef, resize: resizeJdTextarea } = useAutosizeTextarea(jdText);
 
@@ -686,6 +702,35 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
           Follow the steps below. Results fill one cell at a time — click a score for details.
         </p>
       </header>
+
+      {prefilledJob ? (
+        <Card
+          size="sm"
+          className="border-primary/30 bg-primary/5 flex-row items-center gap-2 text-[12px]"
+        >
+          <span className="text-foreground min-w-0 flex-1">
+            Loaded from Jobs:{" "}
+            <span className="font-medium">
+              {prefilledJob.title}
+              {prefilledJob.company ? ` · ${prefilledJob.company}` : ""}
+            </span>{" "}
+            — job title, description, resumes and engine are filled in below.
+          </span>
+          {prefilledJob.url ? (
+            <a
+              href={prefilledJob.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary shrink-0 font-medium hover:underline"
+            >
+              Original post ↗
+            </a>
+          ) : null}
+          <Button type="button" size="xs" variant="ghost" onClick={() => setPrefilledJob(null)}>
+            Dismiss
+          </Button>
+        </Card>
+      ) : null}
 
       <div className="space-y-3 sm:space-y-4">
         <StepBlock

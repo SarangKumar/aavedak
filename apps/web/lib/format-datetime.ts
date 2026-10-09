@@ -34,3 +34,19 @@ export function formatDateTimeFixed(iso: string | null | undefined): string {
 export function formatDateTimeReadable(iso: string | null | undefined): string {
   return formatDateTimeFixed(iso);
 }
+
+/**
+ * Locale-stable calendar date, e.g. "22 Sep 2026" (SSR-safe). `zone: "ist"` shifts to India
+ * time first — use it for real timestamps (createdAt). Date-only values such as applied dates
+ * are stored as UTC midnight, so they use the default UTC zone to keep the picked day.
+ */
+export function formatDateOnly(
+  iso: string | null | undefined,
+  opts?: { zone?: "utc" | "ist" },
+): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  const shifted = opts?.zone === "ist" ? new Date(d.getTime() + 330 * 60_000) : d;
+  return `${shifted.getUTCDate()} ${MONTHS[shifted.getUTCMonth()]!} ${shifted.getUTCFullYear()}`;
+}
