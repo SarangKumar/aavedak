@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 
+import {
+  AnalysisDetails,
+  modeHint,
+  points,
+  ScoringGuideContent,
+} from "@/components/ats-analysis-panel";
 import { ShellWidth } from "@/components/shell-width";
 import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import {
@@ -11,37 +17,34 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
-import { Progress } from "@/components/ui/progress";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import type { AtsAnalysis, AtsIssue, AtsMode, AtsScores } from "@/lib/ats-types";
-import { detectAtsMode, normalizeAtsIssues } from "@/lib/ats-types";
+import {
+  ATS_ENGINES,
+  buildCombinations,
+  getEngine,
+  scoreTypeLabel,
+  summarizeCombinations,
+} from "@/lib/ats-engines/registry";
+import type {
+  AnalysisCombination,
+  AtsBatchResultCell,
+  AtsEngineId,
+  EngineRunRequest,
+} from "@/lib/ats-engines/types";
+import { detectAtsMode } from "@/lib/ats-types";
 import { cn } from "@/lib/utils";
-
-function AtsIssueList({ issues, className }: { issues: AtsIssue[]; className?: string }) {
-  const rows = normalizeAtsIssues(issues);
-  if (!rows.length) return null;
-  return (
-    <ul className={cn("space-y-2", className)}>
-      {rows.map((issue) => (
-        <li key={issue.code + issue.title} className="flex gap-2">
-          <span className="shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
-            ⚠
-          </span>
-          <div className="min-w-0 space-y-0.5">
-            <p className="text-foreground text-[12px] font-medium leading-snug">{issue.title}</p>
-            {issue.detail && issue.detail !== issue.title ? (
-              <p className="text-muted-foreground text-[11px] leading-relaxed">{issue.detail}</p>
-            ) : null}
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-type CardStatus = "idle" | "queued" | "analyzing" | "done" | "error";
 
 type ResumeRow = {
   id: string;
@@ -50,6 +53,7 @@ type ResumeRow = {
   atsScore: number | null;
   byteSize: number;
   updatedAt: string;
+  originalFilename?: string;
 };
 
 type AtsHubProps = {
@@ -57,43 +61,60 @@ type AtsHubProps = {
   defaultRole?: string;
 };
 
-const SCORE_ROWS: Array<{ key: keyof AtsScores; label: string }> = [
-  { key: "atsCompatibility", label: "ATS Compatibility" },
-  { key: "requiredSkills", label: "Required Skills" },
-  { key: "preferredSkills", label: "Preferred Skills" },
-  { key: "experienceMatch", label: "Experience Match" },
-  { key: "responsibilityMatch", label: "Responsibility Match" },
-  { key: "keywordCoverage", label: "Keyword Coverage" },
-  { key: "evidenceQuality", label: "Evidence Quality" },
-  { key: "jobTitleMatch", label: "Job Title Match" },
-  { key: "resumeQuality", label: "Resume Quality" },
-  { key: "technicalSkills", label: "Technical Skills" },
-  { key: "experienceQuality", label: "Experience Quality" },
-  { key: "structureFormatting", label: "Structure & Formatting" },
-];
-
-function points(score: number | null | undefined): string {
-  if (score == null || Number.isNaN(score)) return "—";
-  return `${Math.max(0, Math.min(100, Math.round(score)))}`;
+function cellKey(resumeId: string, engineId: string) {
+  return `${resumeId}::${engineId}`;
 }
 
-function modeHint(mode: AtsMode): string {
-  if (mode === "resume_only") return "Resume quality analysis";
-  if (mode === "role_match") return "Role match analysis";
-  return "Job match analysis";
+/** Fixed locale so SSR and browser hydration match (undefined locale differs by environment). */
+function formatUpdated(iso: string) {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "";
+  }
 }
 
-function Chevron({ open, className }: { open: boolean; className?: string }) {
+function comboToPendingCell(c: AnalysisCombination): AtsBatchResultCell {
+  const eng = getEngine(c.engineId);
+  if (c.status === "ready") {
+    return {
+      resumeId: c.resumeId,
+      engineId: c.engineId,
+      status: "queued",
+      mode: c.mode,
+      scoreType: c.scoreType,
+      scoreName: scoreTypeLabel(c.scoreType),
+      profileVersion: eng?.profileVersion,
+    };
+  }
+  return {
+    resumeId: c.resumeId,
+    engineId: c.engineId,
+    status: c.status === "needs_input" ? "excluded" : "unsupported",
+    mode: c.mode,
+    scoreType: c.scoreType,
+    scoreName: scoreTypeLabel(c.scoreType),
+    error: c.reason,
+    profileVersion: eng?.profileVersion,
+  };
+}
+
+function StepChevron({ open }: { open: boolean }) {
   return (
     <svg
-      className={cn(
-        "size-4 shrink-0 transition-transform duration-200",
-        open && "rotate-180",
-        className,
-      )}
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden
+      className={cn(
+        "text-muted-foreground size-4 shrink-0 transition-transform duration-200",
+        open && "rotate-180",
+      )}
     >
       <path
         d="m6 9 6 6 6-6"
@@ -106,716 +127,1035 @@ function Chevron({ open, className }: { open: boolean; className?: string }) {
   );
 }
 
-function DownloadIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M8 2.5v7M5.5 7.5 8 10l2.5-2.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M3 12.5h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <circle cx="7" cy="7" r="4.25" stroke="currentColor" strokeWidth="1.5" />
-      <path
-        d="M10.2 10.2 13.5 13.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function ScoreBar({ value }: { value: number }) {
-  return <Progress value={Math.max(0, Math.min(100, value))} max={100} className="h-1.5" />;
-}
-
-function DimensionRow({
-  label,
-  value,
-  detail,
+function StepBlock({
+  step,
+  title,
+  summary,
   open,
-  onToggle,
+  onOpenChange,
+  headerRight,
+  children,
 }: {
-  label: string;
-  value: number;
-  detail?: ReactNode;
+  step: number;
+  title: string;
+  summary?: string;
   open: boolean;
-  onToggle: () => void;
+  onOpenChange: (open: boolean) => void;
+  headerRight?: ReactNode;
+  children: ReactNode;
 }) {
+  const panelId = `ats-step-${step}-panel`;
   return (
-    <div className="border-border/50 border-b last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="hover:bg-muted/30 flex w-full cursor-pointer items-center gap-3 px-0 py-2 text-left"
-      >
-        <span className="text-foreground min-w-0 flex-1 text-[12px] font-medium">{label}</span>
-        <span className="text-foreground w-8 text-right font-mono text-[12px] tabular-nums">
-          {points(value)}
-        </span>
-        <div className="w-24 shrink-0 sm:w-32">
-          <ScoreBar value={value} />
-        </div>
-        <Chevron open={open} className="text-muted-foreground size-3.5" />
-      </button>
-      {open && detail ? (
-        <div className="text-muted-foreground pb-2.5 pl-0 text-[11px] leading-relaxed">
-          {detail}
+    <section className="border-border/80 bg-card rounded-xl border">
+      <div className="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => onOpenChange(!open)}
+          className="hover:bg-muted/30 flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1 py-1 text-left sm:gap-3"
+        >
+          <span className="border-border/80 bg-muted text-foreground flex size-7 shrink-0 items-center justify-center rounded-md border font-mono text-[12px] font-semibold tabular-nums">
+            {step}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="text-foreground block text-[13px] font-semibold">{title}</span>
+            {summary ? (
+              <span className="text-muted-foreground mt-0.5 block text-pretty text-[11px]">
+                {summary}
+              </span>
+            ) : null}
+          </span>
+          <StepChevron open={open} />
+        </button>
+        {headerRight ? (
+          <div className="flex shrink-0 items-center pr-0.5">{headerRight}</div>
+        ) : null}
+      </div>
+      {open ? (
+        <div id={panelId} className="border-border/60 border-t px-4 py-3 sm:px-5">
+          {children}
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }
 
-function SkillLists({
-  analysis,
-  dimension,
+function RunAnalysisButton({
+  canRun,
+  running,
+  readyCount,
+  onRun,
+  className,
 }: {
-  analysis: AtsAnalysis;
-  dimension: keyof AtsScores;
+  canRun: boolean;
+  running: boolean;
+  readyCount: number;
+  onRun: () => void;
+  className?: string;
 }) {
-  if (
-    dimension === "requiredSkills" ||
-    dimension === "preferredSkills" ||
-    dimension === "keywordCoverage"
-  ) {
-    const matched = analysis.matchedSkills;
-    const partial = analysis.partialSkills;
-    const missing = analysis.missingSkills;
-    return (
-      <div className="space-y-2">
-        {matched.length ? (
-          <div>
-            <p className="text-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
-              Matched
-            </p>
-            <ul className="space-y-1">
-              {matched.slice(0, 8).map((s) => (
-                <li key={s.skill}>
-                  ✓ {s.skill}
-                  {s.evidence ? (
-                    <span className="text-muted-foreground mt-0.5 block pl-3 italic">
-                      “{s.evidence.slice(0, 120)}
-                      {s.evidence.length > 120 ? "…" : ""}”
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {partial.length ? (
-          <div>
-            <p className="text-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
-              Partial
-            </p>
-            <ul className="space-y-0.5">
-              {partial.slice(0, 6).map((s) => (
-                <li key={s.skill}>⚠ {s.skill}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {missing.length ? (
-          <div>
-            <p className="text-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
-              Missing
-            </p>
-            <ul className="space-y-0.5">
-              {missing.slice(0, 6).map((s) => (
-                <li key={s.skill}>✗ {s.skill}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  if (dimension === "responsibilityMatch") {
-    return (
-      <ul className="space-y-1">
-        {analysis.matchedResponsibilities.map((r) => (
-          <li key={r.text}>✓ {r.text}</li>
-        ))}
-        {analysis.partialResponsibilities.map((r) => (
-          <li key={r.text}>⚠ {r.text}</li>
-        ))}
-        {analysis.missingResponsibilities.map((r) => (
-          <li key={r.text}>✗ {r.text}</li>
-        ))}
-        {!analysis.matchedResponsibilities.length &&
-        !analysis.partialResponsibilities.length &&
-        !analysis.missingResponsibilities.length ? (
-          <li>No explicit responsibilities extracted from the JD.</li>
-        ) : null}
-      </ul>
-    );
-  }
-
-  if (dimension === "atsCompatibility" || dimension === "structureFormatting") {
-    if (analysis.atsIssues.length) {
-      return <AtsIssueList issues={analysis.atsIssues} className="text-[12px]" />;
-    }
-    return (
-      <ul className="space-y-0.5">
-        {analysis.strengths.slice(0, 4).map((s) => (
-          <li key={s}>✓ {s}</li>
-        ))}
-      </ul>
-    );
-  }
-
+  const label = running
+    ? "Analyzing…"
+    : `Run ${readyCount} analysis${readyCount === 1 ? "" : "es"}`;
   return (
-    <p>
-      Part of the transparent weighted model for this analysis mode. See strengths and improvements
-      below for actionable detail.
-    </p>
-  );
-}
-
-function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
-  const [openDim, setOpenDim] = useState<string | null>(null);
-  const applicable = SCORE_ROWS.filter((row) => {
-    const v = analysis.scores[row.key];
-    return typeof v === "number";
-  });
-
-  // Resume-only: hide job-match rows even if somehow set
-  const rows =
-    analysis.mode === "resume_only"
-      ? applicable.filter((r) =>
-          [
-            "atsCompatibility",
-            "resumeQuality",
-            "technicalSkills",
-            "experienceQuality",
-            "evidenceQuality",
-            "structureFormatting",
-          ].includes(r.key),
-        )
-      : applicable.filter(
-          (r) => !["technicalSkills", "experienceQuality", "structureFormatting"].includes(r.key),
-        );
-
-  const hasInsights =
-    analysis.strengths.length > 0 ||
-    analysis.missingSkills.length > 0 ||
-    analysis.partialSkills.length > 0 ||
-    analysis.improvements.length > 0 ||
-    analysis.atsIssues.length > 0;
-
-  return (
-    <div className="border-border/60 mt-3 space-y-4 border-t pt-3 md:space-y-5">
-      <div className="space-y-2">
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-foreground text-[12px] font-semibold tracking-tight md:text-[13px]">
-              {analysis.scoreLabel}
-            </p>
-            <p className="text-muted-foreground mt-0.5 truncate text-[11px]">
-              {analysis.scoreName}
-              {analysis.targetTitle ? ` · ${analysis.targetTitle}` : ""}
-            </p>
-          </div>
-          <p className="text-foreground shrink-0 font-mono text-[15px] font-semibold tabular-nums">
-            {points(analysis.overallScore)}
-            <span className="text-muted-foreground text-[11px] font-medium"> / 100</span>
-          </p>
-        </div>
-        <ScoreBar value={analysis.overallScore} />
-        {analysis.notes?.length ? (
-          <p className="text-muted-foreground text-[11px] leading-relaxed">{analysis.notes[0]}</p>
-        ) : null}
-        {analysis.blurb ? (
-          <p className="text-muted-foreground hidden text-[10px] leading-relaxed md:block">
-            {analysis.blurb}
-          </p>
-        ) : null}
-        {analysis.textChars != null ? (
-          <p className="text-muted-foreground font-mono text-[10px] tabular-nums">
-            text {analysis.textChars} chars
-            {analysis.textFingerprint ? ` · fp ${analysis.textFingerprint}` : ""}
-          </p>
-        ) : null}
-      </div>
-
-      <div
-        className={cn(
-          "space-y-4",
-          hasInsights && "md:grid md:grid-cols-2 md:items-start md:gap-x-8 md:gap-y-5 md:space-y-0",
-        )}
+    <>
+      <Button
+        type="button"
+        size="sm"
+        disabled={!canRun}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRun();
+        }}
+        className={cn("hidden sm:inline-flex", className)}
+        aria-label={label}
       >
-        <div className="min-w-0">
-          <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
-            Breakdown
-          </p>
-          <div>
-            {rows.map((row) => {
-              const value = analysis.scores[row.key] as number;
-              const open = openDim === row.key;
-              return (
-                <DimensionRow
-                  key={row.key}
-                  label={row.label}
-                  value={value}
-                  open={open}
-                  onToggle={() => setOpenDim(open ? null : row.key)}
-                  detail={open ? <SkillLists analysis={analysis} dimension={row.key} /> : null}
-                />
-              );
-            })}
-          </div>
-        </div>
-
-        {hasInsights ? (
-          <div className="min-w-0 space-y-4 md:space-y-5">
-            {analysis.strengths.length ? (
-              <div>
-                <p className="text-foreground mb-1.5 text-[12px] font-semibold">Strengths</p>
-                <ul className="text-muted-foreground grid gap-1 text-[12px] sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
-                  {analysis.strengths.map((s) => (
-                    <li key={s}>✓ {s}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {analysis.missingSkills.length || analysis.partialSkills.length ? (
-              <div>
-                <p className="text-foreground mb-1.5 text-[12px] font-semibold">
-                  Missing / weak requirements
-                </p>
-                <ul className="text-muted-foreground grid gap-1 text-[12px] sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
-                  {analysis.partialSkills.slice(0, 6).map((s) => (
-                    <li key={`p-${s.skill}`} className="flex justify-between gap-2">
-                      <span className="truncate">{s.skill}</span>
-                      <span className="text-[10px] uppercase tracking-wide">Partial</span>
-                    </li>
-                  ))}
-                  {analysis.missingSkills.slice(0, 6).map((s) => (
-                    <li key={`m-${s.skill}`} className="flex justify-between gap-2">
-                      <span className="truncate">{s.skill}</span>
-                      <span className="text-[10px] uppercase tracking-wide">Missing</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {analysis.improvements.length ? (
-              <div>
-                <p className="text-foreground mb-1.5 text-[12px] font-semibold">Improvements</p>
-                <div className="space-y-2.5">
-                  {(["high", "medium", "low"] as const).map((priority) => {
-                    const items = analysis.improvements.filter((i) => i.priority === priority);
-                    if (!items.length) return null;
-                    return (
-                      <div key={priority}>
-                        <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
-                          {priority} impact
-                        </p>
-                        <ol className="text-muted-foreground list-decimal space-y-1.5 pl-4 text-[12px]">
-                          {items.map((i) => (
-                            <li key={i.text}>
-                              {i.text}
-                              <span className="mt-0.5 block text-[10px] opacity-80">
-                                {i.reason}
-                              </span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            {analysis.atsIssues.length ? (
-              <div>
-                <p className="text-foreground mb-1.5 text-[12px] font-semibold">ATS issues</p>
-                <AtsIssueList issues={analysis.atsIssues} />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    </div>
+        {running ? (
+          <span className="inline-flex items-center gap-1.5">
+            <Spinner className="size-3.5" label="Running" />
+            Analyzing…
+          </span>
+        ) : (
+          label
+        )}
+      </Button>
+      <Button
+        type="button"
+        size="icon-sm"
+        disabled={!canRun}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRun();
+        }}
+        className={cn("sm:hidden", className)}
+        aria-label={label}
+        title={label}
+      >
+        {running ? (
+          <Spinner className="size-3.5" label="Running" />
+        ) : (
+          <svg viewBox="0 0 24 24" fill="none" className="size-4" aria-hidden>
+            <path
+              d="M8 5.5v13l11-6.5L8 5.5Z"
+              fill="currentColor"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+      </Button>
+    </>
   );
 }
 
-function ScoringGuideContent() {
-  const modes = [
-    {
-      title: "Resume only",
-      score: "Resume Quality Score",
-      body: "Parseability, impact metrics, structure, and evidence — no job description required.",
-    },
-    {
-      title: "Role / title",
-      score: "Role Match Score",
-      body: "Compared against a transparent role skill profile. Core skills are weighted higher than optional ones.",
-    },
-    {
-      title: "Role + JD",
-      score: "ATS Match Score",
-      body: "Weighted toward required hard skills, experience, responsibilities, evidence, and title alignment. Missing categories redistribute weight — they are not zero-filled.",
-    },
-  ] as const;
-
-  return (
-    <div className="space-y-4 text-[12px] leading-relaxed md:space-y-5">
-      <p className="text-muted-foreground max-w-3xl">
-        Scores are out of <span className="text-foreground font-medium">100</span> and calculated
-        from structured signals — not a black-box “ATS oracle.” We do not claim this is the score
-        used by Workday, Greenhouse, Taleo, or any proprietary scanner.
-      </p>
-      <div className="grid gap-3 md:grid-cols-3 md:gap-4">
-        {modes.map((mode) => (
-          <div
-            key={mode.title}
-            className="border-border/70 bg-background/40 rounded-xl border px-3.5 py-3 md:min-h-[8.5rem]"
-          >
-            <p className="text-foreground text-[12px] font-semibold tracking-tight">{mode.title}</p>
-            <p className="text-primary mt-1 text-[11px] font-medium">{mode.score}</p>
-            <p className="text-muted-foreground mt-2 text-[11px] leading-relaxed">{mode.body}</p>
-          </div>
-        ))}
-      </div>
-      <p className="text-muted-foreground text-[11px] md:max-w-3xl">
-        Hard skills and demonstrated evidence outweigh keyword lists. Repetition / stuffing does not
-        raise the score. Improvements never ask you to invent experience you don’t have.
-      </p>
-    </div>
-  );
+function engineNames(ids: AtsEngineId[]) {
+  return ids
+    .map((id) => getEngine(id)?.name)
+    .filter(Boolean)
+    .join(", ");
 }
 
-export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
-  const [jdText, setJdText] = useState("");
+export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: AtsHubProps) {
+  const [selectedResumeIds, setSelectedResumeIds] = useState<Set<string>>(() => new Set());
+  const [selectedEngineIds, setSelectedEngineIds] = useState<Set<AtsEngineId>>(
+    () => new Set(["aavedak"]),
+  );
   const [role, setRole] = useState(defaultRole);
-  const [byId, setById] = useState<Record<string, AtsAnalysis | null>>({});
-  const [statusById, setStatusById] = useState<Record<string, CardStatus>>({});
-  const [scoring, setScoring] = useState(false);
-  const [progress, setProgress] = useState({ done: 0, total: 0, currentName: "" });
+  const [jdText, setJdText] = useState("");
+  const [resumeQuery, setResumeQuery] = useState("");
+
+  const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [scoredOnce, setScoredOnce] = useState(false);
-  const [engine, setEngine] = useState<"fastapi" | "fallback" | null>(null);
-  const [expandedResumeId, setExpandedResumeId] = useState<string | null>(null);
-  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
-  const [previewResume, setPreviewResume] = useState<ResumeRow | null>(null);
+  const [progressLabel, setProgressLabel] = useState("");
+  const [completedCount, setCompletedCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
+  const [results, setResults] = useState<AtsBatchResultCell[]>([]);
+  const [detailKey, setDetailKey] = useState<string | null>(null);
+  const [filterResumeId, setFilterResumeId] = useState<string>("all");
+  const [filterEngineId, setFilterEngineId] = useState<string>("all");
+  const [openSteps, setOpenSteps] = useState<Record<number, boolean>>({
+    1: true,
+    2: true,
+    3: true,
+    4: true,
+    5: true,
+  });
+  const runTokenRef = useRef(0);
+
+  function setStepOpen(step: number, open: boolean) {
+    setOpenSteps((prev) => ({ ...prev, [step]: open }));
+  }
+
   const { ref: jdTextareaRef, resize: resizeJdTextarea } = useAutosizeTextarea(jdText);
 
+  const selectedResumes = useMemo(
+    () => initialResumes.filter((r) => selectedResumeIds.has(r.id)),
+    [initialResumes, selectedResumeIds],
+  );
+
+  const filteredResumes = useMemo(() => {
+    const q = resumeQuery.trim().toLowerCase();
+    if (!q) return initialResumes;
+    return initialResumes.filter((r) => {
+      const hay = `${r.displayName} ${r.originalFilename || ""} ${r.status}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [initialResumes, resumeQuery]);
+
+  const engineRequests: EngineRunRequest[] = useMemo(
+    () => [...selectedEngineIds].map((id) => ({ engineId: id })),
+    [selectedEngineIds],
+  );
+
+  const combinations: AnalysisCombination[] = useMemo(
+    () =>
+      buildCombinations({
+        resumeIds: [...selectedResumeIds],
+        engines: engineRequests,
+        shared: { role: role.trim(), jdText: jdText.trim() },
+      }),
+    [selectedResumeIds, engineRequests, role, jdText],
+  );
+
+  const comboSummary = useMemo(() => summarizeCombinations(combinations), [combinations]);
+
+  const selectedEngineList = useMemo(
+    () => ATS_ENGINES.filter((e) => selectedEngineIds.has(e.id)),
+    [selectedEngineIds],
+  );
+
+  const titleRequiredEngines = useMemo(
+    () => selectedEngineList.filter((e) => e.title === "required"),
+    [selectedEngineList],
+  );
+  const titleOptionalEngines = useMemo(
+    () => selectedEngineList.filter((e) => e.title === "optional"),
+    [selectedEngineList],
+  );
+  const jdRequiredEngines = useMemo(
+    () => selectedEngineList.filter((e) => e.jd === "required"),
+    [selectedEngineList],
+  );
+  const jdOptionalEngines = useMemo(
+    () => selectedEngineList.filter((e) => e.jd === "optional"),
+    [selectedEngineList],
+  );
+
   const previewMode = detectAtsMode(role, jdText);
-  const progressPct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+  const canRun =
+    selectedResumeIds.size > 0 &&
+    selectedEngineIds.size > 0 &&
+    comboSummary.readyCount > 0 &&
+    !running;
 
-  async function runAnalyze() {
-    if (initialResumes.length === 0) {
-      setError("Upload a resume on Documents first.");
-      return;
-    }
+  const showTable = selectedResumeIds.size > 0 && selectedEngineIds.size > 0;
 
-    const queue = [...initialResumes];
-    setScoring(true);
-    setError(null);
-    setDuplicateWarning(null);
-    setScoredOnce(true);
-    setById({});
-    setEngine(null);
-    setExpandedResumeId(null);
-    setProgress({ done: 0, total: queue.length, currentName: "" });
+  const resultMap = useMemo(() => {
+    const m = new Map<string, AtsBatchResultCell>();
+    for (const cell of results) m.set(cellKey(cell.resumeId, cell.engineId), cell);
+    return m;
+  }, [results]);
 
-    const queued: Record<string, CardStatus> = {};
-    for (const r of queue) queued[r.id] = "queued";
-    setStatusById(queued);
-
-    const fingerprints = new Map<string, string[]>();
-    let lastEngine: "fastapi" | "fallback" | null = null;
-
-    try {
-      for (let i = 0; i < queue.length; i += 1) {
-        const resume = queue[i]!;
-        setProgress({
-          done: i,
-          total: queue.length,
-          currentName: resume.displayName,
+  const displayMap = useMemo(() => {
+    const m = new Map<string, AtsBatchResultCell>();
+    for (const c of combinations) {
+      const key = cellKey(c.resumeId, c.engineId);
+      const existing = resultMap.get(key);
+      // Drop stale excluded/unsupported once the combination became ready (e.g. JD filled).
+      const staleBlock =
+        existing &&
+        (existing.status === "excluded" || existing.status === "unsupported") &&
+        c.status === "ready";
+      if (existing && !staleBlock) {
+        m.set(key, existing);
+      } else if (c.status === "ready") {
+        m.set(key, {
+          resumeId: c.resumeId,
+          engineId: c.engineId,
+          status: "idle",
+          mode: c.mode,
+          scoreType: c.scoreType,
+          scoreName: scoreTypeLabel(c.scoreType),
         });
-        setStatusById((prev) => ({ ...prev, [resume.id]: "analyzing" }));
+      } else {
+        m.set(key, comboToPendingCell(c));
+      }
+    }
+    return m;
+  }, [combinations, resultMap]);
 
-        const res = await fetch("/api/ats", {
+  const detailCell = detailKey ? (displayMap.get(detailKey) ?? resultMap.get(detailKey)) : null;
+
+  const tableEngines = useMemo(() => {
+    const ids =
+      filterEngineId === "all"
+        ? [...selectedEngineIds]
+        : selectedEngineIds.has(filterEngineId as AtsEngineId)
+          ? [filterEngineId as AtsEngineId]
+          : [...selectedEngineIds];
+    return ids.map((id) => getEngine(id)!).filter(Boolean);
+  }, [selectedEngineIds, filterEngineId]);
+
+  const tableResumes = useMemo(() => {
+    if (filterResumeId === "all") return selectedResumes;
+    return selectedResumes.filter((r) => r.id === filterResumeId);
+  }, [selectedResumes, filterResumeId]);
+
+  function patchCell(cell: AtsBatchResultCell) {
+    const key = cellKey(cell.resumeId, cell.engineId);
+    setResults((prev) => {
+      const idx = prev.findIndex((r) => cellKey(r.resumeId, r.engineId) === key);
+      if (idx < 0) return [...prev, cell];
+      const next = [...prev];
+      next[idx] = cell;
+      return next;
+    });
+  }
+
+  function toggleResume(id: string) {
+    if (running) return;
+    setSelectedResumeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAllVisibleResumes() {
+    if (running) return;
+    setSelectedResumeIds((prev) => {
+      const next = new Set(prev);
+      for (const r of filteredResumes) next.add(r.id);
+      return next;
+    });
+  }
+
+  function clearResumes() {
+    if (running) return;
+    setSelectedResumeIds(new Set());
+  }
+
+  function toggleEngine(id: AtsEngineId) {
+    if (running) return;
+    setSelectedEngineIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function runProgressive() {
+    if (!canRun) return;
+    const token = ++runTokenRef.current;
+    setRunning(true);
+    setError(null);
+    setDetailKey(null);
+    setCompletedCount(0);
+    setFailedCount(0);
+
+    const snapshot = combinations;
+    const ready = snapshot.filter((c) => c.status === "ready");
+    setResults(snapshot.map(comboToPendingCell));
+
+    const resumeName = (id: string) =>
+      selectedResumes.find((r) => r.id === id)?.displayName || id.slice(0, 8);
+
+    let done = 0;
+    let failed = 0;
+
+    for (const combo of ready) {
+      if (runTokenRef.current !== token) break;
+      const eng = getEngine(combo.engineId)!;
+      setProgressLabel(`${resumeName(combo.resumeId)} · ${eng.name}`);
+      patchCell({
+        resumeId: combo.resumeId,
+        engineId: combo.engineId,
+        status: "running",
+        mode: combo.mode,
+        scoreType: combo.scoreType,
+        scoreName: scoreTypeLabel(combo.scoreType),
+        profileVersion: eng.profileVersion,
+      });
+
+      try {
+        const res = await fetch("/api/ats/run", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            jdText: jdText.trim(),
-            role: role.trim(),
-            resumeId: resume.id,
+            resumeId: combo.resumeId,
+            engineId: combo.engineId,
+            mode: combo.mode,
+            sharedRole: role.trim(),
+            sharedJdText: jdText.trim(),
             forceExtract: true,
           }),
         });
-        const data = (await res.json()) as AtsAnalysis & {
-          error?: string;
-          engine?: "fastapi" | "fallback";
-          resumeId?: string;
-        };
-
-        if (!res.ok && !data.resumeId) {
-          throw new Error(data.error || "Analysis failed.");
+        const data = (await res.json()) as { error?: string; result?: AtsBatchResultCell };
+        if (runTokenRef.current !== token) break;
+        if (!res.ok || !data.result) {
+          failed += 1;
+          patchCell({
+            resumeId: combo.resumeId,
+            engineId: combo.engineId,
+            status: "error",
+            mode: combo.mode,
+            scoreType: combo.scoreType,
+            scoreName: scoreTypeLabel(combo.scoreType),
+            error: data.error || "Analysis failed.",
+            profileVersion: eng.profileVersion,
+          });
+        } else {
+          if (data.result.status === "done") done += 1;
+          else if (data.result.status === "error") failed += 1;
+          patchCell(data.result);
         }
-
-        const analysis: AtsAnalysis = {
-          ...data,
-          resumeId: data.resumeId || resume.id,
-          overallScore: data.overallScore ?? data.atsScore ?? 0,
-          atsIssues: normalizeAtsIssues(data.atsIssues),
-          engine: data.engine ?? "fallback",
-        };
-        lastEngine = analysis.engine;
-
-        if (analysis.textFingerprint && analysis.textFingerprint !== "empty") {
-          const names = fingerprints.get(analysis.textFingerprint) ?? [];
-          names.push(resume.displayName);
-          fingerprints.set(analysis.textFingerprint, names);
-        }
-
-        setById((prev) => ({ ...prev, [resume.id]: analysis }));
-        setStatusById((prev) => ({
-          ...prev,
-          [resume.id]: analysis.error ? "error" : "done",
-        }));
-        setProgress({
-          done: i + 1,
-          total: queue.length,
-          currentName: resume.displayName,
+      } catch (err) {
+        if (runTokenRef.current !== token) break;
+        failed += 1;
+        patchCell({
+          resumeId: combo.resumeId,
+          engineId: combo.engineId,
+          status: "error",
+          mode: combo.mode,
+          scoreType: combo.scoreType,
+          scoreName: scoreTypeLabel(combo.scoreType),
+          error: err instanceof Error ? err.message : "Analysis failed.",
+          profileVersion: eng.profileVersion,
         });
-        setEngine(lastEngine);
       }
+      setCompletedCount(done);
+      setFailedCount(failed);
+    }
 
-      const dupes = [...fingerprints.entries()].filter(([, names]) => names.length > 1);
-      if (dupes.length) {
-        setDuplicateWarning(
-          `Some resumes share identical extracted text (${dupes
-            .map(([, names]) => names.join(" · "))
-            .join("; ")}). Scores will match until the PDFs differ.`,
-        );
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Analysis failed.");
-    } finally {
-      setScoring(false);
-      setProgress((p) => ({ ...p, currentName: "" }));
+    if (runTokenRef.current === token) {
+      setProgressLabel("");
+      setRunning(false);
+      setCompletedCount(done);
+      setFailedCount(failed);
     }
   }
 
-  function toggleExpand(id: string) {
-    setExpandedResumeId((current) => (current === id ? null : id));
+  function renderCell(resumeId: string, engineId: AtsEngineId) {
+    const key = cellKey(resumeId, engineId);
+    const cell = displayMap.get(key);
+    const active = detailKey === key;
+
+    if (!cell || cell.status === "idle") {
+      return <span className="text-muted-foreground text-[10px]">Ready</span>;
+    }
+    if (cell.status === "queued") {
+      return <span className="text-muted-foreground text-[10px]">Queued</span>;
+    }
+    if (cell.status === "running") {
+      return <span className="text-muted-foreground text-[10px]">Analyzing…</span>;
+    }
+    if (cell.status === "done" && cell.overallScore != null) {
+      return (
+        <button
+          type="button"
+          onClick={() => setDetailKey(active ? null : key)}
+          className={cn(
+            "inline-flex min-w-[3rem] cursor-pointer flex-col items-center rounded-md px-2 py-1 tabular-nums",
+            active ? "bg-primary/15 text-primary" : "text-foreground hover:bg-muted/40",
+          )}
+        >
+          <span className="font-mono text-[13px] font-semibold">{points(cell.overallScore)}</span>
+          <span className="text-muted-foreground max-w-[6rem] truncate text-[9px]">
+            {cell.scoreLabel || "View"}
+          </span>
+        </button>
+      );
+    }
+    if (cell.status === "error") {
+      return (
+        <span className="text-destructive text-[10px]" title={cell.error}>
+          Failed
+        </span>
+      );
+    }
+    if (cell.status === "excluded") {
+      return (
+        <span className="text-[10px] text-amber-600 dark:text-amber-400" title={cell.error}>
+          Needs input
+        </span>
+      );
+    }
+    if (cell.status === "unsupported") {
+      return (
+        <span className="text-muted-foreground text-[10px]" title={cell.error}>
+          Unsupported
+        </span>
+      );
+    }
+    if (cell.status === "done") {
+      return <span className="text-muted-foreground text-[10px]">No score</span>;
+    }
+    return <span className="text-muted-foreground text-[10px]">{cell.status}</span>;
   }
 
   return (
-    <ShellWidth className="space-y-5 py-6 sm:py-8">
+    <ShellWidth className="space-y-4 py-6 sm:space-y-5 sm:py-8">
       <header className="space-y-1.5">
         <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">ATS score</h1>
-        <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-          Transparent ATS Match & Resume Quality analysis — hard skills, evidence, experience, and
-          parseability. Not a claim of any vendor’s proprietary ATS score. Manage files on{" "}
+        <p className="text-muted-foreground max-w-2xl text-pretty text-[13px] leading-relaxed">
+          Follow the steps below. Results fill one cell at a time — click a score for details.{" "}
           <Link href="/documents" className="text-primary underline underline-offset-2">
             Documents
           </Link>
-          .
         </p>
       </header>
 
-      <section className="border-border/80 bg-card space-y-3 rounded-xl border p-4">
-        <label className="block space-y-1 text-[12px]">
-          <span className="text-muted-foreground">Role / title (optional)</span>
-          <input
-            type="text"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            placeholder="e.g. Software Engineer, Cloud Engineer"
-            className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px]"
-          />
-        </label>
-        <label className="block space-y-1 text-[12px]">
-          <span className="text-muted-foreground">Job description (optional)</span>
-          <textarea
-            ref={jdTextareaRef}
-            value={jdText}
-            onChange={(e) => {
-              setJdText(e.target.value);
-              resizeJdTextarea();
-            }}
-            rows={1}
-            placeholder="Paste the JD for the strongest job-match analysis…"
-            className="border-border bg-background text-foreground min-h-26 box-border h-auto max-h-[min(80vh,800px)] w-full resize-none rounded-lg border px-3 py-2 text-[13px] leading-relaxed"
-          />
-        </label>
-        <p className="text-muted-foreground text-[11px]">
-          Add a role or job description for a more targeted match.{" "}
-          <span className="text-foreground/80">Mode: {modeHint(previewMode)}.</span>
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            onClick={() => void runAnalyze()}
-            disabled={scoring || initialResumes.length === 0}
-          >
-            {scoring ? "Analyzing…" : "Analyze resumes"}
-          </Button>
-          {engine ? (
-            <span className="text-muted-foreground text-[11px]">
-              Engine: {engine === "fastapi" ? "Python API" : "local fallback"}
-            </span>
-          ) : null}
-        </div>
-        {scoring || (scoredOnce && progress.total > 0) ? (
-          <div className="space-y-1.5">
-            <div className="text-muted-foreground flex items-center justify-between gap-2 text-[11px]">
-              <span>
-                {scoring
-                  ? `Analyzing ${progress.done + (progress.currentName ? 1 : 0)} of ${progress.total}${
-                      progress.currentName ? ` · ${progress.currentName}` : ""
-                    }`
-                  : `Analyzed ${progress.done} of ${progress.total}`}
-              </span>
-              <span className="font-mono tabular-nums">{progressPct}%</span>
-            </div>
-            <Progress
-              value={progress.done}
-              max={Math.max(1, progress.total)}
-              aria-label="Resume analysis progress"
-            />
-          </div>
-        ) : null}
-        {error ? (
-          <p className="text-destructive text-[13px]" role="alert">
-            {error}
-          </p>
-        ) : null}
-        {duplicateWarning ? (
-          <p className="text-muted-foreground text-[12px] leading-relaxed" role="status">
-            {duplicateWarning}
-          </p>
-        ) : null}
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-foreground text-[13px] font-semibold">Your resumes</h2>
-        {initialResumes.length === 0 ? (
-          <p className="text-muted-foreground text-[12px]">
-            No resumes yet — upload one on Documents.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {initialResumes.map((resume) => {
-              const analysis = byId[resume.id];
-              const status = statusById[resume.id] ?? "idle";
-              const open = expandedResumeId === resume.id;
-              const showScore = status === "done" && analysis && !analysis.error;
+      <div className="space-y-3 sm:space-y-4">
+        <StepBlock
+          step={1}
+          title="Select engine"
+          open={openSteps[1]!}
+          onOpenChange={(o) => setStepOpen(1, o)}
+          summary={
+            selectedEngineIds.size === 0
+              ? "Choose one or more scoring engines."
+              : `${selectedEngineIds.size} selected · ${engineNames([...selectedEngineIds])}`
+          }
+        >
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
+            {ATS_ENGINES.map((eng) => {
+              const checked = selectedEngineIds.has(eng.id);
               return (
-                <li
-                  key={resume.id}
-                  className="border-border/80 bg-card rounded-xl border px-3 py-2.5"
+                <Card
+                  key={eng.id}
+                  size="sm"
+                  className={cn(
+                    "relative gap-2",
+                    checked && "border-primary/40 bg-primary/5",
+                    running && "opacity-60",
+                  )}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-foreground truncate text-[13px] font-medium">
-                        {resume.displayName}
-                      </p>
-                      <p className="text-muted-foreground text-[11px]">{resume.status}</p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {status === "analyzing" ? (
-                        <span className="text-muted-foreground inline-flex items-center gap-1.5 text-[11px]">
-                          <Spinner className="size-3.5" label="Analyzing" />
-                          Analyzing…
-                        </span>
-                      ) : status === "queued" ? (
-                        <span className="text-muted-foreground text-[11px]">Queued</span>
-                      ) : showScore ? (
-                        <div className="text-right">
-                          <p className="text-primary font-mono text-[13px] font-semibold tabular-nums">
-                            {points(analysis.overallScore)}
-                            <span className="text-primary/70 text-[11px] font-medium"> / 100</span>
-                          </p>
-                          <p className="text-muted-foreground max-w-[9rem] truncate text-[10px]">
-                            {analysis.scoreLabel}
-                          </p>
-                        </div>
-                      ) : status === "error" || analysis?.error ? (
-                        <span className="text-destructive max-w-[10rem] text-right text-[11px] leading-snug">
-                          No text extracted
-                        </span>
-                      ) : scoredOnce ? (
-                        <span className="text-muted-foreground text-[11px]">Waiting…</span>
-                      ) : (
-                        <span className="text-muted-foreground text-[11px]">Not analyzed</span>
+                  <div className="flex items-start gap-2">
+                    <label
+                      className={cn(
+                        "flex min-w-0 flex-1 cursor-pointer items-start gap-2",
+                        running && "pointer-events-none",
                       )}
-                      <button
-                        type="button"
-                        title="Preview"
-                        aria-label={`Preview ${resume.displayName}`}
-                        onClick={() => setPreviewResume(resume)}
-                        className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onChange={() => toggleEngine(eng.id)}
+                        disabled={running}
+                        className="mt-0.5"
+                        aria-label={`Select ${eng.name}`}
+                      />
+                      <span className="min-w-0 space-y-1">
+                        <span className="text-foreground flex flex-wrap items-center gap-1.5 text-[12px] font-medium">
+                          {eng.name}
+                          <Badge
+                            variant={eng.kind === "native" ? "default" : "secondary"}
+                            className="h-4 px-1.5 text-[9px] font-medium uppercase tracking-wide"
+                          >
+                            {eng.kind === "native" ? "Native" : "Ref"}
+                          </Badge>
+                        </span>
+                        <span className="text-muted-foreground block text-[10px] leading-snug">
+                          {eng.shortDescription}
+                        </span>
+                      </span>
+                    </label>
+                    <HoverCard>
+                      <HoverCardTrigger
+                        className="text-muted-foreground hover:text-foreground mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md"
+                        aria-label={`How ${eng.name} scores`}
+                        onClick={(e) => e.preventDefault()}
                       >
-                        <SearchIcon className="size-3.5" />
-                      </button>
-                      <a
-                        href={`/api/resumes/${resume.id}/file`}
-                        download
-                        title="Download resume"
-                        aria-label={`Download ${resume.displayName}`}
-                        className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-lg border"
+                        <svg viewBox="0 0 24 24" fill="none" className="size-3.5" aria-hidden>
+                          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+                          <path
+                            d="M12 11v5"
+                            stroke="currentColor"
+                            strokeWidth="1.75"
+                            strokeLinecap="round"
+                          />
+                          <circle cx="12" cy="8" r="0.9" fill="currentColor" />
+                        </svg>
+                      </HoverCardTrigger>
+                      <HoverCardContent
+                        side="bottom"
+                        align="end"
+                        className="w-64 text-[11px] leading-relaxed"
                       >
-                        <DownloadIcon className="size-3.5" />
-                      </a>
-                      <button
-                        type="button"
-                        aria-expanded={open}
-                        aria-label={open ? "Collapse analysis" : "Expand analysis"}
-                        disabled={!analysis || status === "analyzing" || status === "queued"}
-                        onClick={() => toggleExpand(resume.id)}
-                        className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        <Chevron open={open} />
-                      </button>
-                    </div>
+                        <p className="text-foreground mb-1 font-medium">{eng.name} scoring</p>
+                        <p className="text-muted-foreground text-pretty">{eng.algoBlurb}</p>
+                      </HoverCardContent>
+                    </HoverCard>
                   </div>
-
-                  {open && analysis && !analysis.error ? (
-                    <AnalysisDetails analysis={analysis} />
-                  ) : null}
-                  {open && analysis?.error ? (
-                    <div className="border-border/60 mt-3 space-y-1.5 border-t pt-3">
-                      <p className="text-destructive text-[12px]">{analysis.error}</p>
-                      <p className="text-muted-foreground text-[11px] leading-relaxed">
-                        Open{" "}
-                        <Link
-                          href="/documents"
-                          className="text-primary underline underline-offset-2"
-                        >
-                          Documents
-                        </Link>{" "}
-                        and re-upload a text-selectable PDF (not a scanned image), then analyze
-                        again.
-                      </p>
-                    </div>
-                  ) : null}
-                </li>
+                </Card>
               );
             })}
-          </ul>
-        )}
-      </section>
+          </div>
+        </StepBlock>
+
+        <StepBlock
+          step={2}
+          title="Select resume"
+          open={openSteps[2]!}
+          onOpenChange={(o) => setStepOpen(2, o)}
+          summary={
+            selectedResumes.length === 0
+              ? "Choose resumes to score."
+              : `${selectedResumes.length} selected`
+          }
+        >
+          {initialResumes.length === 0 ? (
+            <p className="text-muted-foreground text-[12px]">
+              No resumes uploaded.{" "}
+              <Link href="/documents" className="text-primary underline underline-offset-2">
+                Upload on Documents
+              </Link>
+              .
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="search"
+                  value={resumeQuery}
+                  disabled={running}
+                  onChange={(e) => setResumeQuery(e.target.value)}
+                  placeholder="Search resumes…"
+                  className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] disabled:opacity-60 sm:max-w-sm"
+                  aria-label="Search resumes"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={running || filteredResumes.length === 0}
+                    onClick={selectAllVisibleResumes}
+                  >
+                    Select{resumeQuery.trim() ? " visible" : " all"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={running}
+                    onClick={clearResumes}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              <ul className="divide-border/50 border-border/60 max-h-72 divide-y overflow-y-auto rounded-lg border">
+                {filteredResumes.length === 0 ? (
+                  <li className="text-muted-foreground px-3 py-3 text-[12px]">
+                    No resumes match “{resumeQuery.trim()}”.
+                  </li>
+                ) : (
+                  filteredResumes.map((r) => {
+                    const checked = selectedResumeIds.has(r.id);
+                    return (
+                      <li key={r.id}>
+                        <label
+                          className={cn(
+                            "hover:bg-muted/30 flex cursor-pointer items-start gap-2.5 px-3 py-2",
+                            running && "pointer-events-none opacity-60",
+                          )}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onChange={() => toggleResume(r.id)}
+                            disabled={running}
+                            className="mt-0.5"
+                            aria-label={`Select ${r.displayName}`}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="text-foreground block truncate text-[12px] font-medium">
+                              {r.displayName}
+                            </span>
+                            <span className="text-muted-foreground block truncate text-[10px]">
+                              {r.originalFilename || r.status}
+                              {r.updatedAt ? ` · ${formatUpdated(r.updatedAt)}` : ""}
+                            </span>
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+          )}
+        </StepBlock>
+
+        <StepBlock
+          step={3}
+          title="Job content"
+          open={openSteps[3]!}
+          onOpenChange={(o) => setStepOpen(3, o)}
+          summary={`Shared with selected engines. Preview mode: ${modeHint(previewMode)}.`}
+        >
+          <div className="space-y-3">
+            <label className="block space-y-1 text-[12px]">
+              <span className="text-foreground font-medium">Target role / title</span>
+              <span className="text-muted-foreground block text-pretty text-[11px]">
+                {selectedEngineList.length === 0
+                  ? "Select an engine first."
+                  : titleRequiredEngines.length > 0
+                    ? `Required by ${engineNames(titleRequiredEngines.map((e) => e.id))}${
+                        titleOptionalEngines.length
+                          ? ` · optional for ${engineNames(titleOptionalEngines.map((e) => e.id))}`
+                          : ""
+                      }`
+                    : titleOptionalEngines.length > 0
+                      ? `Optional for ${engineNames(titleOptionalEngines.map((e) => e.id))}`
+                      : "Not used by the selected engines."}
+              </span>
+              <input
+                type="text"
+                value={role}
+                disabled={running}
+                onChange={(e) => setRole(e.target.value)}
+                placeholder="e.g. Software Engineer, Cloud Engineer"
+                className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] disabled:opacity-60"
+              />
+            </label>
+            <label className="block space-y-1 text-[12px]">
+              <span className="text-foreground font-medium">Job description</span>
+              <span className="text-muted-foreground block text-pretty text-[11px]">
+                {selectedEngineList.length === 0
+                  ? "Select an engine first."
+                  : jdRequiredEngines.length > 0
+                    ? `Required by ${engineNames(jdRequiredEngines.map((e) => e.id))}${
+                        jdOptionalEngines.length
+                          ? ` · optional for ${engineNames(jdOptionalEngines.map((e) => e.id))}`
+                          : ""
+                      }`
+                    : jdOptionalEngines.length > 0
+                      ? `Optional for ${engineNames(jdOptionalEngines.map((e) => e.id))}`
+                      : "Not used by the selected engines."}
+              </span>
+              <textarea
+                ref={jdTextareaRef}
+                value={jdText}
+                disabled={running}
+                onChange={(e) => {
+                  setJdText(e.target.value);
+                  resizeJdTextarea();
+                }}
+                rows={6}
+                placeholder="Paste the full job description here…"
+                className="border-border bg-background text-foreground box-border h-auto max-h-[min(50vh,420px)] min-h-[9rem] w-full resize-y rounded-lg border px-3 py-2.5 font-sans text-[13px] leading-relaxed disabled:opacity-60"
+              />
+            </label>
+          </div>
+        </StepBlock>
+
+        <StepBlock
+          step={4}
+          title="Review and run"
+          open={openSteps[4]!}
+          onOpenChange={(o) => setStepOpen(4, o)}
+          summary={
+            openSteps[4]
+              ? "Confirm selection, then run analyses one cell at a time."
+              : `${comboSummary.readyCount} ready · ${selectedResumeIds.size} resume${selectedResumeIds.size === 1 ? "" : "s"} · ${selectedEngineIds.size} engine${selectedEngineIds.size === 1 ? "" : "s"}`
+          }
+          headerRight={
+            !openSteps[4] ? (
+              <RunAnalysisButton
+                canRun={canRun}
+                running={running}
+                readyCount={comboSummary.readyCount}
+                onRun={() => void runProgressive()}
+              />
+            ) : null
+          }
+        >
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-foreground text-[12px] font-medium">Plan</p>
+              <ul className="text-muted-foreground space-y-1.5 text-[12px]">
+                <li>
+                  <span className="text-foreground font-medium tabular-nums">
+                    {selectedEngineIds.size}
+                  </span>{" "}
+                  engine{selectedEngineIds.size === 1 ? "" : "s"}
+                  {selectedEngineList.length > 0
+                    ? `: ${engineNames(selectedEngineList.map((e) => e.id))}`
+                    : " — none selected"}
+                </li>
+                <li>
+                  <span className="text-foreground font-medium tabular-nums">
+                    {selectedResumeIds.size}
+                  </span>{" "}
+                  resume{selectedResumeIds.size === 1 ? "" : "s"}
+                  {selectedResumes.length > 0
+                    ? `: ${selectedResumes
+                        .slice(0, 4)
+                        .map((r) => r.displayName)
+                        .join(
+                          ", ",
+                        )}${selectedResumes.length > 4 ? ` (+${selectedResumes.length - 4} more)` : ""}`
+                    : " — none selected"}
+                </li>
+                <li>
+                  Matrix:{" "}
+                  <span className="text-foreground font-medium tabular-nums">
+                    {selectedResumeIds.size}×{selectedEngineIds.size}
+                  </span>{" "}
+                  ={" "}
+                  <span className="text-foreground font-medium tabular-nums">
+                    {comboSummary.total}
+                  </span>{" "}
+                  cells ·{" "}
+                  <span className="text-foreground font-medium tabular-nums">
+                    {comboSummary.readyCount}
+                  </span>{" "}
+                  ready to run
+                  {comboSummary.needsCount > 0 ? ` · ${comboSummary.needsCount} need input` : ""}
+                  {comboSummary.unsupportedCount > 0
+                    ? ` · ${comboSummary.unsupportedCount} unsupported`
+                    : ""}
+                </li>
+                <li>
+                  Mode: <span className="text-foreground">{modeHint(previewMode)}</span>
+                  {" · "}
+                  Title:{" "}
+                  <span className="text-foreground">{role.trim() ? role.trim() : "not set"}</span>
+                  {" · "}
+                  JD:{" "}
+                  <span className="text-foreground">
+                    {jdText.trim()
+                      ? `${jdText.trim().length.toLocaleString()} characters`
+                      : "not set"}
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            {(titleRequiredEngines.length > 0 || jdRequiredEngines.length > 0) &&
+            (!role.trim() || !jdText.trim()) ? (
+              <div className="text-[11px]">
+                <p className="mb-1 font-medium text-amber-600 dark:text-amber-400">
+                  Missing job content
+                </p>
+                <ul className="text-muted-foreground space-y-0.5">
+                  {titleRequiredEngines.length > 0 && !role.trim() ? (
+                    <li>Title required by {engineNames(titleRequiredEngines.map((e) => e.id))}</li>
+                  ) : null}
+                  {jdRequiredEngines.length > 0 && !jdText.trim() ? (
+                    <li>JD required by {engineNames(jdRequiredEngines.map((e) => e.id))}</li>
+                  ) : null}
+                </ul>
+              </div>
+            ) : null}
+
+            {comboSummary.needsCount > 0 ? (
+              <div className="text-[11px]">
+                <p className="mb-1 font-medium text-amber-600 dark:text-amber-400">
+                  Needs attention
+                </p>
+                <ul className="text-muted-foreground space-y-0.5">
+                  {[...new Map(comboSummary.needs.map((c) => [c.engineId, c])).values()].map(
+                    (c) => (
+                      <li key={c.engineId}>
+                        {getEngine(c.engineId)?.name}: {c.reason}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>
+            ) : null}
+
+            {comboSummary.unsupportedCount > 0 ? (
+              <div className="text-[11px]">
+                <p className="text-muted-foreground mb-1 font-medium">Unsupported for this mode</p>
+                <ul className="text-muted-foreground space-y-0.5">
+                  {[
+                    ...new Map(
+                      comboSummary.unsupported.map((c) => [c.engineId + c.reason, c]),
+                    ).values(),
+                  ]
+                    .slice(0, 4)
+                    .map((c) => (
+                      <li key={c.engineId + (c.reason || "")}>
+                        {getEngine(c.engineId)?.name}: {c.reason}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="border-border/50 flex flex-wrap items-center gap-3 border-t pt-3">
+              <RunAnalysisButton
+                canRun={canRun}
+                running={running}
+                readyCount={comboSummary.readyCount}
+                onRun={() => void runProgressive()}
+              />
+              {running && progressLabel ? (
+                <p className="text-muted-foreground text-[11px] tabular-nums">
+                  {completedCount + failedCount}/{comboSummary.readyCount} · {progressLabel}
+                </p>
+              ) : null}
+              {!running && (completedCount > 0 || failedCount > 0) ? (
+                <p className="text-muted-foreground text-[11px]">
+                  Last run: {completedCount} completed
+                  {failedCount ? ` · ${failedCount} failed` : ""}
+                </p>
+              ) : null}
+            </div>
+            {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
+          </div>
+        </StepBlock>
+
+        <StepBlock
+          step={5}
+          title="Results"
+          open={openSteps[5]!}
+          onOpenChange={(o) => setStepOpen(5, o)}
+          summary={
+            showTable
+              ? running
+                ? "Cells update one at a time. Click a finished score for details."
+                : "Table mirrors your selection. Ready cells fill when you run."
+              : "Select at least one engine and one resume to build the table."
+          }
+        >
+          {!showTable ? (
+            <p className="text-muted-foreground text-[12px]">
+              Complete steps 1 and 2 to see the comparison table here.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Select value={filterResumeId} onValueChange={setFilterResumeId}>
+                  <SelectTrigger
+                    className="border-border bg-background text-foreground h-8 w-auto min-w-[9rem] rounded-lg border px-2 text-[12px]"
+                    aria-label="Filter by resume"
+                  >
+                    <SelectValue placeholder="All resumes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-[12px]">
+                      All resumes
+                    </SelectItem>
+                    {selectedResumes.map((r) => (
+                      <SelectItem key={r.id} value={r.id} className="text-[12px]">
+                        {r.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filterEngineId} onValueChange={setFilterEngineId}>
+                  <SelectTrigger
+                    className="border-border bg-background text-foreground h-8 w-auto min-w-[9rem] rounded-lg border px-2 text-[12px]"
+                    aria-label="Filter by engine"
+                  >
+                    <SelectValue placeholder="All engines" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-[12px]">
+                      All engines
+                    </SelectItem>
+                    {[...selectedEngineIds].map((id) => (
+                      <SelectItem key={id} value={id} className="text-[12px]">
+                        {getEngine(id)?.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="border-border/60 hidden overflow-x-auto rounded-lg border md:block">
+                <table className="w-full min-w-[36rem] border-collapse text-[12px]">
+                  <thead>
+                    <tr className="border-border/50 bg-muted/30 border-b">
+                      <th className="text-muted-foreground sticky left-0 z-10 bg-[color:var(--card)] px-3 py-2.5 text-left font-medium">
+                        Resume
+                      </th>
+                      {tableEngines.map((eng) => {
+                        const sample = [...displayMap.values()].find(
+                          (r) => r.engineId === eng.id && r.scoreType,
+                        );
+                        return (
+                          <th
+                            key={eng.id}
+                            className="text-muted-foreground min-w-[7.5rem] px-2 py-2.5 text-center font-medium"
+                          >
+                            <span className="text-foreground block text-[11px]">{eng.name}</span>
+                            <span className="mt-0.5 block text-[9px] font-normal">
+                              {sample?.scoreType
+                                ? scoreTypeLabel(sample.scoreType)
+                                : scoreTypeLabel(eng.scoreTypes[0]!)}
+                            </span>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableResumes.map((resume) => (
+                      <tr key={resume.id} className="border-border/40 border-b last:border-b-0">
+                        <td className="text-foreground sticky left-0 z-10 max-w-[11rem] truncate bg-[color:var(--card)] px-3 py-2.5 font-medium">
+                          {resume.displayName}
+                        </td>
+                        {tableEngines.map((eng) => (
+                          <td key={eng.id} className="px-2 py-2.5 text-center align-middle">
+                            {renderCell(resume.id, eng.id)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="space-y-2 md:hidden">
+                {tableResumes.map((resume) => (
+                  <div key={resume.id} className="border-border/60 rounded-lg border p-3">
+                    <p className="text-foreground mb-2 text-[12px] font-semibold">
+                      {resume.displayName}
+                    </p>
+                    <ul className="space-y-2">
+                      {tableEngines.map((eng) => (
+                        <li
+                          key={eng.id}
+                          className="flex items-center justify-between gap-2 text-[11px]"
+                        >
+                          <span className="text-muted-foreground min-w-0 truncate">{eng.name}</span>
+                          <span className="shrink-0">{renderCell(resume.id, eng.id)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+
+              {detailCell?.analysis && !detailCell.analysis.error ? (
+                <div className="border-border/60 rounded-xl border p-3 md:p-4">
+                  <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+                    <p className="text-foreground text-pretty text-[12px] font-semibold">
+                      Detail · {getEngine(detailCell.engineId)?.name} ·{" "}
+                      {selectedResumes.find((r) => r.id === detailCell.resumeId)?.displayName}
+                    </p>
+                    <p className="text-muted-foreground text-[10px]">
+                      {detailCell.scoreName}
+                      {detailCell.engineRuntime ? ` · ${detailCell.engineRuntime}` : ""}
+                      {detailCell.profileVersion ? ` · v${detailCell.profileVersion}` : ""}
+                    </p>
+                  </div>
+                  <AnalysisDetails analysis={detailCell.analysis} />
+                </div>
+              ) : detailCell?.error ? (
+                <p className="text-destructive text-[12px]">{detailCell.error}</p>
+              ) : null}
+            </div>
+          )}
+        </StepBlock>
+      </div>
 
       <div className="border-border/80 bg-card overflow-hidden rounded-xl border">
         <Accordion type="single" collapsible className="border-y-0">
@@ -824,50 +1164,19 @@ export function AtsHub({ initialResumes, defaultRole = "" }: AtsHubProps) {
               How scoring works
             </AccordionTrigger>
             <AccordionContent>
-              <ScoringGuideContent />
+              <div className="space-y-3 px-1">
+                <ScoringGuideContent />
+                <p className="text-muted-foreground border-border/50 max-w-3xl text-pretty border-t pt-3 text-[11px] leading-relaxed">
+                  Reference engines (Jobscan, Resume Worded, Teal, Rezi, SkillSyncer) are Aavedak
+                  implementations inspired by publicly documented approaches. They are not
+                  integrations with those vendors and do not claim exact proprietary parity. Scores
+                  from different profiles are not calibrated against each other.
+                </p>
+              </div>
             </AccordionContent>
           </AccordionItem>
         </Accordion>
       </div>
-
-      <Modal
-        open={Boolean(previewResume)}
-        onClose={() => setPreviewResume(null)}
-        title={previewResume?.displayName ?? "Resume preview"}
-        description={previewResume ? `${previewResume.status} resume` : undefined}
-        size="xl"
-        className="max-w-5xl"
-        footer={
-          previewResume ? (
-            <>
-              <a
-                href={`/api/resumes/${previewResume.id}/file`}
-                target="_blank"
-                rel="noreferrer"
-                className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-              >
-                Open in new tab
-              </a>
-              <button
-                type="button"
-                onClick={() => setPreviewResume(null)}
-                className="bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold"
-              >
-                Close
-              </button>
-            </>
-          ) : null
-        }
-      >
-        {previewResume ? (
-          <iframe
-            key={previewResume.id}
-            src={`/api/resumes/${previewResume.id}/file`}
-            title={`Preview of ${previewResume.displayName}`}
-            className="bg-background h-[min(72vh,46rem)] w-full rounded-md border-0"
-          />
-        ) : null}
-      </Modal>
     </ShellWidth>
   );
 }

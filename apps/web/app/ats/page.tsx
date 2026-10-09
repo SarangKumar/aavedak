@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { AtsHub } from "@/components/ats-hub";
 import { requireOnboarded } from "@/lib/app-access";
-import { getProfile } from "@/lib/profile";
 import { listResumes } from "@/lib/resumes";
 
 export const metadata: Metadata = {
@@ -13,15 +12,14 @@ export const metadata: Metadata = {
 
 export default async function AtsPage() {
   const { user } = await requireOnboarded();
-  const [resumes, profile] = await Promise.all([listResumes(user.id), getProfile(user.id)]);
-  const defaultRole = profile?.career?.preferredRoles?.[0] ?? "";
+  const resumes = await listResumes(user.id);
 
   return (
     <AtsHub
-      defaultRole={defaultRole}
       initialResumes={resumes.map((resume) => ({
         id: resume.id,
         displayName: resume.displayName,
+        originalFilename: resume.originalFilename,
         status: resume.status,
         atsScore: resume.atsScore,
         byteSize: resume.byteSize,
