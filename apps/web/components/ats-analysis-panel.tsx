@@ -18,9 +18,9 @@ function AtsIssueList({ issues, className }: { issues: AtsIssue[]; className?: s
             ⚠
           </span>
           <div className="min-w-0 space-y-0.5">
-            <p className="text-foreground text-[12px] font-medium leading-snug">{issue.title}</p>
+            <p className="text-foreground text-[13px] font-medium leading-snug">{issue.title}</p>
             {issue.detail && issue.detail !== issue.title ? (
-              <p className="text-muted-foreground text-[11px] leading-relaxed">{issue.detail}</p>
+              <p className="text-muted-foreground text-[12px] leading-relaxed">{issue.detail}</p>
             ) : null}
           </div>
         </li>
@@ -102,8 +102,8 @@ function DimensionRow({
         onClick={onToggle}
         className="hover:bg-muted/30 flex w-full cursor-pointer items-center gap-3 px-0 py-2 text-left"
       >
-        <span className="text-foreground min-w-0 flex-1 text-[12px] font-medium">{label}</span>
-        <span className="text-foreground w-8 text-right font-mono text-[12px] tabular-nums">
+        <span className="text-foreground min-w-0 flex-1 text-[13px] font-medium">{label}</span>
+        <span className="text-foreground w-8 text-right font-mono text-[13px] tabular-nums">
           {points(value)}
         </span>
         <div className="w-24 shrink-0 sm:w-32">
@@ -112,7 +112,7 @@ function DimensionRow({
         <Chevron open={open} className="text-muted-foreground size-3.5" />
       </button>
       {open && detail ? (
-        <div className="text-muted-foreground pb-2.5 pl-0 text-[11px] leading-relaxed">
+        <div className="text-muted-foreground pb-2.5 pl-0 text-[12px] leading-relaxed">
           {detail}
         </div>
       ) : null}
@@ -139,7 +139,7 @@ function SkillLists({
       <div className="space-y-2">
         {matched.length ? (
           <div>
-            <p className="text-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
+            <p className="text-foreground mb-1 text-[11px] font-semibold uppercase tracking-wide">
               Matched
             </p>
             <ul className="space-y-1">
@@ -159,7 +159,7 @@ function SkillLists({
         ) : null}
         {partial.length ? (
           <div>
-            <p className="text-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
+            <p className="text-foreground mb-1 text-[11px] font-semibold uppercase tracking-wide">
               Partial
             </p>
             <ul className="space-y-0.5">
@@ -171,7 +171,7 @@ function SkillLists({
         ) : null}
         {missing.length ? (
           <div>
-            <p className="text-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
+            <p className="text-foreground mb-1 text-[11px] font-semibold uppercase tracking-wide">
               Missing
             </p>
             <ul className="space-y-0.5">
@@ -210,7 +210,7 @@ function SkillLists({
   if (dimension === "atsCompatibility" || dimension === "structureFormatting") {
     const issues = analysis.atsIssues ?? [];
     if (issues.length) {
-      return <AtsIssueList issues={issues} className="text-[12px]" />;
+      return <AtsIssueList issues={issues} className="text-[13px]" />;
     }
     return (
       <ul className="space-y-0.5">
@@ -230,154 +230,302 @@ function SkillLists({
 }
 
 const SEVERITY_ORDER: AtsFinding["severity"][] = ["critical", "high", "medium", "low", "info"];
-const SEVERITY_TONE: Record<AtsFinding["severity"], string> = {
-  critical: "text-destructive",
-  high: "text-destructive",
-  medium: "text-amber-600 dark:text-amber-400",
-  low: "text-muted-foreground",
-  info: "text-muted-foreground",
+const SEVERITY_BADGE: Record<AtsFinding["severity"], string> = {
+  critical: "border-destructive/40 bg-destructive/10 text-destructive",
+  high: "border-destructive/40 bg-destructive/10 text-destructive",
+  medium: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  low: "border-border bg-muted text-muted-foreground",
+  info: "border-border bg-muted text-muted-foreground",
 };
 
 function pct(weight: number | undefined) {
   return weight == null ? "" : `${Math.round(weight * 1000) / 10}%`;
 }
 
-/** Engine-specific explainability: weighted breakdown, metrics, findings, limitations. */
+/** Titled section with a thin rule — one clear block per kind of detail. */
+function Section({
+  title,
+  aside,
+  children,
+}: {
+  title: string;
+  aside?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-2">
+      <div className="flex items-baseline gap-2">
+        <h4 className="text-foreground text-[11px] font-semibold uppercase tracking-wide">
+          {title}
+        </h4>
+        {aside && <span className="text-muted-foreground text-[11px]">({aside})</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Thin magnitude bar for a breakdown row (0–100). */
+function MiniBar({ value }: { value: number }) {
+  return (
+    <div className="bg-border/60 h-1.5 w-full overflow-hidden rounded-full">
+      <div
+        className="bg-foreground/60 h-full rounded-full"
+        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+      />
+    </div>
+  );
+}
+
+function SeverityPill({ severity }: { severity: AtsFinding["severity"] }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+        SEVERITY_BADGE[severity],
+      )}
+    >
+      {severity}
+    </span>
+  );
+}
+
+function Chip({ tone, children }: { tone: "matched" | "missing"; children: ReactNode }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs",
+        tone === "matched"
+          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+          : "border-border bg-muted/60 text-muted-foreground",
+      )}
+    >
+      {tone === "matched" ? "✓" : "✗"} {children}
+    </span>
+  );
+}
+
+/**
+ * Engine-specific explainability, laid out as full-width rows: breakdown, strengths,
+ * skills, findings-with-fixes, metrics, then methodology. Findings carry their own fix,
+ * so the generic improvements list is not shown again for these engines.
+ */
 function EngineReport({ analysis }: { analysis: AtsAnalysis }) {
   const breakdown = analysis.breakdown ?? [];
   const metrics = analysis.metrics ?? [];
-  const findings = analysis.findings ?? [];
   const categories = analysis.skillCategories ?? [];
   const limitations = analysis.limitations ?? [];
   const warnings = analysis.warnings ?? [];
+  const strengths = analysis.strengths ?? [];
+  const matched = (analysis.matchedSkills ?? []).map((s) => s.skill).filter(Boolean);
+  const missing = (analysis.missingSkills ?? []).map((s) => s.skill).filter(Boolean);
+  const findings = [...(analysis.findings ?? [])].sort(
+    (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
+  );
+  const fixFor = (id: string) =>
+    (analysis.improvements ?? []).find((i) => i.findingId === id)?.text;
+
+  const rowSecondary = (row: NonNullable<AtsAnalysis["breakdown"]>[number]) => {
+    if (row.maxPoints != null)
+      return `${row.points != null ? `${row.points > 0 ? "+" : ""}${row.points}` : "—"} / ${row.maxPoints} pts`;
+    if (row.weight != null)
+      return `${pct(row.weight)}${row.contribution != null ? ` · +${row.contribution.toFixed(1)}` : ""}`;
+    if (row.points != null) return `${row.points > 0 ? "+" : ""}${row.points} pts`;
+    return "";
+  };
+
   return (
-    <div className="space-y-4 text-[12px]">
+    <div className="space-y-5">
       {warnings.length ? (
-        <ul className="space-y-0.5 text-[11px] text-amber-600 dark:text-amber-400">
-          {warnings.map((w) => (
-            <li key={w}>⚠ {w}</li>
-          ))}
-        </ul>
-      ) : null}
-      {breakdown.length ? (
-        <div>
-          <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
-            Breakdown
-          </p>
-          <table className="w-full text-[11px]">
-            <thead className="text-muted-foreground">
-              <tr className="border-border/50 border-b text-left">
-                <th className="py-1 font-medium">Category</th>
-                <th className="py-1 text-right font-medium">Score</th>
-                <th className="py-1 text-right font-medium">Weight</th>
-                <th className="py-1 text-right font-medium">Adds</th>
-              </tr>
-            </thead>
-            <tbody>
-              {breakdown.map((row) => (
-                <tr key={row.key} className="border-border/30 border-b last:border-b-0">
-                  <td
-                    className={cn(
-                      "text-foreground py-1",
-                      row.parent && "text-muted-foreground pl-3",
-                    )}
-                  >
-                    {row.label}
-                  </td>
-                  <td className="py-1 text-right font-mono tabular-nums">
-                    {row.score != null ? points(row.score) : "—"}
-                  </td>
-                  <td className="text-muted-foreground py-1 text-right font-mono tabular-nums">
-                    {row.maxPoints != null ? `/${row.maxPoints} pts` : pct(row.weight)}
-                  </td>
-                  <td className="py-1 text-right font-mono tabular-nums">
-                    {row.contribution != null
-                      ? row.contribution.toFixed(1)
-                      : row.points != null
-                        ? `${row.points > 0 ? "+" : ""}${row.points}`
-                        : ""}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-      {metrics.length ? (
-        <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-[11px] sm:grid-cols-2">
-          {metrics.map((m) => (
-            <div key={m.key} className="flex justify-between gap-2">
-              <dt className="text-muted-foreground min-w-0 truncate" title={m.label}>
-                {m.label}
-              </dt>
-              <dd className="text-foreground shrink-0 font-mono tabular-nums">
-                {m.value}
-                {m.unit ?? ""}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-      {categories.length ? (
-        <div>
-          <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
-            Skill categories
-          </p>
-          <ul className="space-y-1 text-[11px]">
-            {categories.map((c) => (
-              <li key={c.category} className="flex flex-wrap justify-between gap-x-2">
-                <span className="text-foreground">{c.category}</span>
-                <span className="text-muted-foreground">
-                  {c.score}% · {c.matched.length ? `✓ ${c.matched.join(", ")}` : ""}
-                  {c.missing.length ? ` ✗ ${c.missing.join(", ")}` : ""}
-                </span>
-              </li>
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5">
+          <ul className="space-y-0.5 text-[12px] text-amber-700 dark:text-amber-300">
+            {warnings.map((w) => (
+              <li key={w}>⚠ {w}</li>
             ))}
           </ul>
         </div>
       ) : null}
-      {findings.length ? (
-        <div>
-          <p className="text-foreground mb-1.5 text-[12px] font-semibold">Findings</p>
-          <ul className="space-y-1.5">
-            {[...findings]
-              .sort(
-                (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
-              )
-              .slice(0, 12)
-              .map((f) => (
-                <li key={f.id} className="flex gap-2">
-                  <span
-                    className={cn(
-                      "w-14 shrink-0 text-[9px] font-semibold uppercase tracking-wide",
-                      SEVERITY_TONE[f.severity],
-                    )}
-                  >
-                    {f.severity}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="text-foreground block font-medium leading-snug">
-                      {f.title}
-                    </span>
-                    <span className="text-muted-foreground block text-[11px]">{f.detail}</span>
-                  </span>
-                </li>
-              ))}
+
+      {breakdown.length ? (
+        <Section title="Score breakdown">
+          <ul className="border-border/50 divide-border/40 divide-y overflow-hidden rounded-lg border">
+            {breakdown.map((row) => (
+              <li
+                key={row.key}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2",
+                  row.parent && "bg-muted/20 pl-6",
+                )}
+              >
+                <span
+                  className={cn(
+                    "min-w-0 flex-1 truncate text-[13px]",
+                    row.parent ? "text-muted-foreground" : "text-foreground font-medium",
+                  )}
+                >
+                  {row.label}
+                </span>
+                <div className="hidden w-24 shrink-0 sm:block">
+                  {row.score != null ? <MiniBar value={row.score} /> : null}
+                </div>
+                <span className="text-foreground w-8 shrink-0 text-right font-mono text-[13px] tabular-nums">
+                  {row.score != null ? points(row.score) : "—"}
+                </span>
+                <span className="text-muted-foreground w-24 shrink-0 text-right font-mono text-[11px] tabular-nums">
+                  {rowSecondary(row)}
+                </span>
+              </li>
+            ))}
           </ul>
-        </div>
+        </Section>
       ) : null}
+
+      {strengths.length ? (
+        <Section title="Strengths">
+          <ul className="space-y-1">
+            {strengths.map((s) => (
+              <li key={s} className="text-muted-foreground flex gap-2 text-[13px]">
+                <span className="text-emerald-600 dark:text-emerald-400" aria-hidden>
+                  ✓
+                </span>
+                <span className="min-w-0">{s}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {matched.length || missing.length ? (
+        <Section title="Skills" aside={`${matched.length} matched · ${missing.length} missing`}>
+          <div className="space-y-2">
+            {matched.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {matched.map((s) => (
+                  <Chip key={`m-${s}`} tone="matched">
+                    {s}
+                  </Chip>
+                ))}
+              </div>
+            ) : null}
+            {missing.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {missing.map((s) => (
+                  <Chip key={`x-${s}`} tone="missing">
+                    {s}
+                  </Chip>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </Section>
+      ) : null}
+
+      {categories.length ? (
+        <Section title="By skill category">
+          <ul className="border-border/50 divide-border/40 divide-y overflow-hidden rounded-lg border">
+            {categories.map((c) => (
+              <li key={c.category} className="space-y-1 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-foreground text-[13px] font-medium">{c.category}</span>
+                  <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+                    {c.score}%
+                  </span>
+                </div>
+                {c.matched.length || c.missing.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {c.matched.map((s) => (
+                      <Chip key={`cm-${c.category}-${s}`} tone="matched">
+                        {s}
+                      </Chip>
+                    ))}
+                    {c.missing.map((s) => (
+                      <Chip key={`cx-${c.category}-${s}`} tone="missing">
+                        {s}
+                      </Chip>
+                    ))}
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {findings.length ? (
+        <Section title="Findings & fixes" aside={`${findings.length}`}>
+          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            {findings.map((f) => {
+              const fix = fixFor(f.id) ?? f.recommendation;
+              return (
+                <li key={f.id} className="border-border/50 rounded-lg border p-2.5">
+                  <div className="flex items-start gap-2">
+                    <SeverityPill severity={f.severity} />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-foreground text-[13px] font-medium leading-snug">
+                        {f.title}
+                      </p>
+                      <p className="text-muted-foreground text-[12px] leading-relaxed">
+                        {f.detail}
+                      </p>
+                      {fix ? (
+                        <p className="text-[12px] leading-relaxed">
+                          <span className="text-foreground font-medium">Fix: </span>
+                          <span className="text-muted-foreground">{fix}</span>
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Section>
+      ) : null}
+
+      {metrics.length ? (
+        <Section title="Signals">
+          <ul className="border-border/50 divide-border/40 divide-y overflow-hidden rounded-lg border">
+            {metrics.map((m) => (
+              <li
+                key={m.key}
+                className="flex items-center justify-between gap-3 px-3 py-1.5 text-[13px]"
+              >
+                <span className="text-muted-foreground min-w-0 truncate" title={m.label}>
+                  {m.label}
+                </span>
+                <span className="text-foreground shrink-0 font-mono tabular-nums">
+                  {m.value}
+                  {m.unit ?? ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
       {limitations.length || analysis.methodology ? (
-        <div className="text-muted-foreground border-border/50 space-y-1 border-t pt-2 text-[10px] leading-relaxed">
-          {analysis.methodology ? (
-            <p>
-              Method {analysis.methodology.id}@{analysis.methodology.version}
-              {analysis.methodology.reference ? ` · ${analysis.methodology.reference}` : ""}
-            </p>
-          ) : null}
-          {limitations.map((l) => (
-            <p key={l}>· {l}</p>
-          ))}
-        </div>
+        <details className="border-border/50 group rounded-lg border px-3 py-2">
+          <summary className="text-muted-foreground cursor-pointer list-none text-[11px] font-medium">
+            Methodology &amp; limitations
+            <span
+              className="ml-1 inline-block transition-transform group-open:rotate-90"
+              aria-hidden
+            >
+              ›
+            </span>
+          </summary>
+          <div className="text-muted-foreground mt-2 space-y-1 text-[11px] leading-relaxed">
+            {analysis.methodology ? (
+              <p>
+                {analysis.methodology.id}@{analysis.methodology.version}
+                {analysis.methodology.reference ? ` · ${analysis.methodology.reference}` : ""}
+              </p>
+            ) : null}
+            {limitations.map((l) => (
+              <p key={l}>· {l}</p>
+            ))}
+          </div>
+        </details>
       ) : null}
     </div>
   );
@@ -413,156 +561,129 @@ export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
           (r) => !["technicalSkills", "experienceQuality", "structureFormatting"].includes(r.key),
         );
 
-  const hasInsights =
-    strengths.length > 0 ||
-    missingSkills.length > 0 ||
-    partialSkills.length > 0 ||
-    improvements.length > 0 ||
-    atsIssues.length > 0;
-
   return (
     <div className="border-border/60 mt-3 space-y-4 border-t pt-3 md:space-y-5">
       <div className="space-y-2">
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-foreground text-[12px] font-semibold tracking-tight md:text-[13px]">
+            <p className="text-foreground text-[13px] font-semibold tracking-tight">
               {analysis.scoreLabel}
             </p>
-            <p className="text-muted-foreground mt-0.5 truncate text-[11px]">
+            <p className="text-muted-foreground mt-0.5 truncate text-[12px]">
               {analysis.scoreName}
               {analysis.targetTitle ? ` · ${analysis.targetTitle}` : ""}
             </p>
           </div>
-          <p className="text-foreground shrink-0 font-mono text-[15px] font-semibold tabular-nums">
+          <p className="text-foreground shrink-0 font-mono text-[16px] font-semibold tabular-nums">
             {points(analysis.overallScore)}
-            <span className="text-muted-foreground text-[11px] font-medium"> / 100</span>
+            <span className="text-muted-foreground text-[12px] font-medium"> / 100</span>
           </p>
         </div>
         <ScoreBar value={analysis.overallScore} />
-        {analysis.methodology ? (
-          <p className="text-muted-foreground font-mono text-[10px] leading-relaxed">
-            {analysis.methodology.formula}
-          </p>
-        ) : analysis.notes?.length ? (
-          <p className="text-muted-foreground text-[11px] leading-relaxed">{analysis.notes[0]}</p>
-        ) : null}
-        {analysis.blurb ? (
-          <p className="text-muted-foreground hidden text-[10px] leading-relaxed md:block">
-            {analysis.blurb}
-          </p>
-        ) : null}
-        {analysis.textChars != null ? (
-          <p className="text-muted-foreground font-mono text-[10px] tabular-nums">
-            text {analysis.textChars} chars
-            {analysis.textFingerprint ? ` · fp ${analysis.textFingerprint}` : ""}
-          </p>
+        {!analysis.breakdown?.length && analysis.notes?.length ? (
+          <p className="text-muted-foreground text-[12px] leading-relaxed">{analysis.notes[0]}</p>
         ) : null}
       </div>
 
-      <div
-        className={cn(
-          "space-y-4",
-          hasInsights && "md:grid md:grid-cols-2 md:items-start md:gap-x-8 md:gap-y-5 md:space-y-0",
-        )}
-      >
-        <div className="min-w-0">
-          {analysis.breakdown?.length ? null : (
-            <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
-              Breakdown
-            </p>
-          )}
-          <div>
-            {analysis.breakdown?.length ? <EngineReport analysis={analysis} /> : null}
-            {(analysis.breakdown?.length ? [] : rows).map((row) => {
-              const value = scores[row.key] as number;
-              const open = openDim === row.key;
-              return (
-                <DimensionRow
-                  key={row.key}
-                  label={row.label}
-                  value={value}
-                  open={open}
-                  onToggle={() => setOpenDim(open ? null : row.key)}
-                  detail={open ? <SkillLists analysis={analysis} dimension={row.key} /> : null}
-                />
-              );
-            })}
-          </div>
+      {analysis.breakdown?.length ? (
+        // Open-source engines: one clean, full-width, row-based report.
+        <EngineReport analysis={analysis} />
+      ) : (
+        <div className="space-y-5">
+          <Section title="Breakdown">
+            <div>
+              {rows.map((row) => {
+                const value = scores[row.key] as number;
+                const open = openDim === row.key;
+                return (
+                  <DimensionRow
+                    key={row.key}
+                    label={row.label}
+                    value={value}
+                    open={open}
+                    onToggle={() => setOpenDim(open ? null : row.key)}
+                    detail={open ? <SkillLists analysis={analysis} dimension={row.key} /> : null}
+                  />
+                );
+              })}
+            </div>
+          </Section>
+
+          {strengths.length ? (
+            <Section title="Strengths">
+              <ul className="space-y-1">
+                {strengths.map((s) => (
+                  <li key={s} className="text-muted-foreground flex gap-2 text-[13px]">
+                    <span className="text-emerald-600 dark:text-emerald-400" aria-hidden>
+                      ✓
+                    </span>
+                    <span className="min-w-0">{s}</span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
+
+          {missingSkills.length || partialSkills.length ? (
+            <Section title="Missing / weak requirements">
+              <dl className="space-y-1.5 text-[13px]">
+                {missingSkills.length ? (
+                  <div className="flex gap-2">
+                    <dt className="text-muted-foreground w-16 shrink-0 pt-0.5 text-[11px] font-semibold uppercase tracking-wide">
+                      Missing
+                    </dt>
+                    <dd className="text-foreground min-w-0 flex-1">
+                      {missingSkills.map((s) => s.skill).join(", ")}
+                    </dd>
+                  </div>
+                ) : null}
+                {partialSkills.length ? (
+                  <div className="flex gap-2">
+                    <dt className="w-16 shrink-0 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                      Partial
+                    </dt>
+                    <dd className="text-foreground min-w-0 flex-1">
+                      {partialSkills.map((s) => s.skill).join(", ")}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            </Section>
+          ) : null}
+
+          {improvements.length ? (
+            <Section title="Improvements">
+              <div className="space-y-2.5">
+                {(["high", "medium", "low"] as const).map((priority) => {
+                  const items = improvements.filter((i) => i.priority === priority);
+                  if (!items.length) return null;
+                  return (
+                    <div key={priority}>
+                      <p className="text-muted-foreground mb-1 text-[11px] font-semibold uppercase tracking-wide">
+                        {priority} impact
+                      </p>
+                      <ol className="text-muted-foreground list-decimal space-y-1.5 pl-4 text-[13px]">
+                        {items.map((i) => (
+                          <li key={i.text}>
+                            {i.text}
+                            <span className="mt-0.5 block text-[11px] opacity-80">{i.reason}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  );
+                })}
+              </div>
+            </Section>
+          ) : null}
+
+          {atsIssues.length ? (
+            <Section title="ATS issues">
+              <AtsIssueList issues={atsIssues} />
+            </Section>
+          ) : null}
         </div>
-
-        {hasInsights ? (
-          <div className="min-w-0 space-y-4 md:space-y-5">
-            {strengths.length ? (
-              <div>
-                <p className="text-foreground mb-1.5 text-[12px] font-semibold">Strengths</p>
-                <ul className="text-muted-foreground grid gap-1 text-[12px] sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
-                  {strengths.map((s) => (
-                    <li key={s}>✓ {s}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {missingSkills.length || partialSkills.length ? (
-              <div>
-                <p className="text-foreground mb-1.5 text-[12px] font-semibold">
-                  Missing / weak requirements
-                </p>
-                <ul className="text-muted-foreground grid gap-1 text-[12px] sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
-                  {partialSkills.slice(0, 6).map((s) => (
-                    <li key={`p-${s.skill}`} className="flex justify-between gap-2">
-                      <span className="truncate">{s.skill}</span>
-                      <span className="text-[10px] uppercase tracking-wide">Partial</span>
-                    </li>
-                  ))}
-                  {missingSkills.slice(0, 6).map((s) => (
-                    <li key={`m-${s.skill}`} className="flex justify-between gap-2">
-                      <span className="truncate">{s.skill}</span>
-                      <span className="text-[10px] uppercase tracking-wide">Missing</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {improvements.length ? (
-              <div>
-                <p className="text-foreground mb-1.5 text-[12px] font-semibold">Improvements</p>
-                <div className="space-y-2.5">
-                  {(["high", "medium", "low"] as const).map((priority) => {
-                    const items = improvements.filter((i) => i.priority === priority);
-                    if (!items.length) return null;
-                    return (
-                      <div key={priority}>
-                        <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
-                          {priority} impact
-                        </p>
-                        <ol className="text-muted-foreground list-decimal space-y-1.5 pl-4 text-[12px]">
-                          {items.map((i) => (
-                            <li key={i.text}>
-                              {i.text}
-                              <span className="mt-0.5 block text-[10px] opacity-80">
-                                {i.reason}
-                              </span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            {atsIssues.length ? (
-              <div>
-                <p className="text-foreground mb-1.5 text-[12px] font-semibold">ATS issues</p>
-                <AtsIssueList issues={atsIssues} />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      )}
     </div>
   );
 }

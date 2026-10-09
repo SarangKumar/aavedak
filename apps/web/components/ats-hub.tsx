@@ -271,7 +271,9 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
   // Local copy so resumes uploaded here appear immediately without a full page reload.
   const [resumes, setResumes] = useState<ResumeRow[]>(initialResumes);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [selectedResumeIds, setSelectedResumeIds] = useState<Set<string>>(() => new Set());
+  const [selectedResumeIds, setSelectedResumeIds] = useState<Set<string>>(
+    () => new Set(initialResumes.map((r) => r.id)),
+  );
   const [selectedEngineIds, setSelectedEngineIds] = useState<Set<AtsEngineId>>(
     () => new Set(["aavedak"]),
   );
@@ -288,9 +290,9 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
   const [filterEngineId, setFilterEngineId] = useState<string>("all");
   const [openSteps, setOpenSteps] = useState<Record<number, boolean>>({
     1: true,
-    2: true,
+    2: false,
     3: true,
-    4: true,
+    4: false,
     5: true,
   });
   const runTokenRef = useRef(0);
@@ -637,36 +639,43 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
     const cell = displayMap.get(key);
     const active = detailKey === key;
 
+    // Every state renders inside the same fixed-height box so the score ring
+    // appearing never changes row height.
+    const box = (content: ReactNode) => (
+      <div className="flex h-14 items-center justify-center">{content}</div>
+    );
+
     if (cell?.status === "done" && cell.overallScore != null) {
-      return (
+      const warned = cell.stage === "completed_with_warnings";
+      return box(
         <button
           type="button"
           onClick={() => setDetailKey(active ? null : key)}
-          title={cell.scoreLabel || "View details"}
-          aria-label={`${cell.overallScore} — ${cell.scoreLabel || "view details"}`}
+          title={`${cell.scoreLabel || "View details"}${warned ? " · completed with warnings" : ""}`}
+          aria-label={`${cell.overallScore} — ${cell.scoreLabel || "view details"}${warned ? ", completed with warnings" : ""}`}
           className={cn(
-            "inline-flex cursor-pointer flex-col items-center gap-0.5 rounded-md p-1",
-            active ? "ring-primary/50 ring-2" : "hover:bg-muted/40",
+            "inline-flex cursor-pointer items-center justify-center rounded-full p-0.5",
+            active ? "ring-primary/60 ring-2" : "hover:ring-muted-foreground/30 hover:ring-2",
+            warned && !active && "ring-2 ring-amber-500/50",
           )}
         >
           <ScoreRing value={cell.overallScore} size={44} />
-          <CellStatusLabel cell={cell} />
-        </button>
+        </button>,
       );
     }
     if (cell?.status === "error") {
-      return (
+      return box(
         <button
           type="button"
           onClick={() => setDetailKey(active ? null : key)}
-          className="hover:bg-muted/40 cursor-pointer rounded-md px-1.5 py-0.5"
+          className="hover:bg-muted/40 cursor-pointer rounded-md px-1.5 py-1"
           title={cell.error}
         >
           <CellStatusLabel cell={cell} />
-        </button>
+        </button>,
       );
     }
-    return <CellStatusLabel cell={cell} />;
+    return box(<CellStatusLabel cell={cell} />);
   }
 
   return (
@@ -770,7 +779,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
           summary={
             selectedResumes.length === 0
               ? "Choose resumes to score."
-              : `${selectedResumes.length} selected`
+              : `${selectedResumes.length}/${resumes.length} selected`
           }
         >
           {resumes.length === 0 ? (
@@ -797,25 +806,25 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] disabled:opacity-60 sm:max-w-sm"
                   aria-label="Search resumes"
                 />
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={running || filteredResumes.length === 0}
-                    onClick={selectAllVisibleResumes}
-                  >
-                    Select{resumeQuery.trim() ? " visible" : " all"}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={running}
-                    onClick={clearResumes}
-                  >
-                    Clear
-                  </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={running || filteredResumes.length === 0}
+                  onClick={selectAllVisibleResumes}
+                >
+                  Select{resumeQuery.trim() ? " visible" : " all"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={running}
+                  onClick={clearResumes}
+                >
+                  Clear
+                </Button>
+                <div className="flex flex-wrap gap-2 sm:ml-auto">
                   <Button
                     type="button"
                     size="sm"
@@ -1163,7 +1172,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 </Select>
               </div>
 
-              <div className="border-border/60 hidden overflow-x-auto rounded-lg border md:block">
+              <div className="border-border/60 overflow-x-auto rounded-lg border">
                 <table className="w-full min-w-[36rem] border-collapse text-[12px]">
                   <thead>
                     <tr className="border-border/50 bg-muted/30 border-b">
@@ -1197,7 +1206,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                           {resume.displayName}
                         </td>
                         {tableEngines.map((eng) => (
-                          <td key={eng.id} className="h-14 px-2 py-2 text-center align-middle">
+                          <td key={eng.id} className="h-16 px-2 text-center align-middle">
                             {renderCell(resume.id, eng.id)}
                           </td>
                         ))}
@@ -1205,27 +1214,6 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                     ))}
                   </tbody>
                 </table>
-              </div>
-
-              <div className="space-y-2 md:hidden">
-                {tableResumes.map((resume) => (
-                  <div key={resume.id} className="border-border/60 rounded-lg border p-3">
-                    <p className="text-foreground mb-2 text-[12px] font-semibold">
-                      {resume.displayName}
-                    </p>
-                    <ul className="space-y-2">
-                      {tableEngines.map((eng) => (
-                        <li
-                          key={eng.id}
-                          className="min-h-13 flex items-center justify-between gap-2 text-[11px]"
-                        >
-                          <EngineLabel engineId={eng.id} className="min-w-0" />
-                          <span className="shrink-0">{renderCell(resume.id, eng.id)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
               </div>
 
               {detailCell?.analysis && !detailCell.analysis.error ? (
