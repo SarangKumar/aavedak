@@ -25,7 +25,7 @@ def target(provider: str = "greenhouse", token: str = "acme") -> SourceTarget:
 
 
 def posting(title: str, locations=("Bengaluru, India",), description: str = "", **kw) -> RawPosting:
-    return RawPosting(external_id="x:1", title=title, company_name="Acme", url=None,
+    return RawPosting(external_id="x:1", title=title, company_name="Acme", url="https://acme.example/jobs/1",
                       locations=list(locations), description=description, **kw)
 
 
@@ -277,6 +277,18 @@ def test_normalize_filters_and_hashes():
     assert result.skipped == {"senior_title": 1, "not_india": 1}
     job = result.jobs[0]
     assert job.min_years == 0 and job.posted_at == "2026-10-01T00:00:00.000Z" and "<" not in job.description
+
+
+def test_postings_without_original_link_are_never_stored():
+    ok = posting("Software Engineer", description="0-1 years of experience")
+    ok.url = "https://boards.example/jobs/1"
+    missing = posting("Backend Engineer")
+    missing.external_id, missing.url = "x:2", None
+    relative = posting("Frontend Engineer")
+    relative.external_id, relative.url = "x:3", "/careers/3"
+    result = normalize_postings([ok, missing, relative], max_years_exclusive=3, include_internships=False, now=NOW)
+    assert [j.url for j in result.jobs] == ["https://boards.example/jobs/1"]
+    assert result.skipped == {"missing_url": 2}
 
 
 def test_hash_ignores_description_when_provider_says_so():

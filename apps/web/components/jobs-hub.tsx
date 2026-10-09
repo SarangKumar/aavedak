@@ -736,7 +736,7 @@ function JobDetail({
               rel="noreferrer"
               className="text-primary text-[12px] hover:underline"
             >
-              View original posting ↗
+              Original post ↗
             </a>
           ) : null}
         </div>
@@ -944,12 +944,13 @@ function JobList({
   return (
     <ul className="max-h-[70vh] space-y-1 overflow-y-auto p-2">
       {jobs.map((job) => (
-        <li key={job.id}>
+        <li key={job.id} className="relative">
           <button
             type="button"
             onClick={() => onSelect(job.id)}
             className={cn(
               "flex w-full items-start gap-2.5 rounded-md border px-2.5 py-2.5 text-left transition-colors",
+              job.url && "pr-20",
               selectedId === job.id
                 ? "border-primary/40 bg-primary/10"
                 : "hover:border-border hover:bg-accent/40 border-transparent",
@@ -987,6 +988,18 @@ function JobList({
               </div>
             </div>
           </button>
+          {job.url ? (
+            <a
+              href={job.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary absolute right-2.5 top-2.5 text-[11px] font-medium hover:underline"
+              title="Open the original job posting"
+              aria-label={`Original post for ${job.title} at ${job.company}`}
+            >
+              Original ↗
+            </a>
+          ) : null}
         </li>
       ))}
     </ul>

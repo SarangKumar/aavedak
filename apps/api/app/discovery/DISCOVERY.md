@@ -16,6 +16,9 @@ forwards admin actions to `/svc/v1/discovery/admin/*` after its own allowlist ch
   crawling), and optional permitted JSON feeds. LinkedIn, Indeed, Glassdoor, Naukri,
   Foundit, Instahyre, Cutshort, and Wellfound have no permitted read access and are **not**
   scraped. NCS has no public listings API.
+- Every stored job keeps its **original posting URL** (`jobs.url`, plus each source's link in
+  `job_sources.url`); postings without a valid http(s) link are skipped (`missing_url`), never
+  stored. The UI shows the link on every job card.
 - Never invent jobs, emails, or verification. Imported emails are `unverified`; phone
   numbers are never imported.
 

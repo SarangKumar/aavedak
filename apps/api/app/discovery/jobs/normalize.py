@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from urllib.parse import urlparse
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -19,6 +20,18 @@ MAX_LOCATION = 300
 class NormalizeResult:
     jobs: list[NormalizedJob] = field(default_factory=list)
     skipped: Counter = field(default_factory=Counter)
+
+
+def original_url(url: str | None) -> str | None:
+    """The posting's original http(s) link, or None. Every stored job must have one so
+    users can always open the source posting."""
+    if not url:
+        return None
+    url = url.strip()
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return None
+    return url[:2000]
 
 
 def display_location(locations: list[str]) -> str:
@@ -55,6 +68,10 @@ def normalize_postings(
         if not outcome.keep:
             result.skipped[outcome.reason] += 1
             continue
+        url = original_url(posting.url)
+        if url is None:
+            result.skipped["missing_url"] += 1  # never store a job without its original link
+            continue
         title = clean_line(posting.title)[:MAX_TITLE]
         company = clean_line(posting.company_name)[:200]
         location = display_location(posting.locations)
@@ -63,7 +80,7 @@ def normalize_postings(
             "title": title,
             "company": company,
             "location": location,
-            "url": posting.url,
+            "url": url,
             "posted_at": posted_at,
             "description": description if posting.hash_description else None,
         }
@@ -73,7 +90,7 @@ def normalize_postings(
                 title=title,
                 company_name=company,
                 location=location,
-                url=posting.url,
+                url=url,
                 description=description,
                 posted_at=posted_at,
                 min_years=outcome.min_years,
