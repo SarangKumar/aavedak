@@ -1,2 +1,4 @@
 -r requirements.txt
+# Local only — Vercel serves the ASGI app itself, so uvicorn stays out of the function bundle.
+uvicorn[standard]==0.37.0
 pytest==8.4.2

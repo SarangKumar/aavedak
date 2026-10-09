@@ -1,4 +1,5 @@
 import { ShellWidth } from "@/components/shell-width";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Variant =
@@ -12,6 +13,7 @@ type Variant =
   | "onboarding"
   | "profile"
   | "admin"
+  | "ats"
   | "fallback"
   /** @deprecated use a specific variant */
   | "default"
@@ -704,6 +706,122 @@ function AdminSkeleton() {
 }
 
 /** Generic route placeholder when no page-specific skeleton exists. */
+/** One ATS step card header: numbered badge, title + summary, chevron (mirrors StepBlock). */
+function AtsStepHeader({ titleWidth, summaryWidth }: { titleWidth: string; summaryWidth: string }) {
+  return (
+    <div className="flex items-center gap-2.5 px-4 py-3.5 sm:gap-3 sm:px-5">
+      <Skeleton className="size-7 shrink-0 rounded-md" />
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <Skeleton className={`h-3.5 ${titleWidth}`} />
+        <Skeleton className={`h-2.5 max-w-full ${summaryWidth}`} />
+      </div>
+      <Skeleton className="size-4 shrink-0 rounded-sm" />
+    </div>
+  );
+}
+
+/** Matches components/ats-hub.tsx on first load: steps 1, 3, 5 open; 2 and 4 collapsed. */
+function AtsSkeleton() {
+  return (
+    <ShellWidth className="space-y-4 py-6 sm:space-y-5 sm:py-8">
+      <header className="space-y-1.5">
+        <Skeleton className="h-8 w-40 sm:h-9" />
+        <Skeleton className="h-4 w-full max-w-xl" />
+      </header>
+
+      <div className="space-y-3 sm:space-y-4">
+        {/* 1 · Select engine — engine cards grid */}
+        <Card className="border-border/80 gap-0 rounded-xl p-0">
+          <AtsStepHeader titleWidth="w-28" summaryWidth="w-64" />
+          <div className="grid grid-cols-1 gap-2 px-4 pb-4 sm:grid-cols-2 sm:px-5 md:grid-cols-3">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <Card key={i} size="sm" className="border-border/60 flex-row items-start gap-2">
+                <Skeleton className="mt-0.5 size-4 shrink-0 rounded" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Skeleton className="h-3.5 w-24" />
+                    <Skeleton className="h-4 w-10 rounded-full" />
+                  </div>
+                  <Skeleton className="h-2.5 w-full" />
+                  <Skeleton className="h-2.5 w-2/3" />
+                </div>
+                <Skeleton className="size-5 shrink-0 rounded-md" />
+              </Card>
+            ))}
+          </div>
+        </Card>
+
+        {/* 2 · Select resume — collapsed */}
+        <Card className="border-border/80 gap-0 rounded-xl p-0">
+          <AtsStepHeader titleWidth="w-28" summaryWidth="w-48" />
+        </Card>
+
+        {/* 3 · Job content — title input + JD textarea */}
+        <Card className="border-border/80 gap-0 rounded-xl p-0">
+          <AtsStepHeader titleWidth="w-24" summaryWidth="w-72" />
+          <div className="space-y-3 px-4 pb-4 sm:px-5">
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-2.5 w-64 max-w-full" />
+              <Skeleton className="h-9 w-full rounded-lg" />
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-2.5 w-72 max-w-full" />
+              <Skeleton className="h-36 w-full rounded-lg" />
+            </div>
+          </div>
+        </Card>
+
+        {/* 4 · Review and run — collapsed */}
+        <Card className="border-border/80 gap-0 rounded-xl p-0">
+          <AtsStepHeader titleWidth="w-32" summaryWidth="w-56" />
+        </Card>
+
+        {/* 5 · Results — filters + score table */}
+        <Card className="border-border/80 gap-0 rounded-xl p-0">
+          <AtsStepHeader titleWidth="w-16" summaryWidth="w-80" />
+          <div className="space-y-3 px-4 pb-4 sm:px-5">
+            <div className="flex justify-end gap-2">
+              <Skeleton className="h-8 w-36 rounded-lg" />
+              <Skeleton className="h-8 w-36 rounded-lg" />
+            </div>
+            <div className="border-border/60 overflow-hidden rounded-lg border">
+              <div className="border-border/40 flex gap-4 border-b px-3 py-2.5">
+                <Skeleton className="h-3 w-24" />
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-3 w-20" />
+                ))}
+              </div>
+              {Array.from({ length: 2 }).map((_, row) => (
+                <div
+                  key={row}
+                  className="border-border/40 flex items-center gap-4 border-b px-3 py-3 last:border-b-0"
+                >
+                  <Skeleton className="h-3.5 w-24" />
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex w-20 items-center gap-2">
+                      <Skeleton className="size-11 shrink-0 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* How scoring works (accordion card) */}
+      <Card className="border-border/80 gap-0 rounded-xl p-0">
+        <div className="flex items-center justify-between px-4 py-4 md:px-5">
+          <Skeleton className="h-3.5 w-36" />
+          <Skeleton className="size-4 rounded-sm" />
+        </div>
+      </Card>
+    </ShellWidth>
+  );
+}
+
 function FallbackSkeleton() {
   return (
     <ShellWidth className="space-y-5 py-8 sm:py-10" aria-busy="true" aria-label="Loading">
@@ -745,6 +863,8 @@ export function PageLoadingSkeleton({ variant = "fallback" }: { variant?: Varian
       return <OnboardingSkeleton />;
     case "profile":
       return <ProfileSkeleton />;
+    case "ats":
+      return <AtsSkeleton />;
     case "admin":
       return <AdminSkeleton />;
     case "fallback":

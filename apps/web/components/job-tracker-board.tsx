@@ -46,7 +46,14 @@ import {
   type ApplicationStatus,
 } from "@/lib/application-status";
 import { ShellWidth } from "@/components/shell-width";
-import { Sheet } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Table,
   TableBody,
@@ -806,11 +813,122 @@ export function JobTrackerBoard({
 
       <Sheet
         open={Boolean(editingId)}
-        onClose={closeEdit}
-        title="Edit application"
-        description="Update details or permanently delete this application."
-        footer={
-          <>
+        onOpenChange={(next) => {
+          if (!next) closeEdit();
+        }}
+      >
+        <SheetContent className="w-full max-w-md sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="aavedak-display text-lg font-normal">
+              Edit application
+            </SheetTitle>
+            <SheetDescription className="text-[12px] leading-relaxed">
+              Update details or permanently delete this application.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1">
+            <div className="space-y-2.5">
+              {(() => {
+                const current = editingId ? appsById.get(editingId) : null;
+                return (
+                  <div className="border-border/70 bg-muted/30 space-y-1 rounded-lg border px-3 py-2.5">
+                    <p className="text-foreground text-[11px] font-semibold tracking-tight">
+                      Linked job & cover letter
+                    </p>
+                    <p className="text-muted-foreground text-[12px]">
+                      Job:{" "}
+                      {current?.jobTitle
+                        ? `${current.jobTitle}${current.jobId ? ` (${current.jobId.slice(0, 8)}…)` : ""}`
+                        : current?.jobId
+                          ? current.jobId
+                          : "—"}
+                    </p>
+                    <p className="text-muted-foreground text-[12px]">
+                      Cover letter: {current?.coverLetterTitle || "—"}
+                    </p>
+                  </div>
+                );
+              })()}
+              <label className="block space-y-1">
+                <span className="text-foreground text-[12px] font-medium">Company name *</span>
+                <CompanySelect
+                  value={draft.companyName}
+                  onChange={(name) => setDraft((d) => ({ ...d, companyName: name }))}
+                  placeholder="e.g. Stripe"
+                />
+              </label>
+              <Field
+                label="Role *"
+                value={draft.role}
+                onChange={(v) => setDraft((d) => ({ ...d, role: v }))}
+              />
+              <Field
+                label="Location *"
+                value={draft.location}
+                onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
+              />
+              <Field
+                label="CTC / salary"
+                value={draft.salaryCtc}
+                onChange={(v) => setDraft((d) => ({ ...d, salaryCtc: v }))}
+              />
+              <Field
+                label="Job link"
+                value={draft.jobLink}
+                onChange={(v) => setDraft((d) => ({ ...d, jobLink: v }))}
+              />
+              <DatePickerField
+                label="Applied date"
+                value={draft.appliedAt}
+                onChange={(iso) => setDraft((d) => ({ ...d, appliedAt: iso }))}
+              />
+              <div className="space-y-1">
+                <span className="text-foreground text-[12px] font-medium">Cover letter used</span>
+                <Select
+                  value={draft.coverLetterId || "__none"}
+                  onValueChange={(v) =>
+                    setDraft((d) => ({ ...d, coverLetterId: v === "__none" ? "" : v || "" }))
+                  }
+                >
+                  <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[280]">
+                    <SelectItem value="__none">None</SelectItem>
+                    {coverLetters.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.title}
+                        {c.companyName ? ` · ${c.companyName}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="block space-y-1">
+                <span className="text-foreground text-[12px] font-medium">Notes</span>
+                <textarea
+                  value={draft.notes}
+                  onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
+                  rows={3}
+                  className="border-border bg-background text-foreground max-h-40 min-h-[4.5rem] w-full overflow-y-auto rounded-lg border px-3 py-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+                />
+              </label>
+              <div className="space-y-1">
+                <span className="text-foreground text-[12px] font-medium">Status</span>
+                <StatusSelect
+                  value={draft.status}
+                  options={APPLICATION_STATUSES}
+                  onChange={(s) => setDraft((d) => ({ ...d, status: s }))}
+                  triggerClassName="h-9 w-full cursor-pointer text-[13px]"
+                />
+              </div>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                Delete permanently removes the application and lowers that day on your dashboard
+                graph.
+              </p>
+            </div>
+          </div>
+          <SheetFooter className="border-border/70 -mx-6 -mb-6 flex-wrap border-t px-6 py-3 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="destructive"
@@ -835,108 +953,8 @@ export function JobTrackerBoard({
             >
               Save
             </Button>
-          </>
-        }
-      >
-        <div className="space-y-2.5">
-          {(() => {
-            const current = editingId ? appsById.get(editingId) : null;
-            return (
-              <div className="border-border/70 bg-muted/30 space-y-1 rounded-lg border px-3 py-2.5">
-                <p className="text-foreground text-[11px] font-semibold tracking-tight">
-                  Linked job & cover letter
-                </p>
-                <p className="text-muted-foreground text-[12px]">
-                  Job:{" "}
-                  {current?.jobTitle
-                    ? `${current.jobTitle}${current.jobId ? ` (${current.jobId.slice(0, 8)}…)` : ""}`
-                    : current?.jobId
-                      ? current.jobId
-                      : "—"}
-                </p>
-                <p className="text-muted-foreground text-[12px]">
-                  Cover letter: {current?.coverLetterTitle || "—"}
-                </p>
-              </div>
-            );
-          })()}
-          <label className="block space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Company name *</span>
-            <CompanySelect
-              value={draft.companyName}
-              onChange={(name) => setDraft((d) => ({ ...d, companyName: name }))}
-              placeholder="e.g. Stripe"
-            />
-          </label>
-          <Field
-            label="Role *"
-            value={draft.role}
-            onChange={(v) => setDraft((d) => ({ ...d, role: v }))}
-          />
-          <Field
-            label="Location *"
-            value={draft.location}
-            onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
-          />
-          <Field
-            label="CTC / salary"
-            value={draft.salaryCtc}
-            onChange={(v) => setDraft((d) => ({ ...d, salaryCtc: v }))}
-          />
-          <Field
-            label="Job link"
-            value={draft.jobLink}
-            onChange={(v) => setDraft((d) => ({ ...d, jobLink: v }))}
-          />
-          <DatePickerField
-            label="Applied date"
-            value={draft.appliedAt}
-            onChange={(iso) => setDraft((d) => ({ ...d, appliedAt: iso }))}
-          />
-          <div className="space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Cover letter used</span>
-            <Select
-              value={draft.coverLetterId || "__none"}
-              onValueChange={(v) =>
-                setDraft((d) => ({ ...d, coverLetterId: v === "__none" ? "" : v || "" }))
-              }
-            >
-              <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
-                <SelectValue placeholder="None" />
-              </SelectTrigger>
-              <SelectContent className="z-[280]">
-                <SelectItem value="__none">None</SelectItem>
-                {coverLetters.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.title}
-                    {c.companyName ? ` · ${c.companyName}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <label className="block space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Notes</span>
-            <textarea
-              value={draft.notes}
-              onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
-              rows={3}
-              className="border-border bg-background text-foreground max-h-40 min-h-[4.5rem] w-full overflow-y-auto rounded-lg border px-3 py-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
-            />
-          </label>
-          <div className="space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Status</span>
-            <StatusSelect
-              value={draft.status}
-              options={APPLICATION_STATUSES}
-              onChange={(s) => setDraft((d) => ({ ...d, status: s }))}
-              triggerClassName="h-9 w-full cursor-pointer text-[13px]"
-            />
-          </div>
-          <p className="text-muted-foreground text-[11px] leading-relaxed">
-            Delete permanently removes the application and lowers that day on your dashboard graph.
-          </p>
-        </div>
+          </SheetFooter>
+        </SheetContent>
       </Sheet>
 
       <ImportApplicationsDialog

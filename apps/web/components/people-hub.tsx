@@ -7,7 +7,13 @@ import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Table,
   TableBody,
@@ -363,105 +369,117 @@ export function PeopleHub({ initialPeople, applications }: Props) {
 
       <Sheet
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        title={editingId ? "Edit person" : "New person"}
-        description="Contacts are scoped to your account and usable in Referrals."
+        onOpenChange={(next) => {
+          if (!next) setDrawerOpen(false);
+        }}
       >
-        <div className="space-y-3 pt-2">
-          <label className="block space-y-1.5">
-            <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-              Name
-            </span>
-            <Input
-              value={draft.name}
-              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-              placeholder="Jane Doe"
-            />
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-              Email
-            </span>
-            <Input
-              type="email"
-              value={draft.email}
-              onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
-              placeholder="jane@example.com"
-            />
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-              Company
-            </span>
-            <CompanySelect
-              value={draft.company}
-              onChange={(name) => setDraft((d) => ({ ...d, company: name }))}
-              placeholder="e.g. Acme"
-            />
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-              Role
-            </span>
-            <Input
-              value={draft.roleTitle}
-              onChange={(e) => setDraft((d) => ({ ...d, roleTitle: e.target.value }))}
-              placeholder="Engineering Manager"
-            />
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-              Linked application
-            </span>
-            <select
-              className="border-input bg-muted text-foreground box-border flex h-9 w-full rounded-md border px-3 text-sm"
-              value={draft.applicationId}
-              onChange={(e) => setDraft((d) => ({ ...d, applicationId: e.target.value }))}
-            >
-              <option value="">None</option>
-              {applications.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.companyName} · {a.role}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-              Notes
-            </span>
-            <textarea
-              className="border-input bg-muted text-foreground min-h-[88px] w-full resize-y rounded-md border px-3 py-2 text-sm"
-              value={draft.notes}
-              onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
-              rows={3}
-              placeholder="How you met, what to ask…"
-            />
-          </label>
-          {error ? (
-            <p className="text-destructive text-[12px]" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Button onClick={() => void savePerson()} loading={saving}>
-              {editingId ? "Save changes" : "Create person"}
-            </Button>
-            <Button variant="outline" onClick={() => setDrawerOpen(false)} disabled={saving}>
-              Cancel
-            </Button>
-            {editingId ? (
-              <Button
-                variant="destructive"
-                className={cn("ml-auto")}
-                disabled={saving || busyId === editingId}
-                onClick={() => void archivePerson(editingId)}
-              >
-                Archive
-              </Button>
-            ) : null}
+        <SheetContent className="w-full max-w-md sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="aavedak-display text-lg font-normal">
+              {editingId ? "Edit person" : "New person"}
+            </SheetTitle>
+            <SheetDescription className="text-[12px] leading-relaxed">
+              Contacts are scoped to your account and usable in Referrals.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1">
+            <div className="space-y-3 pt-2">
+              <label className="block space-y-1.5">
+                <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                  Name
+                </span>
+                <Input
+                  value={draft.name}
+                  onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                  placeholder="Jane Doe"
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                  Email
+                </span>
+                <Input
+                  type="email"
+                  value={draft.email}
+                  onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
+                  placeholder="jane@example.com"
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                  Company
+                </span>
+                <CompanySelect
+                  value={draft.company}
+                  onChange={(name) => setDraft((d) => ({ ...d, company: name }))}
+                  placeholder="e.g. Acme"
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                  Role
+                </span>
+                <Input
+                  value={draft.roleTitle}
+                  onChange={(e) => setDraft((d) => ({ ...d, roleTitle: e.target.value }))}
+                  placeholder="Engineering Manager"
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                  Linked application
+                </span>
+                <select
+                  className="border-input bg-muted text-foreground box-border flex h-9 w-full rounded-md border px-3 text-sm"
+                  value={draft.applicationId}
+                  onChange={(e) => setDraft((d) => ({ ...d, applicationId: e.target.value }))}
+                >
+                  <option value="">None</option>
+                  {applications.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.companyName} · {a.role}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                  Notes
+                </span>
+                <textarea
+                  className="border-input bg-muted text-foreground min-h-[88px] w-full resize-y rounded-md border px-3 py-2 text-sm"
+                  value={draft.notes}
+                  onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
+                  rows={3}
+                  placeholder="How you met, what to ask…"
+                />
+              </label>
+              {error ? (
+                <p className="text-destructive text-[12px]" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button onClick={() => void savePerson()} loading={saving}>
+                  {editingId ? "Save changes" : "Create person"}
+                </Button>
+                <Button variant="outline" onClick={() => setDrawerOpen(false)} disabled={saving}>
+                  Cancel
+                </Button>
+                {editingId ? (
+                  <Button
+                    variant="destructive"
+                    className={cn("ml-auto")}
+                    disabled={saving || busyId === editingId}
+                    onClick={() => void archivePerson(editingId)}
+                  >
+                    Archive
+                  </Button>
+                ) : null}
+              </div>
+            </div>
           </div>
-        </div>
+        </SheetContent>
       </Sheet>
     </ShellWidth>
   );

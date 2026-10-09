@@ -2,16 +2,66 @@
   "version": "1.3.1",
   "components": {
     "checkbox": {
-      "files": ["components/ui/checkbox/index.tsx"],
+      "files": [
+        "components/ui/checkbox/index.tsx"
+      ],
       "installedAt": "2026-10-07"
     },
     "calendar": {
-      "files": ["components/ui/calendar/index.tsx"],
+      "files": [
+        "components/ui/calendar/index.tsx"
+      ],
       "installedAt": "2026-10-07"
     },
     "chart": {
-      "files": ["components/ui/chart/index.tsx"],
+      "files": [
+        "components/ui/chart/index.tsx"
+      ],
       "installedAt": "2026-10-07"
+    },
+    "avatar": {
+      "files": [
+        "components/ui/avatar/index.tsx"
+      ],
+      "installedAt": "2026-10-09"
+    },
+    "card": {
+      "files": [
+        "components/ui/card/index.tsx"
+      ],
+      "installedAt": "2026-10-09"
+    },
+    "badge": {
+      "files": [
+        "components/ui/badge/index.tsx"
+      ],
+      "installedAt": "2026-10-09"
+    },
+    "file-upload": {
+      "files": [
+        "components/ui/file-upload/index.tsx"
+      ],
+      "installedAt": "2026-10-09"
+    },
+    "separator": {
+      "files": [
+        "components/ui/separator/index.tsx"
+      ],
+      "installedAt": "2026-10-09"
+    },
+    "sheet": {
+      "files": [
+        "components/ui/sheet/index.tsx",
+        "components/ui/sheet/sheet.css"
+      ],
+      "installedAt": "2026-10-09"
+    },
+    "alert-dialog": {
+      "files": [
+        "components/ui/alert-dialog/alert-dialog.css",
+        "components/ui/alert-dialog/index.tsx"
+      ],
+      "installedAt": "2026-10-09"
     }
   }
 }

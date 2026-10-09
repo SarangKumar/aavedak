@@ -1,0 +1,10 @@
+# Not needed at runtime — keeps Vercel function bundles small.
+# (CHANGELOG.md, apps/web/public, and apps/api/app/discovery/data/career_sources.json are read at runtime: keep.)
+apps/api/tests/
+apps/api/scripts/
+apps/api/.pytest_cache/
+apps/api/**/__pycache__/
+apps/api/app/discovery/data/seed_candidates.txt
+apps/api/app/ats/benchmarks/
+apps/extension/
+docs/

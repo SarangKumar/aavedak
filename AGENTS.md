@@ -43,7 +43,7 @@ Known pre-existing failures: `tests/test_ats_benchmark.py::test_improvements_nev
 
 `AGENTS.md` is the single shared source. Claude reads it via `CLAUDE.md` (`@AGENTS.md`); Cursor reads it natively and via `.cursor/rules/project.mdc`. Area-specific detail goes in a doc next to the code, loaded only on demand through a glob-scoped `.cursor/rules/*.mdc` and a nested `CLAUDE.md` with an `@` import. Don't copy that detail here. When you change an area, update its doc and keep this file's summary accurate.
 
-Local dev: run `pnpm dev` and `pnpm dev:api` together. `next dev` writes to `apps/web/.next-dev` and builds to `.next` (`next.config.ts`), so running `pnpm build` while dev is up is safe; Next rewrites the `next-env.d.ts` reference accordingly — don't commit that churn. In development, `next.config.ts` rewrites `/svc/*` to `API_DEV_PROXY_URL` (default `http://127.0.0.1:8000`). Without the API, the native and reference engines silently use their TS fallbacks and the open-source engines show "Service unavailable". `apps/api/.venv` was created under an old path, so its `bin/*` shebangs are broken: call `.venv/bin/python -m <tool>`, or recreate the venv.
+Local dev: run `pnpm dev` and `pnpm dev:api` together. `next dev` writes to `apps/web/.next-dev` and builds to `.next` (`next.config.ts`), so running `pnpm build` while dev is up is safe; Next rewrites the `next-env.d.ts` reference accordingly — don't commit that churn. In development, `next.config.ts` rewrites `/svc/*` to `API_DEV_PROXY_URL` (default `http://127.0.0.1:8000`). Without the API, the native and reference engines silently use their TS fallbacks and the open-source engines show "Service unavailable". Vercel installs only `apps/api/requirements.txt` (runtime); uvicorn and pytest live in `requirements-dev.txt`. `.vercelignore` keeps tests/scripts/docs out of deployments. `apps/api/.venv` was created under an old path, so its `bin/*` shebangs are broken: call `.venv/bin/python -m <tool>`, or recreate the venv.
 
 The husky pre-commit hook runs lint-staged (ESLint `--fix --max-warnings=0` + Prettier on `apps/web`, Prettier on json/md/yml/css).
 
@@ -64,7 +64,7 @@ The husky pre-commit hook runs lint-staged (ESLint `--fix --max-warnings=0` + Pr
 - **Resume PDFs** are stored in GCS (`lib/gcs.ts`); the DB stores only object keys.
 - **Gmail sending** goes through the user's own Gmail (`lib/gmail.ts`, `docs/gmail-oauth.md`). Outreach always requires user confirmation before sending: "Aavedak recommends and prepares. The user decides and sends."
 - **Client state** — Redux Toolkit in `lib/store/`.
-- **UI** — shadcn-style components (`components.json`) with Vinyaas theme tokens (oklch CSS variables, Geist, dark by default).
+- **UI** — Vinyaas components installed with `npx vinyaas add <name>` into `components/ui/<name>/` (tracked in `.vinyaas/manifest.json`; local tweaks logged in `components/ui/.vinyaas`), with Vinyaas theme tokens (oklch CSS variables, Geist, dark by default). Add new primitives through the CLI rather than hand-copying files.
 
 ### ATS scoring (spans both apps)
 

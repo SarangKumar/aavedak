@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { AlertDialog } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -1410,39 +1418,44 @@ export function DocumentsHub({
 
       <AlertDialog
         open={Boolean(deleteTarget)}
-        onClose={() => {
-          if (!deletePending) setDeleteTarget(null);
+        onOpenChange={(next) => {
+          if (!next) {
+            if (!deletePending) setDeleteTarget(null);
+          }
         }}
-        title="Delete resume permanently?"
-        description="This removes the PDF from storage and cannot be undone. Active showcase resumes cannot be deleted."
-        footer={
-          <>
-            <button
-              type="button"
-              disabled={deletePending}
-              onClick={() => setDeleteTarget(null)}
-              className="border-border text-muted-foreground inline-flex h-8 cursor-pointer items-center rounded-lg border px-3 text-[12px] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={deletePending}
-              onClick={() => void confirmDeleteInactiveResume()}
-              className="bg-destructive inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {deletePending ? <Spinner className="size-3.5" label="Deleting" /> : null}
-              {deletePending ? "Deleting…" : "Delete permanently"}
-            </button>
-          </>
-        }
       >
-        {deleteTarget ? (
-          <p className="text-muted-foreground text-[13px] leading-relaxed">
-            Delete <span className="text-foreground font-medium">{deleteTarget.displayName}</span> (
-            {deleteTarget.originalFilename})?
-          </p>
-        ) : null}
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete resume permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the PDF from storage and cannot be undone. Active showcase resumes cannot
+              be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {deleteTarget ? (
+            <p className="text-muted-foreground text-[13px] leading-relaxed">
+              Delete <span className="text-foreground font-medium">{deleteTarget.displayName}</span>{" "}
+              ({deleteTarget.originalFilename})?
+            </p>
+          ) : null}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel size="sm" disabled={deletePending}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              loading={deletePending}
+              loadingText="Deleting…"
+              onClick={() => void confirmDeleteInactiveResume()}
+            >
+              Delete permanently
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
     </ShellWidth>
   );

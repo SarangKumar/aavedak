@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { AlertDialog } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +30,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Sheet } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { formatDateTimeFixed } from "@/lib/format-datetime";
@@ -508,20 +521,28 @@ export function AdminDiscoveryPanel() {
 
       <AlertDialog
         open={confirmScan}
-        onClose={() => setConfirmScan(false)}
-        title="Scan all career sources now?"
-        description="Queues every enabled source (outside the nightly schedule). Postings are fetched from public job-board APIs; only India junior engineering roles are stored."
-        footer={
-          <>
+        onOpenChange={(next) => {
+          if (!next) setConfirmScan(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Scan all career sources now?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Queues every enabled source (outside the nightly schedule). Postings are fetched from
+              public job-board APIs; only India junior engineering roles are stored.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
             <Button size="sm" variant="outline" onClick={() => setConfirmScan(false)}>
               Cancel
             </Button>
             <Button size="sm" onClick={() => void startScan()}>
               Queue scan
             </Button>
-          </>
-        }
-      />
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <SourcesSheet
         open={sourcesOpen}
@@ -531,36 +552,48 @@ export function AdminDiscoveryPanel() {
 
       <Sheet
         open={runDetail !== null}
-        onClose={() => setRunDetail(null)}
-        title={runDetail ? (RUN_LABELS[runDetail.kind] ?? runDetail.kind) : "Run"}
-        description={runDetail?.runKey ?? runDetail?.id}
+        onOpenChange={(next) => {
+          if (!next) setRunDetail(null);
+        }}
       >
-        {runDetail ? (
-          <div className="space-y-3 text-[12px]">
-            <Progress value={runProgress(runDetail)} />
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(runDetail.totals).map(([k, v]) => (
-                <Badge key={k} variant="outline" className="text-[10px]">
-                  {k}: {v}
-                </Badge>
-              ))}
-            </div>
-            <Separator />
-            <p className="text-foreground font-medium">Recent errors</p>
-            {runDetail.recentErrors?.length ? (
-              <ul className="space-y-1.5">
-                {runDetail.recentErrors.map((e, i) => (
-                  <li key={`${e.refId}-${i}`} className="text-muted-foreground">
-                    <span className="text-foreground">{e.status}</span> · attempt {e.attempts} ·{" "}
-                    {e.error}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-muted-foreground">None.</p>
-            )}
+        <SheetContent className="w-full max-w-md sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="aavedak-display text-lg font-normal">
+              {runDetail ? (RUN_LABELS[runDetail.kind] ?? runDetail.kind) : "Run"}
+            </SheetTitle>
+            <SheetDescription className="text-[12px] leading-relaxed">
+              {runDetail?.runKey ?? runDetail?.id}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1">
+            {runDetail ? (
+              <div className="space-y-3 text-[12px]">
+                <Progress value={runProgress(runDetail)} />
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(runDetail.totals).map(([k, v]) => (
+                    <Badge key={k} variant="outline" className="text-[10px]">
+                      {k}: {v}
+                    </Badge>
+                  ))}
+                </div>
+                <Separator />
+                <p className="text-foreground font-medium">Recent errors</p>
+                {runDetail.recentErrors?.length ? (
+                  <ul className="space-y-1.5">
+                    {runDetail.recentErrors.map((e, i) => (
+                      <li key={`${e.refId}-${i}`} className="text-muted-foreground">
+                        <span className="text-foreground">{e.status}</span> · attempt {e.attempts} ·{" "}
+                        {e.error}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground">None.</p>
+                )}
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </SheetContent>
       </Sheet>
     </section>
   );
@@ -652,106 +685,115 @@ function SourcesSheet({
   return (
     <Sheet
       open={open}
-      onClose={onClose}
-      size="lg"
-      title="Career sources"
-      description="Enable, disable, or add career pages."
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <p className="text-foreground text-[12px] font-medium">Add career pages</p>
-          <textarea
-            value={importText}
-            onChange={(e) => setImportText(e.target.value)}
-            rows={4}
-            placeholder={
-              "One per line: URL, or Company, URL[, software|core|mixed]\nhttps://jobs.lever.co/acme\nAcme Motors, https://www.acme.in/careers, core"
-            }
-            className="border-border bg-background text-foreground w-full rounded-md border px-3 py-2 font-mono text-[12px]"
-          />
-          <div className="flex flex-wrap gap-1.5">
-            <Button
-              size="sm"
-              loading={importing}
-              disabled={!importText.trim()}
-              onClick={() => void importSources(false)}
-            >
-              Import
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={importing}
-              onClick={() => void importSources(true)}
-            >
-              Re-import verified seed list
-            </Button>
+      <SheetContent className="w-full max-w-lg sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle className="aavedak-display text-lg font-normal">Career sources</SheetTitle>
+          <SheetDescription className="text-[12px] leading-relaxed">
+            Enable, disable, or add career pages.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="min-h-0 flex-1">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-foreground text-[12px] font-medium">Add career pages</p>
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                rows={4}
+                placeholder={
+                  "One per line: URL, or Company, URL[, software|core|mixed]\nhttps://jobs.lever.co/acme\nAcme Motors, https://www.acme.in/careers, core"
+                }
+                className="border-border bg-background text-foreground w-full rounded-md border px-3 py-2 font-mono text-[12px]"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  size="sm"
+                  loading={importing}
+                  disabled={!importText.trim()}
+                  onClick={() => void importSources(false)}
+                >
+                  Import
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={importing}
+                  onClick={() => void importSources(true)}
+                >
+                  Re-import verified seed list
+                </Button>
+              </div>
+            </div>
+            <Separator />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search company or token…"
+              aria-label="Search sources"
+            />
+            {sources === null ? (
+              <Skeleton className="h-32 w-full" />
+            ) : sources.length === 0 ? (
+              <p className="text-muted-foreground text-[12px]">No sources match.</p>
+            ) : (
+              <ul className="space-y-2">
+                {sources.map((s) => (
+                  <li
+                    key={s.id}
+                    className="border-border flex items-start gap-2.5 rounded-md border px-2.5 py-2"
+                  >
+                    <Checkbox
+                      checked={s.enabled}
+                      onChange={(e) => void toggle(s, e.target.checked)}
+                      aria-label={`Enable ${s.companyName}`}
+                      className="mt-0.5"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-foreground flex flex-wrap items-center gap-1.5 text-[12px] font-medium">
+                        {s.companyName}
+                        <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                          {s.provider}
+                        </Badge>
+                        {s.sector ? (
+                          <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                            {s.sector}
+                          </Badge>
+                        ) : null}
+                      </p>
+                      <a
+                        href={s.careersUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-muted-foreground block truncate text-[11px] hover:underline"
+                      >
+                        {s.careersUrl}
+                      </a>
+                      <p className="text-muted-foreground text-[11px]">
+                        {s.lastSuccessAt
+                          ? `Last OK ${formatDateTimeFixed(s.lastSuccessAt)}`
+                          : "Never scanned"}
+                        {s.lastCounts.fetched !== undefined
+                          ? ` · ${s.lastCounts.fetched} fetched · ${s.lastCounts.kept ?? 0} kept`
+                          : ""}
+                      </p>
+                      {s.lastError ? (
+                        <p className="text-destructive text-[11px]">
+                          {s.lastError}
+                          {s.consecutiveFailures > 1 ? ` (${s.consecutiveFailures}× in a row)` : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
-        <Separator />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search company or token…"
-          aria-label="Search sources"
-        />
-        {sources === null ? (
-          <Skeleton className="h-32 w-full" />
-        ) : sources.length === 0 ? (
-          <p className="text-muted-foreground text-[12px]">No sources match.</p>
-        ) : (
-          <ul className="space-y-2">
-            {sources.map((s) => (
-              <li
-                key={s.id}
-                className="border-border flex items-start gap-2.5 rounded-md border px-2.5 py-2"
-              >
-                <Checkbox
-                  checked={s.enabled}
-                  onChange={(e) => void toggle(s, e.target.checked)}
-                  aria-label={`Enable ${s.companyName}`}
-                  className="mt-0.5"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-foreground flex flex-wrap items-center gap-1.5 text-[12px] font-medium">
-                    {s.companyName}
-                    <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                      {s.provider}
-                    </Badge>
-                    {s.sector ? (
-                      <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-                        {s.sector}
-                      </Badge>
-                    ) : null}
-                  </p>
-                  <a
-                    href={s.careersUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-muted-foreground block truncate text-[11px] hover:underline"
-                  >
-                    {s.careersUrl}
-                  </a>
-                  <p className="text-muted-foreground text-[11px]">
-                    {s.lastSuccessAt
-                      ? `Last OK ${formatDateTimeFixed(s.lastSuccessAt)}`
-                      : "Never scanned"}
-                    {s.lastCounts.fetched !== undefined
-                      ? ` · ${s.lastCounts.fetched} fetched · ${s.lastCounts.kept ?? 0} kept`
-                      : ""}
-                  </p>
-                  {s.lastError ? (
-                    <p className="text-destructive text-[11px]">
-                      {s.lastError}
-                      {s.consecutiveFailures > 1 ? ` (${s.consecutiveFailures}× in a row)` : ""}
-                    </p>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      </SheetContent>
     </Sheet>
   );
 }
