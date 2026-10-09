@@ -545,13 +545,16 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
       });
     }
 
-    const resumeName = (id: string) =>
-      selectedResumes.find((r) => r.id === id)?.displayName || id.slice(0, 8);
-    // Extract each resume's PDF text once per run; later engines reuse the stored text.
-    const extracted = new Set<string>();
+    let finished = 0;
+    const tick = () => {
+      finished += 1;
+      if (runTokenRef.current === token) setProgressLabel(`${finished} of ${ready.length} done`);
+    };
+    setProgressLabel(`0 of ${ready.length} done`);
 
-    for (const combo of ready) {
-      if (runTokenRef.current !== token) break;
+    /** One resume × engine; `forceExtract` re-reads the PDF (first engine of each resume only). */
+    async function runOne(combo: AnalysisCombination, forceExtract: boolean): Promise<void> {
+      if (runTokenRef.current !== token) return;
       const eng = getEngine(combo.engineId)!;
       const runId = runIds.get(cellKey(combo.resumeId, combo.engineId))!;
       const base: AtsBatchResultCell = {
@@ -574,10 +577,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
           error,
           seq: undefined,
         });
-      setProgressLabel(`${resumeName(combo.resumeId)} · ${eng.name}`);
       patchCell(base);
-      const forceExtract = !extracted.has(combo.resumeId);
-      extracted.add(combo.resumeId);
 
       try {
         const res = await fetch("/api/ats/run", {
@@ -597,9 +597,9 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
         });
         if (!res.ok || !res.body) {
           const data = (await res.json().catch(() => ({}))) as { error?: string };
-          if (runTokenRef.current !== token) break;
+          if (runTokenRef.current !== token) return;
           fail(data.error || "Analysis failed.", "analysis_failure");
-          continue;
+          return;
         }
         const final = await readRunStream(res.body, runId, (ev) =>
           patchCell({
@@ -610,14 +610,34 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
             seq: ev.seq,
           }),
         );
-        if (runTokenRef.current !== token) break;
+        if (runTokenRef.current !== token) return;
         if (final) patchCell({ ...final, runId });
         else fail("The analysis stream ended without a result.", "analysis_failure");
       } catch (err) {
-        if (controller.signal.aborted || runTokenRef.current !== token) break;
+        if (controller.signal.aborted || runTokenRef.current !== token) return;
         fail(err instanceof Error ? err.message : "Analysis failed.", "analysis_failure");
+      } finally {
+        tick();
       }
     }
+
+    // Resumes run in parallel (Promise.all). Within one resume the engines run in order so
+    // its PDF text is extracted once (first engine) and reused — parallel engines on the
+    // same resume would extract the same file several times at once.
+    const byResume = new Map<string, AnalysisCombination[]>();
+    for (const combo of ready) {
+      const list = byResume.get(combo.resumeId) ?? [];
+      list.push(combo);
+      byResume.set(combo.resumeId, list);
+    }
+    await Promise.all(
+      [...byResume.values()].map(async (combos) => {
+        for (const [index, combo] of combos.entries()) {
+          if (runTokenRef.current !== token) return;
+          await runOne(combo, index === 0);
+        }
+      }),
+    );
 
     if (runTokenRef.current === token) {
       setProgressLabel("");
@@ -1218,7 +1238,17 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
               </div>
 
               <div className="border-border/60 overflow-x-auto rounded-lg border">
-                <table className="w-full min-w-[36rem] border-collapse text-[12px]">
+                {/* Fixed layout: equal-width engine columns so score rings form an even grid. */}
+                <table
+                  className="w-full table-fixed border-collapse text-[12px]"
+                  style={{ minWidth: `${Math.max(36, 11 + tableEngines.length * 7.5)}rem` }}
+                >
+                  <colgroup>
+                    <col className="w-44" />
+                    {tableEngines.map((eng) => (
+                      <col key={eng.id} />
+                    ))}
+                  </colgroup>
                   <thead>
                     <tr className="border-border/50 bg-muted/30 border-b">
                       <th className="text-muted-foreground bg-card sticky left-0 z-10 px-3 py-2.5 text-left font-medium">
@@ -1231,7 +1261,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                         return (
                           <th
                             key={eng.id}
-                            className="text-muted-foreground min-w-[7.5rem] px-2 py-2.5 text-center font-medium"
+                            className="text-muted-foreground px-2 py-2.5 text-center align-middle font-medium"
                           >
                             <EngineLabel engineId={eng.id} stacked className="mx-auto" />
                             <span className="mt-0.5 block text-[9px] font-normal">

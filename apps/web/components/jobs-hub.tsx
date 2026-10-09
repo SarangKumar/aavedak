@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CompanySelect } from "@/components/company-select";
+import { EngineKindBadge } from "@/components/ats-engine-badge";
 import { PersonVote, personInitials, type VoteSummaryDto } from "@/components/person-vote";
 import { ShellWidth } from "@/components/shell-width";
 import {
@@ -29,13 +30,12 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScoreRing } from "@/components/ui/score-ring";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { STATUS_LABELS, isApplicationStatus } from "@/lib/application-status";
-import { ATS_ENGINES, getEngine } from "@/lib/ats-engines/registry";
+import { ATS_ENGINES } from "@/lib/ats-engines/registry";
 import type { AtsEngineId } from "@/lib/ats-engines/types";
 import { saveAtsPrefill } from "@/lib/ats-prefill";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
@@ -44,11 +44,15 @@ import { cn } from "@/lib/utils";
 
 export type JobDto = JobDtoBase;
 
-type JobsTab = "discover" | "applied";
+export type JobsTab = "discover" | "applied";
 
 type ResumeLite = { id: string; displayName: string; status: string };
 
 type JobsHubProps = {
+  /** "page" = normal Jobs page; "board" = full-screen board only (/jobs/board). */
+  variant?: "page" | "board";
+  initialTab?: JobsTab;
+  initialJobId?: string | null;
   resumes: ResumeLite[];
   initialDiscover: JobDto[];
   initialApplied: JobDto[];
@@ -123,17 +127,32 @@ function statusLabel(status: string | null | undefined): string | null {
 }
 
 export function JobsHub({
+  variant = "page",
+  initialTab = "discover",
+  initialJobId = null,
   resumes,
   initialDiscover,
   initialApplied,
   discoveryEnabled,
   profileSettingsHref,
 }: JobsHubProps) {
-  const [tab, setTab] = useState<JobsTab>("discover");
+  const [tab, setTab] = useState<JobsTab>(initialTab);
   const [discover, setDiscover] = useState(initialDiscover);
   const [applied, setApplied] = useState(initialApplied);
   const jobs = tab === "discover" ? discover : applied;
-  const [selectedId, setSelectedId] = useState<string | null>(initialDiscover[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialJobId ?? (initialTab === "applied" ? initialApplied : initialDiscover)[0]?.id ?? null,
+  );
+
+  // Full-screen board: stop the page behind it from scrolling.
+  useEffect(() => {
+    if (variant !== "board") return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [variant]);
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [listWidth, setListWidth] = useState(360);
@@ -393,29 +412,10 @@ export function JobsHub({
     }
   }
 
-  return (
-    <ShellWidth className="aavedak-fade-up flex flex-col gap-4 py-6 sm:py-8">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-1">
-          <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-            आवेदक
-          </p>
-          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Jobs</h1>
-          <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-            Junior engineering roles in India, discovered daily from company career pages and ranked
-            against your resume.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          <Button type="button" variant="outline" size="sm" onClick={() => setPasteOpen(true)}>
-            Paste JD
-          </Button>
-          <Button type="button" size="sm" onClick={() => setAddOpen(true)}>
-            Add job
-          </Button>
-        </div>
-      </header>
+  const boardQuery = `tab=${tab}${selected ? `&job=${encodeURIComponent(selected.id)}` : ""}`;
 
+  const notices = (
+    <>
       {tab === "discover" && !discoveryEnabled ? (
         <Card size="sm" className="border-dashed">
           <CardHeader>
@@ -430,7 +430,6 @@ export function JobsHub({
           </CardHeader>
         </Card>
       ) : null}
-
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
       {message ? (
         <p className="text-primary text-[13px]">
@@ -440,112 +439,133 @@ export function JobsHub({
           </Link>
         </p>
       ) : null}
+    </>
+  );
 
-      {/* Fixed-height panel on desktop: list and detail scroll independently (no dead space). */}
-      <Card className="gap-0 overflow-hidden p-0 md:h-[calc(100dvh-13.5rem)] md:min-h-[32rem]">
-        <div className="border-border/60 flex flex-col gap-2 border-b px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <Tabs value={tab} onValueChange={switchTab}>
-            <TabsList>
-              <TabsTrigger value="discover">
-                Discover jobs
-                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
-                  {discover.length}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="applied">
-                Applied jobs
-                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
-                  {applied.length}
-                </Badge>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <div className="flex items-center gap-2">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search title, company, description…"
-              className="h-8 w-full text-[13px] sm:w-64"
-              aria-label="Search jobs"
-            />
-            <span className="text-muted-foreground shrink-0 text-[11px] tabular-nums">
-              {filtered.length}/{jobs.length}
-            </span>
-          </div>
-        </div>
-        {sourceOptions.length > 1 ? (
-          <div
-            className="border-border/60 flex flex-wrap gap-1 border-b px-3 py-2"
-            role="group"
+  const board = (
+    <>
+      {/* Top bar: search, filter, add, expand/collapse */}
+      <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2 sm:flex-nowrap">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search title, company, location, description…"
+          className="h-8 w-full text-[13px] sm:max-w-md"
+          aria-label="Search jobs"
+        />
+        <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v || "all")}>
+          <SelectTrigger
+            className="border-border bg-background h-8 w-auto min-w-[10rem] rounded-md border px-2.5 text-[12px]"
             aria-label="Filter by source"
           >
-            {["all", ...sourceOptions].map((key) => {
-              const active = sourceFilter === key;
-              return (
-                <Button
-                  key={key}
-                  type="button"
-                  size="xs"
-                  variant={active ? "secondary" : "ghost"}
-                  aria-pressed={active}
-                  onClick={() => setSourceFilter(key)}
-                  className="rounded-full"
-                >
-                  {key === "all" ? "All sources" : key}
-                  <span className="tabular-nums opacity-70">{sourceCounts[key] ?? 0}</span>
-                </Button>
-              );
-            })}
-          </div>
-        ) : null}
-
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <aside
-            className="border-border/60 flex max-h-[50vh] w-full shrink-0 flex-col border-b md:max-h-none md:w-[var(--jobs-list-width)] md:max-w-[min(100%,560px)] md:border-b-0 md:border-r"
-            style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
+            <SelectValue placeholder="All sources" />
+          </SelectTrigger>
+          <SelectContent className="z-[240]">
+            <SelectItem value="all" className="text-[12px]">
+              All sources ({sourceCounts.all ?? 0})
+            </SelectItem>
+            {sourceOptions.map((key) => (
+              <SelectItem key={key} value={key} className="text-[12px]">
+                {key} ({sourceCounts[key] ?? 0})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-muted-foreground shrink-0 text-[11px] tabular-nums">
+          {filtered.length} of {jobs.length}
+        </span>
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setPasteOpen(true)}>
+            Paste JD
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+            Add job
+          </Button>
+          <Link
+            href={variant === "board" ? `/jobs?${boardQuery}` : `/jobs/board?${boardQuery}`}
+            className={buttonVariants({ variant: "outline", size: "icon-sm" })}
+            aria-label={variant === "board" ? "Collapse board" : "Expand board to full screen"}
+            title={variant === "board" ? "Collapse" : "Expand"}
           >
-            <JobList
-              jobs={filtered}
-              tab={tab}
-              selectedId={selected?.id ?? null}
-              onSelect={setSelectedId}
-            />
-          </aside>
+            {variant === "board" ? <CollapseIcon /> : <ExpandIcon />}
+          </Link>
+        </div>
+      </Card>
 
+      {/* Two cards with a gap (list | details). Each scrolls on its own. */}
+      <div
+        className={cn(
+          "flex flex-col gap-4 md:flex-row md:gap-0",
+          variant === "board" ? "min-h-0 flex-1" : "md:h-[calc(100dvh-17rem)] md:min-h-[32rem]",
+        )}
+      >
+        <Card
+          className="flex max-h-[60vh] w-full shrink-0 flex-col gap-0 overflow-hidden p-0 md:max-h-none md:w-[var(--jobs-list-width)] md:max-w-[min(100%,560px)]"
+          style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
+        >
+          <div className="border-border/60 border-b p-3">
+            <Tabs value={tab} onValueChange={switchTab}>
+              <TabsList className="w-full">
+                <TabsTrigger value="discover" className="flex-1">
+                  Discover
+                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
+                    {discover.length}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="applied" className="flex-1">
+                  Applied
+                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
+                    {applied.length}
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          <JobList
+            jobs={filtered}
+            tab={tab}
+            selectedId={selected?.id ?? null}
+            onSelect={setSelectedId}
+          />
+        </Card>
+
+        {/* The gap between the cards doubles as the resize handle. */}
+        <div className="hidden w-4 shrink-0 justify-center md:flex">
           <ResizeHandle
             aria-label="Resize panes"
             onPointerDown={onResizeStart}
             onPointerMove={onResizeMove}
             onPointerUp={onResizeEnd}
-            className="hidden shrink-0 md:flex"
           />
-
-          <section className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-5">
-            {!selected ? (
-              <EmptyState
-                tab={tab}
-                hasJobs={jobs.length > 0}
-                discoveryEnabled={discoveryEnabled}
-                onAdd={() => setAddOpen(true)}
-              />
-            ) : (
-              <JobDetail
-                key={selected.id}
-                job={selected}
-                tab={tab}
-                pending={pending}
-                resumes={resumes}
-                onApply={() => void createApplicationFromJob(selected, "applied")}
-                onBookmark={() => void createApplicationFromJob(selected, "bookmarked")}
-                onIgnore={() => void ignoreJob(selected.id)}
-              />
-            )}
-          </section>
         </div>
-      </Card>
 
-      <HowJobsWork />
+        <Card className="bg-muted/20 min-h-0 min-w-0 flex-1 gap-0 overflow-y-auto p-3 sm:p-4">
+          {!selected ? (
+            <EmptyState
+              tab={tab}
+              hasJobs={jobs.length > 0}
+              discoveryEnabled={discoveryEnabled}
+              onAdd={() => setAddOpen(true)}
+            />
+          ) : (
+            <JobDetail
+              key={selected.id}
+              job={selected}
+              tab={tab}
+              pending={pending}
+              resumes={resumes}
+              onApply={() => void createApplicationFromJob(selected, "applied")}
+              onBookmark={() => void createApplicationFromJob(selected, "bookmarked")}
+              onIgnore={() => void ignoreJob(selected.id)}
+            />
+          )}
+        </Card>
+      </div>
+    </>
+  );
 
+  const modals = (
+    <>
       <Modal open={addOpen} title="Add job" onClose={() => setAddOpen(false)}>
         <div className="space-y-2.5">
           <Field
@@ -658,7 +678,65 @@ export function JobsHub({
           </Button>
         </div>
       </Modal>
+    </>
+  );
+
+  if (variant === "board") {
+    // Full-screen board: covers the site header/footer; only the board is shown.
+    return (
+      <div className="bg-background fixed inset-0 z-[60] flex flex-col gap-3 overflow-hidden p-3 sm:p-4">
+        {notices}
+        {board}
+        {modals}
+      </div>
+    );
+  }
+
+  return (
+    <ShellWidth className="aavedak-fade-up flex flex-col gap-4 py-6 sm:py-8">
+      <header className="space-y-1">
+        <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
+          आवेदक
+        </p>
+        <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Jobs</h1>
+        <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
+          Junior engineering roles in India, discovered daily from company career pages and ranked
+          against your resume.
+        </p>
+      </header>
+      {notices}
+      {board}
+      <HowJobsWork />
+      {modals}
     </ShellWidth>
+  );
+}
+
+function ExpandIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-4" aria-hidden>
+      <path
+        d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CollapseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-4" aria-hidden>
+      <path
+        d="M20 10h-6V4M4 14h6v6M14 10l7-7M10 14l-7 7"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -715,12 +793,13 @@ function SectionTitle({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <h3 className="text-foreground text-[12px] font-semibold tracking-tight">{children}</h3>
+      <h3 className="text-foreground text-[13px] font-semibold tracking-tight">{children}</h3>
       {action}
     </div>
   );
 }
 
+/** Right-hand side: four separate cards — job, about/JD, people, resume (ATS). */
 function JobDetail({
   job,
   tab,
@@ -755,9 +834,9 @@ function JobDetail({
   }
 
   return (
-    <div className="space-y-5">
-      {/* Header: identity + every fact as a compact chip */}
-      <div className="space-y-3">
+    <div className="flex flex-col gap-4">
+      {/* 1 · Job */}
+      <Card className="gap-3">
         <div className="flex items-start gap-3">
           <Avatar className="size-10 rounded-md">
             <AvatarFallback className="rounded-md text-[12px] font-semibold">
@@ -870,11 +949,10 @@ function JobDetail({
             Cover letter
           </Link>
         </div>
-      </div>
+      </Card>
 
-      <Separator />
-
-      <section className="space-y-2">
+      {/* 2 · About / JD */}
+      <Card className="gap-2">
         <SectionTitle
           action={
             job.description ? (
@@ -891,19 +969,17 @@ function JobDetail({
             ) : null
           }
         >
-          Job description
+          About the job
         </SectionTitle>
-        <pre className="text-muted-foreground max-h-80 overflow-auto whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
+        <pre className="text-muted-foreground max-h-96 overflow-auto whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
           {job.description || "No description provided."}
         </pre>
-      </section>
+      </Card>
 
-      <Separator />
-
+      {/* 3 · People */}
       <JobPeople jobId={job.id} company={job.company} />
 
-      <Separator />
-
+      {/* 4 · Resume (ATS) */}
       <JobAtsCheck job={job} resumes={resumes} />
     </div>
   );
@@ -913,24 +989,33 @@ type AtsResultCell = {
   status: string;
   overallScore?: number | null;
   scoreName?: string;
-  scoreLabel?: string;
   error?: string;
   failureKind?: string;
 };
 
+type AtsCellState = AtsResultCell | "running" | "queued";
+
+const atsKey = (resumeId: string, engineId: string) => `${resumeId}::${engineId}`;
+
 /**
- * Quick ATS check of this job against the user's resumes with one engine, plus a hand-off
- * to the ATS page (title, JD, resumes, engine pre-filled) for the detailed report.
+ * Resume × engine matrix for this job, like the ATS page: pick resumes and any number of
+ * engines, run them, see a score per cell. "Detailed scan" opens the ATS page pre-filled.
  */
 function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
   const router = useRouter();
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(resumes.map((r) => r.id)));
-  const [engineId, setEngineId] = useState<AtsEngineId>("aavedak");
-  const [results, setResults] = useState<Record<string, AtsResultCell | "running">>({});
+  const [resumeIds, setResumeIds] = useState<Set<string>>(() => new Set(resumes.map((r) => r.id)));
+  const [engineIds, setEngineIds] = useState<Set<AtsEngineId>>(() => new Set(["aavedak"]));
+  const [cells, setCells] = useState<Record<string, AtsCellState>>({});
   const [running, setRunning] = useState(false);
+  const runToken = useRef(0);
 
-  function toggle(id: string, on: boolean) {
-    setSelected((prev) => {
+  const selectedResumes = resumes.filter((r) => resumeIds.has(r.id));
+  const selectedEngines = ATS_ENGINES.filter((e) => engineIds.has(e.id));
+  const total = selectedResumes.length * selectedEngines.length;
+  const done = Object.values(cells).filter((c) => c !== "running" && c !== "queued").length;
+
+  function toggleResume(id: string, on: boolean) {
+    setResumeIds((prev) => {
       const next = new Set(prev);
       if (on) next.add(id);
       else next.delete(id);
@@ -938,52 +1023,123 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
     });
   }
 
-  async function runScan() {
-    const ids = resumes.filter((r) => selected.has(r.id)).map((r) => r.id);
-    if (ids.length === 0) return;
-    setRunning(true);
-    setResults(Object.fromEntries(ids.map((id) => [id, "running" as const])));
-    for (const resumeId of ids) {
-      try {
-        const res = await fetch("/api/ats/run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            resumeId,
-            engineId,
-            sharedRole: job.title,
-            sharedJdText: job.description.slice(0, 40_000),
-          }),
-        });
-        const data = (await res.json()) as { result?: AtsResultCell; error?: string };
-        setResults((prev) => ({
-          ...prev,
-          [resumeId]: data.result ?? { status: "error", error: data.error || "Scan failed." },
-        }));
-      } catch {
-        setResults((prev) => ({
-          ...prev,
-          [resumeId]: { status: "error", error: "Network error." },
-        }));
-      }
+  function toggleEngine(id: AtsEngineId) {
+    setEngineIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function runOne(resumeId: string, engineId: AtsEngineId, forceExtract: boolean) {
+    const key = atsKey(resumeId, engineId);
+    setCells((prev) => ({ ...prev, [key]: "running" }));
+    let cell: AtsResultCell;
+    try {
+      const res = await fetch("/api/ats/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resumeId,
+          engineId,
+          sharedRole: job.title,
+          sharedJdText: job.description.slice(0, 40_000),
+          forceExtract,
+        }),
+      });
+      const data = (await res.json()) as { result?: AtsResultCell; error?: string };
+      cell = data.result ?? { status: "error", error: data.error || "Scan failed." };
+    } catch {
+      cell = { status: "error", error: "Network error." };
     }
-    setRunning(false);
+    setCells((prev) => ({ ...prev, [key]: cell }));
+  }
+
+  async function runScan() {
+    if (total === 0) return;
+    const token = ++runToken.current;
+    setRunning(true);
+    setCells(
+      Object.fromEntries(
+        selectedResumes.flatMap((r) =>
+          selectedEngines.map((e) => [atsKey(r.id, e.id), "queued" as const]),
+        ),
+      ),
+    );
+    // Resumes in parallel (Promise.all); each resume's engines in order so its PDF text is
+    // extracted once by the first engine and reused by the rest.
+    await Promise.all(
+      selectedResumes.map(async (resume) => {
+        for (const [index, engine] of selectedEngines.entries()) {
+          if (runToken.current !== token) return;
+          await runOne(resume.id, engine.id, index === 0);
+        }
+      }),
+    );
+    if (runToken.current === token) setRunning(false);
   }
 
   function openDetailed() {
     saveAtsPrefill({
       role: job.title,
       jdText: job.description.slice(0, 40_000),
-      resumeIds: [...selected],
-      engineIds: [engineId],
+      resumeIds: [...resumeIds],
+      engineIds: [...engineIds],
       job: { id: job.id, title: job.title, company: job.company, url: job.url },
     });
     router.push("/ats");
   }
 
+  function renderCell(resumeId: string, engineId: AtsEngineId) {
+    const cell = cells[atsKey(resumeId, engineId)];
+    // Every state renders in the same fixed-height, centered box: the score ring appearing
+    // never changes the row height, and the spinner sits in the middle of the cell.
+    const box = (content: React.ReactNode, title?: string) => (
+      <div className="flex h-16 items-center justify-center" title={title}>
+        {content}
+      </div>
+    );
+    if (!cell) return box(<span className="text-muted-foreground text-[11px]">—</span>);
+    if (cell === "queued")
+      return box(<span className="text-muted-foreground text-[10px]">Queued</span>);
+    if (cell === "running") return box(<Spinner className="size-5" label="Scanning" />);
+    if (cell.status === "done" && cell.overallScore != null) {
+      return box(<ScoreRing value={cell.overallScore} size={44} />, cell.scoreName);
+    }
+    return box(
+      <span
+        className={cn(
+          "px-1 text-[10px] leading-tight",
+          cell.status === "excluded" || cell.status === "unsupported"
+            ? "text-muted-foreground"
+            : "text-destructive",
+        )}
+      >
+        {cell.status === "excluded"
+          ? "Needs input"
+          : cell.status === "unsupported"
+            ? "Unsupported"
+            : "Failed"}
+      </span>,
+      cell.error,
+    );
+  }
+
   return (
-    <section className="space-y-3">
-      <SectionTitle>ATS check for this job</SectionTitle>
+    <Card className="gap-3">
+      <SectionTitle
+        action={
+          running ? (
+            <span className="text-muted-foreground text-[11px] tabular-nums">
+              {done} of {total} done
+            </span>
+          ) : null
+        }
+      >
+        Resume check (ATS)
+      </SectionTitle>
+
       {resumes.length === 0 ? (
         <p className="text-muted-foreground text-[12px]">
           Upload a resume in{" "}
@@ -994,82 +1150,135 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
         </p>
       ) : (
         <>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Select value={engineId} onValueChange={(v) => v && setEngineId(v as AtsEngineId)}>
-              <SelectTrigger
-                className="border-border bg-background h-8 w-full rounded-md border px-2.5 text-[12px] sm:w-64"
-                aria-label="ATS engine"
-              >
-                <SelectValue placeholder="Engine" />
-              </SelectTrigger>
-              <SelectContent className="z-[240]">
-                {ATS_ENGINES.map((eng) => (
-                  <SelectItem key={eng.id} value={eng.id} className="text-[12px]">
+          <div className="space-y-1.5">
+            <p className="text-muted-foreground text-[11px] font-medium">Engines</p>
+            <div className="flex flex-wrap gap-1" role="group" aria-label="ATS engines">
+              {ATS_ENGINES.map((eng) => {
+                const on = engineIds.has(eng.id);
+                return (
+                  <Button
+                    key={eng.id}
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    aria-pressed={on}
+                    disabled={running}
+                    onClick={() => toggleEngine(eng.id)}
+                    title={eng.shortDescription}
+                    className={cn(
+                      "gap-1.5",
+                      on
+                        ? "border-primary text-foreground hover:bg-transparent"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {on ? (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        className="text-primary size-3"
+                        aria-hidden
+                      >
+                        <path
+                          d="m5 12.5 4.5 4.5L19 7.5"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : null}
                     {eng.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex gap-1.5">
-              <Button
-                type="button"
-                size="sm"
-                loading={running}
-                disabled={selected.size === 0}
-                onClick={() => void runScan()}
-              >
-                Run scan
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={openDetailed}>
-                Detailed scan on ATS page →
-              </Button>
+                    <EngineKindBadge engineId={eng.id} />
+                  </Button>
+                );
+              })}
             </div>
           </div>
-          <p className="text-muted-foreground text-[11px]">
-            {getEngine(engineId)?.shortDescription} The detailed scan opens the ATS page with this
-            job&apos;s title, description, your selected resumes and engine filled in.
-          </p>
-          <ul className="space-y-1.5">
-            {resumes.map((resume) => {
-              const result = results[resume.id];
-              return (
-                <li key={resume.id} className="flex items-center gap-2.5">
-                  <Checkbox
-                    checked={selected.has(resume.id)}
-                    onChange={(e) => toggle(resume.id, e.target.checked)}
-                    disabled={running}
-                    aria-label={`Include ${resume.displayName}`}
-                  />
-                  <span className="text-foreground min-w-0 flex-1 truncate text-[12px]">
-                    {resume.displayName}
-                    {resume.status === "active" ? (
-                      <Badge variant="outline" className="ml-1.5 px-1 py-0 text-[9px]">
-                        Active
-                      </Badge>
-                    ) : null}
-                  </span>
-                  {result === "running" ? (
-                    <Spinner className="size-3.5" label="Scanning" />
-                  ) : result && result.status === "done" && result.overallScore != null ? (
-                    <span className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-[10px]">{result.scoreName}</span>
-                      <ScoreRing value={result.overallScore} size={32} />
-                    </span>
-                  ) : result ? (
-                    <span
-                      className="text-destructive max-w-48 truncate text-[11px]"
-                      title={result.error}
+
+          <div className="border-border/60 overflow-x-auto rounded-md border">
+            {/* Fixed layout: the resume column has a set width and every engine column is the
+                same width, so the score rings line up in an even grid. */}
+            <table
+              className="w-full table-fixed border-collapse text-[12px]"
+              style={{ minWidth: `${12 + selectedEngines.length * 7}rem` }}
+            >
+              <colgroup>
+                <col className="w-48" />
+                {selectedEngines.map((eng) => (
+                  <col key={eng.id} />
+                ))}
+              </colgroup>
+              <thead>
+                <tr className="border-border/40 border-b">
+                  {/* Frozen first column: stays in place while engine columns scroll. */}
+                  <th className="text-muted-foreground bg-card border-border/40 sticky left-0 z-10 h-12 border-r px-3 text-left align-middle font-medium">
+                    Resume
+                  </th>
+                  {selectedEngines.map((eng) => (
+                    <th
+                      key={eng.id}
+                      className="text-muted-foreground h-12 px-2 text-center align-middle text-[11px] font-medium leading-tight"
                     >
-                      {result.error || "No score"}
-                    </span>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
+                      {eng.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {resumes.map((resume) => (
+                  <tr key={resume.id} className="border-border/40 border-b last:border-b-0">
+                    <td className="bg-card border-border/40 sticky left-0 z-10 border-r px-3 align-middle">
+                      <label className="flex min-w-0 cursor-pointer items-center gap-2">
+                        <Checkbox
+                          checked={resumeIds.has(resume.id)}
+                          onChange={(e) => toggleResume(resume.id, e.target.checked)}
+                          disabled={running}
+                          aria-label={`Include ${resume.displayName}`}
+                        />
+                        <span className="text-foreground truncate">{resume.displayName}</span>
+                        {resume.status === "active" ? (
+                          <Badge variant="outline" className="shrink-0 px-1 py-0 text-[9px]">
+                            Active
+                          </Badge>
+                        ) : null}
+                      </label>
+                    </td>
+                    {selectedEngines.map((eng) => (
+                      <td key={eng.id} className="p-0 align-middle">
+                        {resumeIds.has(resume.id) ? (
+                          renderCell(resume.id, eng.id)
+                        ) : (
+                          <div className="h-16" />
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              loading={running}
+              disabled={total === 0}
+              onClick={() => void runScan()}
+            >
+              Run {total > 0 ? `${total} scan${total === 1 ? "" : "s"}` : "scan"}
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={openDetailed}>
+              Detailed scan on ATS page →
+            </Button>
+            <span className="text-muted-foreground text-[11px]">
+              Opens the ATS page with this job, your resumes and engines filled in.
+            </span>
+          </div>
         </>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -1094,7 +1303,7 @@ function JobPeople({ jobId, company }: { jobId: string; company: string }) {
   }, [jobId]);
 
   return (
-    <section className="space-y-2">
+    <Card className="gap-2">
       <SectionTitle>People at {company}</SectionTitle>
       {failed ? (
         <p className="text-muted-foreground text-[12px]">Could not load people.</p>
@@ -1160,7 +1369,7 @@ function JobPeople({ jobId, company }: { jobId: string; company: string }) {
       <p className="text-muted-foreground text-[10px]">
         Votes are a community signal, not a promise to refer.
       </p>
-    </section>
+    </Card>
   );
 }
 

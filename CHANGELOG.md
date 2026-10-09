@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Jobs — cleaner layout** — The Discover and Applied tabs, search and source filters now sit at the top of the job panel, and the list and details scroll side by side with no empty space below. Each card shows where the job came from (Greenhouse, Lever, Ashby, LinkedIn and so on).
+- **Jobs — full-screen board** — A top bar holds search, a source filter, Add job and Paste JD. The expand button opens the jobs board on its own full-screen page, and collapse brings you back to the same job.
+- **Jobs — cleaner layout** — The job list and the job details are now two separate panels. The Discover and Applied tabs, search and source filters sit at the top of the list. Details are split into spaced sections for the job, the description, people at the company and the resume check, and both panels scroll on their own with no empty space below. Each card shows where the job came from (Greenhouse, Lever, Ashby, LinkedIn and so on).
 - **Jobs — simpler job details** — Everything about a job (source, match, experience, salary, posting age, days left) fits in one compact header. The job description has a copy button.
-- **Jobs — ATS check for each job** — Score any of your resumes against a job with the engine you pick, right on the Jobs page. "Detailed scan on ATS page" opens the ATS page with the job title, description, resumes and engine already filled in, for the full report and improvement tips.
+- **Jobs — ATS check for each job** — Score your resumes against a job with as many ATS engines as you like at once, right on the Jobs page, in a resume-by-engine table like the ATS page. Columns are evenly spaced, scores and loading spinners sit centered in fixed-height cells so nothing jumps, and selected engines are outlined in the accent colour. "Detailed scan on ATS page" opens the ATS page with the job title, description, resumes and engine already filled in, for the full report and improvement tips.
 - **Jobs — how it works** — A "How Jobs works" section at the bottom explains where jobs come from, how matches are picked, expiry, and the ATS check.
 - **Job tracker — application dates** — Each application card shows the date you applied (or the date it was added, for bookmarked jobs). The list view has an Applied column too.
 - **Jobs — daily discovery of junior engineering roles in India** — Aavedak now scans company career pages every night (public Greenhouse, Lever, Ashby, SmartRecruiters and Workable boards, plus career pages that publish structured job data) and keeps only India-based engineering roles that ask for under 3 years of experience. Each day you get up to 50 new matches ranked against your resume and career preferences. Sites without permitted access (LinkedIn, Naukri, Indeed and similar) are not scraped.
@@ -36,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Resizable panels** — The divider between side-by-side panels (Jobs, Outreach) is now a simple three-dot grip in the gap instead of a border line and handle. In the Jobs resume check, the resume column stays in place while you scroll across engines.
+- **Faster ATS scans** — When you score several resumes, they are now scanned at the same time instead of one after another, on both the ATS page and the Jobs page.
 - **Smaller API deployment** — The Python function no longer ships the local development server or test tooling, and tests, scripts and docs are excluded from deployments, roughly halving the API bundle.
 - **Refreshed UI components** — Avatars, cards, badges, file uploads, dividers, side panels and confirmation dialogs now use the official Vinyaas components, with smoother open and close animations.
 - **Discovery moved to the API** — Job and people discovery now run in the FastAPI service as small, resumable batches. Nightly runs are spread across several daily schedules so no single run holds the database. The old daily web ingest was removed.

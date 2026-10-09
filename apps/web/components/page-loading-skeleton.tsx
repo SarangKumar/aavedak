@@ -326,33 +326,32 @@ function JobsSkeleton() {
     <ShellWidth className="flex flex-col gap-4 py-6 sm:py-8">
       <PageHeaderSkeleton titleWidth="w-20" blurbWidth="w-full max-w-2xl" withToolbar />
 
-      <Card className="gap-0 overflow-hidden p-0 md:h-[calc(100dvh-13.5rem)] md:min-h-[32rem]">
-        <div className="border-border/60 flex flex-col gap-2 border-b px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <Skeleton className="h-9 w-64 rounded-lg" />
-          <Skeleton className="h-8 w-full rounded-md sm:w-64" />
-        </div>
-        <div className="border-border/60 flex gap-1 border-b px-3 py-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-7 w-24 rounded-full" />
-          ))}
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <aside className="border-border/60 w-full shrink-0 space-y-1 border-b p-2 md:w-[360px] md:border-b-0 md:border-r">
-            {Array.from({ length: 7 }).map((_, i) => (
+      <div className="flex flex-col gap-4 md:h-[calc(100dvh-13.5rem)] md:min-h-[32rem] md:flex-row">
+        <Card className="w-full shrink-0 gap-0 overflow-hidden p-0 md:w-[360px]">
+          <div className="border-border/60 space-y-2 border-b p-3">
+            <Skeleton className="h-9 w-full rounded-lg" />
+            <Skeleton className="h-8 w-full rounded-md" />
+            <div className="flex gap-1">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-6 w-20 rounded-full" />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1 p-2">
+            {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex gap-2.5 rounded-md px-2.5 py-2.5">
                 <Skeleton className="size-8 shrink-0 rounded-md" />
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <Skeleton className="h-3.5 w-40 max-w-full" />
                   <Skeleton className="h-3 w-28" />
-                  <div className="flex gap-1.5 pt-0.5">
-                    <Skeleton className="h-4 w-20 rounded-full" />
-                    <Skeleton className="h-4 w-14 rounded-full" />
-                  </div>
+                  <Skeleton className="h-4 w-24 rounded-full" />
                 </div>
               </div>
             ))}
-          </aside>
-          <section className="min-w-0 flex-1 space-y-4 p-4 sm:p-5">
+          </div>
+        </Card>
+        <Card className="bg-muted/20 min-w-0 flex-1 gap-4 overflow-hidden p-3 sm:p-4">
+          <Card className="gap-3">
             <div className="flex items-start gap-3">
               <Skeleton className="size-10 shrink-0 rounded-md" />
               <div className="min-w-0 flex-1 space-y-2">
@@ -366,21 +365,27 @@ function JobsSkeleton() {
                 <Skeleton key={i} className="h-5 w-20 rounded-full" />
               ))}
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex gap-1.5">
               <Skeleton className="h-8 w-28 rounded-md" />
               <Skeleton className="h-8 w-24 rounded-md" />
-              <Skeleton className="h-8 w-20 rounded-md" />
             </div>
-            <div className="space-y-2 pt-2">
-              <Skeleton className="h-3.5 w-32" />
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-5/6" />
-              <Skeleton className="h-3 w-2/3" />
-            </div>
-          </section>
-        </div>
-      </Card>
+          </Card>
+          <Card className="gap-2">
+            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-4/5" />
+          </Card>
+          <Card className="gap-2">
+            <Skeleton className="h-3.5 w-36" />
+            <Skeleton className="h-7 w-2/3" />
+          </Card>
+          <Card className="gap-2">
+            <Skeleton className="h-3.5 w-32" />
+            <Skeleton className="h-16 w-full rounded-md" />
+          </Card>
+        </Card>
+      </div>
 
       <Card className="gap-0 rounded-xl p-0">
         <div className="flex items-center justify-between px-4 py-4 md:px-5">

@@ -470,7 +470,7 @@ export function OutreachInbox({ initialFollowUps, people, applications }: Props)
 
       <Card className="border-border/80 bg-card flex h-[min(70vh,44rem)] flex-col gap-0 overflow-hidden rounded-xl border p-0 md:flex-row">
         <aside
-          className="border-border/60 flex max-h-[42%] w-full shrink-0 flex-col overflow-hidden border-b md:h-full md:max-h-none md:w-[var(--inbox-list-width)] md:max-w-[min(100%,560px)] md:border-b-0 md:border-r"
+          className="border-border/60 flex max-h-[42%] w-full shrink-0 flex-col overflow-hidden border-b md:h-full md:max-h-none md:w-[var(--inbox-list-width)] md:max-w-[min(100%,560px)] md:border-b-0"
           style={{ ["--inbox-list-width" as string]: `${listWidth}px` }}
         >
           <div className="border-border/60 text-muted-foreground shrink-0 border-b px-3 py-2 text-[11px] font-medium uppercase tracking-wide">
