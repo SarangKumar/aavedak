@@ -183,6 +183,17 @@ def admin_scan_run(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[s
     """Manual scan of all enabled sources (or the given ones). Returns immediately; the
     admin page then drives `/admin/tick` and the drain crons finish anything left."""
     settings = get_settings()
+    # A manual scan that is still in progress is resumed, never duplicated (double clicks,
+    # retries after a client timeout).
+    open_run = conn.execute(
+        """SELECT r.id, r.total_items FROM discovery_runs r
+           WHERE r.kind = 'jobs_scan' AND r.run_key IS NULL AND r.status = 'running'
+             AND EXISTS (SELECT 1 FROM discovery_run_items i
+                         WHERE i.run_id = r.id AND i.status IN ('pending', 'running'))
+           ORDER BY r.created_at DESC LIMIT 1"""
+    ).fetchone()
+    if open_run and not body.sourceIds:
+        return {"runId": open_run["id"], "sources": open_run["total_items"], "resumed": True}
     _seed_if_empty(conn)
     ids = body.sourceIds or registry.scheduled_source_ids(
         conn, shard=None, shard_count=settings.discovery_shards, max_failures=settings.discovery_max_failures
@@ -190,7 +201,7 @@ def admin_scan_run(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[s
     run, _ = runs.create_run(
         conn, kind="jobs_scan", items=[(scan.ITEM_KIND, i, {}) for i in ids], created_by=body.createdBy
     )
-    return {"runId": run["id"], "sources": len(ids)}
+    return {"runId": run["id"], "sources": len(ids), "resumed": False}
 
 
 @router.post("/admin/runs/people-import", dependencies=[Auth])

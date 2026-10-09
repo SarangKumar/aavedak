@@ -21,8 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Admin — starting a job scan** — Starting the first scan no longer shows a false "service unavailable" error, and clicking it again resumes the scan in progress instead of starting a duplicate. First-time setup of the job sources is much faster.
 - **ATS page loading state** — The loading skeleton now matches the ATS page: the five step cards (engines, resume, job content, review, results) and the scoring guide, instead of a generic placeholder.
-- **Local development: pages losing all styles** — Running a production build while the dev server was up overwrote the files the dev server serves, so pages lost their styles until a restart. The dev server now keeps its files in a separate folder (`.next-dev`).
+- **Local development: pages losing all styles** — Running a production build while the dev server was up overwrote the files the dev server serves, so pages lost their styles until a restart. Development and production builds now keep their files apart.
 
 ### Removed
 
@@ -31,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Smaller API deployment** — The Python function no longer ships the local development server or test tooling, and tests, scripts and docs are excluded from deployments, roughly halving the API bundle.
-- **UI components installed from the Vinyaas registry** — Avatar, card, badge, file upload, separator, sheet and alert dialog now come from `npx vinyaas add`. Side panels and confirmation dialogs use the registry versions.
+- **Refreshed UI components** — Avatars, cards, badges, file uploads, dividers, side panels and confirmation dialogs now use the official Vinyaas components, with smoother open and close animations.
 - **Discovery moved to the API** — Job and people discovery now run in the FastAPI service as small, resumable batches. Nightly runs are spread across several daily schedules so no single run holds the database. The old daily web ingest was removed.
 - **Jobs page** — The page now shows only jobs recommended to you, jobs you acted on, and jobs you added, not every shared job. Scores are no longer calculated while the page loads.
 

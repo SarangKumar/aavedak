@@ -52,23 +52,27 @@ def _insert(
 
 
 def import_seed(conn: psycopg.Connection) -> dict[str, int]:
-    """Idempotent: existing rows (and admin edits to them) are left untouched."""
-    added = existing = 0
-    with conn.transaction():
-        for row in load_seed():
-            if _insert(
-                conn,
-                company_name=row["name"],
-                provider=row["provider"],
-                token=row["token"],
-                careers_url=row["careersUrl"],
-                sector=row.get("sector"),
-                origin="seed",
-            ):
-                added += 1
-            else:
-                existing += 1
-    return {"added": added, "existing": existing}
+    """Idempotent: existing rows (and admin edits to them) are left untouched. One batched
+    statement (pipeline) instead of a round trip per row — the API region may be far from
+    the database."""
+    seed = load_seed()
+    before = conn.execute("SELECT COUNT(*) AS n FROM company_sources").fetchone()["n"]
+    now = now_iso()
+    with conn.transaction(), conn.cursor() as cur:
+        cur.executemany(
+            """INSERT INTO company_sources
+                 (id, company_name, provider, token, careers_url, sector, origin, enabled,
+                  shard_seed, created_at, updated_at)
+               VALUES (%s, %s, %s, %s, %s, %s, 'seed', 1, %s, %s, %s)
+               ON CONFLICT (provider, token) DO NOTHING""",
+            [
+                (new_id(), row["name"][:200], row["provider"], row["token"], row["careersUrl"],
+                 row.get("sector"), shard_seed(row["provider"], row["token"]), now, now)
+                for row in seed
+            ],
+        )
+    added = conn.execute("SELECT COUNT(*) AS n FROM company_sources").fetchone()["n"] - before
+    return {"added": added, "existing": len(seed) - added}
 
 
 @dataclass

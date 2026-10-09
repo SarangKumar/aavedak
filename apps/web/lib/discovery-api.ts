@@ -34,8 +34,18 @@ export async function discoveryAdmin<T>(
       cache: "no-store",
       signal: AbortSignal.timeout(init.timeoutMs ?? 30_000),
     });
-  } catch {
-    throw new DiscoveryApiError("Discovery service unavailable (is FastAPI running?).", 503);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      // The API keeps working after we stop waiting (runs are persistent) — say so.
+      throw new DiscoveryApiError(
+        "The discovery service is taking longer than usual. The action may still finish — refresh in a minute before retrying.",
+        504,
+      );
+    }
+    throw new DiscoveryApiError(
+      "Could not reach the discovery service (FastAPI). Check that the API is deployed and running.",
+      503,
+    );
   }
   const data = (await res.json().catch(() => null)) as { detail?: unknown } | null;
   if (!res.ok) {

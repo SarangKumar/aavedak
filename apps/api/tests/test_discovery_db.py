@@ -280,3 +280,23 @@ def test_people_import_enriches_without_overwriting_and_links_jobs(conn, setting
     assert links >= 2
     run = runs.get_run(conn, info["runId"])
     assert run["status"] == "done" and run["totals"]["created"] == 1 and run["totals"]["enriched"] == 1
+
+
+# --- registry seed + manual scan guard ----------------------------------------------------------
+
+
+def test_seed_import_is_batched_and_idempotent(conn):
+    first = registry.import_seed(conn)
+    again = registry.import_seed(conn)
+    seed_size = len(registry.load_seed())
+    assert first["added"] + first["existing"] == seed_size
+    assert again == {"added": 0, "existing": seed_size}
+
+
+def test_manual_scan_resumes_instead_of_duplicating(conn):
+    from app.discovery import router
+
+    first = router.admin_scan_run(router.ScanRunBody(createdBy="admin@x"), conn)
+    second = router.admin_scan_run(router.ScanRunBody(createdBy="admin@x"), conn)
+    assert first["resumed"] is False and first["sources"] > 0
+    assert second == {"runId": first["runId"], "sources": first["sources"], "resumed": True}

@@ -57,6 +57,7 @@ export async function POST(request: Request) {
           await discoveryAdmin("/runs/jobs-scan", {
             method: "POST",
             body: { createdBy: auth.user.email },
+            timeoutMs: 58_000,
           }),
         );
       case "tick":
@@ -77,7 +78,11 @@ export async function POST(request: Request) {
         );
       case "import_seed":
         return NextResponse.json(
-          await discoveryAdmin("/sources/import", { method: "POST", body: { seed: true } }),
+          await discoveryAdmin("/sources/import", {
+            method: "POST",
+            body: { seed: true },
+            timeoutMs: 58_000,
+          }),
         );
       case "people_import":
         if (typeof body.csv !== "string" || !body.csv.trim()) {

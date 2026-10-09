@@ -179,17 +179,19 @@ def ensure_schema(conn: psycopg.Connection) -> None:
     with _lock:
         if _ready:
             return
-        missing = [
-            t
-            for t in BASE_TABLES
-            if conn.execute("SELECT to_regclass(%s) AS r", (t,)).fetchone()["r"] is None
-        ]
+        # One round trip for the check and one for all DDL: the API may run far from the
+        # database (e.g. US functions, Singapore Neon), so per-statement trips add up.
+        found = conn.execute(
+            "SELECT t FROM unnest(%s::text[]) AS t WHERE to_regclass(t) IS NOT NULL",
+            (list(BASE_TABLES),),
+        ).fetchall()
+        missing = sorted(set(BASE_TABLES) - {r["t"] for r in found})
         if missing:
             raise BaseSchemaMissing(
                 "Web app schema not initialized (missing: "
                 + ", ".join(missing)
                 + "). Open the web app once so ensureAppSchema() creates base tables."
             )
-        for stmt in SHARED_STATEMENTS + PIPELINE_STATEMENTS:
-            conn.execute(stmt)
+        # No parameters → simple query protocol, so the whole script is a single round trip.
+        conn.execute(";\n".join(SHARED_STATEMENTS + PIPELINE_STATEMENTS))
         _ready = True

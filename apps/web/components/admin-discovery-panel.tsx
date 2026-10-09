@@ -195,10 +195,10 @@ export function AdminDiscoveryPanel() {
 
   async function startScan() {
     setConfirmScan(false);
-    const data = await run(
-      "Scan queued",
-      { action: "scan" },
-      (d) => `${d.sources ?? 0} career sources queued.`,
+    const data = await run("Scan queued", { action: "scan" }, (d) =>
+      d.resumed
+        ? `A scan is already in progress (${d.sources ?? 0} sources) — resuming it.`
+        : `${d.sources ?? 0} career sources queued.`,
     );
     if (data) void processQueue();
   }
@@ -307,9 +307,7 @@ export function AdminDiscoveryPanel() {
       {loadError ? (
         <Card size="sm" className="border-destructive/40">
           <CardHeader>
-            <CardTitle className="text-destructive text-[13px]">
-              Discovery service unavailable
-            </CardTitle>
+            <CardTitle className="text-destructive text-[13px]">Discovery service error</CardTitle>
             <CardDescription className="text-[12px]">{loadError}</CardDescription>
           </CardHeader>
         </Card>
