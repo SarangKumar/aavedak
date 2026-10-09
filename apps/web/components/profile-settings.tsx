@@ -13,7 +13,11 @@ import {
   type CareerFormState,
 } from "@/components/career-profile-fields";
 import { ShellWidth } from "@/components/shell-width";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -67,11 +71,14 @@ export type ProfileSettingsResume = {
 type Props = {
   profile: ProfileSettingsProfile;
   initialResumes: ProfileSettingsResume[];
+  /** Daily job discovery preference (defaults to on). */
+  initialDiscoveryEnabled?: boolean;
   /** When set (inline edit from profile page), show Cancel back to view. */
   onCancel?: () => void;
 };
 
-type SettingsSection = "public" | "links" | "projects" | "career" | "resume" | "access" | "danger";
+type SettingsSection =
+  "public" | "links" | "projects" | "career" | "discovery" | "resume" | "access" | "danger";
 
 const SETTINGS_NAV: Array<{
   group: string;
@@ -89,6 +96,7 @@ const SETTINGS_NAV: Array<{
     group: "Preferences",
     items: [
       { id: "career", label: "Career" },
+      { id: "discovery", label: "Job discovery" },
       { id: "resume", label: "Showcase resume" },
     ],
   },
@@ -188,7 +196,12 @@ function SettingsBlock({
   );
 }
 
-export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
+export function ProfileSettings({
+  profile,
+  initialResumes,
+  initialDiscoveryEnabled = true,
+  onCancel,
+}: Props) {
   const router = useRouter();
   const [section, setSection] = useState<SettingsSection>("public");
   const [name, setName] = useState(profile.name ?? "");
@@ -208,6 +221,8 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
     careerToFormState(profile.career ?? emptyCareerProfile()),
   );
   const [resumes, setResumes] = useState(initialResumes);
+  const [discoveryEnabled, setDiscoveryEnabled] = useState(initialDiscoveryEnabled);
+  const [discoveryPending, setDiscoveryPending] = useState(false);
   const [pending, setPending] = useState(false);
   const [careerPending, setCareerPending] = useState(false);
   const [resumePending, setResumePending] = useState<string | null>(null);
@@ -427,6 +442,31 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
       setError(err instanceof Error ? err.message : "Could not update resume.");
     } finally {
       setResumePending(null);
+    }
+  }
+
+  async function saveDiscovery(next: boolean) {
+    setDiscoveryPending(true);
+    setDiscoveryEnabled(next);
+    try {
+      const res = await fetch("/api/preferences/tracker", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ discoveryEnabled: next }),
+      });
+      if (!res.ok) throw new Error("Could not save.");
+      toast.add({
+        title: next ? "Daily discovery on" : "Daily discovery paused",
+        description: next
+          ? "New matching roles will appear on Jobs → Discover."
+          : "No new recommendations until you turn it back on. Existing ones stay.",
+        type: "success",
+      });
+    } catch {
+      setDiscoveryEnabled(!next);
+      toast.add({ title: "Could not update discovery", type: "error" });
+    } finally {
+      setDiscoveryPending(false);
     }
   }
 
@@ -880,6 +920,40 @@ export function ProfileSettings({ profile, initialResumes, onCancel }: Props) {
                   Save career preferences
                 </Button>
               </div>
+            </SettingsPanel>
+          ) : null}
+
+          {section === "discovery" ? (
+            <SettingsPanel
+              title={sectionTitle}
+              description="Aavedak scans company career pages daily for junior engineering roles in India and recommends up to 50 new matches a day, ranked against your resume and career preferences."
+            >
+              <Card size="sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-[13px]">
+                    Daily recommendations
+                    <Badge variant={discoveryEnabled ? "default" : "secondary"}>
+                      {discoveryEnabled ? "On" : "Paused"}
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription className="text-[12px]">
+                    Recommendations stay on Jobs → Discover until you apply or ignore them. Jobs
+                    older than 30 days from posting leave both tabs automatically.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <label className="flex cursor-pointer items-center gap-2 text-[12px]">
+                    <Checkbox
+                      checked={discoveryEnabled}
+                      disabled={discoveryPending}
+                      onChange={(e) => void saveDiscovery(e.target.checked)}
+                      aria-label="Enable daily job discovery"
+                    />
+                    <span className="text-foreground">Enable daily job discovery</span>
+                    {discoveryPending ? <Spinner className="size-3.5" label="Saving" /> : null}
+                  </label>
+                </CardContent>
+              </Card>
             </SettingsPanel>
           ) : null}
 

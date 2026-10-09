@@ -1,0 +1,822 @@
+# Candidate companies for scripts/verify_career_sources.py — name|sector (software|core|mixed).
+# Unverified guesses: the script keeps only boards that resolve and list India engineering roles.
+Databricks|software
+Stripe|software
+Airbnb|software
+Cloudflare|software
+Twilio|software
+Okta|software
+MongoDB|software
+Elastic|software
+GitLab|software
+Coinbase|software
+Dropbox|software
+Pinterest|software
+Figma|software
+Reddit|software
+Airtable|software
+Asana|software
+HubSpot|software
+Datadog|software
+New Relic|software
+PagerDuty|software
+HashiCorp|software
+Confluent|software
+Cockroach Labs|software
+Yugabyte|software
+Couchbase|software
+Nutanix|software
+Rubrik|software
+Cohesity|software
+Druva|software
+ThoughtSpot|software
+Postman|software
+BrowserStack|software
+PhonePe|software
+Razorpay|software
+Groww|software
+CRED|software
+Swiggy|software
+Zomato|software
+InMobi|software
+Glance|software
+ShareChat|software
+Mohalla Tech|software
+Dream11|software
+Dream Sports|software
+Games24x7|software
+MPL|software
+Zeta|software
+Juspay|software
+Setu|software
+Slice|software
+Jupiter|software
+Jupiter Money|software
+Epifi|software
+Khatabook|software
+OkCredit|software
+Dunzo|software
+Urban Company|software
+Spinny|software
+Cars24|software
+Acko|software
+Digit Insurance|software
+PolicyBazaar|software
+Zepto|software
+Rapido|software
+BharatPe|software
+Pine Labs|software
+Paytm|software
+MobiKwik|software
+Cashfree|software
+Cashfree Payments|software
+Chargebee|software
+Freshworks|software
+Zerodha|software
+Upstox|software
+smallcase|software
+Innovaccer|software
+Mindtickle|software
+Whatfix|software
+Darwinbox|software
+LeadSquared|software
+Capillary|software
+Capillary Technologies|software
+Netcore|software
+MoEngage|software
+CleverTap|software
+WebEngage|software
+Haptik|software
+Yellow.ai|software
+Yellow|software
+Uniphore|software
+Observe.AI|software
+Sprinklr|software
+LambdaTest|software
+HackerRank|software
+HackerEarth|software
+Unacademy|software
+Vedantu|software
+upGrad|software
+Scaler|software
+InterviewBit|software
+Physics Wallah|software
+Eruditus|software
+Simplilearn|software
+Cult.fit|software
+Curefit|software
+Practo|software
+PharmEasy|software
+Tata 1mg|software
+HealthifyMe|software
+Nykaa|software
+Lenskart|software
+Meesho|software
+Flipkart|software
+Myntra|software
+Udaan|software
+Delhivery|mixed
+Shiprocket|software
+BlackBuck|software
+Ola|mixed
+Ola Electric|core
+Ather Energy|core
+Simple Energy|core
+Ultraviolette|core
+Agnikul|core
+Skyroot|core
+Skyroot Aerospace|core
+Pixxel|core
+Zetwerk|core
+Moglix|mixed
+OfBusiness|mixed
+Licious|mixed
+BigBasket|mixed
+Rebel Foods|mixed
+Wakefit|mixed
+boAt|mixed
+Mamaearth|mixed
+Purplle|software
+ClearTax|software
+Clear|software
+Perfios|software
+Signzy|software
+IDfy|software
+HyperVerge|software
+Gupshup|software
+Exotel|software
+Plivo|software
+Kaleyra|software
+Atlassian|software
+Canva|software
+Wise|software
+Revolut|software
+Rippling|software
+Deel|software
+Remote|software
+Gusto|software
+Brex|software
+Ramp|software
+Plaid|software
+Affirm|software
+Marqeta|software
+Toast|software
+Shopify|software
+Wayfair|software
+Etsy|software
+Booking|software
+Expedia|software
+Agoda|software
+Grab|software
+Careem|software
+Noon|software
+Talabat|software
+Delivery Hero|software
+Zalando|software
+Spotify|software
+Samsara|mixed
+Scale AI|software
+OpenAI|software
+Anthropic|software
+Cohere|software
+Hugging Face|software
+Glean|software
+Gleanwork|software
+Notion|software
+Linear|software
+Vercel|software
+Netlify|software
+Supabase|software
+Retool|software
+Airbyte|software
+Fivetran|software
+dbt Labs|software
+Starburst|software
+ClickHouse|software
+SingleStore|software
+Redis|software
+Neo4j|software
+Grafana Labs|software
+Chronosphere|software
+Sentry|software
+LaunchDarkly|software
+Harness|software
+CircleCI|software
+JFrog|software
+Snyk|software
+Wiz|software
+Netskope|software
+Illumio|software
+Tanium|software
+Sumo Logic|software
+Sysdig|software
+Gainsight|software
+HighRadius|software
+Icertis|software
+Tekion|software
+Sigmoid|software
+Tredence|software
+Fractal|software
+Fractal Analytics|software
+LatentView|software
+Tiger Analytics|software
+Quantiphi|software
+Gramener|software
+Zeotap|software
+Affle|software
+Dailyhunt|software
+VerSe Innovation|software
+Pocket FM|software
+Kuku FM|software
+STAGE|software
+Airmeet|software
+Apna|software
+WorkIndia|software
+Cutshort|software
+Instahyre|software
+Internshala|software
+Unstop|software
+Hevo Data|software
+Hasura|software
+Atlan|software
+Sarvam|software
+Sarvam AI|software
+Krutrim|software
+Composio|software
+Rocket|software
+Tracxn|software
+Zenoti|software
+Druva|software
+Postman|software
+Freshworks|software
+Zoho|software
+Hotstar|software
+JioHotstar|software
+MakeMyTrip|software
+Ixigo|software
+Cleartrip|software
+EaseMyTrip|software
+OYO|software
+Treebo|software
+Zoomcar|software
+Park+|software
+Vahan|software
+Jar|software
+Fi Money|software
+Kotak|software
+Navi|software
+INDmoney|software
+Scripbox|software
+Kuvera|software
+Dhan|software
+Zolve|software
+Uni Cards|software
+OneCard|software
+FPL Technologies|software
+Paytm Money|software
+Lendingkart|software
+KreditBee|software
+Moneyview|software
+Money View|software
+CASHe|software
+Avail Finance|software
+Rupeek|software
+Open|software
+Open Financial|software
+M2P|software
+M2P Fintech|software
+Decentro|software
+Hypto|software
+Zeta Suite|software
+Postman|software
+Amagi|software
+Tata Elxsi|core
+KPIT|core
+L&T Technology Services|core
+Siemens|core
+Bosch|core
+BoschGroup|core
+Continental|core
+Mercedes-Benz|core
+Visa|software
+ServiceNow|software
+Ubisoft|software
+IKEA|mixed
+Sanofi|mixed
+AVL|core
+Wabtec|core
+Valeo|core
+Schaeffler|core
+Infineon|core
+NXP|core
+Texas Instruments|core
+Analog Devices|core
+Applied Materials|core
+Lam Research|core
+KLA|core
+Micron|core
+Western Digital|core
+Seagate|core
+Qualcomm|core
+Arm|core
+Synopsys|core
+Cadence|core
+Siemens EDA|core
+Ansys|core
+Altair|core
+Dassault|core
+PTC|core
+Autodesk|core
+Hexagon|core
+Honeywell|core
+Philips|core
+GE|core
+GE Aerospace|core
+GE Vernova|core
+Rolls-Royce|core
+Airbus|core
+Boeing|core
+Collins Aerospace|core
+Safran|core
+Thales|core
+Tesla|core
+Rivian|core
+Lucid|core
+Zoox|core
+Waymo|software
+Cruise|software
+Nuro|core
+Aurora|software
+Mobileye|core
+Hyundai Mobis|core
+Mahindra|core
+Tata Motors|core
+Maruti Suzuki|core
+Hero MotoCorp|core
+TVS Motor|core
+Bajaj Auto|core
+Ashok Leyland|core
+Eicher|core
+Larsen & Toubro|core
+JSW|core
+Tata Steel|core
+Adani|core
+Reliance|core
+ReNew|core
+ReNew Power|core
+Tata Power|core
+Waaree|core
+Log9|core
+Log9 Materials|core
+Exponent Energy|core
+Euler Motors|core
+River|core
+River Mobility|core
+Bounce|core
+Yulu|core
+ideaForge|core
+Garuda Aerospace|core
+Tonbo|core
+Tonbo Imaging|core
+Bellatrix|core
+Bellatrix Aerospace|core
+Digantara|core
+Dhruva Space|core
+CynLr|core
+Addverb|core
+GreyOrange|core
+Ati Motors|core
+Sedemac|core
+Mindgrove|core
+InCore|core
+Ola Krutrim|software
+Tata Electronics|core
+Micron India|core
+Foxconn|core
+Dixon|core
+Kaynes|core
+Saankhya|core
+Signalchip|core
+Steradian|core
+Netrasemi|core
+Moschip|core
+Ittiam|core
+Sasken|core
+Tejas Networks|core
+Mavenir|software
+Ericsson|core
+Nokia|core
+Cisco|software
+Juniper|software
+Arista|software
+Palo Alto Networks|software
+CrowdStrike|software
+Zscaler|software
+Fortinet|software
+Akamai|software
+Fastly|software
+DigitalOcean|software
+Twilio|software
+Zendesk|software
+Intercom|software
+Freshdesk|software
+Salesforce|software
+Adobe|software
+Intuit|software
+PayPal|software
+Walmart|software
+Target|software
+Lowe's|software
+Uber|software
+Lyft|software
+DoorDash|software
+Instacart|software
+Robinhood|software
+Chime|software
+SoFi|software
+Block|software
+Square|software
+Discord|software
+Duolingo|software
+Grammarly|software
+Miro|software
+Loom|software
+Zapier|software
+Calendly|software
+Webflow|software
+Framer|software
+Cursor|software
+Anysphere|software
+Replit|software
+Perplexity|software
+Mistral|software
+ElevenLabs|software
+Runway|software
+Writer|software
+Jasper|software
+Sierra|software
+Decagon|software
+Harvey|software
+Cognition|software
+Modal|software
+Baseten|software
+Together AI|software
+Fireworks AI|software
+Pinecone|software
+Weaviate|software
+Qdrant|software
+LangChain|software
+LlamaIndex|software
+Weights & Biases|software
+Lightning AI|software
+Turing|software
+Mercor|software
+Deepgram|software
+AssemblyAI|software
+Observe|software
+Rocketlane|software
+Spyne|software
+Atomicwork|software
+Sprinto|software
+Scrut|software
+Zluri|software
+Exotel|software
+Kapture|software
+Zoko|software
+Bik|software
+Gokwik|software
+Shiprocket|software
+Pickrr|software
+Unicommerce|software
+Increff|software
+Locus|software
+FarEye|software
+Shipsy|software
+LogiNext|software
+Porter|software
+Lalamove|software
+Blinkit|software
+Swiggy Instamart|software
+Bluestone|mixed
+CaratLane|mixed
+Pepperfry|software
+Livspace|software
+HomeLane|software
+NoBroker|software
+Housing|software
+Square Yards|software
+MagicBricks|software
+99acres|software
+Info Edge|software
+Naukri|software
+Jeevansathi|software
+Shaadi|software
+InfoEdge|software
+Zeta Global|software
+Tally|software
+Tally Solutions|software
+Vyapar|software
+Khatabook|software
+Dukaan|software
+DotPe|software
+Petpooja|software
+Posist|software
+Zinc|software
+Classplus|software
+Teachmint|software
+LEAD|software
+LEAD School|software
+Toppr|software
+Embibe|software
+Doubtnut|software
+Testbook|software
+Adda247|software
+Seekho|software
+Leverage Edu|software
+Masai|software
+Masai School|software
+NxtWave|software
+Newton School|software
+AlmaBetter|software
+Coding Ninjas|software
+GeeksforGeeks|software
+CodeChef|software
+Codeforces|software
+Thoughtworks|software
+Pure Storage|software
+Commvault|software
+Veeam|software
+Zuora|software
+Coupa|software
+Appian|software
+Grofers|software
+Magicpin|software
+Honasa|mixed
+Sugar Cosmetics|mixed
+Zivame|mixed
+FirstCry|mixed
+Tata Digital|software
+Netmeds|software
+CureSkin|software
+Medikabazaar|software
+HealthPlix|software
+Qure.ai|software
+Qure|software
+Niramai|software
+SigTuple|software
+Tricog|software
+Ultrahuman|core
+Fittr|software
+Niyo|software
+Freo|software
+MoneyTap|software
+SmartCoin|software
+Stashfin|software
+Branch International|software
+Indifi|software
+Capital Float|software
+Zype|software
+Instamojo|software
+Simpl|software
+GetSimpl|software
+LazyPay|software
+PayU|software
+Easebuzz|software
+FinBox|software
+Credgenics|software
+Spocto|software
+Bureau|software
+Angel One|software
+ET Money|software
+Kissht|software
+Fibe|software
+Media.net|software
+Directi|software
+Times Internet|software
+Eloelo|software
+Zupee|software
+WinZO|software
+Nazara|software
+Junglee Games|software
+Rooter|software
+Gameberry|software
+SuperGaming|software
+Cuemath|software
+Emeritus|software
+Great Learning|software
+Sunstone|software
+Shadowfax|mixed
+Ecom Express|mixed
+Xpressbees|mixed
+Zinka|software
+LetsTransport|software
+CarDekho|software
+Droom|software
+InsuranceDekho|software
+Ditto|software
+Plum|software
+Onsurity|software
+Jumbotail|software
+DealShare|software
+CityMall|software
+Snitch|mixed
+Bewakoof|mixed
+The Souled Store|mixed
+Urban Ladder|software
+Nestaway|software
+Stanza Living|software
+FabHotels|software
+Yatra|software
+redBus|software
+ConfirmTkt|software
+Gnani|software
+Rephrase|software
+Wadhwani AI|software
+Skit|software
+Mad Street Den|software
+Vue.ai|software
+Mihup|software
+Ema|software
+Typeface|software
+Moveworks|software
+Testsigma|software
+Appsmith|software
+ToolJet|software
+Hoppscotch|software
+SigNoz|software
+Middleware|software
+Last9|software
+Plural|software
+Devtron|software
+CloudSEK|software
+Securden|software
+Kissflow|software
+Facilio|software
+Keka|software
+greytHR|software
+Springworks|software
+Leena AI|software
+Wingify|software
+Verloop|software
+FinBox|software
+Riskcovry|software
+CoinDCX|software
+CoinSwitch|software
+Mudrex|software
+Polygon|software
+Biconomy|software
+Router Protocol|software
+Instadapp|software
+Kraken|software
+Binance|software
+Monzo|software
+N26|software
+Klarna|software
+Checkout.com|software
+Adyen|software
+Sinch|software
+Infobip|software
+Vonage|software
+Bandwidth|software
+MessageBird|software
+Box|software
+DocuSign|software
+Anaplan|software
+Smartsheet|software
+Monday|software
+Dynatrace|software
+Splunk|software
+Qualys|software
+Tenable|software
+Rapid7|software
+Sophos|software
+Trellix|software
+Check Point|software
+Arcesium|software
+Tower Research Capital|software
+Optiver|software
+Graviton|software
+Quadeye|software
+AlphaGrep|software
+NK Securities|software
+Tesco|software
+Ocado|software
+Swvl|software
+Gojek|software
+Palantir|software
+Snowflake|software
+Monzo Bank|software
+Coda|software
+ClickUp|software
+Freshdesk|software
+Contentstack|software
+Surfboard|software
+Hasura|software
+Razorpay Software|software
+PhonePe Private Limited|software
+Uber Freight|software
+Visteon|core
+Lear|core
+ZF|core
+Aptiv|core
+Magna|core
+Forvia|core
+Hella|core
+Mahle|core
+Marelli|core
+Harman|core
+Sanmina|core
+Flex|core
+Jabil|core
+Celestica|core
+TE Connectivity|core
+Amphenol|core
+Molex|core
+Eaton|core
+Emerson|core
+Rockwell Automation|core
+Johnson Controls|core
+Carrier|core
+Otis|core
+Trane|core
+Daikin|core
+Danfoss|core
+Grundfos|core
+Atlas Copco|core
+Sandvik|core
+SKF|core
+Alstom|core
+Siemens Energy|core
+Hitachi Energy|core
+ABB|core
+Schneider Electric|core
+Legrand|core
+GE HealthCare|core
+Siemens Healthineers|core
+Stryker|core
+Medtronic|core
+Baxter|core
+Abbott|core
+Thermo Fisher|core
+Agilent|core
+Waters|core
+Cummins|core
+Caterpillar|core
+John Deere|core
+CNH|core
+AGCO|core
+Volvo|core
+Daimler Truck|core
+BMW|core
+Stellantis|core
+Renault Nissan|core
+Tata Technologies|core
+Cyient|core
+Quest Global|core
+Capgemini Engineering|core
+Alten|core
+Akkodis|core
+Expleo|core
+Bertrandt|core
+EDAG|core
+FEV|core
+Ricardo|core
+IAV|core
+Royal Enfield|core
+Godrej|core
+Thermax|core
+Kirloskar|core
+Forbes Marshall|core
+Praj|core
+Hindalco|core
+Vedanta|core
+Bharat Forge|core
+Sona Comstar|core
+Uno Minda|core
+Minda|core
+Bosch Global Software|core
+Mercedes-Benz Research and Development India|core
+Continental Automotive|core
+Volvo Group|core
+Ather|core
+Matter|core
+Tork Motors|core
+Kinetic Green|core
+Altigreen|core
+Exicom|core
+Statiq|core
+ChargeZone|core
+Battery Smart|core
+Lohum|core
+Attero|core
+Recykal|core
+Sterlite|core
+Sterlite Power|core
+Inox|core
+Suzlon|core
+Avaada|core
+Greenko|core
+Ampin|core
+Fourth Partner|core
+SolarSquare|core
+Oorja|core

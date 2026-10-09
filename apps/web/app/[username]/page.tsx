@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ProfileOwner } from "@/components/profile-owner";
 import { ProfileView } from "@/components/profile-view";
 import { getOptionalAccess } from "@/lib/app-access";
+import { getPreferences } from "@/lib/preferences";
 import { getProfileByUsername } from "@/lib/profile";
 import { getActiveResume, listResumes } from "@/lib/resumes";
 
@@ -48,9 +49,12 @@ export default async function ProfilePage({ params }: Props) {
     byteSize: r.byteSize,
   }));
 
+  const preferences = await getPreferences(profile.userId);
+
   return (
     <ProfileOwner
       profile={profile}
+      discoveryEnabled={preferences.discoveryEnabled}
       isOwner
       activeResumeTitle={active?.displayName ?? null}
       activeResumeId={active?.id ?? null}

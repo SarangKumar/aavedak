@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { AdminDiscoveryPanel } from "@/components/admin-discovery-panel";
 import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -395,6 +396,8 @@ export function AdminShell({
           </div>
         ) : null}
       </section>
+
+      <AdminDiscoveryPanel />
 
       <section className="border-border/80 bg-card space-y-2 rounded-xl border p-3.5 shadow-sm">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">

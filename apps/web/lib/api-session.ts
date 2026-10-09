@@ -2,6 +2,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
+import { isAdminEmail } from "@/lib/admin";
 import { getServerSession } from "@/lib/auth";
 import { ensureProfile } from "@/lib/profile";
 import { PENDING_APPROVAL_MESSAGE, REJECTED_APPROVAL_MESSAGE } from "@/lib/user-approval-shared";
@@ -48,4 +49,16 @@ export async function requireApiUser(): Promise<
       image: session.user.image,
     },
   };
+}
+
+/** `requireApiUser` + ADMIN_EMAILS allowlist (403 otherwise). */
+export async function requireApiAdmin(): Promise<
+  { user: ApiUser; error?: undefined } | { user?: undefined; error: NextResponse }
+> {
+  const result = await requireApiUser();
+  if (result.error) return result;
+  if (!isAdminEmail(result.user.email)) {
+    return { error: NextResponse.json({ error: "Forbidden." }, { status: 403 }) };
+  }
+  return result;
 }

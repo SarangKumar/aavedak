@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Jobs — daily discovery of junior engineering roles in India** — Aavedak now scans company career pages every night (public Greenhouse, Lever, Ashby, SmartRecruiters and Workable boards, plus career pages that publish structured job data) and keeps only India-based engineering roles that ask for under 3 years of experience. Each day you get up to 50 new matches ranked against your resume and career preferences. Sites without permitted access (LinkedIn, Naukri, Indeed and similar) are not scraped.
+- **Jobs — Discover and Applied tabs** — Discover lists your new matches and the jobs you added yourself. Each shows when it was posted, how many days it has left, the experience it asks for, and why it matches your profile. Mark applied or Bookmark moves a job to Applied, and Ignore hides it. Matches stay until you act on them.
+- **Jobs — 30-day expiry** — A discovered job leaves both tabs 30 days after it was posted. If you had only bookmarked it, were preparing, had applied, or were waiting to hear back, the application is marked Rejected with a "Job expired" badge. Your history stays in the tracker and you can change the status back. Applications at assessment, interview or offer are never touched.
+- **Jobs — people at the company** — Each job shows contacts at that company who could help with a referral, ordered by how relevant their role is and by votes from other users.
+- **People — votes** — You can upvote or downvote any contact once and change your vote later. Votes show how useful others found a contact, not whether that person will refer you. Contacts added by admin discovery are labelled Discovered.
+- **Profile — Job discovery setting** — Turn daily recommendations off or on in Profile settings.
+- **Admin — Discovery panel** — Admins can manage the career-page list (search, enable or disable, bulk-add URLs, re-import the verified starter list of 118 company boards) and start a scan on demand. They can also run expiry or ranking, follow run progress, retry failed items, and bulk-import thousands of people from a CSV. Imports only fill missing details, never mark emails as verified, and skip phone numbers.
+- **Application history** — Every status change is now recorded, whether you made it or the job expired.
+
+### Changed
+
+- **Discovery moved to the API** — Job and people discovery now run in the FastAPI service as small, resumable batches. Nightly runs are spread across several daily schedules so no single run holds the database. The old daily web ingest and its sample jobs were removed. Demo jobs now appear only in local development.
+- **Jobs page** — The page now shows only jobs recommended to you, jobs you acted on, and jobs you added, not every shared job. Scores are no longer calculated while the page loads.
+
 - **ATS — four open-source-based engines** — Open ATS, ATS Resume Checker, Resume Skills Extractor and Hybrid Resume Analyzer. Each one adapts the scoring formulas found in that project's source code. Every report shows its own weighted breakdown, severity-ranked findings, fixes linked to those findings, its score type, and the places where it differs from the original. These engines need the scoring service and show a clear error rather than a substitute score when it's unavailable.
 - **ATS — open-source engines without a job description** — Open ATS and Hybrid Resume Analyzer now also run with just a resume, and all four run with just a job title. A title is matched against that role's skill profile. Resume Skills Extractor still needs a title or JD, because it can only score against something. Each report labels which kind of score it is.
 - **ATS — live processing stages** — Each result cell now shows the stage the backend is actually working on (Parsing Resume, Extracting Skills, Matching Keywords, Calculating Score, …) instead of a generic "Analyzing…". Runs can be cancelled, and failed cells offer Retry.

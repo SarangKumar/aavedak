@@ -24,3 +24,26 @@ export function apiUrl(path = ""): string {
   }
   return `${base}${suffix}`;
 }
+
+/**
+ * Absolute FastAPI URL for server-side fetches (relative `/svc` cannot be fetched from Node).
+ * Falls back to the app origin, then local uvicorn on :8000.
+ */
+export function absoluteApiUrl(path: string): string {
+  const joined = apiUrl(path);
+  if (joined.startsWith("http://") || joined.startsWith("https://")) return joined;
+
+  const app =
+    process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+  if (app) {
+    const base = getApiBaseUrl().startsWith("http")
+      ? getApiBaseUrl()
+      : `${app}${getApiBaseUrl().startsWith("/") ? "" : "/"}${getApiBaseUrl()}`;
+    const suffix = path.startsWith("/") ? path : `/${path}`;
+    if (suffix.startsWith("/svc")) return `${app}${suffix}`;
+    return `${base.replace(/\/$/, "")}${suffix}`;
+  }
+
+  return `http://127.0.0.1:8000${path.startsWith("/") ? path : `/${path}`}`;
+}

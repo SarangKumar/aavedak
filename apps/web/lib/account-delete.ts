@@ -43,6 +43,8 @@ export async function wipeUserAccountData(userId: string): Promise<void> {
   await sql`DELETE FROM jobs WHERE user_id = ${userId}`;
   await sql`DELETE FROM cover_letters WHERE user_id = ${userId}`;
   await sql`DELETE FROM templates WHERE user_id = ${userId}`;
+  await sql`DELETE FROM application_events WHERE user_id = ${userId}`;
+  await sql`DELETE FROM person_votes WHERE user_id = ${userId}`;
   await sql`DELETE FROM applications WHERE user_id = ${userId}`;
   await sql`DELETE FROM resumes WHERE user_id = ${userId}`;
   await sql`DELETE FROM user_preferences WHERE user_id = ${userId}`;
@@ -69,6 +71,8 @@ export async function deleteUserAccount(userId: string): Promise<void> {
   await sql`DELETE FROM jobs WHERE user_id = ${userId}`;
   await sql`DELETE FROM cover_letters WHERE user_id = ${userId}`;
   await sql`DELETE FROM templates WHERE user_id = ${userId}`;
+  await sql`DELETE FROM application_events WHERE user_id = ${userId}`;
+  await sql`DELETE FROM person_votes WHERE user_id = ${userId}`;
   await sql`DELETE FROM applications WHERE user_id = ${userId}`;
   await sql`DELETE FROM resumes WHERE user_id = ${userId}`;
   await sql`DELETE FROM user_preferences WHERE user_id = ${userId}`;

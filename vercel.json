@@ -16,25 +16,87 @@
   "rewrites": [
     {
       "source": "/svc",
-      "destination": { "service": "api" }
+      "destination": {
+        "service": "api"
+      }
     },
     {
       "source": "/svc/:path*",
-      "destination": { "service": "api" }
+      "destination": {
+        "service": "api"
+      }
     },
     {
       "source": "/(.*)",
-      "destination": { "service": "web" }
+      "destination": {
+        "service": "web"
+      }
     }
   ],
   "crons": [
     {
-      "path": "/api/cron/jobs-ingest",
-      "schedule": "0 6 * * *"
-    },
-    {
       "path": "/api/cron/process-follow-ups",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/scan/0",
+      "schedule": "15 18 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/scan/1",
+      "schedule": "15 19 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/scan/2",
+      "schedule": "15 20 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/scan/3",
+      "schedule": "15 21 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/scan/4",
+      "schedule": "15 22 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/scan/5",
+      "schedule": "15 23 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/expire",
+      "schedule": "15 0 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/rank",
+      "schedule": "15 1 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/drain/0",
+      "schedule": "15 3 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/drain/1",
+      "schedule": "15 5 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/drain/2",
+      "schedule": "15 9 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/drain/3",
+      "schedule": "15 11 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/drain/4",
+      "schedule": "15 13 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/drain/5",
+      "schedule": "15 15 * * *"
+    },
+    {
+      "path": "/svc/v1/discovery/cron/drain/6",
+      "schedule": "15 17 * * *"
     }
   ]
 }

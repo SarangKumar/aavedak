@@ -1,31 +1,12 @@
 import "server-only";
 
 import { analyzeResumeFallback } from "@/lib/ats-analyze-fallback";
-import { apiUrl, getApiBaseUrl } from "@/lib/api-url";
+import { absoluteApiUrl } from "@/lib/api-url";
 import { isAtsStage } from "@/lib/ats-engines/stages";
 import type { AtsFailureKind, AtsStage } from "@/lib/ats-engines/types";
 import { normalizeAtsIssues, type AtsAnalysis } from "@/lib/ats-types";
 
 export type { AtsAnalysis } from "@/lib/ats-types";
-
-function absoluteApiUrl(path: string): string {
-  const joined = apiUrl(path);
-  if (joined.startsWith("http://") || joined.startsWith("https://")) return joined;
-
-  const app =
-    process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-  if (app) {
-    const base = getApiBaseUrl().startsWith("http")
-      ? getApiBaseUrl()
-      : `${app}${getApiBaseUrl().startsWith("/") ? "" : "/"}${getApiBaseUrl()}`;
-    const suffix = path.startsWith("/") ? path : `/${path}`;
-    if (suffix.startsWith("/svc")) return `${app}${suffix}`;
-    return `${base.replace(/\/$/, "")}${suffix}`;
-  }
-
-  return `http://127.0.0.1:8000${path.startsWith("/") ? path : `/${path}`}`;
-}
 
 async function postJson<T>(path: string, body: unknown): Promise<T | null> {
   try {

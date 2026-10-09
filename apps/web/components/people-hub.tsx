@@ -17,6 +17,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CompanySelect } from "@/components/company-select";
+import { PersonVote, personInitials, type VoteSummaryDto } from "@/components/person-vote";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 export type PersonDto = {
@@ -28,9 +30,16 @@ export type PersonDto = {
   notes: string | null;
   applicationId: string | null;
   status: "active" | "archived";
+  /** `system` = added by admin bulk discovery. */
+  origin?: "system" | "user";
+  linkedin?: string | null;
+  /** Absent on single-person API responses; merged from the existing row. */
+  votes?: VoteSummaryDto;
   createdAt: string;
   updatedAt: string;
 };
+
+const NO_VOTES: VoteSummaryDto = { up: 0, down: 0, mine: 0 };
 
 export type ApplicationLite = {
   id: string;
@@ -131,7 +140,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
         });
         const data = (await res.json()) as { person?: PersonDto; error?: string };
         if (!res.ok || !data.person) throw new Error(data.error || "Update failed.");
-        setPeople((list) => list.map((p) => (p.id === editingId ? data.person! : p)));
+        setPeople((list) => list.map((p) => (p.id === editingId ? { ...p, ...data.person! } : p)));
       } else {
         const res = await fetch("/api/people", {
           method: "POST",
@@ -157,7 +166,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
       const res = await fetch(`/api/people/${id}`, { method: "DELETE" });
       const data = (await res.json()) as { person?: PersonDto; error?: string };
       if (!res.ok || !data.person) throw new Error(data.error || "Archive failed.");
-      setPeople((list) => list.map((p) => (p.id === id ? data.person! : p)));
+      setPeople((list) => list.map((p) => (p.id === id ? { ...p, ...data.person! } : p)));
       if (editingId === id) setDrawerOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Archive failed.");
@@ -177,7 +186,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
       });
       const data = (await res.json()) as { person?: PersonDto; error?: string };
       if (!res.ok || !data.person) throw new Error(data.error || "Restore failed.");
-      setPeople((list) => list.map((p) => (p.id === id ? data.person! : p)));
+      setPeople((list) => list.map((p) => (p.id === id ? { ...p, ...data.person! } : p)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Restore failed.");
     } finally {
@@ -246,6 +255,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
               <TableHead>Role</TableHead>
               <TableHead>Linked app</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead title="Community signal — not proof they will refer">Community</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -253,7 +263,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
             {visible.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-muted-foreground py-8 text-center text-[13px]"
                 >
                   No people yet. Add a contact to use in referrals.
@@ -266,13 +276,35 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                 return (
                   <TableRow key={person.id}>
                     <TableCell>
-                      <button
-                        type="button"
-                        className="text-foreground cursor-pointer text-left text-[13px] font-medium hover:underline"
-                        onClick={() => openEdit(person)}
-                      >
-                        {person.name}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="size-7">
+                          <AvatarFallback className="text-[10px]">
+                            {personInitials(person.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <button
+                          type="button"
+                          className="text-foreground cursor-pointer text-left text-[13px] font-medium hover:underline"
+                          onClick={() => openEdit(person)}
+                        >
+                          {person.name}
+                        </button>
+                        {person.origin === "system" ? (
+                          <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                            Discovered
+                          </Badge>
+                        ) : null}
+                        {person.linkedin ? (
+                          <a
+                            href={person.linkedin}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-muted-foreground hover:text-foreground text-[11px]"
+                          >
+                            in
+                          </a>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-[12px]">
                       {person.email ?? "—"}
@@ -290,6 +322,9 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                       <Badge variant={person.status === "active" ? "secondary" : "outline"}>
                         {person.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <PersonVote personId={person.id} initial={person.votes ?? NO_VOTES} />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="inline-flex flex-wrap justify-end gap-1">

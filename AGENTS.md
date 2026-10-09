@@ -30,6 +30,9 @@ Tests:
 cd apps/api && .venv/bin/python -m pytest tests -q
 .venv/bin/python -m pytest tests/test_reference_engines.py -q -k <name>   # single test
 
+# Discovery SQL tests need a disposable Postgres superuser URL (skipped otherwise)
+TEST_DATABASE_URL=postgresql://... .venv/bin/python -m pytest tests/test_discovery_db.py -q
+
 # Web ATS engine tests (plain node:assert script, no test framework), from apps/web
 npx --yes tsx lib/ats-engines/run-tests.ts
 ```
@@ -47,9 +50,9 @@ The husky pre-commit hook runs lint-staged (ESLint `--fix --max-warnings=0` + Pr
 ## 3. Architecture
 
 - **`apps/web`** — Next.js 15 App Router + React 19 + Tailwind v4. Holds nearly all product logic. React/react-dom are pinned to 19.2.3 via `pnpm-workspace.yaml` overrides (19.3 breaks RSC streaming with Next 15.5) — don't bump them.
-- **`apps/api`** — FastAPI, currently only the ATS scoring engine (`app/ats/`) and `/svc/health`. Every route lives under `/svc/*`.
+- **`apps/api`** — FastAPI: the ATS scoring engine (`app/ats/`), job + people discovery (`app/discovery/`), and `/svc/health`. Every route lives under `/svc/*`. Discovery is the only API code with database access (psycopg).
 - **`apps/extension`** — stub, no source.
-- **Deployment** — one Vercel project using Vercel Services (`vercel.json`): `/svc/*` → api, everything else → web. The Vercel Root Directory must be the repo root. Middleware must run on the Node runtime (Services don't support Edge). The crons in `vercel.json` call web routes under `app/api/cron/`.
+- **Deployment** — one Vercel project using Vercel Services (`vercel.json`): `/svc/*` → api, everything else → web. The Vercel Root Directory must be the repo root. Middleware must run on the Node runtime (Services don't support Edge). Crons in `vercel.json` call web routes under `app/api/cron/` and discovery routes under `/svc/v1/discovery/cron/*` (Hobby: once per day each, so discovery uses several staggered crons).
 
 ### Web app layering
 
@@ -73,6 +76,15 @@ The husky pre-commit hook runs lint-staged (ESLint `--fix --max-warnings=0` + Pr
 - The ATS page runs one resume × engine per request: `/api/ats/run` with `stream: true` → FastAPI `/score-engine/stream` (NDJSON stage events). Stage/outcome labels are defined centrally in `lib/ats-engines/stages.ts`; the results-table score cell is a circular `ScoreRing` gauge (`components/ui/score-ring.tsx`). Engines are shown by name with a small Native/OSS/Ref tag (`components/ats-engine-badge.tsx`).
 - Full engine methodology, contracts, and the stage protocol are in `apps/api/app/ats/ENGINES.md`. It is auto-loaded for ATS files via `.cursor/rules/ats-engines.mdc` and nested `CLAUDE.md` files; read it before changing any engine.
 - Calibration fixtures: `apps/api/app/ats/benchmarks/fixtures.py` (expected ordering: excellent → unrelated for a backend JD) and `apps/web/lib/ats-engines/calibration/`.
+
+### Job & people discovery (FastAPI; web shows results)
+
+All scanning, parsing, filtering, dedupe, ingest, ranking, expiry, and bulk people import live in `apps/api/app/discovery/` (read its `DISCOVERY.md` before changing it; auto-loaded via `.cursor/rules/discovery.mdc` and a nested `CLAUDE.md`). Don't add discovery logic in TypeScript.
+
+- Scope: India-only junior engineering roles (any discipline, stated minimum < 3 years) from public ATS posting APIs (Greenhouse, Lever, Ashby, SmartRecruiters, Workable) and JSON-LD career pages; filters run before anything is stored. Verified seed registry in `app/discovery/data/career_sources.json` (`scripts/verify_career_sources.py`).
+- Work runs as persistent leased run items processed in budgeted ticks (cron, drain crons, or the admin page) — never one long request. Writes happen per company with bulk SQL.
+- Web: `lib/jobs.ts` (`listDiscoverJobs` / `listAppliedJobs`), Jobs tabs in `components/jobs-hub.tsx`, votes in `lib/people.ts`, the per-user `discoveryEnabled` preference, and the admin panel (`components/admin-discovery-panel.tsx` → `/api/admin/discovery/*` → FastAPI via `lib/discovery-api.ts` with `CRON_SECRET`).
+- Schema: pipeline tables are created by `app/discovery/schema.py`; columns on web-owned tables stay in `lib/app-db.ts` and are mirrored there (a test checks the mirror). Ops/env: `docs/jobs-ingest.md`.
 
 ### Env and docs
 

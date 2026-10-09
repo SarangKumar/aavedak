@@ -21,6 +21,8 @@ function toDto(row: NonNullable<Awaited<ReturnType<typeof getPerson>>>) {
     notes: row.notes,
     applicationId: row.applicationId,
     status: row.status,
+    origin: row.origin,
+    linkedin: row.linkedin ? `https://www.${row.linkedin}` : null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

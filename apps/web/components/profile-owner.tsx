@@ -17,6 +17,7 @@ type Props = {
   activeResumeId: string | null;
   settingsProfile: ProfileSettingsProfile;
   resumes: ProfileSettingsResume[];
+  discoveryEnabled?: boolean;
 };
 
 export function ProfileOwner({
@@ -26,6 +27,7 @@ export function ProfileOwner({
   activeResumeId,
   settingsProfile,
   resumes,
+  discoveryEnabled,
 }: Props) {
   const [editing, setEditing] = useState(false);
 
@@ -35,6 +37,7 @@ export function ProfileOwner({
         <ProfileSettings
           profile={settingsProfile}
           initialResumes={resumes}
+          initialDiscoveryEnabled={discoveryEnabled}
           onCancel={() => setEditing(false)}
         />
       </div>

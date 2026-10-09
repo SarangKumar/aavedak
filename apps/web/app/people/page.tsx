@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { PeopleHub } from "@/components/people-hub";
 import { requireOnboarded } from "@/lib/app-access";
 import { listApplications } from "@/lib/applications";
-import { listPeople } from "@/lib/people";
+import { getVoteSummaries, listPeople } from "@/lib/people";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -15,6 +15,10 @@ export default async function PeoplePage() {
   const { user } = await requireOnboarded();
   const people = await listPeople({ includeArchived: true });
   const applications = await listApplications(user.id, "active");
+  const votes = await getVoteSummaries(
+    user.id,
+    people.map((p) => p.id),
+  );
 
   return (
     <div className="relative overflow-hidden">
@@ -30,6 +34,9 @@ export default async function PeoplePage() {
             notes: p.notes,
             applicationId: p.applicationId,
             status: p.status,
+            origin: p.origin,
+            linkedin: p.linkedin ? `https://www.${p.linkedin}` : null,
+            votes: votes.get(p.id) ?? { up: 0, down: 0, mine: 0 },
             createdAt: p.createdAt,
             updatedAt: p.updatedAt,
           }))}

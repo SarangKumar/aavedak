@@ -1,0 +1,1064 @@
+[
+  {
+    "name": "Adyen",
+    "provider": "greenhouse",
+    "token": "adyen",
+    "careersUrl": "https://job-boards.greenhouse.io/adyen",
+    "sector": "software",
+    "verifiedIndiaPostings": 8,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Agoda",
+    "provider": "greenhouse",
+    "token": "agoda",
+    "careersUrl": "https://job-boards.greenhouse.io/agoda",
+    "sector": "software",
+    "verifiedIndiaPostings": 11,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Airbnb",
+    "provider": "greenhouse",
+    "token": "airbnb",
+    "careersUrl": "https://job-boards.greenhouse.io/airbnb",
+    "sector": "software",
+    "verifiedIndiaPostings": 6,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Anaplan",
+    "provider": "greenhouse",
+    "token": "anaplan",
+    "careersUrl": "https://job-boards.greenhouse.io/anaplan",
+    "sector": "software",
+    "verifiedIndiaPostings": 28,
+    "verifiedIndiaEngineering": 4
+  },
+  {
+    "name": "Anthropic",
+    "provider": "greenhouse",
+    "token": "anthropic",
+    "careersUrl": "https://job-boards.greenhouse.io/anthropic",
+    "sector": "software",
+    "verifiedIndiaPostings": 4,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Appian",
+    "provider": "greenhouse",
+    "token": "appian",
+    "careersUrl": "https://job-boards.greenhouse.io/appian",
+    "sector": "software",
+    "verifiedIndiaPostings": 27,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Applied Materials",
+    "provider": "ashby",
+    "token": "applied",
+    "careersUrl": "https://jobs.ashbyhq.com/applied",
+    "sector": "core",
+    "verifiedIndiaPostings": 3,
+    "verifiedIndiaEngineering": 3
+  },
+  {
+    "name": "Atlan",
+    "provider": "ashby",
+    "token": "atlan",
+    "careersUrl": "https://jobs.ashbyhq.com/atlan",
+    "sector": "software",
+    "verifiedIndiaPostings": 5,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "BoschGroup",
+    "provider": "smartrecruiters",
+    "token": "boschgroup",
+    "careersUrl": "https://careers.smartrecruiters.com/boschgroup",
+    "sector": "core",
+    "verifiedIndiaPostings": 100,
+    "verifiedIndiaEngineering": 33
+  },
+  {
+    "name": "Bureau",
+    "provider": "ashby",
+    "token": "bureau",
+    "careersUrl": "https://jobs.ashbyhq.com/bureau",
+    "sector": "software",
+    "verifiedIndiaPostings": 19,
+    "verifiedIndiaEngineering": 3
+  },
+  {
+    "name": "Canva",
+    "provider": "smartrecruiters",
+    "token": "canva",
+    "careersUrl": "https://careers.smartrecruiters.com/canva",
+    "sector": "software",
+    "verifiedIndiaPostings": 5,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Cars24",
+    "provider": "smartrecruiters",
+    "token": "cars24",
+    "careersUrl": "https://careers.smartrecruiters.com/cars24",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "ClickHouse",
+    "provider": "ashby",
+    "token": "clickhouse",
+    "careersUrl": "https://jobs.ashbyhq.com/clickhouse",
+    "sector": "software",
+    "verifiedIndiaPostings": 9,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Cloudflare",
+    "provider": "greenhouse",
+    "token": "cloudflare",
+    "careersUrl": "https://job-boards.greenhouse.io/cloudflare",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "CloudSEK",
+    "provider": "greenhouse",
+    "token": "cloudsek",
+    "careersUrl": "https://job-boards.greenhouse.io/cloudsek",
+    "sector": "software",
+    "verifiedIndiaPostings": 13,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Cockroach Labs",
+    "provider": "greenhouse",
+    "token": "cockroachlabs",
+    "careersUrl": "https://job-boards.greenhouse.io/cockroachlabs",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Cognition",
+    "provider": "ashby",
+    "token": "cognition",
+    "careersUrl": "https://jobs.ashbyhq.com/cognition",
+    "sector": "software",
+    "verifiedIndiaPostings": 3,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Coinbase",
+    "provider": "greenhouse",
+    "token": "coinbase",
+    "careersUrl": "https://job-boards.greenhouse.io/coinbase",
+    "sector": "software",
+    "verifiedIndiaPostings": 10,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Commvault",
+    "provider": "greenhouse",
+    "token": "commvault",
+    "careersUrl": "https://job-boards.greenhouse.io/commvault",
+    "sector": "software",
+    "verifiedIndiaPostings": 13,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Composio",
+    "provider": "ashby",
+    "token": "composio",
+    "careersUrl": "https://jobs.ashbyhq.com/composio",
+    "sector": "software",
+    "verifiedIndiaPostings": 3,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Confluent",
+    "provider": "ashby",
+    "token": "confluent",
+    "careersUrl": "https://jobs.ashbyhq.com/confluent",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Contentstack",
+    "provider": "greenhouse",
+    "token": "contentstack",
+    "careersUrl": "https://job-boards.greenhouse.io/contentstack",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Continental",
+    "provider": "smartrecruiters",
+    "token": "continental",
+    "careersUrl": "https://careers.smartrecruiters.com/continental",
+    "sector": "core",
+    "verifiedIndiaPostings": 11,
+    "verifiedIndiaEngineering": 6
+  },
+  {
+    "name": "Coupa",
+    "provider": "lever",
+    "token": "coupa",
+    "careersUrl": "https://jobs.lever.co/coupa",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "CRED",
+    "provider": "lever",
+    "token": "cred",
+    "careersUrl": "https://jobs.lever.co/cred",
+    "sector": "software",
+    "verifiedIndiaPostings": 8,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Cursor",
+    "provider": "ashby",
+    "token": "cursor",
+    "careersUrl": "https://jobs.ashbyhq.com/cursor",
+    "sector": "software",
+    "verifiedIndiaPostings": 6,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "CynLr",
+    "provider": "ashby",
+    "token": "cynlr",
+    "careersUrl": "https://jobs.ashbyhq.com/cynlr",
+    "sector": "core",
+    "verifiedIndiaPostings": 32,
+    "verifiedIndiaEngineering": 7
+  },
+  {
+    "name": "Databricks",
+    "provider": "greenhouse",
+    "token": "databricks",
+    "careersUrl": "https://job-boards.greenhouse.io/databricks",
+    "sector": "software",
+    "verifiedIndiaPostings": 96,
+    "verifiedIndiaEngineering": 3
+  },
+  {
+    "name": "Datadog",
+    "provider": "greenhouse",
+    "token": "datadog",
+    "careersUrl": "https://job-boards.greenhouse.io/datadog",
+    "sector": "software",
+    "verifiedIndiaPostings": 8,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Druva",
+    "provider": "greenhouse",
+    "token": "druva",
+    "careersUrl": "https://job-boards.greenhouse.io/druva",
+    "sector": "software",
+    "verifiedIndiaPostings": 13,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Elastic",
+    "provider": "greenhouse",
+    "token": "elastic",
+    "careersUrl": "https://job-boards.greenhouse.io/elastic",
+    "sector": "software",
+    "verifiedIndiaPostings": 18,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "ElevenLabs",
+    "provider": "ashby",
+    "token": "elevenlabs",
+    "careersUrl": "https://jobs.ashbyhq.com/elevenlabs",
+    "sector": "software",
+    "verifiedIndiaPostings": 7,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Ema",
+    "provider": "ashby",
+    "token": "ema",
+    "careersUrl": "https://jobs.ashbyhq.com/ema",
+    "sector": "software",
+    "verifiedIndiaPostings": 13,
+    "verifiedIndiaEngineering": 5
+  },
+  {
+    "name": "Epifi",
+    "provider": "lever",
+    "token": "epifi",
+    "careersUrl": "https://jobs.lever.co/epifi",
+    "sector": "software",
+    "verifiedIndiaPostings": 2,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Fastly",
+    "provider": "greenhouse",
+    "token": "fastly",
+    "careersUrl": "https://job-boards.greenhouse.io/fastly",
+    "sector": "software",
+    "verifiedIndiaPostings": 2,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Figma",
+    "provider": "greenhouse",
+    "token": "figma",
+    "careersUrl": "https://job-boards.greenhouse.io/figma",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Fivetran",
+    "provider": "greenhouse",
+    "token": "fivetran",
+    "careersUrl": "https://job-boards.greenhouse.io/fivetran",
+    "sector": "software",
+    "verifiedIndiaPostings": 21,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Freshworks",
+    "provider": "smartrecruiters",
+    "token": "freshworks",
+    "careersUrl": "https://careers.smartrecruiters.com/freshworks",
+    "sector": "software",
+    "verifiedIndiaPostings": 34,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Gainsight",
+    "provider": "ashby",
+    "token": "gainsight",
+    "careersUrl": "https://jobs.ashbyhq.com/gainsight",
+    "sector": "software",
+    "verifiedIndiaPostings": 4,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Gainsight",
+    "provider": "smartrecruiters",
+    "token": "gainsight",
+    "careersUrl": "https://careers.smartrecruiters.com/gainsight",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "GitLab",
+    "provider": "greenhouse",
+    "token": "gitlab",
+    "careersUrl": "https://job-boards.greenhouse.io/gitlab",
+    "sector": "software",
+    "verifiedIndiaPostings": 29,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Glance",
+    "provider": "greenhouse",
+    "token": "glance",
+    "careersUrl": "https://job-boards.greenhouse.io/glance",
+    "sector": "software",
+    "verifiedIndiaPostings": 20,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "Gleanwork",
+    "provider": "greenhouse",
+    "token": "gleanwork",
+    "careersUrl": "https://job-boards.greenhouse.io/gleanwork",
+    "sector": "software",
+    "verifiedIndiaPostings": 24,
+    "verifiedIndiaEngineering": 7
+  },
+  {
+    "name": "Grab",
+    "provider": "smartrecruiters",
+    "token": "grab",
+    "careersUrl": "https://careers.smartrecruiters.com/grab",
+    "sector": "software",
+    "verifiedIndiaPostings": 13,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Grafana Labs",
+    "provider": "greenhouse",
+    "token": "grafanalabs",
+    "careersUrl": "https://job-boards.greenhouse.io/grafanalabs",
+    "sector": "software",
+    "verifiedIndiaPostings": 3,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Groww",
+    "provider": "greenhouse",
+    "token": "groww",
+    "careersUrl": "https://job-boards.greenhouse.io/groww",
+    "sector": "software",
+    "verifiedIndiaPostings": 9,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "HackerRank",
+    "provider": "greenhouse",
+    "token": "hackerrank",
+    "careersUrl": "https://job-boards.greenhouse.io/hackerrank",
+    "sector": "software",
+    "verifiedIndiaPostings": 16,
+    "verifiedIndiaEngineering": 6
+  },
+  {
+    "name": "HackerRank",
+    "provider": "smartrecruiters",
+    "token": "hackerrank",
+    "careersUrl": "https://careers.smartrecruiters.com/hackerrank",
+    "sector": "software",
+    "verifiedIndiaPostings": 5,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "Harvey",
+    "provider": "ashby",
+    "token": "harvey",
+    "careersUrl": "https://jobs.ashbyhq.com/harvey",
+    "sector": "software",
+    "verifiedIndiaPostings": 8,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Hevo Data",
+    "provider": "lever",
+    "token": "hevodata",
+    "careersUrl": "https://jobs.lever.co/hevodata",
+    "sector": "software",
+    "verifiedIndiaPostings": 50,
+    "verifiedIndiaEngineering": 5
+  },
+  {
+    "name": "HighRadius",
+    "provider": "greenhouse",
+    "token": "highradius",
+    "careersUrl": "https://job-boards.greenhouse.io/highradius",
+    "sector": "software",
+    "verifiedIndiaPostings": 52,
+    "verifiedIndiaEngineering": 8
+  },
+  {
+    "name": "InMobi",
+    "provider": "greenhouse",
+    "token": "inmobi",
+    "careersUrl": "https://job-boards.greenhouse.io/inmobi",
+    "sector": "software",
+    "verifiedIndiaPostings": 42,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Instahyre",
+    "provider": "smartrecruiters",
+    "token": "instahyre",
+    "careersUrl": "https://careers.smartrecruiters.com/instahyre",
+    "sector": "software",
+    "verifiedIndiaPostings": 3,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "InterviewBit",
+    "provider": "smartrecruiters",
+    "token": "interviewbit",
+    "careersUrl": "https://careers.smartrecruiters.com/interviewbit",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "Ixigo",
+    "provider": "smartrecruiters",
+    "token": "ixigo",
+    "careersUrl": "https://careers.smartrecruiters.com/ixigo",
+    "sector": "software",
+    "verifiedIndiaPostings": 9,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "JFrog",
+    "provider": "greenhouse",
+    "token": "jfrog",
+    "careersUrl": "https://job-boards.greenhouse.io/jfrog",
+    "sector": "software",
+    "verifiedIndiaPostings": 6,
+    "verifiedIndiaEngineering": 3
+  },
+  {
+    "name": "LaunchDarkly",
+    "provider": "greenhouse",
+    "token": "launchdarkly",
+    "careersUrl": "https://job-boards.greenhouse.io/launchdarkly",
+    "sector": "software",
+    "verifiedIndiaPostings": 6,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Lendingkart",
+    "provider": "smartrecruiters",
+    "token": "lendingkart",
+    "careersUrl": "https://careers.smartrecruiters.com/lendingkart",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "LogiNext",
+    "provider": "smartrecruiters",
+    "token": "loginext",
+    "careersUrl": "https://careers.smartrecruiters.com/loginext",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Meesho",
+    "provider": "lever",
+    "token": "meesho",
+    "careersUrl": "https://jobs.lever.co/meesho",
+    "sector": "software",
+    "verifiedIndiaPostings": 59,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Mindtickle",
+    "provider": "lever",
+    "token": "mindtickle",
+    "careersUrl": "https://jobs.lever.co/mindtickle",
+    "sector": "software",
+    "verifiedIndiaPostings": 19,
+    "verifiedIndiaEngineering": 4
+  },
+  {
+    "name": "Mindtickle",
+    "provider": "smartrecruiters",
+    "token": "mindtickle",
+    "careersUrl": "https://careers.smartrecruiters.com/mindtickle",
+    "sector": "software",
+    "verifiedIndiaPostings": 9,
+    "verifiedIndiaEngineering": 4
+  },
+  {
+    "name": "MongoDB",
+    "provider": "greenhouse",
+    "token": "mongodb",
+    "careersUrl": "https://job-boards.greenhouse.io/mongodb",
+    "sector": "software",
+    "verifiedIndiaPostings": 85,
+    "verifiedIndiaEngineering": 4
+  },
+  {
+    "name": "Neo4j",
+    "provider": "greenhouse",
+    "token": "neo4j",
+    "careersUrl": "https://job-boards.greenhouse.io/neo4j",
+    "sector": "software",
+    "verifiedIndiaPostings": 5,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "Netskope",
+    "provider": "greenhouse",
+    "token": "netskope",
+    "careersUrl": "https://job-boards.greenhouse.io/netskope",
+    "sector": "software",
+    "verifiedIndiaPostings": 22,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Netskope",
+    "provider": "smartrecruiters",
+    "token": "netskope",
+    "careersUrl": "https://careers.smartrecruiters.com/netskope",
+    "sector": "software",
+    "verifiedIndiaPostings": 2,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "New Relic",
+    "provider": "greenhouse",
+    "token": "newrelic",
+    "careersUrl": "https://job-boards.greenhouse.io/newrelic",
+    "sector": "software",
+    "verifiedIndiaPostings": 9,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "Newton School",
+    "provider": "smartrecruiters",
+    "token": "newtonschool",
+    "careersUrl": "https://careers.smartrecruiters.com/newtonschool",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "NoBroker",
+    "provider": "smartrecruiters",
+    "token": "nobroker",
+    "careersUrl": "https://careers.smartrecruiters.com/nobroker",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Notion",
+    "provider": "ashby",
+    "token": "notion",
+    "careersUrl": "https://jobs.ashbyhq.com/notion",
+    "sector": "software",
+    "verifiedIndiaPostings": 4,
+    "verifiedIndiaEngineering": 3
+  },
+  {
+    "name": "Observe.AI",
+    "provider": "greenhouse",
+    "token": "observeai",
+    "careersUrl": "https://job-boards.greenhouse.io/observeai",
+    "sector": "software",
+    "verifiedIndiaPostings": 5,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Okta",
+    "provider": "greenhouse",
+    "token": "okta",
+    "careersUrl": "https://job-boards.greenhouse.io/okta",
+    "sector": "software",
+    "verifiedIndiaPostings": 113,
+    "verifiedIndiaEngineering": 4
+  },
+  {
+    "name": "OpenAI",
+    "provider": "ashby",
+    "token": "openai",
+    "careersUrl": "https://jobs.ashbyhq.com/openai",
+    "sector": "software",
+    "verifiedIndiaPostings": 8,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Paytm",
+    "provider": "lever",
+    "token": "paytm",
+    "careersUrl": "https://jobs.lever.co/paytm",
+    "sector": "software",
+    "verifiedIndiaPostings": 171,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Pocket FM",
+    "provider": "lever",
+    "token": "pocketfm",
+    "careersUrl": "https://jobs.lever.co/pocketfm",
+    "sector": "software",
+    "verifiedIndiaPostings": 2,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Pure Storage",
+    "provider": "greenhouse",
+    "token": "purestorage",
+    "careersUrl": "https://job-boards.greenhouse.io/purestorage",
+    "sector": "software",
+    "verifiedIndiaPostings": 79,
+    "verifiedIndiaEngineering": 12
+  },
+  {
+    "name": "Redis",
+    "provider": "ashby",
+    "token": "redis",
+    "careersUrl": "https://jobs.ashbyhq.com/redis",
+    "sector": "software",
+    "verifiedIndiaPostings": 3,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Rubrik",
+    "provider": "greenhouse",
+    "token": "rubrik",
+    "careersUrl": "https://job-boards.greenhouse.io/rubrik",
+    "sector": "software",
+    "verifiedIndiaPostings": 36,
+    "verifiedIndiaEngineering": 6
+  },
+  {
+    "name": "Samsara",
+    "provider": "greenhouse",
+    "token": "samsara",
+    "careersUrl": "https://job-boards.greenhouse.io/samsara",
+    "sector": "mixed",
+    "verifiedIndiaPostings": 6,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Sarvam",
+    "provider": "ashby",
+    "token": "sarvam",
+    "careersUrl": "https://jobs.ashbyhq.com/sarvam",
+    "sector": "software",
+    "verifiedIndiaPostings": 41,
+    "verifiedIndiaEngineering": 11
+  },
+  {
+    "name": "Scale AI",
+    "provider": "greenhouse",
+    "token": "scaleai",
+    "careersUrl": "https://job-boards.greenhouse.io/scaleai",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "ServiceNow",
+    "provider": "smartrecruiters",
+    "token": "servicenow",
+    "careersUrl": "https://careers.smartrecruiters.com/servicenow",
+    "sector": "software",
+    "verifiedIndiaPostings": 74,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Shipsy",
+    "provider": "smartrecruiters",
+    "token": "shipsy",
+    "careersUrl": "https://careers.smartrecruiters.com/shipsy",
+    "sector": "software",
+    "verifiedIndiaPostings": 5,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Sigmoid",
+    "provider": "greenhouse",
+    "token": "sigmoid",
+    "careersUrl": "https://job-boards.greenhouse.io/sigmoid",
+    "sector": "software",
+    "verifiedIndiaPostings": 31,
+    "verifiedIndiaEngineering": 5
+  },
+  {
+    "name": "SigNoz",
+    "provider": "ashby",
+    "token": "signoz",
+    "careersUrl": "https://jobs.ashbyhq.com/signoz",
+    "sector": "software",
+    "verifiedIndiaPostings": 13,
+    "verifiedIndiaEngineering": 3
+  },
+  {
+    "name": "SingleStore",
+    "provider": "greenhouse",
+    "token": "singlestore",
+    "careersUrl": "https://job-boards.greenhouse.io/singlestore",
+    "sector": "software",
+    "verifiedIndiaPostings": 8,
+    "verifiedIndiaEngineering": 4
+  },
+  {
+    "name": "Smartsheet",
+    "provider": "greenhouse",
+    "token": "smartsheet",
+    "careersUrl": "https://job-boards.greenhouse.io/smartsheet",
+    "sector": "software",
+    "verifiedIndiaPostings": 21,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "Snowflake",
+    "provider": "ashby",
+    "token": "snowflake",
+    "careersUrl": "https://jobs.ashbyhq.com/snowflake",
+    "sector": "software",
+    "verifiedIndiaPostings": 12,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Sophos",
+    "provider": "lever",
+    "token": "sophos",
+    "careersUrl": "https://jobs.lever.co/sophos",
+    "sector": "software",
+    "verifiedIndiaPostings": 12,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Spotify",
+    "provider": "lever",
+    "token": "spotify",
+    "careersUrl": "https://jobs.lever.co/spotify",
+    "sector": "software",
+    "verifiedIndiaPostings": 2,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "STAGE",
+    "provider": "greenhouse",
+    "token": "stage",
+    "careersUrl": "https://job-boards.greenhouse.io/stage",
+    "sector": "software",
+    "verifiedIndiaPostings": 15,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Starburst",
+    "provider": "greenhouse",
+    "token": "starburst",
+    "careersUrl": "https://job-boards.greenhouse.io/starburst",
+    "sector": "software",
+    "verifiedIndiaPostings": 5,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Statiq",
+    "provider": "smartrecruiters",
+    "token": "statiq",
+    "careersUrl": "https://careers.smartrecruiters.com/statiq",
+    "sector": "core",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Stripe",
+    "provider": "greenhouse",
+    "token": "stripe",
+    "careersUrl": "https://job-boards.greenhouse.io/stripe",
+    "sector": "software",
+    "verifiedIndiaPostings": 46,
+    "verifiedIndiaEngineering": 3
+  },
+  {
+    "name": "Sumo Logic",
+    "provider": "greenhouse",
+    "token": "sumologic",
+    "careersUrl": "https://job-boards.greenhouse.io/sumologic",
+    "sector": "software",
+    "verifiedIndiaPostings": 5,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Swiggy",
+    "provider": "smartrecruiters",
+    "token": "swiggy",
+    "careersUrl": "https://careers.smartrecruiters.com/swiggy",
+    "sector": "software",
+    "verifiedIndiaPostings": 100,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "Tekion",
+    "provider": "ashby",
+    "token": "tekion",
+    "careersUrl": "https://jobs.ashbyhq.com/tekion",
+    "sector": "software",
+    "verifiedIndiaPostings": 76,
+    "verifiedIndiaEngineering": 7
+  },
+  {
+    "name": "Thoughtworks",
+    "provider": "greenhouse",
+    "token": "thoughtworks",
+    "careersUrl": "https://job-boards.greenhouse.io/thoughtworks",
+    "sector": "software",
+    "verifiedIndiaPostings": 4,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "Toast",
+    "provider": "greenhouse",
+    "token": "toast",
+    "careersUrl": "https://job-boards.greenhouse.io/toast",
+    "sector": "software",
+    "verifiedIndiaPostings": 16,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Together AI",
+    "provider": "greenhouse",
+    "token": "togetherai",
+    "careersUrl": "https://job-boards.greenhouse.io/togetherai",
+    "sector": "software",
+    "verifiedIndiaPostings": 7,
+    "verifiedIndiaEngineering": 4
+  },
+  {
+    "name": "Tower Research Capital",
+    "provider": "greenhouse",
+    "token": "towerresearchcapital",
+    "careersUrl": "https://job-boards.greenhouse.io/towerresearchcapital",
+    "sector": "software",
+    "verifiedIndiaPostings": 11,
+    "verifiedIndiaEngineering": 5
+  },
+  {
+    "name": "Turing",
+    "provider": "greenhouse",
+    "token": "turing",
+    "careersUrl": "https://job-boards.greenhouse.io/turing",
+    "sector": "software",
+    "verifiedIndiaPostings": 4,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Twilio",
+    "provider": "greenhouse",
+    "token": "twilio",
+    "careersUrl": "https://job-boards.greenhouse.io/twilio",
+    "sector": "software",
+    "verifiedIndiaPostings": 20,
+    "verifiedIndiaEngineering": 6
+  },
+  {
+    "name": "Unacademy",
+    "provider": "smartrecruiters",
+    "token": "unacademy",
+    "careersUrl": "https://careers.smartrecruiters.com/unacademy",
+    "sector": "software",
+    "verifiedIndiaPostings": 3,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "Upstox",
+    "provider": "smartrecruiters",
+    "token": "upstox",
+    "careersUrl": "https://careers.smartrecruiters.com/upstox",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Vercel",
+    "provider": "greenhouse",
+    "token": "vercel",
+    "careersUrl": "https://job-boards.greenhouse.io/vercel",
+    "sector": "software",
+    "verifiedIndiaPostings": 2,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Vonage",
+    "provider": "greenhouse",
+    "token": "vonage",
+    "careersUrl": "https://job-boards.greenhouse.io/vonage",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Wabtec",
+    "provider": "smartrecruiters",
+    "token": "wabtec",
+    "careersUrl": "https://careers.smartrecruiters.com/wabtec",
+    "sector": "core",
+    "verifiedIndiaPostings": 100,
+    "verifiedIndiaEngineering": 30
+  },
+  {
+    "name": "Waymo",
+    "provider": "greenhouse",
+    "token": "waymo",
+    "careersUrl": "https://job-boards.greenhouse.io/waymo",
+    "sector": "software",
+    "verifiedIndiaPostings": 5,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Western Digital",
+    "provider": "smartrecruiters",
+    "token": "westerndigital",
+    "careersUrl": "https://careers.smartrecruiters.com/westerndigital",
+    "sector": "core",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Whatfix",
+    "provider": "smartrecruiters",
+    "token": "whatfix",
+    "careersUrl": "https://careers.smartrecruiters.com/whatfix",
+    "sector": "software",
+    "verifiedIndiaPostings": 1,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Wise",
+    "provider": "smartrecruiters",
+    "token": "wise",
+    "careersUrl": "https://careers.smartrecruiters.com/wise",
+    "sector": "software",
+    "verifiedIndiaPostings": 28,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Yugabyte",
+    "provider": "greenhouse",
+    "token": "yugabyte",
+    "careersUrl": "https://job-boards.greenhouse.io/yugabyte",
+    "sector": "software",
+    "verifiedIndiaPostings": 5,
+    "verifiedIndiaEngineering": 1
+  },
+  {
+    "name": "Zenoti",
+    "provider": "greenhouse",
+    "token": "zenoti",
+    "careersUrl": "https://job-boards.greenhouse.io/zenoti",
+    "sector": "software",
+    "verifiedIndiaPostings": 32,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Zeta",
+    "provider": "lever",
+    "token": "zeta",
+    "careersUrl": "https://jobs.lever.co/zeta",
+    "sector": "software",
+    "verifiedIndiaPostings": 22,
+    "verifiedIndiaEngineering": 3
+  },
+  {
+    "name": "Zeta Global",
+    "provider": "greenhouse",
+    "token": "zetaglobal",
+    "careersUrl": "https://job-boards.greenhouse.io/zetaglobal",
+    "sector": "software",
+    "verifiedIndiaPostings": 40,
+    "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "Zscaler",
+    "provider": "greenhouse",
+    "token": "zscaler",
+    "careersUrl": "https://job-boards.greenhouse.io/zscaler",
+    "sector": "software",
+    "verifiedIndiaPostings": 80,
+    "verifiedIndiaEngineering": 4
+  },
+  {
+    "name": "Zuora",
+    "provider": "greenhouse",
+    "token": "zuora",
+    "careersUrl": "https://job-boards.greenhouse.io/zuora",
+    "sector": "software",
+    "verifiedIndiaPostings": 5,
+    "verifiedIndiaEngineering": 0
+  }
+]

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
-import { createJob, ensureDemoJobs, listJobsForUser, type JobSource } from "@/lib/jobs";
+import { toJobDto } from "@/lib/job-dto";
 import { listJobScores, scoreJobForUser } from "@/lib/job-scoring";
+import { createJob, listAppliedJobs, listDiscoverJobs, type JobSource } from "@/lib/jobs";
 
 async function requireUser() {
   const result = await requireApiUser();
@@ -10,55 +11,24 @@ async function requireUser() {
   return { user: result.user };
 }
 
-function toDto(
-  row: Awaited<ReturnType<typeof listJobsForUser>>[number],
-  score?: { compatibilityScore: number; atsScore: number } | null,
-) {
-  return {
-    id: row.id,
-    title: row.title,
-    company: row.company,
-    companyId: row.companyId,
-    location: row.location,
-    source: row.source,
-    url: row.url,
-    description: row.description,
-    salary: row.salary,
-    status: row.status,
-    userId: row.userId,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    compatibilityScore: score?.compatibilityScore ?? null,
-    atsScore: score?.atsScore ?? null,
-  };
-}
-
+/** Jobs page data: Discover (recommendations + manual jobs) and Applied tabs. */
 export async function GET() {
   const authResult = await requireUser();
   if ("error" in authResult) return authResult.error;
   const user = authResult.user;
-  await ensureDemoJobs(user.id);
-  const jobs = await listJobsForUser(user.id);
-  let scores = await listJobScores(user.id);
-  if (scores.length === 0 && jobs.length > 0) {
-    for (const job of jobs.slice(0, 20)) {
-      await scoreJobForUser(user.id, job);
-    }
-    scores = await listJobScores(user.id);
-  }
+  const [discover, applied, scores] = await Promise.all([
+    listDiscoverJobs(user.id),
+    listAppliedJobs(user.id),
+    listJobScores(user.id),
+  ]);
   const byJob = new Map(scores.map((s) => [s.jobId, s]));
   return NextResponse.json({
-    jobs: jobs.map((j) =>
-      toDto(j, byJob.get(j.id)
-        ? {
-            compatibilityScore: byJob.get(j.id)!.compatibilityScore,
-            atsScore: byJob.get(j.id)!.atsScore,
-          }
-        : null),
-    ),
+    discover: discover.map((j) => toJobDto(j, byJob.get(j.id))),
+    applied: applied.map((j) => toJobDto(j, byJob.get(j.id))),
   });
 }
 
+/** Manual / pasted job, private to the user (never expires automatically). */
 export async function POST(request: Request) {
   const authResult = await requireUser();
   if ("error" in authResult) return authResult.error;
@@ -80,15 +50,7 @@ export async function POST(request: Request) {
       salary: (body.salary as string | null | undefined) ?? null,
     });
     const score = await scoreJobForUser(user.id, job);
-    return NextResponse.json(
-      {
-        job: toDto(job, {
-          compatibilityScore: score.compatibilityScore,
-          atsScore: score.atsScore,
-        }),
-      },
-      { status: 201 },
-    );
+    return NextResponse.json({ job: toJobDto(job, score) }, { status: 201 });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Create failed." },

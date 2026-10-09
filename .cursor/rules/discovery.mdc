@@ -1,0 +1,7 @@
+---
+description: Job + people discovery pipeline (FastAPI), Jobs tabs, people votes, admin discovery panel (loads only for discovery files)
+globs: apps/api/app/discovery/**,apps/api/scripts/verify_career_sources.py,apps/api/tests/test_discovery_*.py,apps/web/lib/discovery-api.ts,apps/web/lib/jobs.ts,apps/web/lib/job-dto.ts,apps/web/app/api/admin/discovery/**,apps/web/components/admin-discovery-panel.tsx,apps/web/components/jobs-hub.tsx
+alwaysApply: false
+---
+
+@apps/api/app/discovery/DISCOVERY.md

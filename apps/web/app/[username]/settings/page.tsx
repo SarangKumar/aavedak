@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { ProfileSettings } from "@/components/profile-settings";
 import { getOptionalAccess } from "@/lib/app-access";
+import { getPreferences } from "@/lib/preferences";
 import { getProfileByUsername } from "@/lib/profile";
 import { listResumes } from "@/lib/resumes";
 
@@ -35,8 +36,11 @@ export default async function ProfileSettingsPage({ params }: Props) {
     byteSize: r.byteSize,
   }));
 
+  const preferences = await getPreferences(profile.userId);
+
   return (
     <ProfileSettings
+      initialDiscoveryEnabled={preferences.discoveryEnabled}
       profile={{
         username: profile.username,
         name: profile.name,

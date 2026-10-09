@@ -52,6 +52,7 @@ export default async function JobTrackerPage() {
       coverLetterTitle: cover?.title ?? null,
       jobTitle: linkedJob?.title ?? null,
       status: app.status,
+      statusReason: app.statusReason,
       notes: app.notes,
       appliedAt: app.appliedAt,
       createdAt: app.createdAt,

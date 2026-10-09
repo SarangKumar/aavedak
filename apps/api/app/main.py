@@ -4,6 +4,7 @@ import time
 from fastapi import FastAPI, Request, Response
 
 from app.ats.router import router as ats_router
+from app.discovery.router import router as discovery_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.health import build_health_report
@@ -19,6 +20,7 @@ app = FastAPI(
     description="FastAPI service mounted under /svc on Vercel Services",
 )
 app.include_router(ats_router)
+app.include_router(discovery_router)
 
 
 @app.middleware("http")

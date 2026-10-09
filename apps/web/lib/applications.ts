@@ -24,6 +24,8 @@ export type ApplicationRecord = {
   jobId: string | null;
   coverLetterId: string | null;
   status: ApplicationStatus;
+  /** Why the status last changed when the system changed it (e.g. `job_expired`). */
+  statusReason: string | null;
   notes: string | null;
   appliedAt: string | null;
   createdAt: string;
@@ -57,6 +59,7 @@ type ApplicationRow = {
   job_id: string | null;
   cover_letter_id?: string | null;
   status: string;
+  status_reason?: string | null;
   notes: string | null;
   applied_at?: string | null;
   created_at: string;
@@ -79,6 +82,7 @@ function mapRow(row: ApplicationRow): ApplicationRecord {
     jobId: row.job_id,
     coverLetterId: row.cover_letter_id ?? null,
     status: row.status,
+    statusReason: row.status_reason ?? null,
     notes: row.notes,
     appliedAt: row.applied_at ?? null,
     createdAt: row.created_at,
@@ -170,6 +174,20 @@ export async function findDuplicateWarnings(
   return rows.map(mapRow).filter((r) => r.id !== excludeId);
 }
 
+/** Append-only status history (system events are written by FastAPI job expiry). */
+async function recordStatusEvent(
+  userId: string,
+  applicationId: string,
+  fromStatus: ApplicationStatus | null,
+  toStatus: ApplicationStatus,
+  at: string,
+): Promise<void> {
+  await getSql()`
+    INSERT INTO application_events (id, application_id, user_id, from_status, to_status, reason, actor, created_at)
+    VALUES (${randomUUID()}, ${applicationId}, ${userId}, ${fromStatus}, ${toStatus}, NULL, 'user', ${at})
+  `;
+}
+
 export async function createApplication(
   userId: string,
   input: CreateApplicationInput,
@@ -201,12 +219,13 @@ export async function createApplication(
   await getSql()`
     INSERT INTO applications
       (id, user_id, company_name, company_id, role, location, salary_ctc, job_link, job_id,
-       cover_letter_id, status, notes, applied_at, created_at, updated_at)
+       cover_letter_id, status, notes, applied_at, created_at, updated_at, status_changed_at)
     VALUES (
       ${id}, ${userId}, ${companyName}, ${companyId}, ${role}, ${location}, ${salaryCtc}, ${jobLink},
-      ${jobId}, ${coverLetterId}, ${status}, ${notes}, ${appliedAt}, ${createdAt}, ${createdAt}
+      ${jobId}, ${coverLetterId}, ${status}, ${notes}, ${appliedAt}, ${createdAt}, ${createdAt}, ${createdAt}
     )
   `;
+  await recordStatusEvent(userId, id, null, status, createdAt);
 
   if (jobId) {
     await setJobApplicationLink(userId, jobId, id);
@@ -267,6 +286,9 @@ export async function updateApplication(
   }
 
   const now = new Date().toISOString();
+  const statusChanged = status !== existing.status;
+  // A user status change replaces any system reason (e.g. job_expired) and is logged.
+  const statusReason = statusChanged ? null : existing.statusReason;
   await getSql()`
     UPDATE applications SET
       company_name = ${companyName},
@@ -278,11 +300,16 @@ export async function updateApplication(
       job_id = ${jobId},
       cover_letter_id = ${coverLetterId},
       status = ${status},
+      status_reason = ${statusReason},
+      status_changed_at = CASE WHEN ${statusChanged ? 1 : 0} = 1 THEN ${now} ELSE status_changed_at END,
       notes = ${notes},
       applied_at = ${appliedAt},
       updated_at = ${now}
     WHERE id = ${id} AND user_id = ${userId}
   `;
+  if (statusChanged) {
+    await recordStatusEvent(userId, id, existing.status, status, now);
+  }
 
   if (jobId) {
     await setJobApplicationLink(userId, jobId, id);
@@ -324,6 +351,7 @@ export async function deleteApplication(userId: string, id: string): Promise<voi
     UPDATE user_job_state SET application_id = NULL, updated_at = ${now}
     WHERE user_id = ${userId} AND application_id = ${id}
   `;
+  await getSql()`DELETE FROM application_events WHERE application_id = ${id} AND user_id = ${userId}`;
   await getSql()`DELETE FROM applications WHERE id = ${id} AND user_id = ${userId}`;
 }
 
@@ -467,6 +495,7 @@ export function applicationToDto(app: ApplicationRecord) {
     jobId: app.jobId,
     coverLetterId: app.coverLetterId,
     status: app.status,
+    statusReason: app.statusReason,
     notes: app.notes,
     appliedAt: app.appliedAt,
     createdAt: app.createdAt,

@@ -15,6 +15,8 @@ export type UserPreferences = {
   trackerView: TrackerView;
   trackerScope: TrackerScope;
   hiddenColumns: ApplicationStatus[];
+  /** Daily job discovery (recommendations from FastAPI). Default on. */
+  discoveryEnabled: boolean;
   updatedAt: string;
 };
 
@@ -33,13 +35,14 @@ function parseHidden(raw: string): ApplicationStatus[] {
 export async function getPreferences(userId: string): Promise<UserPreferences> {
   await ensureAppSchema();
   const rows = (await getSql()`
-    SELECT user_id, tracker_view, tracker_scope, hidden_columns, updated_at
+    SELECT user_id, tracker_view, tracker_scope, hidden_columns, discovery_enabled, updated_at
     FROM user_preferences WHERE user_id = ${userId}
   `) as Array<{
     user_id: string;
     tracker_view: string;
     tracker_scope: string;
     hidden_columns: string;
+    discovery_enabled: number | null;
     updated_at: string;
   }>;
 
@@ -50,6 +53,7 @@ export async function getPreferences(userId: string): Promise<UserPreferences> {
       trackerView: "kanban",
       trackerScope: "active",
       hiddenColumns: [],
+      discoveryEnabled: true,
       updatedAt: new Date(0).toISOString(),
     };
   }
@@ -59,6 +63,7 @@ export async function getPreferences(userId: string): Promise<UserPreferences> {
     trackerView: row.tracker_view === "list" ? "list" : "kanban",
     trackerScope: row.tracker_scope === "archived" ? "archived" : "active",
     hiddenColumns: parseHidden(row.hidden_columns),
+    discoveryEnabled: row.discovery_enabled !== 0,
     updatedAt: row.updated_at,
   };
 }
@@ -69,6 +74,7 @@ export async function updatePreferences(
     trackerView: TrackerView;
     trackerScope: TrackerScope;
     hiddenColumns: ApplicationStatus[];
+    discoveryEnabled: boolean;
   }>,
 ): Promise<UserPreferences> {
   const current = await getPreferences(userId);
@@ -77,17 +83,21 @@ export async function updatePreferences(
     trackerView: patch.trackerView ?? current.trackerView,
     trackerScope: patch.trackerScope ?? current.trackerScope,
     hiddenColumns: patch.hiddenColumns ?? current.hiddenColumns,
+    discoveryEnabled: patch.discoveryEnabled ?? current.discoveryEnabled,
     updatedAt: new Date().toISOString(),
   };
 
   const hiddenJson = JSON.stringify(next.hiddenColumns);
+  const discovery = next.discoveryEnabled ? 1 : 0;
   await getSql()`
-    INSERT INTO user_preferences (user_id, tracker_view, tracker_scope, hidden_columns, updated_at)
-    VALUES (${userId}, ${next.trackerView}, ${next.trackerScope}, ${hiddenJson}, ${next.updatedAt})
+    INSERT INTO user_preferences
+      (user_id, tracker_view, tracker_scope, hidden_columns, discovery_enabled, updated_at)
+    VALUES (${userId}, ${next.trackerView}, ${next.trackerScope}, ${hiddenJson}, ${discovery}, ${next.updatedAt})
     ON CONFLICT (user_id) DO UPDATE SET
       tracker_view = EXCLUDED.tracker_view,
       tracker_scope = EXCLUDED.tracker_scope,
       hidden_columns = EXCLUDED.hidden_columns,
+      discovery_enabled = EXCLUDED.discovery_enabled,
       updated_at = EXCLUDED.updated_at
   `;
 

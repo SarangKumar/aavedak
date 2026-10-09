@@ -320,6 +320,89 @@ async function runSchema() {
       message TEXT,
       created_at TEXT NOT NULL
     )`;
+
+  await runDiscoverySchema(db);
+}
+
+/**
+ * Columns/tables on web-owned data that job + people discovery read or write.
+ * The discovery pipeline itself (registry, source refs, runs, contacts) lives in
+ * FastAPI (`apps/api/app/discovery/`), which owns those tables and mirrors these
+ * statements idempotently in `app/discovery/schema.py` — keep both in sync.
+ * Timestamps stay ISO-8601 UTC TEXT so string comparison orders them correctly.
+ */
+async function runDiscoverySchema(db: NeonQueryFunction<false, false>) {
+  // Canonical shared jobs: posting date is separate from first-seen; expiry uses
+  // COALESCE(posted_at, first_seen_at). closed_at = no longer listed at the source.
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS posted_at TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS posted_at_estimated INTEGER NOT NULL DEFAULT 0`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS first_seen_at TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS expired_at TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS closed_at TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS dedupe_key TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS min_years INTEGER`;
+  await db`UPDATE jobs SET first_seen_at = created_at WHERE first_seen_at IS NULL`;
+  await db`CREATE INDEX IF NOT EXISTS jobs_shared_active_idx
+    ON jobs (first_seen_at) WHERE user_id IS NULL AND expired_at IS NULL`;
+  await db`CREATE INDEX IF NOT EXISTS jobs_dedupe_key_idx ON jobs (dedupe_key) WHERE user_id IS NULL`;
+  await db`CREATE INDEX IF NOT EXISTS jobs_company_id_idx ON jobs (company_id)`;
+
+  // Recommendations live on the existing per-user job state row.
+  await db`ALTER TABLE user_job_state ADD COLUMN IF NOT EXISTS recommended_at TEXT`;
+  await db`ALTER TABLE user_job_state ADD COLUMN IF NOT EXISTS score INTEGER`;
+  await db`ALTER TABLE user_job_state ADD COLUMN IF NOT EXISTS reasons_json TEXT`;
+  await db`CREATE INDEX IF NOT EXISTS user_job_state_recommended_idx
+    ON user_job_state (user_id, recommended_at)`;
+
+  await db`ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS discovery_enabled INTEGER NOT NULL DEFAULT 1`;
+
+  // Application history: system changes (job expiry) are recorded once per reason.
+  await db`ALTER TABLE applications ADD COLUMN IF NOT EXISTS status_reason TEXT`;
+  await db`ALTER TABLE applications ADD COLUMN IF NOT EXISTS status_changed_at TEXT`;
+  await db`CREATE INDEX IF NOT EXISTS applications_job_id_idx ON applications (job_id)`;
+  await db`
+    CREATE TABLE IF NOT EXISTS application_events (
+      id TEXT PRIMARY KEY NOT NULL,
+      application_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      from_status TEXT,
+      to_status TEXT NOT NULL,
+      reason TEXT,
+      actor TEXT NOT NULL CHECK (actor IN ('user', 'system')),
+      created_at TEXT NOT NULL
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS application_events_app_idx ON application_events (application_id)`;
+  await db`CREATE UNIQUE INDEX IF NOT EXISTS application_events_system_reason_uidx
+    ON application_events (application_id, reason) WHERE actor = 'system'`;
+
+  // People: shared entities linked to companies; contacts, job relevance and votes are separate.
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS company_id TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS origin TEXT NOT NULL DEFAULT 'user'`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS dedupe_key TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS linkedin_url_normalized TEXT`;
+  await db`CREATE UNIQUE INDEX IF NOT EXISTS people_linkedin_uidx
+    ON people (linkedin_url_normalized) WHERE linkedin_url_normalized IS NOT NULL`;
+  await db`CREATE INDEX IF NOT EXISTS people_dedupe_key_idx ON people (dedupe_key)`;
+  await db`CREATE INDEX IF NOT EXISTS people_company_id_idx ON people (company_id)`;
+  await db`
+    CREATE TABLE IF NOT EXISTS job_person_relevance (
+      job_id TEXT NOT NULL,
+      person_id TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (job_id, person_id)
+    )`;
+  await db`
+    CREATE TABLE IF NOT EXISTS person_votes (
+      user_id TEXT NOT NULL,
+      person_id TEXT NOT NULL,
+      vote INTEGER NOT NULL CHECK (vote IN (-1, 1)),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, person_id)
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS person_votes_person_idx ON person_votes (person_id)`;
 }
 
 /** Ensure Postgres app schema exists (idempotent). */

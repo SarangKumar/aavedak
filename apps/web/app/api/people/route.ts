@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
-import { createPerson, listPeople } from "@/lib/people";
+import { createPerson, getVoteSummaries, listPeople, type VoteSummary } from "@/lib/people";
 
 async function requireUser() {
   const result = await requireApiUser();
@@ -9,7 +9,9 @@ async function requireUser() {
   return { user: result.user };
 }
 
-function toDto(row: Awaited<ReturnType<typeof listPeople>>[number]) {
+const NO_VOTES: VoteSummary = { up: 0, down: 0, mine: 0 };
+
+function toDto(row: Awaited<ReturnType<typeof listPeople>>[number], votes: VoteSummary = NO_VOTES) {
   return {
     id: row.id,
     name: row.name,
@@ -19,6 +21,9 @@ function toDto(row: Awaited<ReturnType<typeof listPeople>>[number]) {
     notes: row.notes,
     applicationId: row.applicationId,
     status: row.status,
+    origin: row.origin,
+    linkedin: row.linkedin ? `https://www.${row.linkedin}` : null,
+    votes,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -27,7 +32,12 @@ function toDto(row: Awaited<ReturnType<typeof listPeople>>[number]) {
 export async function GET() {
   const authResult = await requireUser();
   if ("error" in authResult) return authResult.error;
-  return NextResponse.json({ people: (await listPeople()).map(toDto) });
+  const people = await listPeople();
+  const votes = await getVoteSummaries(
+    authResult.user.id,
+    people.map((p) => p.id),
+  );
+  return NextResponse.json({ people: people.map((p) => toDto(p, votes.get(p.id))) });
 }
 
 export async function POST(request: Request) {

@@ -23,6 +23,15 @@ export type JobRecord = {
   status: JobStatus;
   externalId: string | null;
   feedSource: string | null;
+  /** Posting date from the source (shared jobs); null when the source gave none. */
+  postedAt: string | null;
+  /** True when postedAt is unknown and age is measured from firstSeenAt. */
+  postedAtEstimated: boolean;
+  firstSeenAt: string | null;
+  expiredAt: string | null;
+  /** No longer listed by its source(s). */
+  closedAt: string | null;
+  minYears: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -46,6 +55,12 @@ type Row = {
   status: JobStatus;
   external_id: string | null;
   feed_source: string | null;
+  posted_at?: string | null;
+  posted_at_estimated?: number | null;
+  first_seen_at?: string | null;
+  expired_at?: string | null;
+  closed_at?: string | null;
+  min_years?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -68,6 +83,12 @@ export function mapJobRow(row: Row): JobRecord {
     status: row.status,
     externalId: row.external_id,
     feedSource: row.feed_source,
+    postedAt: row.posted_at ?? null,
+    postedAtEstimated: Boolean(row.posted_at_estimated),
+    firstSeenAt: row.first_seen_at ?? null,
+    expiredAt: row.expired_at ?? null,
+    closedAt: row.closed_at ?? null,
+    minYears: row.min_years == null ? null : Number(row.min_years),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -157,6 +178,7 @@ export async function setJobApplicationLink(
 }
 
 export async function listIgnoredJobIds(userId: string): Promise<Set<string>> {
+  // Kept for callers that filter in memory; listJobsForUser filters in SQL.
   await ensureAppSchema();
   const rows = (await getSql()`
     SELECT job_id FROM user_job_state WHERE user_id = ${userId} AND ignored = 1
@@ -164,31 +186,118 @@ export async function listIgnoredJobIds(userId: string): Promise<Set<string>> {
   return new Set(rows.map((r) => r.job_id));
 }
 
-/** Jobs visible on Jobs page: shared feed + user's own, minus ignored (unless includeIgnored). */
+/** Legacy demo rows from `ensureDemoJobs` (fixed example.com URLs) never show outside dev. */
+const DEMO_URL_PREFIX = "https://example.com/jobs/";
+
+/**
+ * The user's job universe: their own (manual / pasted) jobs plus shared discovered jobs
+ * they were recommended or acted on. Shared jobs no one recommended to this user stay
+ * hidden — discovery (FastAPI) decides relevance. Ignored jobs are excluded unless asked.
+ */
 export async function listJobsForUser(
   userId: string,
   opts?: { includeArchived?: boolean; includeIgnored?: boolean },
 ): Promise<JobRecord[]> {
   await ensureAppSchema();
-  const includeArchived = opts?.includeArchived ?? false;
-  const rows = includeArchived
-    ? ((await getSql()`
-        SELECT * FROM jobs
-        WHERE user_id IS NULL OR user_id = ${userId}
-        ORDER BY updated_at DESC
-      `) as Row[])
-    : ((await getSql()`
-        SELECT * FROM jobs
-        WHERE (user_id IS NULL OR user_id = ${userId}) AND status != 'archived'
-        ORDER BY updated_at DESC
-      `) as Row[]);
+  const includeArchived = opts?.includeArchived ? 1 : 0;
+  const includeIgnored = opts?.includeIgnored ? 1 : 0;
+  const rows = (await getSql()`
+    SELECT j.* FROM jobs j
+    LEFT JOIN user_job_state s ON s.job_id = j.id AND s.user_id = ${userId}
+    WHERE (j.user_id = ${userId} OR (j.user_id IS NULL AND s.user_id IS NOT NULL))
+      AND (${includeArchived} = 1 OR j.status != 'archived')
+      AND (${includeIgnored} = 1 OR COALESCE(s.ignored, 0) = 0)
+      AND (j.url IS NULL OR j.url NOT LIKE ${DEMO_URL_PREFIX + "%"} OR ${process.env.NODE_ENV !== "production" ? 1 : 0} = 1)
+    ORDER BY j.updated_at DESC
+  `) as Row[];
+  return rows.map(mapJobRow);
+}
 
-  let jobs = rows.map(mapJobRow);
-  if (!opts?.includeIgnored) {
-    const ignored = await listIgnoredJobIds(userId);
-    jobs = jobs.filter((j) => !ignored.has(j.id));
+export type DiscoverJob = JobRecord & {
+  recommendedAt: string | null;
+  recommendationScore: number | null;
+  reasons: { skills?: string[]; roles?: string[]; locations?: string[]; minYears?: number | null };
+};
+
+export type AppliedJob = JobRecord & {
+  applicationId: string;
+  applicationStatus: string;
+  applicationUpdatedAt: string;
+};
+
+function parseReasons(raw: string | null | undefined): DiscoverJob["reasons"] {
+  if (!raw) return {};
+  try {
+    const value = JSON.parse(raw) as unknown;
+    return value && typeof value === "object" ? (value as DiscoverJob["reasons"]) : {};
+  } catch {
+    return {};
   }
-  return jobs;
+}
+
+/**
+ * Discover tab: open recommendations (not applied, not ignored, not expired/closed) plus
+ * the user's own manual jobs that have no application yet. Recommendations accumulate
+ * until acted on; expiry/closure removes them.
+ */
+export async function listDiscoverJobs(userId: string): Promise<DiscoverJob[]> {
+  await ensureAppSchema();
+  const showDemo = process.env.NODE_ENV !== "production" ? 1 : 0;
+  const rows = (await getSql()`
+    SELECT j.*, s.recommended_at, s.score AS recommendation_score, s.reasons_json
+    FROM jobs j
+    LEFT JOIN user_job_state s ON s.job_id = j.id AND s.user_id = ${userId}
+    WHERE j.status != 'archived'
+      AND COALESCE(s.ignored, 0) = 0
+      AND s.application_id IS NULL
+      AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.user_id = ${userId} AND a.job_id = j.id)
+      AND (
+        (j.user_id IS NULL AND s.recommended_at IS NOT NULL
+          AND j.expired_at IS NULL AND j.closed_at IS NULL)
+        OR (j.user_id = ${userId}
+          AND (j.url IS NULL OR j.url NOT LIKE ${DEMO_URL_PREFIX + "%"} OR ${showDemo} = 1))
+      )
+    ORDER BY COALESCE(s.recommended_at, j.created_at) DESC, s.score DESC NULLS LAST
+  `) as Array<
+    Row & {
+      recommended_at: string | null;
+      recommendation_score: number | null;
+      reasons_json: string | null;
+    }
+  >;
+  return rows.map((row) => ({
+    ...mapJobRow(row),
+    recommendedAt: row.recommended_at,
+    recommendationScore: row.recommendation_score == null ? null : Number(row.recommendation_score),
+    reasons: parseReasons(row.reasons_json),
+  }));
+}
+
+/**
+ * Applied tab: jobs the user has an application for (any non-archived status), newest
+ * application first. Expired shared jobs drop out; the application itself stays in the
+ * tracker with its history.
+ */
+export async function listAppliedJobs(userId: string): Promise<AppliedJob[]> {
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT DISTINCT ON (j.id) j.*, a.id AS app_id, a.status AS app_status, a.updated_at AS app_updated_at
+    FROM applications a
+    JOIN jobs j ON j.id = a.job_id
+    WHERE a.user_id = ${userId}
+      AND a.status != 'archived'
+      AND (j.user_id IS NULL OR j.user_id = ${userId})
+      AND j.expired_at IS NULL
+    ORDER BY j.id, a.updated_at DESC
+  `) as Array<Row & { app_id: string; app_status: string; app_updated_at: string }>;
+  return rows
+    .map((row) => ({
+      ...mapJobRow(row),
+      applicationId: row.app_id,
+      applicationStatus: row.app_status,
+      applicationUpdatedAt: row.app_updated_at,
+    }))
+    .sort((a, b) => b.applicationUpdatedAt.localeCompare(a.applicationUpdatedAt));
 }
 
 /** @deprecated Prefer listJobsForUser — kept for older call sites. */
@@ -240,64 +349,15 @@ export async function createJob(
   await getSql()`
     INSERT INTO jobs
       (id, user_id, title, company, company_id, location, source, url, description, salary,
-       status, external_id, feed_source, created_at, updated_at)
+       status, external_id, feed_source, created_at, updated_at, first_seen_at)
     VALUES (
       ${id}, ${userId}, ${title}, ${companyName}, ${companyId}, ${location}, ${source}, ${url},
-      ${description}, ${salary}, 'active', ${externalId}, ${feedSource}, ${now}, ${now}
+      ${description}, ${salary}, 'active', ${externalId}, ${feedSource}, ${now}, ${now}, ${now}
     )
   `;
   const created = await getJobById(id);
   if (!created) throw new Error("Failed to create job.");
   return created;
-}
-
-export async function upsertFeedJob(input: {
-  title: string;
-  company: string;
-  location: string;
-  source: JobSource;
-  url?: string | null;
-  description?: string;
-  salary?: string | null;
-  externalId: string;
-  feedSource: string;
-}): Promise<{ job: JobRecord; created: boolean }> {
-  await ensureAppSchema();
-  const externalId = requireText(input.externalId, "externalId");
-  const feedSource = requireText(input.feedSource, "feedSource");
-  const existing = (await getSql()`
-    SELECT * FROM jobs
-    WHERE feed_source = ${feedSource} AND external_id = ${externalId}
-    LIMIT 1
-  `) as Row[];
-  if (existing[0]) {
-    const id = existing[0].id;
-    const title = requireText(input.title, "Title");
-    const companyName = requireText(input.company, "Company");
-    const location = requireText(input.location, "Location");
-    const company = await ensureCompany(companyName);
-    const url = optional(input.url);
-    const description = typeof input.description === "string" ? input.description : "";
-    const salary = optional(input.salary);
-    const now = new Date().toISOString();
-    await getSql()`
-      UPDATE jobs SET
-        title = ${title}, company = ${companyName}, company_id = ${company.id},
-        location = ${location}, source = ${input.source}, url = ${url},
-        description = ${description}, salary = ${salary}, updated_at = ${now},
-        status = 'active'
-      WHERE id = ${id}
-    `;
-    const job = await getJobById(id);
-    if (!job) throw new Error("Feed upsert failed.");
-    return { job, created: false };
-  }
-  const job = await createJob(null, {
-    ...input,
-    externalId,
-    feedSource,
-  });
-  return { job, created: true };
 }
 
 export async function updateJob(
@@ -361,7 +421,14 @@ export async function archiveJob(userId: string, id: string): Promise<JobRecord>
   return updateJob(userId, id, { status: "archived" });
 }
 
+/**
+ * Dev-only sample jobs (fixed example.com URLs). Never runs in production: Aavedak must
+ * not show invented jobs to real users.
+ */
 export async function ensureDemoJobs(userId: string): Promise<JobRecord[]> {
+  if (process.env.NODE_ENV === "production" || process.env.JOBS_DEMO !== "1") {
+    return listJobsForUser(userId);
+  }
   const samples = [
     {
       title: "Senior Frontend Engineer",

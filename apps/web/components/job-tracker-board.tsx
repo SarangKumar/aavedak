@@ -75,6 +75,8 @@ export type ApplicationDto = {
   coverLetterTitle?: string | null;
   jobTitle?: string | null;
   status: ApplicationStatus;
+  /** System reason for the last status change (`job_expired` → auto-rejected). */
+  statusReason?: string | null;
   notes: string | null;
   appliedAt?: string | null;
   createdAt: string;
@@ -694,6 +696,9 @@ export function JobTrackerBoard({
                                         {app.location}
                                         {app.salaryCtc ? ` · ${app.salaryCtc}` : ""}
                                       </p>
+                                      {app.statusReason === "job_expired" ? (
+                                        <JobExpiredBadge />
+                                      ) : null}
                                     </CardFooter>
                                   </Card>
                                 </DragDropItem>
@@ -1141,7 +1146,10 @@ function ListView({
                 {app.salaryCtc || "—"}
               </TableCell>
               <TableCell className="text-muted-foreground font-normal">
-                {STATUS_LABELS[app.status]}
+                <span className="inline-flex items-center gap-1.5">
+                  {STATUS_LABELS[app.status]}
+                  {app.statusReason === "job_expired" ? <JobExpiredBadge /> : null}
+                </span>
               </TableCell>
             </TableRow>
           ))}
@@ -1200,5 +1208,18 @@ function ListView({
         </div>
       )}
     </div>
+  );
+}
+
+/** Marks applications the system moved to Rejected because the posting expired. */
+function JobExpiredBadge() {
+  return (
+    <Badge
+      variant="secondary"
+      className="px-1.5 py-0 text-[10px]"
+      title="Automatically marked Rejected: the job posting is older than 30 days. Change the status anytime."
+    >
+      Job expired
+    </Badge>
   );
 }

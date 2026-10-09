@@ -43,6 +43,10 @@ export async function PATCH(request: Request) {
     );
   }
 
+  if (typeof body.discoveryEnabled === "boolean") {
+    patch.discoveryEnabled = body.discoveryEnabled;
+  }
+
   const preferences = await updatePreferences(user.id, patch);
   return NextResponse.json({ preferences });
 }

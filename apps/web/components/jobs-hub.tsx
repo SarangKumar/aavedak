@@ -3,9 +3,16 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { CompanySelect } from "@/components/company-select";
+import { PersonVote, personInitials, type VoteSummaryDto } from "@/components/person-vote";
+import { ShellWidth } from "@/components/shell-width";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { ResizeHandle } from "@/components/ui/resize-handle";
 import {
   Select,
   SelectContent,
@@ -13,33 +20,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/components/ui/toast";
+import { STATUS_LABELS, isApplicationStatus } from "@/lib/application-status";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
-import { ShellWidth } from "@/components/shell-width";
-import { ResizeHandle } from "@/components/ui/resize-handle";
-import { CompanySelect } from "@/components/company-select";
-import { Spinner } from "@/components/ui/spinner";
+import type { JobDtoBase } from "@/lib/job-dto";
 import { cn } from "@/lib/utils";
 
-export type JobDto = {
-  id: string;
-  title: string;
-  company: string;
-  companyId?: string | null;
-  location: string;
-  source: JobSource;
-  url: string | null;
-  description: string;
-  salary: string | null;
-  status: "active" | "archived";
-  createdAt: string;
-  updatedAt: string;
-  compatibilityScore?: number | null;
-  atsScore?: number | null;
-};
+export type JobDto = JobDtoBase;
+
+type JobsTab = "discover" | "applied";
 
 type JobsHubProps = {
-  initialJobs: JobDto[];
+  initialDiscover: JobDto[];
+  initialApplied: JobDto[];
+  discoveryEnabled: boolean;
+  profileSettingsHref: string;
 };
+
+type JobPersonDto = {
+  id: string;
+  name: string;
+  roleTitle: string | null;
+  email: string | null;
+  linkedin: string | null;
+  origin: "system" | "user";
+  relevanceReason: string;
+  votes: VoteSummaryDto;
+};
+
+/** Must match JOB_EXPIRY_DAYS in the API (default 30). Display only. */
+const EXPIRY_DAYS = 30;
 
 const SOURCE_LABELS: Record<JobSource, string> = {
   manual: "Manual",
@@ -48,15 +61,6 @@ const SOURCE_LABELS: Record<JobSource, string> = {
   indeed: "Indeed",
   other: "Other",
   demo: "Demo",
-};
-
-const SOURCE_TONE: Record<JobSource, string> = {
-  manual: "bg-muted text-muted-foreground",
-  linkedin: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
-  careers: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-  indeed: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
-  other: "bg-secondary text-secondary-foreground",
-  demo: "bg-primary/15 text-primary",
 };
 
 const PANE_WIDTH_KEY = "aavedak-jobs-list-width";
@@ -68,20 +72,52 @@ function initials(company: string): string {
   return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
 }
 
-function relativeAge(iso: string): string {
+function daysSince(iso: string | null): number | null {
+  if (!iso) return null;
   const t = Date.parse(iso);
-  if (Number.isNaN(t)) return "";
-  const days = Math.max(0, Math.floor((Date.now() - t) / 86_400_000));
-  if (days === 0) return "Today";
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, Math.floor((Date.now() - t) / 86_400_000));
+}
+
+function relativeAge(iso: string | null): string {
+  const days = daysSince(iso);
+  if (days === null) return "";
+  if (days === 0) return "today";
   if (days === 1) return "1d ago";
   if (days < 14) return `${days}d ago`;
   if (days < 60) return `${Math.floor(days / 7)}w ago`;
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-export function JobsHub({ initialJobs }: JobsHubProps) {
-  const [jobs, setJobs] = useState(initialJobs);
-  const [selectedId, setSelectedId] = useState<string | null>(initialJobs[0]?.id ?? null);
+/** "Posted 3d ago" for discovered jobs (or "First seen" when the source had no date). */
+function ageLabel(job: JobDto): string {
+  if (!job.discovered) return `Added ${relativeAge(job.createdAt)}`;
+  if (job.postedAt && !job.postedAtEstimated) return `Posted ${relativeAge(job.postedAt)}`;
+  return `First seen ${relativeAge(job.firstSeenAt ?? job.createdAt)}`;
+}
+
+function daysLeft(job: JobDto): number | null {
+  if (!job.discovered) return null;
+  const age = daysSince(job.postedAt ?? job.firstSeenAt);
+  return age === null ? null : Math.max(0, EXPIRY_DAYS - age);
+}
+
+function statusLabel(status: string | null | undefined): string | null {
+  if (!status) return null;
+  return isApplicationStatus(status) ? STATUS_LABELS[status] : status;
+}
+
+export function JobsHub({
+  initialDiscover,
+  initialApplied,
+  discoveryEnabled,
+  profileSettingsHref,
+}: JobsHubProps) {
+  const [tab, setTab] = useState<JobsTab>("discover");
+  const [discover, setDiscover] = useState(initialDiscover);
+  const [applied, setApplied] = useState(initialApplied);
+  const jobs = tab === "discover" ? discover : applied;
+  const [selectedId, setSelectedId] = useState<string | null>(initialDiscover[0]?.id ?? null);
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [listWidth, setListWidth] = useState(360);
@@ -144,6 +180,13 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
 
   const selected = filtered.find((j) => j.id === selectedId) ?? filtered[0] ?? null;
 
+  function switchTab(next: string) {
+    const value: JobsTab = next === "applied" ? "applied" : "discover";
+    setTab(value);
+    setSourceFilter("all");
+    setSelectedId((value === "applied" ? applied : discover)[0]?.id ?? null);
+  }
+
   function onResizeStart(event: React.PointerEvent<HTMLDivElement>) {
     dragRef.current = { startX: event.clientX, startWidth: listWidth };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -181,7 +224,8 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
       const data = (await res.json()) as { job?: JobDto; error?: string };
       if (!res.ok) throw new Error(data.error || "Create failed.");
       if (data.job) {
-        setJobs((list) => [data.job!, ...list]);
+        setDiscover((list) => [data.job!, ...list]);
+        setTab("discover");
         setSelectedId(data.job.id);
       }
       setDraft({
@@ -210,9 +254,9 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
       const res = await fetch(`/api/jobs/${id}/ignore`, { method: "POST" });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Could not ignore.");
-      setJobs((list) => list.filter((j) => j.id !== id));
+      setDiscover((list) => list.filter((j) => j.id !== id));
       if (selectedId === id) setSelectedId(null);
-      setMessage("Ignored — hidden from your Jobs list.");
+      toast.add({ title: "Ignored", description: "Hidden from Discover.", type: "info" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not ignore.");
     } finally {
@@ -220,10 +264,8 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
     }
   }
 
-  async function createApplicationFromJob(
-    job: JobDto,
-    status: "bookmarked" | "preparing" | "applied",
-  ) {
+  /** Bookmark / Apply create an application; the job moves to the Applied tab. */
+  async function createApplicationFromJob(job: JobDto, status: "bookmarked" | "applied") {
     setError(null);
     setMessage(null);
     setPending(true);
@@ -244,14 +286,22 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
       const data = (await res.json()) as {
         error?: string;
         duplicateWarning?: boolean;
+        application?: { id: string; status: string };
       };
       if (!res.ok) throw new Error(data.error || "Could not create application.");
-      const label =
-        status === "bookmarked" ? "Bookmarked" : status === "preparing" ? "Preparing" : "Applied";
+      const moved: JobDto = {
+        ...job,
+        applicationId: data.application?.id ?? null,
+        applicationStatus: data.application?.status ?? status,
+      };
+      setDiscover((list) => list.filter((j) => j.id !== job.id));
+      setApplied((list) => [moved, ...list.filter((j) => j.id !== job.id)]);
+      setSelectedId(null);
+      const label = status === "bookmarked" ? "Bookmarked" : "Marked applied";
       setMessage(
         data.duplicateWarning
-          ? `${label} in tracker (possible duplicate company+role).`
-          : `${label} — open Job tracker to continue.`,
+          ? `${label} — moved to Applied (possible duplicate company+role in tracker).`
+          : `${label} — moved to Applied. Continue in the Job tracker.`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create application.");
@@ -297,7 +347,8 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
       const createData = (await createRes.json()) as { job?: JobDto; error?: string };
       if (!createRes.ok) throw new Error(createData.error || "Could not register job.");
       if (createData.job) {
-        setJobs((list) => [createData.job!, ...list]);
+        setDiscover((list) => [createData.job!, ...list]);
+        setTab("discover");
         setSelectedId(createData.job.id);
       }
       await fetch("/api/analyses", {
@@ -311,7 +362,7 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
       setPasteOpen(false);
       setPasteText("");
       setMessage(
-        `Registered job · Match ${createData.job?.compatibilityScore ?? "—"}% · ATS ${createData.job?.atsScore ?? "—"}%. Generate a cover letter from Documents.`,
+        `Registered job · Match ${createData.job?.compatibilityScore ?? "—"}% · JD quality ${createData.job?.atsScore ?? "—"}%. Generate a cover letter from Documents.`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed.");
@@ -322,8 +373,8 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
 
   const sourceChipOrder: Array<"all" | JobSource> = [
     "all",
-    "linkedin",
     "careers",
+    "linkedin",
     "indeed",
     "manual",
     "other",
@@ -339,63 +390,70 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
           </p>
           <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Jobs</h1>
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-            Multi-source discovery with a resizable master–detail shell. Bookmark into Job tracker
-            without leaving the pane. Pasted JD analysis stays private to you.
+            Junior engineering roles in India, discovered daily from company career pages and ranked
+            against your resume. Jobs leave both tabs {EXPIRY_DAYS} days after posting.
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            onClick={() => setPasteOpen(true)}
-            className="border-border bg-card text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-md border px-2.5 text-[12px]"
-          >
+          <Button type="button" variant="outline" size="sm" onClick={() => setPasteOpen(true)}>
             Paste JD
-          </button>
-          <button
-            type="button"
-            onClick={() => setAddOpen(true)}
-            className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 items-center rounded-md px-3 text-[12px] font-semibold shadow-sm ring-1"
-          >
+          </Button>
+          <Button type="button" size="sm" onClick={() => setAddOpen(true)}>
             Add job
-          </button>
+          </Button>
         </div>
       </header>
 
       <div className="flex flex-col gap-2.5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search title, company, or description…"
-            className="border-border bg-card text-foreground h-8 w-full rounded-md border px-3 text-[13px] sm:max-w-sm"
-          />
-          <span className="text-muted-foreground text-[11px] tabular-nums">
-            {filtered.length} of {jobs.length} roles
-          </span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <Tabs value={tab} onValueChange={switchTab}>
+            <TabsList>
+              <TabsTrigger value="discover">
+                Discover jobs
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
+                  {discover.length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="applied">
+                Applied jobs
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
+                  {applied.length}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <div className="flex items-center gap-2">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search title, company, or description…"
+              className="h-8 w-full text-[13px] sm:w-72"
+              aria-label="Search jobs"
+            />
+            <span className="text-muted-foreground shrink-0 text-[11px] tabular-nums">
+              {filtered.length} of {jobs.length}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Filter by source">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by source">
           {sourceChipOrder.map((key) => {
             const count = sourceCounts[key] ?? 0;
             if (key !== "all" && count === 0) return null;
             const active = sourceFilter === key;
             const label = key === "all" ? "All sources" : SOURCE_LABELS[key];
             return (
-              <button
+              <Button
                 key={key}
                 type="button"
-                role="tab"
-                aria-selected={active}
+                size="xs"
+                variant={active ? "secondary" : "ghost"}
+                aria-pressed={active}
                 onClick={() => setSourceFilter(key)}
-                className={cn(
-                  "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium transition-colors",
-                  active
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border/80 bg-card text-muted-foreground hover:text-foreground",
-                )}
+                className="rounded-full"
               >
                 {label}
                 <span className="tabular-nums opacity-70">{count}</span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -405,20 +463,38 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
       {message ? (
         <p className="text-primary text-[13px]">
           {message}{" "}
-          {message.includes("tracker") || message.includes("Tracker") ? (
-            <Link href="/job-tracker" className="font-medium underline-offset-2 hover:underline">
-              Open tracker
-            </Link>
-          ) : null}
+          <Link href="/job-tracker" className="font-medium underline-offset-2 hover:underline">
+            Open tracker
+          </Link>
         </p>
       ) : null}
 
-      <div className="border-border/80 bg-card flex min-h-[30rem] flex-col overflow-hidden rounded-lg border md:flex-row">
+      {tab === "discover" && !discoveryEnabled ? (
+        <Card size="sm" className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-[13px]">Daily discovery is paused</CardTitle>
+            <CardDescription className="text-[12px]">
+              You won&apos;t get new recommendations until you turn it back on. Existing ones stay
+              here until you apply or ignore them.{" "}
+              <Link href={profileSettingsHref} className="text-primary hover:underline">
+                Profile settings → Job discovery
+              </Link>
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      <Card className="min-h-[30rem] gap-0 overflow-hidden p-0 md:flex-row">
         <aside
           className="border-border/60 flex w-full shrink-0 flex-col border-b md:w-[var(--jobs-list-width)] md:max-w-[min(100%,560px)] md:border-b-0 md:border-r"
           style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
         >
-          <JobList jobs={filtered} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
+          <JobList
+            jobs={filtered}
+            tab={tab}
+            selectedId={selected?.id ?? null}
+            onSelect={setSelectedId}
+          />
         </aside>
 
         <ResizeHandle
@@ -431,132 +507,24 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
 
         <section className="min-w-0 flex-1 p-4 sm:p-5">
           {!selected ? (
-            <div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 text-center text-[13px]">
-              <p>
-                {jobs.length === 0
-                  ? "No jobs yet — add one to get started."
-                  : "Select a job to see details."}
-              </p>
-              {jobs.length === 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setAddOpen(true)}
-                  className="text-primary text-[12px] font-medium hover:underline"
-                >
-                  Add your first job
-                </button>
-              ) : null}
-            </div>
+            <EmptyState
+              tab={tab}
+              hasJobs={jobs.length > 0}
+              discoveryEnabled={discoveryEnabled}
+              onAdd={() => setAddOpen(true)}
+            />
           ) : (
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div
-                  className="bg-muted text-foreground flex size-11 shrink-0 items-center justify-center rounded-md text-[13px] font-semibold tracking-tight"
-                  aria-hidden
-                >
-                  {initials(selected.company)}
-                </div>
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge
-                      variant="ghost"
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                        SOURCE_TONE[selected.source],
-                      )}
-                    >
-                      {SOURCE_LABELS[selected.source]}
-                    </Badge>
-                    {selected.salary ? (
-                      <span className="text-foreground/90 text-[12px] font-medium">
-                        {selected.salary}
-                      </span>
-                    ) : null}
-                    <span className="text-muted-foreground text-[11px]">
-                      {relativeAge(selected.createdAt)}
-                    </span>
-                  </div>
-                  <h2 className="aavedak-display text-foreground text-xl sm:text-2xl">
-                    {selected.title}
-                  </h2>
-                  <p className="text-foreground/90 text-[13px]">
-                    {selected.company}
-                    <span className="text-muted-foreground"> · {selected.location}</span>
-                  </p>
-                  {selected.url ? (
-                    <a
-                      href={selected.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-primary text-[12px] hover:underline"
-                    >
-                      Open job link
-                    </a>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <MetaChip
-                  label="Match"
-                  value={
-                    selected.compatibilityScore != null ? `${selected.compatibilityScore}%` : "—"
-                  }
-                />
-                <MetaChip
-                  label="ATS"
-                  value={selected.atsScore != null ? `${selected.atsScore}%` : "—"}
-                />
-                <MetaChip label="Source" value={SOURCE_LABELS[selected.source]} />
-                <MetaChip label="Comp" value={selected.salary ?? "—"} />
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => void createApplicationFromJob(selected, "applied")}
-                  className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[12px] font-semibold disabled:opacity-60"
-                >
-                  {pending ? <Spinner className="size-3.5" /> : null}
-                  Apply
-                </button>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => void ignoreJob(selected.id)}
-                  className="border-border text-foreground hover:border-primary/40 inline-flex h-8 items-center rounded-md border px-3 text-[12px] disabled:opacity-60"
-                >
-                  Ignore
-                </button>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => void createApplicationFromJob(selected, "bookmarked")}
-                  className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-md border px-3 text-[12px] disabled:opacity-60"
-                >
-                  Bookmark
-                </button>
-                <Link
-                  href={`/documents?tab=cover_letters&jobId=${selected.id}`}
-                  className="border-border text-foreground hover:border-primary/40 inline-flex h-8 items-center rounded-md border px-3 text-[12px]"
-                >
-                  Cover letter
-                </Link>
-              </div>
-
-              <div className="border-border/70 bg-muted/30 rounded-lg border p-3 sm:p-4">
-                <h3 className="text-foreground mb-2 text-[12px] font-semibold tracking-tight">
-                  Description
-                </h3>
-                <pre className="text-muted-foreground max-h-[22rem] overflow-auto whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
-                  {selected.description || "No description provided."}
-                </pre>
-              </div>
-            </div>
+            <JobDetail
+              job={selected}
+              tab={tab}
+              pending={pending}
+              onApply={() => void createApplicationFromJob(selected, "applied")}
+              onBookmark={() => void createApplicationFromJob(selected, "bookmarked")}
+              onIgnore={() => void ignoreJob(selected.id)}
+            />
           )}
         </section>
-      </div>
+      </Card>
 
       <Modal open={addOpen} title="Add job" onClose={() => setAddOpen(false)}>
         <div className="space-y-2.5">
@@ -674,23 +642,299 @@ export function JobsHub({ initialJobs }: JobsHubProps) {
   );
 }
 
+function EmptyState({
+  tab,
+  hasJobs,
+  discoveryEnabled,
+  onAdd,
+}: {
+  tab: JobsTab;
+  hasJobs: boolean;
+  discoveryEnabled: boolean;
+  onAdd: () => void;
+}) {
+  let text = "Select a job to see details.";
+  if (!hasJobs && tab === "applied") {
+    text = "Nothing here yet. Apply to or bookmark a job from Discover and it moves here.";
+  } else if (!hasJobs) {
+    text = discoveryEnabled
+      ? "No new matches right now. Discovery scans career pages every night (IST) and adds up to 50 new junior roles a day."
+      : "Discovery is paused. Add a job manually or turn discovery back on in Profile settings.";
+  }
+  return (
+    <div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 text-center text-[13px]">
+      <p className="max-w-sm">{text}</p>
+      {!hasJobs && tab === "discover" ? (
+        <Button type="button" variant="link" size="sm" onClick={onAdd}>
+          Add a job manually
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function JobDetail({
+  job,
+  tab,
+  pending,
+  onApply,
+  onBookmark,
+  onIgnore,
+}: {
+  job: JobDto;
+  tab: JobsTab;
+  pending: boolean;
+  onApply: () => void;
+  onBookmark: () => void;
+  onIgnore: () => void;
+}) {
+  const left = daysLeft(job);
+  const reasons = [...(job.reasons?.skills ?? []), ...(job.reasons?.roles ?? [])].slice(0, 8);
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3">
+        <Avatar className="size-11 rounded-md">
+          <AvatarFallback className="rounded-md text-[13px] font-semibold">
+            {initials(job.company)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge
+              variant={job.discovered ? "outline" : "secondary"}
+              className="text-[10px] uppercase"
+            >
+              {job.discovered ? "Discovered" : SOURCE_LABELS[job.source]}
+            </Badge>
+            {tab === "applied" && job.applicationStatus ? (
+              <Badge className="text-[10px]">{statusLabel(job.applicationStatus)}</Badge>
+            ) : null}
+            {job.minYears != null ? (
+              <Badge variant="secondary" className="text-[10px]">
+                {job.minYears === 0 ? "Fresher friendly" : `${job.minYears}+ yrs`}
+              </Badge>
+            ) : null}
+            <span className="text-muted-foreground text-[11px]">{ageLabel(job)}</span>
+            {left !== null ? (
+              <span
+                className={cn(
+                  "text-[11px]",
+                  left <= 5 ? "text-destructive" : "text-muted-foreground",
+                )}
+              >
+                · {left === 0 ? "expires today" : `${left}d left`}
+              </span>
+            ) : null}
+          </div>
+          <h2 className="aavedak-display text-foreground text-xl sm:text-2xl">{job.title}</h2>
+          <p className="text-foreground/90 text-[13px]">
+            {job.company}
+            <span className="text-muted-foreground"> · {job.location}</span>
+          </p>
+          {job.url ? (
+            <a
+              href={job.url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary text-[12px] hover:underline"
+            >
+              View original posting ↗
+            </a>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <MetaChip
+          label="Match"
+          value={job.compatibilityScore != null ? `${job.compatibilityScore}%` : "—"}
+        />
+        <MetaChip label="JD quality" value={job.atsScore != null ? `${job.atsScore}%` : "—"} />
+        <MetaChip
+          label="Experience"
+          value={job.minYears != null ? `${job.minYears}+ yrs` : "Not stated"}
+        />
+        <MetaChip label="Comp" value={job.salary ?? "—"} />
+      </div>
+
+      {reasons.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-muted-foreground text-[11px]">Matches your profile:</span>
+          {reasons.map((r) => (
+            <Badge key={r} variant="outline" className="text-[10px]">
+              {r}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+
+      {tab === "discover" ? (
+        <div className="flex flex-wrap gap-1.5">
+          <Button type="button" size="sm" loading={pending} onClick={onApply}>
+            Mark applied
+          </Button>
+          <Button type="button" size="sm" variant="outline" disabled={pending} onClick={onBookmark}>
+            Bookmark
+          </Button>
+          <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={onIgnore}>
+            Ignore
+          </Button>
+          <Link
+            href={`/documents?tab=cover_letters&jobId=${job.id}`}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            Cover letter
+          </Link>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          <Link href="/job-tracker" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Open in tracker
+          </Link>
+          <Link
+            href={`/documents?tab=cover_letters&jobId=${job.id}`}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            Cover letter
+          </Link>
+        </div>
+      )}
+
+      <JobPeople jobId={job.id} company={job.company} />
+
+      <Card size="sm" className="bg-muted/30">
+        <CardHeader>
+          <CardTitle className="text-[12px]">Description</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <pre className="text-muted-foreground max-h-[22rem] overflow-auto whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
+            {job.description || "No description provided."}
+          </pre>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/** People at the job's company, for a referral ask (relevance first, then community votes). */
+function JobPeople({ jobId, company }: { jobId: string; company: string }) {
+  const [people, setPeople] = useState<JobPersonDto[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPeople(null);
+    setFailed(false);
+    fetch(`/api/jobs/${jobId}/people`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("failed"))))
+      .then((data: { people: JobPersonDto[] }) => {
+        if (!cancelled) setPeople(data.people);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId]);
+
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle className="text-[12px]">People at {company}</CardTitle>
+        <CardDescription className="text-[11px]">
+          Possible referral contacts. Votes are a community signal, not a promise to refer.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="gap-2">
+        {failed ? (
+          <p className="text-muted-foreground text-[12px]">Could not load people.</p>
+        ) : people === null ? (
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-2/3" />
+          </div>
+        ) : people.length === 0 ? (
+          <p className="text-muted-foreground text-[12px]">
+            No one at {company} yet.{" "}
+            <Link href="/people" className="text-primary hover:underline">
+              Add a contact
+            </Link>
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {people.map((person, index) => (
+              <li key={person.id} className="space-y-2">
+                {index > 0 ? <Separator /> : null}
+                <div className="flex items-center gap-2.5">
+                  <Avatar className="size-8">
+                    <AvatarFallback className="text-[10px]">
+                      {personInitials(person.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-foreground flex items-center gap-1.5 truncate text-[12px] font-medium">
+                      {person.name}
+                      {person.origin === "system" ? (
+                        <Badge variant="outline" className="px-1 py-0 text-[9px]">
+                          Discovered
+                        </Badge>
+                      ) : null}
+                    </p>
+                    <p className="text-muted-foreground truncate text-[11px]">
+                      {person.roleTitle ?? "Role unknown"} · {person.relevanceReason}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {person.linkedin ? (
+                      <a
+                        href={person.linkedin}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={buttonVariants({ variant: "ghost", size: "xs" })}
+                      >
+                        LinkedIn
+                      </a>
+                    ) : null}
+                    {person.email ? (
+                      <Link
+                        href={`/referrals?personId=${person.id}`}
+                        className={buttonVariants({ variant: "ghost", size: "xs" })}
+                      >
+                        Ask
+                      </Link>
+                    ) : null}
+                    <PersonVote personId={person.id} initial={person.votes} />
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function MetaChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-border/70 bg-muted/40 rounded-md border px-2.5 py-2">
+    <Card size="sm" className="bg-muted/40 gap-0.5 px-2.5 py-2">
       <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
         {label}
       </p>
-      <p className="text-foreground mt-0.5 truncate text-[12px] font-medium">{value}</p>
-    </div>
+      <p className="text-foreground truncate text-[12px] font-medium">{value}</p>
+    </Card>
   );
 }
 
 function JobList({
   jobs,
+  tab,
   selectedId,
   onSelect,
 }: {
   jobs: JobDto[];
+  tab: JobsTab;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -713,39 +957,35 @@ function JobList({
                 : "hover:border-border hover:bg-accent/40 border-transparent",
             )}
           >
-            <div
-              className="bg-muted text-foreground mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold"
-              aria-hidden
-            >
-              {initials(job.company)}
-            </div>
+            <Avatar className="mt-0.5 size-8 rounded-md">
+              <AvatarFallback className="rounded-md text-[10px] font-semibold">
+                {initials(job.company)}
+              </AvatarFallback>
+            </Avatar>
             <div className="min-w-0 flex-1">
               <p className="text-foreground truncate text-[13px] font-semibold">{job.title}</p>
               <p className="text-muted-foreground truncate text-[12px]">
                 {job.company} · {job.location}
               </p>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <span
-                  className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                    SOURCE_TONE[job.source],
-                  )}
-                >
-                  {SOURCE_LABELS[job.source]}
-                </span>
+                {tab === "applied" && job.applicationStatus ? (
+                  <Badge className="px-1.5 py-0 text-[10px]">
+                    {statusLabel(job.applicationStatus)}
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant={job.discovered ? "outline" : "secondary"}
+                    className="px-1.5 py-0 text-[10px] uppercase"
+                  >
+                    {job.discovered ? "Discovered" : SOURCE_LABELS[job.source]}
+                  </Badge>
+                )}
                 {job.compatibilityScore != null ? (
                   <span className="text-foreground/80 text-[10px] font-medium tabular-nums">
                     Match {job.compatibilityScore}%
                   </span>
                 ) : null}
-                {job.atsScore != null ? (
-                  <span className="text-muted-foreground text-[10px] tabular-nums">
-                    ATS {job.atsScore}%
-                  </span>
-                ) : null}
-                {job.salary ? (
-                  <span className="text-muted-foreground text-[10px]">{job.salary}</span>
-                ) : null}
+                <span className="text-muted-foreground text-[10px]">{ageLabel(job)}</span>
               </div>
             </div>
           </button>
