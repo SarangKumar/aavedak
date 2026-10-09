@@ -9,7 +9,11 @@ export type AtsEngineId =
   | "resume_worded_style"
   | "teal_style"
   | "rezi_style"
-  | "skillsyncer_style";
+  | "skillsyncer_style"
+  | "open_ats"
+  | "ats_resume_checker"
+  | "resume_skills_extractor"
+  | "hybrid_resume_analyzer";
 
 export type AtsScoreType =
   | "resume_quality"
@@ -17,14 +21,22 @@ export type AtsScoreType =
   | "role_match"
   | "ats_readability"
   | "resume_optimization"
-  | "weighted_job_match";
+  | "weighted_job_match"
+  | "ats_scan"
+  | "ats_readiness"
+  | "skill_similarity_match"
+  | "hybrid_match";
 
 export type EngineCapability = {
   id: AtsEngineId;
   name: string;
   shortDescription: string;
   /** Independent Aavedak implementation vs public-doc reference profile. */
-  kind: "native" | "reference";
+  kind: "native" | "reference" | "open_source";
+  /** Open-source project the engine is adapted from (kind "open_source"). */
+  referenceRepo?: string;
+  /** Local TS fallback when FastAPI is unreachable; "none" fails explicitly instead of faking a score. */
+  fallback: "ts" | "none";
   /** Modes this engine can run (product config — not a vendor claim). */
   supportedModes: AtsMode[];
   title: InputRequirement;
@@ -32,6 +44,8 @@ export type EngineCapability = {
   /** Default mode when inputs allow multiple. */
   preferredMode: AtsMode;
   scoreTypes: AtsScoreType[];
+  /** Explicit score type per mode; falls back to scoreTypes preference rules when absent. */
+  scoreTypeByMode?: Partial<Record<AtsMode, AtsScoreType>>;
   scoringProfileId: string;
   profileVersion: string;
   limitations: string[];
@@ -66,7 +80,31 @@ export type AnalysisCombination = {
 };
 
 export type AtsBatchCellStatus =
-  "idle" | "queued" | "running" | "done" | "error" | "unsupported" | "excluded";
+  "idle" | "queued" | "running" | "done" | "error" | "unsupported" | "excluded" | "cancelled";
+
+/** Backend-reported processing stages (mirrors apps/api/app/ats/pipeline.py). */
+export type AtsStage =
+  | "queued"
+  | "validating_input"
+  | "parsing_resume"
+  | "parsing_job_description"
+  | "extracting_skills"
+  | "analyzing_content"
+  | "matching_keywords"
+  | "calculating_score"
+  | "generating_report"
+  | "completed"
+  | "completed_with_warnings"
+  | "failed"
+  | "cancelled";
+
+/** Why a combination produced no score — never shown as a generic "N/A". */
+export type AtsFailureKind =
+  | "unsupported_mode"
+  | "missing_input"
+  | "parsing_failure"
+  | "analysis_failure"
+  | "service_unavailable";
 
 export type AtsBatchResultCell = {
   resumeId: string;
@@ -79,6 +117,28 @@ export type AtsBatchResultCell = {
   scoreLabel?: string;
   analysis?: AtsAnalysis | null;
   error?: string;
+  failureKind?: AtsFailureKind;
   engineRuntime?: "fastapi" | "fallback" | "reference";
   profileVersion?: string;
+  /** Current/last backend stage for this combination. */
+  stage?: AtsStage;
+  stageMessage?: string;
+  stageAt?: string;
+  /** Client run id + backend sequence: used to drop stale or out-of-order updates. */
+  runId?: string;
+  seq?: number;
 };
+
+/** NDJSON event streamed by POST /api/ats/run with `stream: true`. */
+export type AtsRunEvent =
+  | {
+      type: "stage";
+      resumeId: string;
+      engineId: AtsEngineId;
+      runId: string;
+      seq: number;
+      stage: AtsStage;
+      message?: string;
+      at: string;
+    }
+  | { type: "result"; runId: string; seq: number; result: AtsBatchResultCell };

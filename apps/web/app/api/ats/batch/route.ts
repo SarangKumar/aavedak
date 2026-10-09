@@ -15,7 +15,7 @@ import { normalizeAtsIssues } from "@/lib/ats-types";
 import { ensureResumeText, getResume } from "@/lib/resumes";
 
 const MAX_RESUMES = 12;
-const MAX_ENGINES = 6;
+const MAX_ENGINES = 10;
 const MAX_JD_CHARS = 40_000;
 
 type Body = {

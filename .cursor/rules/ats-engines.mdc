@@ -1,0 +1,7 @@
+---
+description: ATS scoring engines, stage streaming, and results table (loads only for ATS files)
+globs: apps/api/app/ats/**,apps/api/tests/test_*engines*.py,apps/web/lib/ats-engines/**,apps/web/lib/ats-service.ts,apps/web/lib/ats-types.ts,apps/web/app/api/ats/**,apps/web/components/ats-*.tsx
+alwaysApply: false
+---
+
+@apps/api/app/ats/ENGINES.md

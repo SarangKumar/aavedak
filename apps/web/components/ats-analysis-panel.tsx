@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 
 import { Progress } from "@/components/ui/progress";
-import type { AtsAnalysis, AtsIssue, AtsMode, AtsScores } from "@/lib/ats-types";
+import type { AtsAnalysis, AtsFinding, AtsIssue, AtsMode, AtsScores } from "@/lib/ats-types";
 import { normalizeAtsIssues } from "@/lib/ats-types";
 import { cn } from "@/lib/utils";
 
@@ -229,6 +229,160 @@ function SkillLists({
   );
 }
 
+const SEVERITY_ORDER: AtsFinding["severity"][] = ["critical", "high", "medium", "low", "info"];
+const SEVERITY_TONE: Record<AtsFinding["severity"], string> = {
+  critical: "text-destructive",
+  high: "text-destructive",
+  medium: "text-amber-600 dark:text-amber-400",
+  low: "text-muted-foreground",
+  info: "text-muted-foreground",
+};
+
+function pct(weight: number | undefined) {
+  return weight == null ? "" : `${Math.round(weight * 1000) / 10}%`;
+}
+
+/** Engine-specific explainability: weighted breakdown, metrics, findings, limitations. */
+function EngineReport({ analysis }: { analysis: AtsAnalysis }) {
+  const breakdown = analysis.breakdown ?? [];
+  const metrics = analysis.metrics ?? [];
+  const findings = analysis.findings ?? [];
+  const categories = analysis.skillCategories ?? [];
+  const limitations = analysis.limitations ?? [];
+  const warnings = analysis.warnings ?? [];
+  return (
+    <div className="space-y-4 text-[12px]">
+      {warnings.length ? (
+        <ul className="space-y-0.5 text-[11px] text-amber-600 dark:text-amber-400">
+          {warnings.map((w) => (
+            <li key={w}>⚠ {w}</li>
+          ))}
+        </ul>
+      ) : null}
+      {breakdown.length ? (
+        <div>
+          <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
+            Breakdown
+          </p>
+          <table className="w-full text-[11px]">
+            <thead className="text-muted-foreground">
+              <tr className="border-border/50 border-b text-left">
+                <th className="py-1 font-medium">Category</th>
+                <th className="py-1 text-right font-medium">Score</th>
+                <th className="py-1 text-right font-medium">Weight</th>
+                <th className="py-1 text-right font-medium">Adds</th>
+              </tr>
+            </thead>
+            <tbody>
+              {breakdown.map((row) => (
+                <tr key={row.key} className="border-border/30 border-b last:border-b-0">
+                  <td
+                    className={cn(
+                      "text-foreground py-1",
+                      row.parent && "text-muted-foreground pl-3",
+                    )}
+                  >
+                    {row.label}
+                  </td>
+                  <td className="py-1 text-right font-mono tabular-nums">
+                    {row.score != null ? points(row.score) : "—"}
+                  </td>
+                  <td className="text-muted-foreground py-1 text-right font-mono tabular-nums">
+                    {row.maxPoints != null ? `/${row.maxPoints} pts` : pct(row.weight)}
+                  </td>
+                  <td className="py-1 text-right font-mono tabular-nums">
+                    {row.contribution != null
+                      ? row.contribution.toFixed(1)
+                      : row.points != null
+                        ? `${row.points > 0 ? "+" : ""}${row.points}`
+                        : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+      {metrics.length ? (
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-[11px] sm:grid-cols-2">
+          {metrics.map((m) => (
+            <div key={m.key} className="flex justify-between gap-2">
+              <dt className="text-muted-foreground min-w-0 truncate" title={m.label}>
+                {m.label}
+              </dt>
+              <dd className="text-foreground shrink-0 font-mono tabular-nums">
+                {m.value}
+                {m.unit ?? ""}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {categories.length ? (
+        <div>
+          <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
+            Skill categories
+          </p>
+          <ul className="space-y-1 text-[11px]">
+            {categories.map((c) => (
+              <li key={c.category} className="flex flex-wrap justify-between gap-x-2">
+                <span className="text-foreground">{c.category}</span>
+                <span className="text-muted-foreground">
+                  {c.score}% · {c.matched.length ? `✓ ${c.matched.join(", ")}` : ""}
+                  {c.missing.length ? ` ✗ ${c.missing.join(", ")}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {findings.length ? (
+        <div>
+          <p className="text-foreground mb-1.5 text-[12px] font-semibold">Findings</p>
+          <ul className="space-y-1.5">
+            {[...findings]
+              .sort(
+                (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
+              )
+              .slice(0, 12)
+              .map((f) => (
+                <li key={f.id} className="flex gap-2">
+                  <span
+                    className={cn(
+                      "w-14 shrink-0 text-[9px] font-semibold uppercase tracking-wide",
+                      SEVERITY_TONE[f.severity],
+                    )}
+                  >
+                    {f.severity}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="text-foreground block font-medium leading-snug">
+                      {f.title}
+                    </span>
+                    <span className="text-muted-foreground block text-[11px]">{f.detail}</span>
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </div>
+      ) : null}
+      {limitations.length || analysis.methodology ? (
+        <div className="text-muted-foreground border-border/50 space-y-1 border-t pt-2 text-[10px] leading-relaxed">
+          {analysis.methodology ? (
+            <p>
+              Method {analysis.methodology.id}@{analysis.methodology.version}
+              {analysis.methodology.reference ? ` · ${analysis.methodology.reference}` : ""}
+            </p>
+          ) : null}
+          {limitations.map((l) => (
+            <p key={l}>· {l}</p>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
   const [openDim, setOpenDim] = useState<string | null>(null);
   const scores = analysis.scores ?? {};
@@ -285,7 +439,11 @@ export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
           </p>
         </div>
         <ScoreBar value={analysis.overallScore} />
-        {analysis.notes?.length ? (
+        {analysis.methodology ? (
+          <p className="text-muted-foreground font-mono text-[10px] leading-relaxed">
+            {analysis.methodology.formula}
+          </p>
+        ) : analysis.notes?.length ? (
           <p className="text-muted-foreground text-[11px] leading-relaxed">{analysis.notes[0]}</p>
         ) : null}
         {analysis.blurb ? (
@@ -308,11 +466,14 @@ export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
         )}
       >
         <div className="min-w-0">
-          <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
-            Breakdown
-          </p>
+          {analysis.breakdown?.length ? null : (
+            <p className="text-muted-foreground mb-1 text-[10px] font-semibold uppercase tracking-wide">
+              Breakdown
+            </p>
+          )}
           <div>
-            {rows.map((row) => {
+            {analysis.breakdown?.length ? <EngineReport analysis={analysis} /> : null}
+            {(analysis.breakdown?.length ? [] : rows).map((row) => {
               const value = scores[row.key] as number;
               const open = openDim === row.key;
               return (

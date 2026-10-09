@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ATS — four open-source-based engines** — Open ATS, ATS Resume Checker, Resume Skills Extractor and Hybrid Resume Analyzer. Each one adapts the scoring formulas found in that project's source code. Every report shows its own weighted breakdown, severity-ranked findings, fixes linked to those findings, its score type, and the places where it differs from the original. These engines need the scoring service and show a clear error rather than a substitute score when it's unavailable.
+- **ATS — live processing stages** — Each result cell now shows the stage the backend is actually working on (Parsing Resume, Extracting Skills, Matching Keywords, Calculating Score, …) instead of a generic "Analyzing…". Runs can be cancelled, and failed cells offer Retry.
+- **ATS — specific outcomes and engine badges** — Cells now say "Needs input", "Unsupported mode", "Parsing failed", "Analysis failed", or "Service unavailable" rather than a blank score. Each engine has its own badge (monogram, color and border style), used the same way in the selector, the table and the detail view.
 - **Dashboard applications/day charts** — One shared multi-line chart (you + friends as distinct colored series); range control on the chart bottom-right; counts derive from live applications (hard delete lowers the day).
 - **Friends** — Profile invite URL; `/friends/invite/[token]` confirm; accepted friendships appear as lines on the shared dashboard graph.
 - **Referrals** — 20s on-screen countdown before batch Gmail send; Attach resume in the Cold email preview (one uploaded PDF).

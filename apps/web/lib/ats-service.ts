@@ -2,6 +2,8 @@ import "server-only";
 
 import { analyzeResumeFallback } from "@/lib/ats-analyze-fallback";
 import { apiUrl, getApiBaseUrl } from "@/lib/api-url";
+import { isAtsStage } from "@/lib/ats-engines/stages";
+import type { AtsFailureKind, AtsStage } from "@/lib/ats-engines/types";
 import { normalizeAtsIssues, type AtsAnalysis } from "@/lib/ats-types";
 
 export type { AtsAnalysis } from "@/lib/ats-types";
@@ -70,6 +72,12 @@ function normalizeAnalysis(row: AtsAnalysis, engine: "fastapi" | "fallback"): At
     improvements: asObjectArray(row.improvements),
     atsIssues: normalizeAtsIssues(row.atsIssues),
     notes: asStringArray(row.notes),
+    breakdown: row.breakdown ? asObjectArray(row.breakdown) : undefined,
+    findings: row.findings ? asObjectArray(row.findings) : undefined,
+    metrics: row.metrics ? asObjectArray(row.metrics) : undefined,
+    skillCategories: row.skillCategories ? asObjectArray(row.skillCategories) : undefined,
+    limitations: row.limitations ? asStringArray(row.limitations) : undefined,
+    warnings: row.warnings ? asStringArray(row.warnings) : undefined,
     confidence: row.confidence === "high" || row.confidence === "low" ? row.confidence : "medium",
     engine,
   };
@@ -93,6 +101,111 @@ export async function analyzeEngineViaService(input: {
   });
   if (remote && typeof remote.overallScore === "number") {
     return normalizeAnalysis({ ...remote, resumeId: input.resumeId || remote.resumeId }, "fastapi");
+  }
+  return null;
+}
+
+export type ServiceStageEvent = { stage: AtsStage; message?: string; at: string; seq: number };
+
+export type StreamedEngineOutcome =
+  | { kind: "result"; analysis: AtsAnalysis; stage: "completed" | "completed_with_warnings" }
+  | { kind: "failed"; failureKind: AtsFailureKind; message: string };
+
+const FAILURE_KINDS = new Set<AtsFailureKind>([
+  "unsupported_mode",
+  "missing_input",
+  "parsing_failure",
+  "analysis_failure",
+]);
+
+/**
+ * Stream one engine run from FastAPI (NDJSON). Calls `onStage` as the backend reports each stage.
+ * Returns null when the service is unreachable or the stream is malformed (caller decides fallback).
+ */
+export async function streamEngineViaService(
+  input: {
+    engineId: string;
+    resumeId: string;
+    runId: string;
+    resumeText: string;
+    jdText?: string;
+    role?: string;
+    mode?: string;
+    signal?: AbortSignal;
+  },
+  onStage: (event: ServiceStageEvent) => void,
+): Promise<StreamedEngineOutcome | null> {
+  let res: Response;
+  try {
+    res = await fetch(absoluteApiUrl("/svc/v1/ats/score-engine/stream"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
+      body: JSON.stringify({
+        engineId: input.engineId,
+        resumeId: input.resumeId,
+        runId: input.runId,
+        resumeText: input.resumeText,
+        jdText: input.jdText ?? "",
+        role: input.role ?? "",
+        mode: input.mode,
+      }),
+      cache: "no-store",
+      signal: input.signal
+        ? AbortSignal.any([input.signal, AbortSignal.timeout(20_000)])
+        : AbortSignal.timeout(20_000),
+    });
+  } catch {
+    return null;
+  }
+  if (!res.ok || !res.body) return null;
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let lastSeq = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      let nl: number;
+      while ((nl = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        const ev = JSON.parse(line) as Record<string, unknown>;
+        // Only accept events for this exact combination/run, in order.
+        if (ev.runId !== input.runId || ev.engineId !== input.engineId) continue;
+        const seq = typeof ev.seq === "number" ? ev.seq : 0;
+        if (seq <= lastSeq) continue;
+        lastSeq = seq;
+        if (ev.type === "stage" && isAtsStage(ev.stage)) {
+          onStage({
+            stage: ev.stage,
+            message: typeof ev.message === "string" ? ev.message : undefined,
+            at: typeof ev.at === "string" ? ev.at : new Date().toISOString(),
+            seq,
+          });
+        } else if (ev.type === "result" && ev.result && typeof ev.result === "object") {
+          const row = ev.result as AtsAnalysis;
+          if (typeof row.overallScore !== "number") return null;
+          return {
+            kind: "result",
+            analysis: normalizeAnalysis({ ...row, resumeId: input.resumeId }, "fastapi"),
+            stage: ev.stage === "completed_with_warnings" ? "completed_with_warnings" : "completed",
+          };
+        } else if (ev.type === "failed") {
+          const kind = ev.failureKind as AtsFailureKind;
+          return {
+            kind: "failed",
+            failureKind: FAILURE_KINDS.has(kind) ? kind : "analysis_failure",
+            message: typeof ev.message === "string" ? ev.message : "Analysis failed.",
+          };
+        }
+      }
+      if (done) break;
+    }
+  } catch {
+    return null;
   }
   return null;
 }

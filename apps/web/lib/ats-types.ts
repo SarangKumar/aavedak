@@ -4,6 +4,46 @@ export type AtsImprovement = {
   priority: "high" | "medium" | "low";
   text: string;
   reason: string;
+  /** Finding this recommendation addresses (open-source-adapted engines). */
+  findingId?: string;
+};
+
+export type AtsFindingSeverity = "critical" | "high" | "medium" | "low" | "info";
+
+export type AtsFinding = {
+  id: string;
+  severity: AtsFindingSeverity;
+  category: string;
+  title: string;
+  detail: string;
+  recommendation?: string;
+};
+
+/** One row of an engine's own weighted breakdown (weights are 0–1, points are raw). */
+export type AtsBreakdownRow = {
+  key: string;
+  label: string;
+  score?: number | null;
+  weight?: number;
+  contribution?: number;
+  points?: number;
+  maxPoints?: number;
+  /** Sub-row of another breakdown key. */
+  parent?: string;
+};
+
+export type AtsMetric = {
+  key: string;
+  label: string;
+  value: number | string;
+  unit?: string;
+};
+
+export type AtsSkillCategory = {
+  category: string;
+  score: number;
+  matched: string[];
+  missing: string[];
 };
 
 /** Parseability / structure problems that hurt ATS extraction. */
@@ -106,6 +146,18 @@ export type AtsAnalysis = {
   textFingerprint?: string;
   /** @deprecated use overallScore */
   atsScore?: number;
+  // ── Explainability (emitted by the open-source-adapted engines; optional for others) ──
+  engineId?: string;
+  engineName?: string;
+  scoreType?: string;
+  scoreScale?: { min: number; max: number };
+  methodology?: { id: string; version: string; formula: string; reference?: string };
+  breakdown?: AtsBreakdownRow[];
+  findings?: AtsFinding[];
+  metrics?: AtsMetric[];
+  skillCategories?: AtsSkillCategory[];
+  limitations?: string[];
+  warnings?: string[];
 };
 
 export function fingerprintText(text: string): string {

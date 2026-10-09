@@ -1,6 +1,11 @@
 import "server-only";
 
-import { analyzeEngineViaService, analyzeResumeViaService } from "@/lib/ats-service";
+import {
+  analyzeEngineViaService,
+  analyzeResumeViaService,
+  streamEngineViaService,
+  type ServiceStageEvent,
+} from "@/lib/ats-service";
 import { analyzeResumeFallback } from "@/lib/ats-analyze-fallback";
 import type { AtsAnalysis, AtsMode } from "@/lib/ats-types";
 
@@ -11,7 +16,8 @@ import {
   runSkillSyncerStyle,
   runTealStyle,
 } from "./reference-profiles";
-import type { AtsEngineId } from "./types";
+import { getEngine } from "./registry";
+import type { AtsEngineId, AtsFailureKind } from "./types";
 
 export {
   runJobscanStyle,
@@ -109,6 +115,21 @@ export async function runEngineProfile(input: {
   });
   if (remote) return remote;
 
+  return runLocalFallback(input);
+}
+
+function runLocalFallback(input: {
+  engineId: AtsEngineId;
+  resumeId: string;
+  resumeText: string;
+  role: string;
+  jdText: string;
+  mode: AtsMode;
+}): AtsAnalysis {
+  if (getEngine(input.engineId)?.fallback !== "ts") {
+    // No local implementation: fail explicitly rather than substitute another engine's score.
+    throw new Error("Scoring service is unavailable for this engine. Try again shortly.");
+  }
   if (input.engineId === "aavedak") {
     return analyzeResumeFallback({
       resumeId: input.resumeId,
@@ -117,6 +138,52 @@ export async function runEngineProfile(input: {
       jdText: input.jdText,
     });
   }
-
   return runReferenceFallback(input);
+}
+
+export type StreamedRunOutcome =
+  | {
+      kind: "result";
+      analysis: AtsAnalysis;
+      stage: "completed" | "completed_with_warnings";
+      runtime: "fastapi" | "fallback" | "reference";
+    }
+  | { kind: "failed"; failureKind: AtsFailureKind; message: string };
+
+/**
+ * Like runEngineProfile, but reports backend stages through `onStage` as they happen.
+ * Engines with a TS fallback run locally (one honest "calculating_score" stage) if FastAPI is down.
+ */
+export async function runEngineProfileStreamed(
+  input: {
+    engineId: AtsEngineId;
+    resumeId: string;
+    resumeText: string;
+    role: string;
+    jdText: string;
+    mode: AtsMode;
+    runId: string;
+    signal?: AbortSignal;
+  },
+  onStage: (event: Omit<ServiceStageEvent, "seq">) => void,
+): Promise<StreamedRunOutcome> {
+  const remote = await streamEngineViaService(input, onStage);
+  if (remote?.kind === "failed") return remote;
+  if (remote) return { ...remote, runtime: "fastapi" };
+
+  if (getEngine(input.engineId)?.fallback !== "ts") {
+    return {
+      kind: "failed",
+      failureKind: "service_unavailable",
+      message: "Scoring service is unavailable for this engine. Try again shortly.",
+    };
+  }
+  onStage({ stage: "calculating_score", message: "Local fallback", at: new Date().toISOString() });
+  const analysis = runLocalFallback(input);
+  return {
+    kind: "result",
+    analysis,
+    stage: "completed",
+    runtime: input.engineId === "aavedak" ? "fallback" : "reference",
+  };
 }

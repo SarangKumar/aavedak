@@ -4,8 +4,24 @@
  */
 import assert from "node:assert/strict";
 
+import React, { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import { CellStatusLabel, EngineBadge } from "@/components/ats-engine-badge";
+
+import { ENGINE_BADGES } from "./badges";
+import { readRunStream } from "./run-stream";
+import { applyCellUpdate, cellDisplay, STAGE_LABELS } from "./stages";
+import type { AtsBatchResultCell, AtsEngineId, AtsStage } from "./types";
+
 import { calibrationReport } from "./calibration/compare";
-import { buildCombinations, getEngine, summarizeCombinations, ATS_ENGINES } from "./registry";
+import {
+  buildCombinations,
+  getEngine,
+  scoreTypeForMode,
+  summarizeCombinations,
+  ATS_ENGINES,
+} from "./registry";
 import {
   runJobscanStyle,
   runResumeWordedStyle,
@@ -61,11 +77,11 @@ function testNaRegressionWithFullInputs() {
       jdText: "Requirements: Python FastAPI Docker Kubernetes. Bachelor's preferred.",
     },
   });
-  assert.equal(combos.length, 6);
+  assert.equal(combos.length, 10);
   assert.equal(
     summarizeCombinations(combos).readyCount,
-    6,
-    "All six engines must be ready when title+JD are supplied",
+    10,
+    "All ten engines must be ready when title+JD are supplied",
   );
   assert.equal(summarizeCombinations(combos).needsCount, 0);
 }
@@ -144,13 +160,13 @@ function testProfilesDistinctAndBounded() {
 }
 
 function testSelectAllEnginesCount() {
-  assert.equal(ATS_ENGINES.length, 6);
+  assert.equal(ATS_ENGINES.length, 10);
   const combos = buildCombinations({
     resumeIds: ["a", "b", "c"],
     engines: ATS_ENGINES.map((e) => ({ engineId: e.id })),
     shared: { role: "Cloud Engineer", jdText: "Must have AWS Docker Kubernetes Python" },
   });
-  assert.equal(combos.length, 18);
+  assert.equal(combos.length, 30);
   const summary = summarizeCombinations(combos);
   assert.ok(summary.readyCount >= 12);
 }
@@ -161,7 +177,198 @@ function testCalibrationScaffold() {
   assert.ok(report.rows.every((r) => r.aavedakScore >= 0 && r.aavedakScore <= 100));
 }
 
+const NEW_ENGINES: AtsEngineId[] = [
+  "open_ats",
+  "ats_resume_checker",
+  "resume_skills_extractor",
+  "hybrid_resume_analyzer",
+];
+
+function testNewEnginesRegistered() {
+  const ids = ATS_ENGINES.map((e) => e.id);
+  assert.equal(new Set(ids).size, ids.length, "engine ids must be unique");
+  for (const id of NEW_ENGINES) {
+    const eng = getEngine(id)!;
+    assert.ok(eng, id);
+    assert.equal(eng.kind, "open_source");
+    assert.equal(eng.fallback, "none", `${id} must not fake a local score`);
+    assert.ok(eng.referenceRepo?.startsWith("github.com/"));
+    for (const mode of eng.supportedModes) assert.ok(eng.scoreTypeByMode?.[mode], `${id}:${mode}`);
+  }
+  assert.equal(scoreTypeForMode(getEngine("ats_resume_checker")!, "resume_only"), "resume_quality");
+  assert.equal(scoreTypeForMode(getEngine("ats_resume_checker")!, "job_match"), "ats_readiness");
+  assert.equal(scoreTypeForMode(getEngine("hybrid_resume_analyzer")!, "job_match"), "hybrid_match");
+}
+
+function testNewEngineModes() {
+  const run = (role: string, jdText: string) =>
+    new Map(
+      buildCombinations({
+        resumeIds: ["r"],
+        engines: NEW_ENGINES.map((engineId) => ({ engineId })),
+        shared: { role, jdText },
+      }).map((c) => [c.engineId, c]),
+    );
+  const none = run("", "");
+  assert.equal(none.get("ats_resume_checker")!.status, "ready");
+  assert.equal(none.get("ats_resume_checker")!.mode, "resume_only");
+  for (const id of ["open_ats", "resume_skills_extractor", "hybrid_resume_analyzer"] as const) {
+    assert.equal(none.get(id)!.status, "needs_input", id);
+  }
+  const titleOnly = run("Backend Engineer", "");
+  assert.equal(titleOnly.get("ats_resume_checker")!.mode, "role_match");
+  assert.equal(titleOnly.get("open_ats")!.status, "needs_input");
+  const full = run("Backend Engineer", "Python FastAPI Docker Kubernetes");
+  assert.ok([...full.values()].every((c) => c.status === "ready" && c.mode === "job_match"));
+}
+
+// tsx compiles component JSX with the classic runtime (Next's tsconfig uses jsx: "preserve").
+(globalThis as { React?: typeof React }).React = React;
+
+function testBadgesDistinct() {
+  const ids = ATS_ENGINES.map((e) => e.id);
+  for (const id of ids) assert.ok(ENGINE_BADGES[id], `badge for ${id}`);
+  const monograms = ids.map((id) => ENGINE_BADGES[id].monogram);
+  assert.equal(new Set(monograms).size, ids.length, "monograms must be unique");
+  const classes = ids.map((id) => ENGINE_BADGES[id].className);
+  assert.equal(new Set(classes).size, ids.length, "badge styles must be unique");
+  for (const id of ids) {
+    const html = renderToStaticMarkup(createElement(EngineBadge, { engineId: id }));
+    assert.ok(html.includes(getEngine(id)!.name.replace(/&/g, "&amp;")), `${id} name rendered`);
+    assert.ok(html.includes(ENGINE_BADGES[id].monogram));
+    assert.ok(html.includes(`data-engine="${id}"`));
+    const compact = renderToStaticMarkup(
+      createElement(EngineBadge, { engineId: id, compact: true }),
+    );
+    assert.ok(compact.includes("sr-only"), "compact badge keeps an accessible name");
+  }
+}
+
+const cell = (over: Partial<AtsBatchResultCell>): AtsBatchResultCell => ({
+  resumeId: "r",
+  engineId: "open_ats",
+  status: "running",
+  ...over,
+});
+
+function testStageDisplay() {
+  const running: AtsStage[] = [
+    "validating_input",
+    "parsing_resume",
+    "parsing_job_description",
+    "extracting_skills",
+    "analyzing_content",
+    "matching_keywords",
+    "calculating_score",
+    "generating_report",
+  ];
+  for (const stage of running) {
+    const d = cellDisplay(cell({ stage }));
+    assert.equal(d.label, STAGE_LABELS[stage]);
+    assert.equal(d.tone, "progress");
+    const html = renderToStaticMarkup(createElement(CellStatusLabel, { cell: cell({ stage }) }));
+    assert.ok(html.includes(STAGE_LABELS[stage]) && html.includes('role="status"'), stage);
+  }
+  assert.notEqual(cellDisplay(cell({})).label, "Analyzing…", "no generic label before a stage");
+  assert.equal(cellDisplay(cell({ status: "queued" })).label, "Queued");
+  assert.equal(cellDisplay(cell({ status: "cancelled" })).label, "Cancelled");
+  assert.equal(cellDisplay(cell({ status: "done", overallScore: 70 })).tone, "score");
+  assert.equal(
+    cellDisplay(cell({ status: "done", overallScore: 70, stage: "completed_with_warnings" })).tone,
+    "warning",
+  );
+  assert.equal(cellDisplay(cell({ status: "excluded", error: "x" })).label, "Needs input");
+  assert.equal(cellDisplay(cell({ status: "unsupported" })).label, "Unsupported mode");
+  assert.equal(
+    cellDisplay(cell({ status: "error", failureKind: "parsing_failure" })).label,
+    "Parsing failed",
+  );
+  assert.equal(
+    cellDisplay(cell({ status: "error", failureKind: "service_unavailable" })).label,
+    "Service unavailable",
+  );
+  assert.equal(cellDisplay(cell({ status: "error" })).label, "Failed");
+  for (const label of Object.values(STAGE_LABELS)) assert.ok(!/N\/A/.test(label));
+}
+
+function testCellUpdateGuards() {
+  const r1 = cell({ runId: "a", seq: 3, stage: "matching_keywords" });
+  // Out-of-order stage within a run is dropped
+  assert.equal(applyCellUpdate(r1, cell({ runId: "a", seq: 2, stage: "parsing_resume" }), "a"), r1);
+  const later = cell({ runId: "a", seq: 4, stage: "calculating_score" });
+  assert.equal(applyCellUpdate(r1, later, "a"), later);
+  // Terminal never reverts to running for the same run
+  const done = cell({ runId: "a", status: "done", overallScore: 80, seq: 9 });
+  assert.equal(
+    applyCellUpdate(done, cell({ runId: "a", seq: 10, stage: "generating_report" }), "a"),
+    done,
+  );
+  const cancelled = cell({ runId: "a", status: "cancelled" });
+  assert.equal(applyCellUpdate(cancelled, done, "a"), cancelled);
+  // Stale run updates are ignored; a new active run replaces the cell
+  const fresh = cell({ runId: "b", status: "queued" });
+  assert.equal(applyCellUpdate(done, cell({ runId: "z", seq: 99 }), "b"), done);
+  assert.equal(applyCellUpdate(done, fresh, "b"), fresh);
+  // Separate combinations never share state (keyed by resume×engine in the hub)
+  assert.equal(applyCellUpdate(undefined, fresh, "b"), fresh);
+}
+
+async function testReadRunStream() {
+  const lines = [
+    {
+      type: "stage",
+      resumeId: "r",
+      engineId: "open_ats",
+      runId: "x",
+      seq: 1,
+      stage: "parsing_resume",
+      at: "t",
+    },
+    {
+      type: "stage",
+      resumeId: "r",
+      engineId: "open_ats",
+      runId: "OTHER",
+      seq: 2,
+      stage: "failed",
+      at: "t",
+    },
+    "not json",
+    {
+      type: "stage",
+      resumeId: "r",
+      engineId: "open_ats",
+      runId: "x",
+      seq: 3,
+      stage: "matching_keywords",
+      at: "t",
+    },
+    { type: "result", runId: "x", seq: 4, result: cell({ status: "done", overallScore: 61 }) },
+  ];
+  const text = lines.map((l) => (typeof l === "string" ? l : JSON.stringify(l))).join("\n") + "\n";
+  const bytes = new TextEncoder().encode(text);
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      // Split mid-line to exercise buffering
+      for (let i = 0; i < bytes.length; i += 17) controller.enqueue(bytes.slice(i, i + 17));
+      controller.close();
+    },
+  });
+  const seen: string[] = [];
+  const result = await readRunStream(body, "x", (ev) => seen.push(ev.stage));
+  assert.deepEqual(seen, ["parsing_resume", "matching_keywords"]);
+  assert.equal(result?.overallScore, 61);
+
+  const empty = new ReadableStream<Uint8Array>({ start: (c) => c.close() });
+  assert.equal(await readRunStream(empty, "x", () => {}), null);
+}
+
 testRegistryMatrix();
+testNewEnginesRegistered();
+testNewEngineModes();
+testBadgesDistinct();
+testStageDisplay();
+testCellUpdateGuards();
 testCombinationsOnlySelected();
 testJobscanRequiresJd();
 testNaRegressionWithFullInputs();
@@ -169,4 +376,9 @@ testSkillSyncerFormula();
 testProfilesDistinctAndBounded();
 testSelectAllEnginesCount();
 testCalibrationScaffold();
-console.log("ats-engines tests: ok");
+testReadRunStream()
+  .then(() => console.log("ats-engines tests: ok"))
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

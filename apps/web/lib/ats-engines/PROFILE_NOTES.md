@@ -1,5 +1,7 @@
 # ATS reference profiles — fidelity notes
 
+> The open-source-adapted engines (Open ATS, ATS Resume Checker, Resume Skills Extractor, Hybrid Resume Analyzer) and the stage protocol are documented in `apps/api/app/ats/ENGINES.md`.
+
 These five engines are **independent Aavedak approximations** inspired by publicly documented product concepts. They are **not** vendor APIs, endorsements, or exact proprietary replicas.
 
 | Profile       | Score type                    | Documented / verified                                                                                                                             | Approximation                                                 |

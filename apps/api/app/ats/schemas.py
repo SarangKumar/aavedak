@@ -31,3 +31,4 @@ class EngineScoreRequest(BaseModel):
     jdText: str = ""
     role: str = ""
     mode: str | None = None  # resume_only | role_match | job_match
+    runId: str = ""  # echoed on streamed stage events so the client can drop stale updates

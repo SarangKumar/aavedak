@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 
+import { CellStatusLabel, EngineBadge } from "@/components/ats-engine-badge";
 import {
   AnalysisDetails,
   modeHint,
@@ -37,6 +38,8 @@ import {
   scoreTypeLabel,
   summarizeCombinations,
 } from "@/lib/ats-engines/registry";
+import { readRunStream } from "@/lib/ats-engines/run-stream";
+import { applyCellUpdate, cellDisplay, FAILURE_LABELS } from "@/lib/ats-engines/stages";
 import type {
   AnalysisCombination,
   AtsBatchResultCell,
@@ -97,12 +100,19 @@ function comboToPendingCell(c: AnalysisCombination): AtsBatchResultCell {
     resumeId: c.resumeId,
     engineId: c.engineId,
     status: c.status === "needs_input" ? "excluded" : "unsupported",
+    failureKind: c.status === "needs_input" ? "missing_input" : "unsupported_mode",
     mode: c.mode,
     scoreType: c.scoreType,
     scoreName: scoreTypeLabel(c.scoreType),
     error: c.reason,
     profileVersion: eng?.profileVersion,
   };
+}
+
+function newRunId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function StepChevron({ open }: { open: boolean }) {
@@ -268,8 +278,6 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progressLabel, setProgressLabel] = useState("");
-  const [completedCount, setCompletedCount] = useState(0);
-  const [failedCount, setFailedCount] = useState(0);
   const [results, setResults] = useState<AtsBatchResultCell[]>([]);
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const [filterResumeId, setFilterResumeId] = useState<string>("all");
@@ -282,6 +290,10 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
     5: true,
   });
   const runTokenRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+  /** Active run id per resume × engine — updates from any other run are stale. */
+  const activeRunRef = useRef(new Map<string, string>());
+  const [runPlanned, setRunPlanned] = useState(0);
 
   function setStepOpen(step: number, open: boolean) {
     setOpenSteps((prev) => ({ ...prev, [step]: open }));
@@ -411,13 +423,26 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
     return selectedResumes.filter((r) => r.id === safeFilterResumeId);
   }, [selectedResumes, safeFilterResumeId]);
 
+  const runCounts = useMemo(() => {
+    const ran = results.filter((r) => r.runId);
+    return {
+      processed: ran.filter((r) => ["done", "error", "cancelled"].includes(r.status)).length,
+      completed: ran.filter((r) => r.status === "done").length,
+      failed: ran.filter((r) => r.status === "error").length,
+      cancelled: ran.filter((r) => r.status === "cancelled").length,
+    };
+  }, [results]);
+
   function patchCell(cell: AtsBatchResultCell) {
     const key = cellKey(cell.resumeId, cell.engineId);
+    const activeRunId = activeRunRef.current.get(key);
     setResults((prev) => {
       const idx = prev.findIndex((r) => cellKey(r.resumeId, r.engineId) === key);
       if (idx < 0) return [...prev, cell];
+      const merged = applyCellUpdate(prev[idx], cell, activeRunId);
+      if (merged === prev[idx]) return prev;
       const next = [...prev];
-      next[idx] = cell;
+      next[idx] = merged;
       return next;
     });
   }
@@ -458,30 +483,50 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
     });
   }
 
-  async function runProgressive() {
-    if (!canRun) return;
+  async function runCombos(list: AnalysisCombination[], fresh: boolean) {
+    const ready = list.filter((c) => c.status === "ready");
+    if (!ready.length) return;
     const token = ++runTokenRef.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setRunning(true);
     setError(null);
-    setDetailKey(null);
-    setCompletedCount(0);
-    setFailedCount(0);
+    setRunPlanned(ready.length);
 
-    const snapshot = combinations;
-    const ready = snapshot.filter((c) => c.status === "ready");
-    setResults(snapshot.map(comboToPendingCell));
+    const runIds = new Map<string, string>();
+    for (const c of ready) {
+      const key = cellKey(c.resumeId, c.engineId);
+      runIds.set(key, newRunId());
+      activeRunRef.current.set(key, runIds.get(key)!);
+    }
+    const pending = (c: AnalysisCombination): AtsBatchResultCell => ({
+      ...comboToPendingCell(c),
+      runId: runIds.get(cellKey(c.resumeId, c.engineId)),
+    });
+    if (fresh) {
+      setDetailKey(null);
+      setResults(combinations.map(pending));
+    } else {
+      setResults((prev) => {
+        const keys = new Set(ready.map((c) => cellKey(c.resumeId, c.engineId)));
+        return [
+          ...prev.filter((r) => !keys.has(cellKey(r.resumeId, r.engineId))),
+          ...ready.map(pending),
+        ];
+      });
+    }
 
     const resumeName = (id: string) =>
       selectedResumes.find((r) => r.id === id)?.displayName || id.slice(0, 8);
-
-    let done = 0;
-    let failed = 0;
+    // Extract each resume's PDF text once per run; later engines reuse the stored text.
+    const extracted = new Set<string>();
 
     for (const combo of ready) {
       if (runTokenRef.current !== token) break;
       const eng = getEngine(combo.engineId)!;
-      setProgressLabel(`${resumeName(combo.resumeId)} · ${eng.name}`);
-      patchCell({
+      const runId = runIds.get(cellKey(combo.resumeId, combo.engineId))!;
+      const base: AtsBatchResultCell = {
         resumeId: combo.resumeId,
         engineId: combo.engineId,
         status: "running",
@@ -489,64 +534,92 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
         scoreType: combo.scoreType,
         scoreName: scoreTypeLabel(combo.scoreType),
         profileVersion: eng.profileVersion,
-      });
+        runId,
+        seq: 0,
+      };
+      const fail = (error: string, failureKind: AtsBatchResultCell["failureKind"]) =>
+        patchCell({
+          ...base,
+          status: "error",
+          stage: "failed",
+          failureKind,
+          error,
+          seq: undefined,
+        });
+      setProgressLabel(`${resumeName(combo.resumeId)} · ${eng.name}`);
+      patchCell(base);
+      const forceExtract = !extracted.has(combo.resumeId);
+      extracted.add(combo.resumeId);
 
       try {
         const res = await fetch("/api/ats/run", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             resumeId: combo.resumeId,
             engineId: combo.engineId,
             mode: combo.mode,
             sharedRole: role.trim(),
             sharedJdText: jdText.trim(),
-            forceExtract: true,
+            forceExtract,
+            stream: true,
+            runId,
           }),
         });
-        const data = (await res.json()) as { error?: string; result?: AtsBatchResultCell };
-        if (runTokenRef.current !== token) break;
-        if (!res.ok || !data.result) {
-          failed += 1;
-          patchCell({
-            resumeId: combo.resumeId,
-            engineId: combo.engineId,
-            status: "error",
-            mode: combo.mode,
-            scoreType: combo.scoreType,
-            scoreName: scoreTypeLabel(combo.scoreType),
-            error: data.error || "Analysis failed.",
-            profileVersion: eng.profileVersion,
-          });
-        } else {
-          if (data.result.status === "done") done += 1;
-          else if (data.result.status === "error") failed += 1;
-          patchCell(data.result);
+        if (!res.ok || !res.body) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          if (runTokenRef.current !== token) break;
+          fail(data.error || "Analysis failed.", "analysis_failure");
+          continue;
         }
-      } catch (err) {
+        const final = await readRunStream(res.body, runId, (ev) =>
+          patchCell({
+            ...base,
+            stage: ev.stage,
+            stageMessage: ev.message,
+            stageAt: ev.at,
+            seq: ev.seq,
+          }),
+        );
         if (runTokenRef.current !== token) break;
-        failed += 1;
-        patchCell({
-          resumeId: combo.resumeId,
-          engineId: combo.engineId,
-          status: "error",
-          mode: combo.mode,
-          scoreType: combo.scoreType,
-          scoreName: scoreTypeLabel(combo.scoreType),
-          error: err instanceof Error ? err.message : "Analysis failed.",
-          profileVersion: eng.profileVersion,
-        });
+        if (final) patchCell({ ...final, runId });
+        else fail("The analysis stream ended without a result.", "analysis_failure");
+      } catch (err) {
+        if (controller.signal.aborted || runTokenRef.current !== token) break;
+        fail(err instanceof Error ? err.message : "Analysis failed.", "analysis_failure");
       }
-      setCompletedCount(done);
-      setFailedCount(failed);
     }
 
     if (runTokenRef.current === token) {
       setProgressLabel("");
       setRunning(false);
-      setCompletedCount(done);
-      setFailedCount(failed);
     }
+  }
+
+  function runProgressive() {
+    if (!canRun) return;
+    void runCombos(combinations, true);
+  }
+
+  function retryCell(resumeId: string, engineId: AtsEngineId) {
+    if (running) return;
+    const combo = combinations.find((c) => c.resumeId === resumeId && c.engineId === engineId);
+    if (combo) void runCombos([combo], false);
+  }
+
+  function cancelRun() {
+    runTokenRef.current += 1;
+    abortRef.current?.abort();
+    setResults((prev) =>
+      prev.map((c) =>
+        c.status === "queued" || c.status === "running"
+          ? { ...c, status: "cancelled", stage: "cancelled", error: "Cancelled before completion." }
+          : c,
+      ),
+    );
+    setProgressLabel("");
+    setRunning(false);
   }
 
   function renderCell(resumeId: string, engineId: AtsEngineId) {
@@ -554,16 +627,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
     const cell = displayMap.get(key);
     const active = detailKey === key;
 
-    if (!cell || cell.status === "idle") {
-      return <span className="text-muted-foreground text-[10px]">Ready</span>;
-    }
-    if (cell.status === "queued") {
-      return <span className="text-muted-foreground text-[10px]">Queued</span>;
-    }
-    if (cell.status === "running") {
-      return <span className="text-muted-foreground text-[10px]">Analyzing…</span>;
-    }
-    if (cell.status === "done" && cell.overallScore != null) {
+    if (cell?.status === "done" && cell.overallScore != null) {
       return (
         <button
           type="button"
@@ -577,34 +641,23 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
           <span className="text-muted-foreground max-w-[6rem] truncate text-[9px]">
             {cell.scoreLabel || "View"}
           </span>
+          <CellStatusLabel cell={cell} />
         </button>
       );
     }
-    if (cell.status === "error") {
+    if (cell?.status === "error") {
       return (
-        <span className="text-destructive text-[10px]" title={cell.error}>
-          Failed
-        </span>
+        <button
+          type="button"
+          onClick={() => setDetailKey(active ? null : key)}
+          className="hover:bg-muted/40 cursor-pointer rounded-md px-1.5 py-0.5"
+          title={cell.error}
+        >
+          <CellStatusLabel cell={cell} />
+        </button>
       );
     }
-    if (cell.status === "excluded") {
-      return (
-        <span className="text-[10px] text-amber-600 dark:text-amber-400" title={cell.error}>
-          Needs input
-        </span>
-      );
-    }
-    if (cell.status === "unsupported") {
-      return (
-        <span className="text-muted-foreground text-[10px]" title={cell.error}>
-          Unsupported
-        </span>
-      );
-    }
-    if (cell.status === "done") {
-      return <span className="text-muted-foreground text-[10px]">No score</span>;
-    }
-    return <span className="text-muted-foreground text-[10px]">{cell.status}</span>;
+    return <CellStatusLabel cell={cell} />;
   }
 
   return (
@@ -659,13 +712,17 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                         aria-label={`Select ${eng.name}`}
                       />
                       <span className="min-w-0 space-y-1">
-                        <span className="text-foreground flex flex-wrap items-center gap-1.5 text-[12px] font-medium">
-                          {eng.name}
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <EngineBadge engineId={eng.id} className="text-[11px]" />
                           <Badge
                             variant={eng.kind === "native" ? "default" : "secondary"}
                             className="h-4 px-1.5 text-[9px] font-medium uppercase tracking-wide"
                           >
-                            {eng.kind === "native" ? "Native" : "Ref"}
+                            {eng.kind === "native"
+                              ? "Native"
+                              : eng.kind === "open_source"
+                                ? "OSS"
+                                : "Ref"}
                           </Badge>
                         </span>
                         <span className="text-muted-foreground block text-[10px] leading-snug">
@@ -697,6 +754,11 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                       >
                         <p className="text-foreground mb-1 font-medium">{eng.name} scoring</p>
                         <p className="text-muted-foreground text-pretty">{eng.algoBlurb}</p>
+                        {eng.referenceRepo ? (
+                          <p className="text-muted-foreground mt-1.5 text-[10px]">
+                            Adapted from {eng.referenceRepo}
+                          </p>
+                        ) : null}
                       </HoverCardContent>
                     </HoverCard>
                   </div>
@@ -879,7 +941,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 canRun={canRun}
                 running={running}
                 readyCount={comboSummary.readyCount}
-                onRun={() => void runProgressive()}
+                onRun={runProgressive}
               />
             ) : null
           }
@@ -1004,17 +1066,23 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 canRun={canRun}
                 running={running}
                 readyCount={comboSummary.readyCount}
-                onRun={() => void runProgressive()}
+                onRun={runProgressive}
               />
+              {running ? (
+                <Button type="button" size="sm" variant="outline" onClick={cancelRun}>
+                  Cancel
+                </Button>
+              ) : null}
               {running && progressLabel ? (
                 <p className="text-muted-foreground text-[11px] tabular-nums">
-                  {completedCount + failedCount}/{comboSummary.readyCount} · {progressLabel}
+                  {runCounts.processed}/{runPlanned} · {progressLabel}
                 </p>
               ) : null}
-              {!running && (completedCount > 0 || failedCount > 0) ? (
+              {!running && runCounts.processed > 0 ? (
                 <p className="text-muted-foreground text-[11px]">
-                  Last run: {completedCount} completed
-                  {failedCount ? ` · ${failedCount} failed` : ""}
+                  Last run: {runCounts.completed} completed
+                  {runCounts.failed ? ` · ${runCounts.failed} failed` : ""}
+                  {runCounts.cancelled ? ` · ${runCounts.cancelled} cancelled` : ""}
                 </p>
               ) : null}
             </div>
@@ -1105,7 +1173,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                             key={eng.id}
                             className="text-muted-foreground min-w-[7.5rem] px-2 py-2.5 text-center font-medium"
                           >
-                            <span className="text-foreground block text-[11px]">{eng.name}</span>
+                            <EngineBadge engineId={eng.id} className="mx-auto" />
                             <span className="mt-0.5 block text-[9px] font-normal">
                               {sample?.scoreType
                                 ? scoreTypeLabel(sample.scoreType)
@@ -1145,7 +1213,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                           key={eng.id}
                           className="flex items-center justify-between gap-2 text-[11px]"
                         >
-                          <span className="text-muted-foreground min-w-0 truncate">{eng.name}</span>
+                          <EngineBadge engineId={eng.id} className="min-w-0" />
                           <span className="shrink-0">{renderCell(resume.id, eng.id)}</span>
                         </li>
                       ))}
@@ -1157,8 +1225,8 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
               {detailCell?.analysis && !detailCell.analysis.error ? (
                 <div className="border-border/60 rounded-xl border p-3 md:p-4">
                   <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
-                    <p className="text-foreground text-pretty text-[12px] font-semibold">
-                      Detail · {getEngine(detailCell.engineId)?.name} ·{" "}
+                    <p className="text-foreground flex flex-wrap items-center gap-1.5 text-pretty text-[12px] font-semibold">
+                      <EngineBadge engineId={detailCell.engineId} />
                       {selectedResumes.find((r) => r.id === detailCell.resumeId)?.displayName}
                     </p>
                     <p className="text-muted-foreground text-[10px]">
@@ -1168,6 +1236,25 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                     </p>
                   </div>
                   <AnalysisDetails analysis={detailCell.analysis} />
+                </div>
+              ) : detailCell?.status === "error" ? (
+                <div className="border-border/60 flex flex-wrap items-center gap-2 rounded-xl border p-3 text-[12px]">
+                  <EngineBadge engineId={detailCell.engineId} />
+                  <span className="text-destructive font-medium">
+                    {detailCell.failureKind
+                      ? FAILURE_LABELS[detailCell.failureKind]
+                      : cellDisplay(detailCell).label}
+                  </span>
+                  <span className="text-muted-foreground min-w-0 flex-1">{detailCell.error}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={running}
+                    onClick={() => retryCell(detailCell.resumeId, detailCell.engineId)}
+                  >
+                    Retry
+                  </Button>
                 </div>
               ) : detailCell?.error ? (
                 <p className="text-destructive text-[12px]">{detailCell.error}</p>
@@ -1189,8 +1276,11 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 <p className="text-muted-foreground border-border/50 max-w-3xl text-pretty border-t pt-3 text-[11px] leading-relaxed">
                   Reference engines (Jobscan, Resume Worded, Teal, Rezi, SkillSyncer) are Aavedak
                   implementations inspired by publicly documented approaches. They are not
-                  integrations with those vendors and do not claim exact proprietary parity. Scores
-                  from different profiles are not calibrated against each other.
+                  integrations with those vendors and do not claim exact proprietary parity. OSS
+                  engines (Open ATS, ATS Resume Checker, Resume Skills Extractor, Hybrid Resume
+                  Analyzer) adapt formulas verified in those open-source projects&rsquo; code; each
+                  report lists where it deviates. Score types differ (quality, readiness,
+                  similarity, match) and are not calibrated against each other.
                 </p>
               </div>
             </AccordionContent>

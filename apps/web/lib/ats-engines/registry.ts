@@ -19,6 +19,7 @@ export const ATS_ENGINES: EngineCapability[] = [
     name: "Aavedak ATS",
     shortDescription: "Native evidence-based match & resume quality.",
     kind: "native",
+    fallback: "ts",
     supportedModes: ["resume_only", "role_match", "job_match"],
     title: "optional",
     jd: "optional",
@@ -38,6 +39,7 @@ export const ATS_ENGINES: EngineCapability[] = [
     name: "Jobscan",
     shortDescription: "Job-specific keyword & title match (reference).",
     kind: "reference",
+    fallback: "ts",
     supportedModes: ["job_match"],
     title: "optional",
     jd: "required",
@@ -57,6 +59,7 @@ export const ATS_ENGINES: EngineCapability[] = [
     name: "Resume Worded",
     shortDescription: "Impact, skills, wording & presentation (reference).",
     kind: "reference",
+    fallback: "ts",
     supportedModes: ["resume_only", "job_match"],
     title: "optional",
     jd: "optional",
@@ -76,6 +79,7 @@ export const ATS_ENGINES: EngineCapability[] = [
     name: "Teal",
     shortDescription: "Separate resume score vs job match (reference).",
     kind: "reference",
+    fallback: "ts",
     supportedModes: ["resume_only", "job_match"],
     title: "optional",
     jd: "optional",
@@ -95,6 +99,7 @@ export const ATS_ENGINES: EngineCapability[] = [
     name: "Rezi",
     shortDescription: "Content, format & optimization readiness (reference).",
     kind: "reference",
+    fallback: "ts",
     supportedModes: ["resume_only", "job_match"],
     title: "optional",
     jd: "optional",
@@ -114,6 +119,7 @@ export const ATS_ENGINES: EngineCapability[] = [
     name: "SkillSyncer",
     shortDescription: "Weighted hard/soft/title/degree match (reference).",
     kind: "reference",
+    fallback: "ts",
     supportedModes: ["job_match"],
     title: "required",
     jd: "required",
@@ -128,6 +134,98 @@ export const ATS_ENGINES: EngineCapability[] = [
     algoBlurb:
       "Needs a job title and JD. Score out of 100: hard skills 60 + soft 15 + other keywords 5 + title 10 + degree 10. Keyword frequency matters; empty JD categories get full points. Title is all-or-nothing.",
   },
+  {
+    id: "open_ats",
+    name: "Open ATS",
+    shortDescription: "Keyword, formatting & content-quality scan (open source).",
+    kind: "open_source",
+    referenceRepo: "github.com/jlynshue/open-ats",
+    fallback: "none",
+    supportedModes: ["job_match"],
+    title: "unsupported",
+    jd: "required",
+    preferredMode: "job_match",
+    scoreTypes: ["ats_scan"],
+    scoreTypeByMode: { job_match: "ats_scan" },
+    scoringProfileId: "open-ats-adapted",
+    profileVersion: "1.0",
+    limitations: [
+      "Aavedak adaptation of Open ATS formulas on extracted text — not the Open ATS CLI itself.",
+      "Requires a job description. Needs the scoring service (no offline fallback).",
+    ],
+    algoBlurb:
+      "Open ATS weights from its source: keyword 50% (hard 50 / soft 25 / action verbs 15 / industry 10) + formatting 25% (penalties from 100) + content quality 25% (action verbs, passive voice, hedging, length). Needs a JD.",
+  },
+  {
+    id: "ats_resume_checker",
+    name: "ATS Resume Checker",
+    shortDescription: "8 weighted categories with severity-ranked fixes (open source).",
+    kind: "open_source",
+    referenceRepo: "github.com/Jahangirhussen/ats-resume-checker",
+    fallback: "none",
+    supportedModes: ["resume_only", "role_match", "job_match"],
+    title: "optional",
+    jd: "optional",
+    preferredMode: "resume_only",
+    scoreTypes: ["resume_quality", "ats_readiness"],
+    scoreTypeByMode: {
+      resume_only: "resume_quality",
+      role_match: "ats_readiness",
+      job_match: "ats_readiness",
+    },
+    scoringProfileId: "ats-resume-checker-adapted",
+    profileVersion: "1.0",
+    limitations: [
+      "Generic ATS profile only; page-count and OCR checks are skipped (text-only input).",
+      "Resume-only mode drops keyword match and renormalizes weights. Needs the scoring service.",
+    ],
+    algoBlurb:
+      "Keyword 22% + structure, formatting, writing, achievements 14% each + experience 10% + education, contact 6% each. Keywords come from the JD (or the title's skill list). Without either, keyword match is left out instead of counted as 100.",
+  },
+  {
+    id: "resume_skills_extractor",
+    name: "Resume Skills Extractor",
+    shortDescription: "TF-IDF similarity + skill coverage by category (open source).",
+    kind: "open_source",
+    referenceRepo: "github.com/blueabstract/resume-skills-extractor",
+    fallback: "none",
+    supportedModes: ["job_match"],
+    title: "unsupported",
+    jd: "required",
+    preferredMode: "job_match",
+    scoreTypes: ["skill_similarity_match"],
+    scoreTypeByMode: { job_match: "skill_similarity_match" },
+    scoringProfileId: "resume-skills-extractor-adapted",
+    profileVersion: "1.0",
+    limitations: [
+      "Similarity is lexical TF-IDF overlap — reported separately; it is not an ATS score by itself.",
+      "Requires a job description. Needs the scoring service.",
+    ],
+    algoBlurb:
+      "60% TF-IDF cosine similarity (1–3 word phrases, ×180 calibration, capped) + 40% share of JD skills found on the resume. Shows matched, missing and bonus skills by category, plus the raw similarity.",
+  },
+  {
+    id: "hybrid_resume_analyzer",
+    name: "Hybrid Resume Analyzer",
+    shortDescription: "Skill/keyword rubric combined with text similarity (open source).",
+    kind: "open_source",
+    referenceRepo: "github.com/Anirodh-Padhy/resume-analyzer",
+    fallback: "none",
+    supportedModes: ["job_match"],
+    title: "unsupported",
+    jd: "required",
+    preferredMode: "job_match",
+    scoreTypes: ["hybrid_match"],
+    scoreTypeByMode: { job_match: "hybrid_match" },
+    scoringProfileId: "hybrid-resume-analyzer-adapted",
+    profileVersion: "1.0",
+    limitations: [
+      "No ML model is used — the reference's classifier only validates documents and is not loaded.",
+      "The 70/30 combination is an Aavedak choice. Requires a JD. Needs the scoring service.",
+    ],
+    algoBlurb:
+      "Rubric from the reference (skills 40 + keyword overlap 30 + length 20 − 2 per missing skill, out of 90) normalized to 100, combined 70/30 with TF-IDF similarity. Both parts are shown separately.",
+  },
 ];
 
 export function getEngine(id: string): EngineCapability | undefined {
@@ -135,6 +233,8 @@ export function getEngine(id: string): EngineCapability | undefined {
 }
 
 export function scoreTypeForMode(engine: EngineCapability, mode: AtsMode): AtsScoreType {
+  const explicit = engine.scoreTypeByMode?.[mode];
+  if (explicit) return explicit;
   if (mode === "resume_only") {
     if (engine.scoreTypes.includes("resume_optimization")) return "resume_optimization";
     if (engine.scoreTypes.includes("resume_quality")) return "resume_quality";
@@ -163,6 +263,14 @@ export function scoreTypeLabel(t: AtsScoreType): string {
       return "Resume Optimization";
     case "weighted_job_match":
       return "Weighted Job Match";
+    case "ats_scan":
+      return "ATS Scan";
+    case "ats_readiness":
+      return "ATS Readiness";
+    case "skill_similarity_match":
+      return "Skill + Similarity Match";
+    case "hybrid_match":
+      return "Hybrid Match";
     default:
       return t;
   }
