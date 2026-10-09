@@ -60,7 +60,6 @@ const SOURCE_LABELS: Record<JobSource, string> = {
   careers: "Careers",
   indeed: "Indeed",
   other: "Other",
-  demo: "Demo",
 };
 
 const PANE_WIDTH_KEY = "aavedak-jobs-list-width";
@@ -378,7 +377,6 @@ export function JobsHub({
     "indeed",
     "manual",
     "other",
-    "demo",
   ];
 
   return (
@@ -558,7 +556,7 @@ export function JobsHub({
                 <SelectValue placeholder="Source" />
               </SelectTrigger>
               <SelectContent className="z-[240]">
-                {JOB_SOURCES.filter((s) => s !== "demo").map((s) => (
+                {JOB_SOURCES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {SOURCE_LABELS[s]}
                   </SelectItem>

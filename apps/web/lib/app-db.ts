@@ -403,6 +403,33 @@ async function runDiscoverySchema(db: NeonQueryFunction<false, false>) {
       PRIMARY KEY (user_id, person_id)
     )`;
   await db`CREATE INDEX IF NOT EXISTS person_votes_person_idx ON person_votes (person_id)`;
+
+  await purgeDemoJobs(db);
+}
+
+/**
+ * Remove invented jobs left by the retired demo generator (`ensureDemoJobs`, fixed
+ * example.com/jobs URLs, source "demo") and the old sample ingest (example.com/feeds,
+ * feed_source "sample-*"). Idempotent; a no-op once they are gone. Applications, cover
+ * letters, and analyses a user created from them are kept and just unlinked.
+ */
+async function purgeDemoJobs(db: NeonQueryFunction<false, false>) {
+  const demo = await db`
+    SELECT id FROM jobs
+    WHERE source = 'demo'
+       OR url LIKE 'https://example.com/jobs/%'
+       OR url LIKE 'https://example.com/feeds/%'
+       OR feed_source LIKE 'sample-%'
+  `;
+  const ids = (demo as Array<{ id: string }>).map((r) => r.id);
+  if (ids.length === 0) return;
+  await db`UPDATE applications SET job_id = NULL WHERE job_id = ANY(${ids})`;
+  await db`UPDATE cover_letters SET job_id = NULL WHERE job_id = ANY(${ids})`;
+  await db`UPDATE job_analyses SET job_id = NULL WHERE job_id = ANY(${ids})`;
+  await db`DELETE FROM user_job_state WHERE job_id = ANY(${ids})`;
+  await db`DELETE FROM job_scores WHERE job_id = ANY(${ids})`;
+  await db`DELETE FROM job_person_relevance WHERE job_id = ANY(${ids})`;
+  await db`DELETE FROM jobs WHERE id = ANY(${ids})`;
 }
 
 /** Ensure Postgres app schema exists (idempotent). */

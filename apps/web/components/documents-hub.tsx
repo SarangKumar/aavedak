@@ -42,6 +42,7 @@ import { renderTemplatePreview } from "@/lib/template-preview";
 import { CompanySelect } from "@/components/company-select";
 import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 type Tab = "resumes" | "cover_letters" | "referral_email" | "followup_email";
 
@@ -742,7 +743,7 @@ export function DocumentsHub({
 
         <TabsContent value="resumes" className="mt-0 outline-none">
           <section className="space-y-4">
-            <div className="border-border/80 bg-card ring-ring/10 space-y-3 rounded-lg border p-4 shadow-sm ring-1">
+            <Card className="border-border/80 bg-card ring-ring/10 gap-0 space-y-3 rounded-lg border p-4 shadow-sm ring-1">
               <div className="space-y-1.5">
                 <label
                   htmlFor="resume-display-name"
@@ -787,7 +788,7 @@ export function DocumentsHub({
                 {pending ? <Spinner className="size-3.5" label="Uploading" /> : null}
                 {pending ? "Uploading…" : "Upload PDF resume"}
               </button>
-            </div>
+            </Card>
 
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -985,7 +986,7 @@ export function DocumentsHub({
             </p>
 
             <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.18fr)] xl:items-stretch">
-              <div className="border-border/80 bg-card space-y-2.5 rounded-lg border p-4 shadow-sm">
+              <Card className="border-border/80 bg-card gap-0 space-y-2.5 rounded-lg border p-4 shadow-sm">
                 <p className="aavedak-section-title text-foreground">
                   {editingClId ? "Edit cover letter" : "New cover letter"}
                 </p>
@@ -1224,9 +1225,9 @@ export function DocumentsHub({
                     {downloadBusy === "draft-docx" ? "DOCX…" : "Download DOCX"}
                   </button>
                 </div>
-              </div>
+              </Card>
 
-              <div className="border-border/80 bg-card flex min-h-[36rem] flex-col rounded-lg border p-3 shadow-sm xl:min-h-full">
+              <Card className="border-border/80 bg-card flex min-h-[36rem] flex-col gap-0 rounded-lg border p-3 shadow-sm xl:min-h-full">
                 <CoverLetterPdfPreview
                   title={previewTitle}
                   body={previewBody}
@@ -1236,7 +1237,7 @@ export function DocumentsHub({
                   onOverflowChange={onClOverflowChange}
                   className="min-h-[32rem] xl:min-h-0"
                 />
-              </div>
+              </Card>
             </div>
 
             <div className="space-y-2">

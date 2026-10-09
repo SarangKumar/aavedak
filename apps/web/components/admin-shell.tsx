@@ -28,6 +28,7 @@ import type { AdminOverviewCounts, AdminResumeRow } from "@/lib/admin-data";
 import { formatDateTimeFixed } from "@/lib/format-datetime";
 import type { PendingUserRow } from "@/lib/user-approval-shared";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 const RESUME_PAGE_SIZE = 10;
 
@@ -137,9 +138,9 @@ export function AdminShell({
 
       <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map((card) => (
-          <div
+          <Card
             key={card.key}
-            className="border-border/80 bg-card rounded-xl border px-3 py-2.5 shadow-sm"
+            className="border-border/80 bg-card gap-0 rounded-xl border px-3 py-2.5 shadow-sm"
           >
             <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
               {card.label}
@@ -147,11 +148,11 @@ export function AdminShell({
             <p className="text-foreground mt-0.5 font-mono text-xl tabular-nums tracking-tight">
               {counts[card.key]}
             </p>
-          </div>
+          </Card>
         ))}
       </section>
 
-      <section className="border-border/80 bg-card space-y-2.5 rounded-xl border p-3.5 shadow-sm">
+      <Card className="border-border/80 bg-card gap-0 space-y-2.5 rounded-xl border p-3.5 shadow-sm">
         <div>
           <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
             Pending registrations
@@ -218,9 +219,9 @@ export function AdminShell({
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
-      <section className="border-border/80 bg-card space-y-2.5 rounded-xl border p-3.5 shadow-sm">
+      <Card className="border-border/80 bg-card gap-0 space-y-2.5 rounded-xl border p-3.5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
@@ -395,11 +396,11 @@ export function AdminShell({
             </Pagination>
           </div>
         ) : null}
-      </section>
+      </Card>
 
       <AdminDiscoveryPanel />
 
-      <section className="border-border/80 bg-card space-y-2 rounded-xl border p-3.5 shadow-sm">
+      <Card className="border-border/80 bg-card gap-0 space-y-2 rounded-xl border p-3.5 shadow-sm">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
           Person email suggest-corrections
         </h2>
@@ -409,9 +410,9 @@ export function AdminShell({
         <div className="border-border/70 text-muted-foreground rounded-xl border border-dashed px-3 py-10 text-center text-[12px]">
           Empty queue — nothing to review.
         </div>
-      </section>
+      </Card>
 
-      <section className="border-border/80 bg-card rounded-xl border p-3.5">
+      <Card className="border-border/80 bg-card gap-0 rounded-xl border p-3.5">
         <p className="text-foreground text-[12px] font-semibold tracking-tight">
           ADMIN_EMAILS allowlist
         </p>
@@ -420,7 +421,7 @@ export function AdminShell({
             <li key={email}>{email}</li>
           ))}
         </ul>
-      </section>
+      </Card>
     </ShellWidth>
   );
 }

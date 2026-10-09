@@ -1,6 +1,6 @@
 /** Client-safe job source / status constants (no DB). */
 
-export const JOB_SOURCES = ["manual", "linkedin", "careers", "indeed", "other", "demo"] as const;
+export const JOB_SOURCES = ["manual", "linkedin", "careers", "indeed", "other"] as const;
 
 export type JobSource = (typeof JOB_SOURCES)[number];
 

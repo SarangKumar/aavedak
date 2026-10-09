@@ -35,6 +35,7 @@ apps/web/.data/
 apps/web/.env
 apps/web/.env.local
 apps/web/.next/
+apps/web/.next-dev/
 apps/web/data/
 apps/web/out/
 coverage/

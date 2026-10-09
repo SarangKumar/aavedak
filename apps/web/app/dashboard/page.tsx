@@ -8,6 +8,7 @@ import { ApplicationsActivityCharts } from "@/components/applications-activity-c
 import { PipelineStatusChart } from "@/components/pipeline-status-chart";
 import { ShellWidth } from "@/components/shell-width";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -108,9 +109,9 @@ export default async function DashboardPage() {
                 Open tracker
               </Link>
             </div>
-            <div className="border-border/80 bg-card flex flex-1 flex-col justify-center rounded-lg border p-4 shadow-sm">
+            <Card className="border-border/80 bg-card flex flex-1 flex-col justify-center gap-0 rounded-lg border p-4 shadow-sm">
               <PipelineStatusChart data={dash.highlightCounts} />
-            </div>
+            </Card>
           </section>
 
           <section aria-labelledby="pulse-heading" className="flex flex-col space-y-2.5">

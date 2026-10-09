@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ShellWidth } from "@/components/shell-width";
+import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   robots: { index: true, follow: true },
@@ -40,19 +41,19 @@ export default function AboutPage() {
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {principles.map((item) => (
-          <article
+          <Card
             key={item.title}
-            className="border-border/80 bg-card rounded-lg border p-4 shadow-sm"
+            className="border-border/80 bg-card gap-0 rounded-lg border p-4 shadow-sm"
           >
             <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
               {item.title}
             </h2>
             <p className="text-muted-foreground mt-2 text-[13px] leading-relaxed">{item.body}</p>
-          </article>
+          </Card>
         ))}
       </section>
 
-      <section className="border-border/80 bg-card max-w-2xl space-y-3 rounded-lg border p-5 shadow-sm">
+      <Card className="border-border/80 bg-card max-w-2xl gap-0 space-y-3 rounded-lg border p-5 shadow-sm">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Workspace map</h2>
         <ul className="text-muted-foreground space-y-2 text-[13px] leading-relaxed">
           <li>
@@ -99,7 +100,7 @@ export default function AboutPage() {
           </Link>{" "}
           for what shipped recently.
         </p>
-      </section>
+      </Card>
     </ShellWidth>
   );
 }

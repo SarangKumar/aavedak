@@ -12,6 +12,7 @@ import {
   type ProfileLinkKey,
 } from "@/lib/profile-links";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 export type ProfileViewProps = {
   profile: Profile;
@@ -74,7 +75,7 @@ export function ProfileView({
 
   return (
     <ShellWidth className="aavedak-fade-up space-y-5 py-8 sm:py-10">
-      <div className="border-border/80 bg-card ring-ring/10 relative overflow-hidden rounded-lg border p-5 shadow-sm ring-1 sm:p-6">
+      <Card className="border-border/80 bg-card ring-ring/10 relative gap-0 overflow-hidden rounded-lg border p-5 shadow-sm ring-1 sm:p-6">
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3.5">
             <Avatar className="size-14 sm:size-16">
@@ -147,10 +148,10 @@ export function ProfileView({
             </span>
           )}
         </div>
-      </div>
+      </Card>
 
       {profile.projects.length > 0 ? (
-        <div className="border-border/80 bg-card ring-ring/10 rounded-lg border p-4 shadow-sm ring-1 sm:p-5">
+        <Card className="border-border/80 bg-card ring-ring/10 gap-0 rounded-lg border p-4 shadow-sm ring-1 sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Projects</h2>
             {isOwner ? (
@@ -230,9 +231,9 @@ export function ProfileView({
               );
             })}
           </ul>
-        </div>
+        </Card>
       ) : isOwner ? (
-        <div className="border-border/80 bg-card ring-ring/10 rounded-lg border p-4 shadow-sm ring-1 sm:p-5">
+        <Card className="border-border/80 bg-card ring-ring/10 gap-0 rounded-lg border p-4 shadow-sm ring-1 sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Projects</h2>
             {onEdit ? (
@@ -255,10 +256,10 @@ export function ProfileView({
           <p className="text-muted-foreground mt-2 text-[13px]">
             Showcase deployed work with a title, short description, and favicon.
           </p>
-        </div>
+        </Card>
       ) : null}
 
-      <div className="border-border/80 bg-card ring-ring/10 rounded-lg border p-4 shadow-sm ring-1 sm:p-5">
+      <Card className="border-border/80 bg-card ring-ring/10 gap-0 rounded-lg border p-4 shadow-sm ring-1 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
             Showcase resume
@@ -309,7 +310,7 @@ export function ProfileView({
               : "No public resume listed yet."}
           </p>
         )}
-      </div>
+      </Card>
     </ShellWidth>
   );
 }

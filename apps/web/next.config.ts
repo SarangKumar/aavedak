@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@neondatabase/serverless"],
@@ -51,4 +52,14 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * `next dev` writes to `.next-dev`, everything else (build/start) to `.next`.
+ * Sharing one folder let a `next build` run while the dev server was up overwrite the
+ * CSS/chunk manifests the dev server serves — pages lost all styles until a restart.
+ */
+export default function config(phase: string): NextConfig {
+  return {
+    ...nextConfig,
+    distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
+  };
+}

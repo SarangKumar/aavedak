@@ -31,6 +31,7 @@ import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
 import { formatDateTimeReadable } from "@/lib/format-datetime";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 export type ApplicationDto = {
   id: string;
@@ -674,7 +675,7 @@ export function ReferralsComposer({
 
   function renderConfirmPanel() {
     return (
-      <section className="border-border/80 bg-card shrink-0 space-y-2.5 rounded-xl border p-3 shadow-sm">
+      <Card className="border-border/80 bg-card shrink-0 gap-0 space-y-2.5 rounded-xl border p-3 shadow-sm">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
           {activeMailKind === "followup"
             ? "Confirm & send follow-ups"
@@ -703,7 +704,7 @@ export function ReferralsComposer({
               ? "Queue follow-up (20s)"
               : "Queue referral (20s)"}
         </button>
-      </section>
+      </Card>
     );
   }
 
@@ -714,7 +715,7 @@ export function ReferralsComposer({
     if (id === "people") {
       return (
         <div className="relative flex h-full min-w-0 flex-col gap-3">
-          <section className="border-border/80 bg-card flex min-h-0 flex-1 flex-col rounded-xl border shadow-sm">
+          <Card className="border-border/80 bg-card flex min-h-0 flex-1 flex-col gap-0 rounded-xl border p-0 shadow-sm">
             <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
               <div className="min-w-0">
                 <p className="text-foreground text-[13px] font-semibold tracking-tight">
@@ -890,14 +891,14 @@ export function ReferralsComposer({
                 )}
               </ul>
             </div>
-          </section>
+          </Card>
           {renderConfirmPanel()}
         </div>
       );
     }
 
     return (
-      <section className="border-border/80 bg-card relative flex h-full min-w-0 flex-col rounded-xl border shadow-sm">
+      <Card className="border-border/80 bg-card relative flex h-full min-w-0 flex-col gap-0 rounded-xl border p-0 shadow-sm">
         <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
           <div className="min-w-0">
             <p className="text-foreground text-[13px] font-semibold tracking-tight">{meta.title}</p>
@@ -1161,7 +1162,7 @@ export function ReferralsComposer({
             </div>
           ) : null}
         </div>
-      </section>
+      </Card>
     );
   }
 
@@ -1222,7 +1223,7 @@ export function ReferralsComposer({
         </DragDropList>
       </DragDrop>
 
-      <section className="border-border/80 bg-card space-y-2 rounded-xl border p-4">
+      <Card className="border-border/80 bg-card gap-0 space-y-2 rounded-xl border p-4">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
           Pending follow-ups
         </h2>
@@ -1249,7 +1250,7 @@ export function ReferralsComposer({
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
       <Modal
         open={resumePickerOpen}

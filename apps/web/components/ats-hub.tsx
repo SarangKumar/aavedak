@@ -157,7 +157,7 @@ function StepBlock({
 }) {
   const panelId = `ats-step-${step}-panel`;
   return (
-    <section className="border-border/80 bg-card rounded-xl border">
+    <Card className="border-border/80 bg-card gap-0 rounded-xl border p-0">
       <div className="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
         <button
           type="button"
@@ -188,7 +188,7 @@ function StepBlock({
           {children}
         </div>
       ) : null}
-    </section>
+    </Card>
   );
 }
 
@@ -1258,7 +1258,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
         </StepBlock>
       </div>
 
-      <div className="border-border/80 bg-card overflow-hidden rounded-xl border">
+      <Card className="border-border/80 bg-card gap-0 overflow-hidden rounded-xl border p-0">
         <Accordion type="single" collapsible className="border-y-0">
           <AccordionItem value="scoring">
             <AccordionTrigger className="text-foreground px-4 text-[13px] font-semibold hover:no-underline md:px-5">
@@ -1280,7 +1280,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
             </AccordionContent>
           </AccordionItem>
         </Accordion>
-      </div>
+      </Card>
 
       <UploadResumeModal
         open={uploadOpen}

@@ -18,9 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Admin — Discovery panel** — Admins can manage the career-page list (search, enable or disable, bulk-add URLs, re-import the verified starter list of 118 company boards) and start a scan on demand. They can also run expiry or ranking, follow run progress, retry failed items, and bulk-import thousands of people from a CSV. Imports only fill missing details, never mark emails as verified, and skip phone numbers.
 - **Application history** — Every status change is now recorded, whether you made it or the job expired.
 
+### Fixed
+
+- **Local development: pages losing all styles** — Running a production build while the dev server was up overwrote the files the dev server serves, so pages lost their styles until a restart. The dev server now keeps its files in a separate folder (`.next-dev`).
+
+### Removed
+
+- **Sample and demo jobs** — The Jobs page no longer creates example jobs, and existing ones are deleted automatically. Applications or cover letters you made from them stay, without the job link.
+
 ### Changed
 
-- **Discovery moved to the API** — Job and people discovery now run in the FastAPI service as small, resumable batches. Nightly runs are spread across several daily schedules so no single run holds the database. The old daily web ingest and its sample jobs were removed. Demo jobs now appear only in local development.
+- **Discovery moved to the API** — Job and people discovery now run in the FastAPI service as small, resumable batches. Nightly runs are spread across several daily schedules so no single run holds the database. The old daily web ingest was removed.
 - **Jobs page** — The page now shows only jobs recommended to you, jobs you acted on, and jobs you added, not every shared job. Scores are no longer calculated while the page loads.
 
 - **ATS — four open-source-based engines** — Open ATS, ATS Resume Checker, Resume Skills Extractor and Hybrid Resume Analyzer. Each one adapts the scoring formulas found in that project's source code. Every report shows its own weighted breakdown, severity-ranked findings, fixes linked to those findings, its score type, and the places where it differs from the original. These engines need the scoring service and show a clear error rather than a substitute score when it's unavailable.

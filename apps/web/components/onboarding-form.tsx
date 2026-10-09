@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { emptyCareerProfile, type CareerProfile } from "@/lib/career-profile";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 type ResumeDto = {
   id: string;
@@ -253,7 +254,7 @@ export function OnboardingForm({
       </div>
 
       {step === 1 ? (
-        <section className="border-border/80 bg-card ring-ring/10 space-y-4 rounded-xl border p-4 shadow-sm ring-1 sm:p-5">
+        <Card className="border-border/80 bg-card ring-ring/10 gap-0 space-y-4 rounded-xl border p-4 shadow-sm ring-1 sm:p-5">
           <div>
             <h2 className="text-foreground text-[14px] font-semibold tracking-tight">
               Career preferences
@@ -273,7 +274,7 @@ export function OnboardingForm({
           >
             Save & continue to resume
           </Button>
-        </section>
+        </Card>
       ) : (
         <>
           <form
@@ -363,9 +364,9 @@ export function OnboardingForm({
                 ))}
               </ul>
             ) : resumes.length === 0 ? (
-              <div className="border-border/70 bg-card text-muted-foreground rounded-xl border border-dashed px-4 py-6 text-center text-[13px]">
+              <Card className="border-border/70 bg-card text-muted-foreground gap-0 rounded-xl border border-dashed px-4 py-6 text-center text-[13px]">
                 No resumes yet — upload a PDF to continue.
-              </div>
+              </Card>
             ) : (
               <ul className="space-y-2">
                 {resumes.map((resume) => (

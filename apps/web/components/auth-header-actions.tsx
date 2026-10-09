@@ -8,6 +8,7 @@ import { HeaderMenu } from "@/components/header-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { signOutAndRedirect } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 
 export type HeaderUser = {
   name: string;
@@ -170,7 +171,7 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
             >
               ATS
             </Link>
-            <div className="border-border border-t" />
+            <Separator />
             {error ? (
               <p className="text-destructive px-3 py-1.5 text-[11px]" role="alert">
                 {error}

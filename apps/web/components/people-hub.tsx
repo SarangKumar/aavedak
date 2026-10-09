@@ -20,6 +20,7 @@ import { CompanySelect } from "@/components/company-select";
 import { PersonVote, personInitials, type VoteSummaryDto } from "@/components/person-vote";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 export type PersonDto = {
   id: string;
@@ -245,7 +246,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
         </Button>
       </div>
 
-      <div className="border-border/80 bg-card overflow-hidden rounded-lg border shadow-sm">
+      <Card className="border-border/80 bg-card gap-0 overflow-hidden rounded-lg border p-0 shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -358,7 +359,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
             )}
           </TableBody>
         </Table>
-      </div>
+      </Card>
 
       <Sheet
         open={drawerOpen}

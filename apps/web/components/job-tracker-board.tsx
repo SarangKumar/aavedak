@@ -582,7 +582,7 @@ export function JobTrackerBoard({
       </header>
 
       {columnsOpen && prefs.trackerView === "kanban" ? (
-        <div className="border-border/80 bg-card rounded-xl border p-3">
+        <Card className="border-border/80 bg-card gap-0 rounded-xl border p-3">
           <p className="text-foreground mb-2 text-[12px] font-medium">Show / hide Kanban columns</p>
           <div className="flex flex-wrap gap-1.5">
             {DEFAULT_KANBAN_STATUSES.map((status) => {
@@ -604,7 +604,7 @@ export function JobTrackerBoard({
               );
             })}
           </div>
-        </div>
+        </Card>
       ) : null}
 
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
@@ -624,7 +624,7 @@ export function JobTrackerBoard({
       </div>
 
       {prefs.trackerView === "kanban" ? (
-        <div className="border-border/70 bg-card overflow-hidden rounded-xl border">
+        <Card className="border-border/70 bg-card gap-0 overflow-hidden rounded-xl border p-0">
           <div className="p-3 sm:p-4">
             <DragDrop items={columns} onReorder={onKanbanReorder}>
               <div className="flex gap-3 overflow-x-auto pb-1">
@@ -712,15 +712,15 @@ export function JobTrackerBoard({
               </div>
             </DragDrop>
           </div>
-        </div>
+        </Card>
       ) : (
         <ListView applications={filteredApplications} pageSize={listPageSize} onSelect={openEdit} />
       )}
 
       {filteredApplications.length === 0 && !pending ? (
-        <div className="border-border/70 bg-card/40 text-muted-foreground rounded-xl border border-dashed px-4 py-10 text-center text-[13px]">
+        <Card className="border-border/70 bg-card/40 text-muted-foreground gap-0 rounded-xl border border-dashed px-4 py-10 text-center text-[13px]">
           No applications yet — create one to start your pipeline.
-        </div>
+        </Card>
       ) : null}
 
       <Modal
@@ -1080,7 +1080,7 @@ function ListView({
   if (applications.length === 0) return null;
 
   return (
-    <div className="border-border/80 bg-card/60 space-y-2 overflow-hidden rounded-xl border p-3">
+    <Card className="border-border/80 bg-card/60 gap-0 space-y-2 overflow-hidden rounded-xl border p-3">
       <div className="flex flex-wrap gap-1.5">
         <button
           type="button"
@@ -1207,7 +1207,7 @@ function ListView({
           </Pagination>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/chart";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 type ActivityDay = { date: string; count: number };
 
@@ -150,7 +151,7 @@ export function ApplicationsActivityCharts() {
       {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
 
       <div className="space-y-2">
-        <div className="border-border/80 bg-card rounded-lg border p-4 shadow-sm">
+        <Card className="border-border/80 bg-card gap-0 rounded-lg border p-4 shadow-sm">
           {loading && !data ? (
             <div className="text-muted-foreground flex h-[260px] items-center justify-center gap-2 text-[12px]">
               <Spinner /> Loading chart…
@@ -227,10 +228,10 @@ export function ApplicationsActivityCharts() {
               </LineChart>
             </ChartContainer>
           )}
-        </div>
+        </Card>
 
         <div className="flex justify-end">
-          <div
+          <Card
             className="border-border/70 bg-card inline-flex items-center gap-1 rounded-lg border p-1 text-[11px] shadow-sm"
             role="group"
             aria-label="Chart time range"
@@ -250,7 +251,7 @@ export function ApplicationsActivityCharts() {
                 {r.label}
               </button>
             ))}
-          </div>
+          </Card>
         </div>
       </div>
 

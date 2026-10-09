@@ -12,6 +12,7 @@ import { ResizeHandle } from "@/components/ui/resize-handle";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateTimeReadable } from "@/lib/format-datetime";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 export type FollowUpDto = {
   id: string;
@@ -430,8 +431,8 @@ export function OutreachInbox({ initialFollowUps, people, applications }: Props)
             </option>
           ))}
         </select>
-        <div
-          className="border-border bg-card inline-flex h-9 items-center rounded-lg border p-0.5"
+        <Card
+          className="border-border bg-card inline-flex h-9 items-center gap-0 rounded-lg border p-0.5"
           role="tablist"
           aria-label="Duration"
         >
@@ -459,7 +460,7 @@ export function OutreachInbox({ initialFollowUps, people, applications }: Props)
               {item.label}
             </button>
           ))}
-        </div>
+        </Card>
         <span className="text-muted-foreground text-[12px]">
           {applicationId
             ? `${applicationMessages.length} mail · ${threads.length} people`
@@ -467,7 +468,7 @@ export function OutreachInbox({ initialFollowUps, people, applications }: Props)
         </span>
       </div>
 
-      <div className="border-border/80 bg-card flex h-[min(70vh,44rem)] flex-col overflow-hidden rounded-xl border md:flex-row">
+      <Card className="border-border/80 bg-card flex h-[min(70vh,44rem)] flex-col gap-0 overflow-hidden rounded-xl border p-0 md:flex-row">
         <aside
           className="border-border/60 flex max-h-[42%] w-full shrink-0 flex-col overflow-hidden border-b md:h-full md:max-h-none md:w-[var(--inbox-list-width)] md:max-w-[min(100%,560px)] md:border-b-0 md:border-r"
           style={{ ["--inbox-list-width" as string]: `${listWidth}px` }}
@@ -611,7 +612,7 @@ export function OutreachInbox({ initialFollowUps, people, applications }: Props)
             </>
           )}
         </section>
-      </div>
+      </Card>
     </ShellWidth>
   );
 }

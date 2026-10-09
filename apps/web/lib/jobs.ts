@@ -186,9 +186,6 @@ export async function listIgnoredJobIds(userId: string): Promise<Set<string>> {
   return new Set(rows.map((r) => r.job_id));
 }
 
-/** Legacy demo rows from `ensureDemoJobs` (fixed example.com URLs) never show outside dev. */
-const DEMO_URL_PREFIX = "https://example.com/jobs/";
-
 /**
  * The user's job universe: their own (manual / pasted) jobs plus shared discovered jobs
  * they were recommended or acted on. Shared jobs no one recommended to this user stay
@@ -207,7 +204,6 @@ export async function listJobsForUser(
     WHERE (j.user_id = ${userId} OR (j.user_id IS NULL AND s.user_id IS NOT NULL))
       AND (${includeArchived} = 1 OR j.status != 'archived')
       AND (${includeIgnored} = 1 OR COALESCE(s.ignored, 0) = 0)
-      AND (j.url IS NULL OR j.url NOT LIKE ${DEMO_URL_PREFIX + "%"} OR ${process.env.NODE_ENV !== "production" ? 1 : 0} = 1)
     ORDER BY j.updated_at DESC
   `) as Row[];
   return rows.map(mapJobRow);
@@ -242,7 +238,6 @@ function parseReasons(raw: string | null | undefined): DiscoverJob["reasons"] {
  */
 export async function listDiscoverJobs(userId: string): Promise<DiscoverJob[]> {
   await ensureAppSchema();
-  const showDemo = process.env.NODE_ENV !== "production" ? 1 : 0;
   const rows = (await getSql()`
     SELECT j.*, s.recommended_at, s.score AS recommendation_score, s.reasons_json
     FROM jobs j
@@ -254,8 +249,7 @@ export async function listDiscoverJobs(userId: string): Promise<DiscoverJob[]> {
       AND (
         (j.user_id IS NULL AND s.recommended_at IS NOT NULL
           AND j.expired_at IS NULL AND j.closed_at IS NULL)
-        OR (j.user_id = ${userId}
-          AND (j.url IS NULL OR j.url NOT LIKE ${DEMO_URL_PREFIX + "%"} OR ${showDemo} = 1))
+        OR j.user_id = ${userId}
       )
     ORDER BY COALESCE(s.recommended_at, j.created_at) DESC, s.score DESC NULLS LAST
   `) as Array<
@@ -419,93 +413,4 @@ export async function archiveJob(userId: string, id: string): Promise<JobRecord>
     return job;
   }
   return updateJob(userId, id, { status: "archived" });
-}
-
-/**
- * Dev-only sample jobs (fixed example.com URLs). Never runs in production: Aavedak must
- * not show invented jobs to real users.
- */
-export async function ensureDemoJobs(userId: string): Promise<JobRecord[]> {
-  if (process.env.NODE_ENV === "production" || process.env.JOBS_DEMO !== "1") {
-    return listJobsForUser(userId);
-  }
-  const samples = [
-    {
-      title: "Senior Frontend Engineer",
-      company: "Northwind Labs",
-      location: "Bengaluru · Hybrid",
-      source: "demo" as const,
-      url: "https://example.com/jobs/northwind-frontend",
-      salary: "₹35–45 LPA",
-      description:
-        "Build dense product UI for a career OS. React, TypeScript, Tailwind. Own design-system collaboration with Vinyaas.\n\nRequirements:\n• 4+ years React/TypeScript\n• Design-system experience\n• Comfortable with Next.js App Router\n\nResponsibilities:\n• Ship polished UI\n• Partner with design",
-    },
-    {
-      title: "Full Stack Engineer",
-      company: "Cascade Analytics",
-      location: "Remote · India",
-      source: "linkedin" as const,
-      url: "https://example.com/jobs/cascade-fullstack",
-      salary: "₹28–38 LPA",
-      description:
-        "Ship Next.js + API services. Experience with Postgres and auth flows preferred.\n\nRequirements:\n• 3+ years full-stack\n• Postgres, TypeScript\n\nNice to have: Better Auth, Drizzle, or similar.",
-    },
-    {
-      title: "Product Engineer",
-      company: "Aether Careers",
-      location: "Mumbai · Onsite",
-      source: "careers" as const,
-      url: "https://example.com/jobs/aether-product",
-      salary: null,
-      description:
-        "0→1 features across discovery, applications, and referrals. Strong taste for UX density and micro-interactions.\n\nResponsibilities:\n• Own features end-to-end\n• Talk to users",
-    },
-    {
-      title: "Platform Engineer",
-      company: "Herald Systems",
-      location: "Hyderabad · Hybrid",
-      source: "indeed" as const,
-      url: "https://example.com/jobs/herald-platform",
-      salary: "₹32–42 LPA",
-      description:
-        "Own CI/CD, observability, and internal developer tooling. Kubernetes and Terraform experience preferred.\n\nRequirements:\n• 4+ years platform / DevOps\n• Kubernetes, Terraform",
-    },
-    {
-      title: "Mobile Engineer (React Native)",
-      company: "Lotus Health",
-      location: "Pune · Hybrid",
-      source: "manual" as const,
-      url: null,
-      salary: "₹24–32 LPA",
-      description:
-        "Ship patient-facing React Native apps. Collaboration with design and clinical product teams.\n\nRequirements:\n• React Native, TypeScript\n• 2+ years mobile",
-    },
-    {
-      title: "Backend Engineer",
-      company: "Orbit Freight",
-      location: "Gurugram · Onsite",
-      source: "other" as const,
-      url: "https://example.com/jobs/orbit-backend",
-      salary: "₹30–40 LPA",
-      description:
-        "APIs for logistics ops. Node/Go, Postgres, event-driven services. On-call rotation shared.\n\nRequirements:\n• Node or Go\n• Postgres\n• 3+ years backend",
-    },
-  ];
-
-  const existing = await listJobsForUser(userId, { includeIgnored: true });
-  const titles = new Set(existing.map((j) => j.title.toLowerCase()));
-  if (existing.length === 0) {
-    for (const sample of samples) await createJob(userId, sample);
-    return listJobsForUser(userId);
-  }
-
-  if (existing.length < 6) {
-    for (const sample of samples) {
-      if (titles.has(sample.title.toLowerCase())) continue;
-      await createJob(userId, sample);
-      titles.add(sample.title.toLowerCase());
-      if ((await countJobs(userId)) >= 6) break;
-    }
-  }
-  return listJobsForUser(userId);
 }

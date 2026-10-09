@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Card } from "@/components/ui/card";
 
 type FriendRow = {
   userId: string;
@@ -96,7 +97,7 @@ export function FriendsInviteCard() {
   }
 
   return (
-    <section className="border-border/80 bg-card space-y-3 rounded-lg border p-4 shadow-sm">
+    <Card className="border-border/80 bg-card gap-0 space-y-3 rounded-lg border p-4 shadow-sm">
       <div>
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Friends</h2>
         <p className="text-muted-foreground text-[11px] leading-relaxed">
@@ -168,6 +169,6 @@ export function FriendsInviteCard() {
       )}
 
       {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
-    </section>
+    </Card>
   );
 }

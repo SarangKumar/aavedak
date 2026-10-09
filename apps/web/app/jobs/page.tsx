@@ -4,7 +4,7 @@ import { JobsHub } from "@/components/jobs-hub";
 import { requireOnboarded } from "@/lib/app-access";
 import { toJobDto } from "@/lib/job-dto";
 import { listJobScores } from "@/lib/job-scoring";
-import { ensureDemoJobs, listAppliedJobs, listDiscoverJobs } from "@/lib/jobs";
+import { listAppliedJobs, listDiscoverJobs } from "@/lib/jobs";
 import { getPreferences } from "@/lib/preferences";
 
 export const metadata: Metadata = {
@@ -15,8 +15,6 @@ export const metadata: Metadata = {
 
 export default async function JobsPage() {
   const { user, profile } = await requireOnboarded();
-  // Dev-only sample rows (no-op in production / without JOBS_DEMO=1).
-  await ensureDemoJobs(user.id);
   // Scores are written by discovery (FastAPI) and on manual job create — never computed here.
   const [discover, applied, scores, prefs] = await Promise.all([
     listDiscoverJobs(user.id),

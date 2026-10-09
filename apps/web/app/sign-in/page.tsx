@@ -7,6 +7,7 @@ import { SignInForm } from "@/components/sign-in-form";
 import { getOptionalAccess } from "@/lib/app-access";
 import { isGoogleAuthConfigured } from "@/lib/auth";
 import { hasFullyOnboarded } from "@/lib/onboarding";
+import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   robots: { index: true, follow: true },
@@ -66,9 +67,9 @@ export default async function SignInPage({ searchParams }: Props) {
           Sign in to continue. We prepare — you decide and send.
         </p>
 
-        <div className="border-border/70 bg-card/90 mt-8 w-full rounded-2xl border p-4 shadow-sm backdrop-blur-md sm:p-5">
+        <Card className="border-border/70 bg-card/90 mt-8 w-full gap-0 rounded-2xl border p-4 shadow-sm backdrop-blur-md sm:p-5">
           <SignInForm googleConfigured={isGoogleAuthConfigured} />
-        </div>
+        </Card>
 
         <p className="text-muted-foreground mt-6 text-[11px] leading-relaxed">
           <Link

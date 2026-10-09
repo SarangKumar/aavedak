@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { BrandMark } from "@/components/brand-mark";
 import { getOptionalAccess } from "@/lib/app-access";
 import { hasFullyOnboarded } from "@/lib/onboarding";
+import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   robots: { index: true, follow: true },
@@ -172,9 +173,9 @@ export default async function HomePage() {
           aria-label="How Aavedak works"
         >
           {steps.map((step) => (
-            <div
+            <Card
               key={step.n}
-              className="border-border/80 bg-card/80 rounded-xl border p-4 shadow-sm backdrop-blur-sm"
+              className="border-border/80 bg-card/80 gap-0 rounded-xl border p-4 shadow-sm backdrop-blur-sm"
             >
               <p className="text-primary font-mono text-[11px] font-semibold tracking-wide">
                 {step.n}
@@ -183,7 +184,7 @@ export default async function HomePage() {
               <p className="text-muted-foreground mt-1.5 text-[13px] leading-relaxed">
                 {step.body}
               </p>
-            </div>
+            </Card>
           ))}
         </section>
 

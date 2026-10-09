@@ -21,6 +21,7 @@ import {
   type DummyApplication,
 } from "@/lib/template-preview";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 export type TemplateKindDto = "outreach" | "cover" | "followup" | "other";
 
@@ -219,7 +220,7 @@ export function ColdEmailTemplatesPanel({
   return (
     <div className={cn("space-y-3", className)}>
       {/* 1) Dummy application strip */}
-      <div className="border-border/80 bg-card flex flex-wrap items-start justify-between gap-2 rounded-xl border px-3 py-2.5 shadow-sm">
+      <Card className="border-border/80 bg-card flex flex-wrap items-start justify-between gap-2 rounded-xl border px-3 py-2.5 shadow-sm">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-1.5">
             <p className="text-foreground text-[12px] font-semibold tracking-tight">
@@ -239,13 +240,13 @@ export function ColdEmailTemplatesPanel({
             <Chip label="You" value={dummy.userName} />
           </div>
         </div>
-      </div>
+      </Card>
 
       {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
 
       {/* 2) Create/edit | live preview — equal height columns; preview fills remainder */}
       <div className="grid items-stretch gap-3 lg:grid-cols-2">
-        <div
+        <Card
           ref={editorRef}
           className="border-border/80 bg-card flex h-full min-h-[16rem] flex-col gap-2 rounded-xl border p-3 shadow-sm"
         >
@@ -345,9 +346,9 @@ export function ColdEmailTemplatesPanel({
           >
             {draft.id ? "Update template" : "Create template"}
           </Button>
-        </div>
+        </Card>
 
-        <div className="border-border/80 bg-card flex h-full min-h-[16rem] flex-col overflow-hidden rounded-xl border p-3 shadow-sm">
+        <Card className="border-border/80 bg-card flex h-full min-h-[16rem] flex-col gap-0 overflow-hidden rounded-xl border p-3 shadow-sm">
           <p className="text-foreground shrink-0 text-[12px] font-semibold tracking-tight">
             Live preview
           </p>
@@ -368,7 +369,7 @@ export function ColdEmailTemplatesPanel({
               {previewBody || "(empty body)"}
             </pre>
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* 3) Your templates list — flat like Your resumes */}

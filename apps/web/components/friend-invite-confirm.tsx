@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 type Props = {
   token: string;
@@ -48,7 +49,7 @@ export function FriendInviteConfirm({
 
   if (isSelf) {
     return (
-      <div className="border-border/80 bg-card space-y-3 rounded-lg border p-5 shadow-sm">
+      <Card className="border-border/80 bg-card gap-0 space-y-3 rounded-lg border p-5 shadow-sm">
         <p className="text-foreground text-[13px] leading-relaxed">
           This is your own invite link. Share it with another Aavedak user — they will confirm to
           become friends.
@@ -56,13 +57,13 @@ export function FriendInviteConfirm({
         <Link href="/dashboard" className="text-primary text-[13px] hover:underline">
           Go to dashboard
         </Link>
-      </div>
+      </Card>
     );
   }
 
   if (done || alreadyFriends) {
     return (
-      <div className="border-border/80 bg-card space-y-3 rounded-lg border p-5 shadow-sm">
+      <Card className="border-border/80 bg-card gap-0 space-y-3 rounded-lg border p-5 shadow-sm">
         <p className="text-foreground text-[14px] font-semibold">
           You&apos;re friends with {inviterName}
         </p>
@@ -72,23 +73,23 @@ export function FriendInviteConfirm({
         <Button type="button" size="sm" onClick={() => router.push("/dashboard")}>
           Open dashboard
         </Button>
-      </div>
+      </Card>
     );
   }
 
   if (status === "accepted") {
     return (
-      <div className="border-border/80 bg-card space-y-3 rounded-lg border p-5 shadow-sm">
+      <Card className="border-border/80 bg-card gap-0 space-y-3 rounded-lg border p-5 shadow-sm">
         <p className="text-foreground text-[13px]">This invite was already used.</p>
         <Link href="/dashboard" className="text-primary text-[13px] hover:underline">
           Dashboard
         </Link>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="border-border/80 bg-card space-y-4 rounded-lg border p-5 shadow-sm">
+    <Card className="border-border/80 bg-card gap-0 space-y-4 rounded-lg border p-5 shadow-sm">
       <p className="text-foreground text-[14px] leading-relaxed">
         <span className="font-semibold">{inviterName}</span>
         {inviterUsername ? (
@@ -108,6 +109,6 @@ export function FriendInviteConfirm({
           Not now
         </Link>
       </div>
-    </div>
+    </Card>
   );
 }

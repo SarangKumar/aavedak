@@ -63,7 +63,6 @@ API (`apps/api/.env`, all optional except the first two):
 | `DISCOVERY_MAX_FAILURES`        | `5`     | Then a source is only retried weekly                   |
 
 Web (`apps/web/.env.local`): `CRON_SECRET` (same value), `NEXT_PUBLIC_API_URL`.
-`JOBS_DEMO=1` seeds sample jobs for local development only (never in production).
 
 ## Local
 
@@ -79,10 +78,6 @@ curl -s http://127.0.0.1:8000/svc/v1/discovery/cron/rank
 
 The old web ingest (`/api/cron/jobs-ingest`, `JOBS_FEED_URL`, `JOBS_INGEST_SAMPLE`,
 `JOBS_INGEST_LIMIT`) was removed. A permitted JSON feed can be added as a `json_feed`
-source (token = feed URL). Sample stub jobs are no longer generated. Legacy demo rows
-(`https://example.com/jobs/…`) are hidden outside development; to delete them from a
-database, review and run:
-
-```sql
-DELETE FROM jobs WHERE url LIKE 'https://example.com/jobs/%' OR url LIKE 'https://example.com/feeds/%';
-```
+source (token = feed URL). Demo and sample jobs were removed entirely: the web app deletes
+any leftover rows (example.com URLs, source `demo`, feed `sample-*`) on startup, keeping
+applications and cover letters created from them but unlinking the job.
