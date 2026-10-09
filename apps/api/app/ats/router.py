@@ -3,7 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from app.ats.analyze import analyze_resume, detect_mode
-from app.ats.schemas import BatchScoreRequest, ScoreRequest
+from app.ats.engine_runner import run_engine_profile
+from app.ats.schemas import BatchScoreRequest, EngineScoreRequest, ScoreRequest
 
 router = APIRouter(prefix="/svc/v1/ats", tags=["ats"])
 
@@ -11,6 +12,19 @@ router = APIRouter(prefix="/svc/v1/ats", tags=["ats"])
 @router.get("/health")
 def ats_health():
     return {"ok": True, "service": "ats", "engine": "fastapi"}
+
+
+@router.post("/score-engine")
+def score_engine(body: EngineScoreRequest):
+    """Score one resume with a specific engine (native or reference profile)."""
+    return run_engine_profile(
+        engine_id=body.engineId,
+        resume_text=body.resumeText,
+        jd_text=body.jdText,
+        role=body.role,
+        mode=body.mode,
+        resume_id=body.resumeId,
+    )
 
 
 @router.post("/score")

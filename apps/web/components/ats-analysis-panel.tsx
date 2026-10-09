@@ -132,9 +132,9 @@ function SkillLists({
     dimension === "preferredSkills" ||
     dimension === "keywordCoverage"
   ) {
-    const matched = analysis.matchedSkills;
-    const partial = analysis.partialSkills;
-    const missing = analysis.missingSkills;
+    const matched = analysis.matchedSkills ?? [];
+    const partial = analysis.partialSkills ?? [];
+    const missing = analysis.missingSkills ?? [];
     return (
       <div className="space-y-2">
         {matched.length ? (
@@ -186,20 +186,21 @@ function SkillLists({
   }
 
   if (dimension === "responsibilityMatch") {
+    const matched = analysis.matchedResponsibilities ?? [];
+    const partial = analysis.partialResponsibilities ?? [];
+    const missing = analysis.missingResponsibilities ?? [];
     return (
       <ul className="space-y-1">
-        {analysis.matchedResponsibilities.map((r) => (
+        {matched.map((r) => (
           <li key={r.text}>✓ {r.text}</li>
         ))}
-        {analysis.partialResponsibilities.map((r) => (
+        {partial.map((r) => (
           <li key={r.text}>⚠ {r.text}</li>
         ))}
-        {analysis.missingResponsibilities.map((r) => (
+        {missing.map((r) => (
           <li key={r.text}>✗ {r.text}</li>
         ))}
-        {!analysis.matchedResponsibilities.length &&
-        !analysis.partialResponsibilities.length &&
-        !analysis.missingResponsibilities.length ? (
+        {!matched.length && !partial.length && !missing.length ? (
           <li>No explicit responsibilities extracted from the JD.</li>
         ) : null}
       </ul>
@@ -207,12 +208,13 @@ function SkillLists({
   }
 
   if (dimension === "atsCompatibility" || dimension === "structureFormatting") {
-    if (analysis.atsIssues.length) {
-      return <AtsIssueList issues={analysis.atsIssues} className="text-[12px]" />;
+    const issues = analysis.atsIssues ?? [];
+    if (issues.length) {
+      return <AtsIssueList issues={issues} className="text-[12px]" />;
     }
     return (
       <ul className="space-y-0.5">
-        {analysis.strengths.slice(0, 4).map((s) => (
+        {(analysis.strengths ?? []).slice(0, 4).map((s) => (
           <li key={s}>✓ {s}</li>
         ))}
       </ul>
@@ -229,8 +231,14 @@ function SkillLists({
 
 export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
   const [openDim, setOpenDim] = useState<string | null>(null);
+  const scores = analysis.scores ?? {};
+  const strengths = analysis.strengths ?? [];
+  const missingSkills = analysis.missingSkills ?? [];
+  const partialSkills = analysis.partialSkills ?? [];
+  const improvements = analysis.improvements ?? [];
+  const atsIssues = analysis.atsIssues ?? [];
   const applicable = SCORE_ROWS.filter((row) => {
-    const v = analysis.scores[row.key];
+    const v = scores[row.key];
     return typeof v === "number";
   });
 
@@ -252,11 +260,11 @@ export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
         );
 
   const hasInsights =
-    analysis.strengths.length > 0 ||
-    analysis.missingSkills.length > 0 ||
-    analysis.partialSkills.length > 0 ||
-    analysis.improvements.length > 0 ||
-    analysis.atsIssues.length > 0;
+    strengths.length > 0 ||
+    missingSkills.length > 0 ||
+    partialSkills.length > 0 ||
+    improvements.length > 0 ||
+    atsIssues.length > 0;
 
   return (
     <div className="border-border/60 mt-3 space-y-4 border-t pt-3 md:space-y-5">
@@ -305,7 +313,7 @@ export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
           </p>
           <div>
             {rows.map((row) => {
-              const value = analysis.scores[row.key] as number;
+              const value = scores[row.key] as number;
               const open = openDim === row.key;
               return (
                 <DimensionRow
@@ -323,30 +331,30 @@ export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
 
         {hasInsights ? (
           <div className="min-w-0 space-y-4 md:space-y-5">
-            {analysis.strengths.length ? (
+            {strengths.length ? (
               <div>
                 <p className="text-foreground mb-1.5 text-[12px] font-semibold">Strengths</p>
                 <ul className="text-muted-foreground grid gap-1 text-[12px] sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
-                  {analysis.strengths.map((s) => (
+                  {strengths.map((s) => (
                     <li key={s}>✓ {s}</li>
                   ))}
                 </ul>
               </div>
             ) : null}
 
-            {analysis.missingSkills.length || analysis.partialSkills.length ? (
+            {missingSkills.length || partialSkills.length ? (
               <div>
                 <p className="text-foreground mb-1.5 text-[12px] font-semibold">
                   Missing / weak requirements
                 </p>
                 <ul className="text-muted-foreground grid gap-1 text-[12px] sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
-                  {analysis.partialSkills.slice(0, 6).map((s) => (
+                  {partialSkills.slice(0, 6).map((s) => (
                     <li key={`p-${s.skill}`} className="flex justify-between gap-2">
                       <span className="truncate">{s.skill}</span>
                       <span className="text-[10px] uppercase tracking-wide">Partial</span>
                     </li>
                   ))}
-                  {analysis.missingSkills.slice(0, 6).map((s) => (
+                  {missingSkills.slice(0, 6).map((s) => (
                     <li key={`m-${s.skill}`} className="flex justify-between gap-2">
                       <span className="truncate">{s.skill}</span>
                       <span className="text-[10px] uppercase tracking-wide">Missing</span>
@@ -356,12 +364,12 @@ export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
               </div>
             ) : null}
 
-            {analysis.improvements.length ? (
+            {improvements.length ? (
               <div>
                 <p className="text-foreground mb-1.5 text-[12px] font-semibold">Improvements</p>
                 <div className="space-y-2.5">
                   {(["high", "medium", "low"] as const).map((priority) => {
-                    const items = analysis.improvements.filter((i) => i.priority === priority);
+                    const items = improvements.filter((i) => i.priority === priority);
                     if (!items.length) return null;
                     return (
                       <div key={priority}>
@@ -385,10 +393,10 @@ export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
               </div>
             ) : null}
 
-            {analysis.atsIssues.length ? (
+            {atsIssues.length ? (
               <div>
                 <p className="text-foreground mb-1.5 text-[12px] font-semibold">ATS issues</p>
-                <AtsIssueList issues={analysis.atsIssues} />
+                <AtsIssueList issues={atsIssues} />
               </div>
             ) : null}
           </div>

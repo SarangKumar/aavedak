@@ -132,11 +132,7 @@ export async function POST(request: Request) {
       analysis: { ...analysis, atsIssues: normalizeAtsIssues(analysis.atsIssues) },
       error: analysis.error,
       engineRuntime:
-        eng.id === "aavedak"
-          ? analysis.engine === "fastapi"
-            ? "fastapi"
-            : "fallback"
-          : "reference",
+        analysis.engine === "fastapi" ? "fastapi" : eng.id === "aavedak" ? "fallback" : "reference",
       profileVersion: eng.profileVersion,
     };
     return NextResponse.json({ result });

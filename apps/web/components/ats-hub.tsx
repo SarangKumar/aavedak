@@ -387,20 +387,29 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
 
   const detailCell = detailKey ? (displayMap.get(detailKey) ?? resultMap.get(detailKey)) : null;
 
+  const safeFilterResumeId =
+    filterResumeId === "all" || selectedResumeIds.has(filterResumeId) ? filterResumeId : "all";
+  const safeFilterEngineId =
+    filterEngineId === "all" || selectedEngineIds.has(filterEngineId as AtsEngineId)
+      ? filterEngineId
+      : "all";
+
   const tableEngines = useMemo(() => {
     const ids =
-      filterEngineId === "all"
+      safeFilterEngineId === "all"
         ? [...selectedEngineIds]
-        : selectedEngineIds.has(filterEngineId as AtsEngineId)
-          ? [filterEngineId as AtsEngineId]
+        : selectedEngineIds.has(safeFilterEngineId as AtsEngineId)
+          ? [safeFilterEngineId as AtsEngineId]
           : [...selectedEngineIds];
-    return ids.map((id) => getEngine(id)!).filter(Boolean);
-  }, [selectedEngineIds, filterEngineId]);
+    return ids
+      .map((id) => getEngine(id))
+      .filter((eng): eng is NonNullable<typeof eng> => Boolean(eng));
+  }, [selectedEngineIds, safeFilterEngineId]);
 
   const tableResumes = useMemo(() => {
-    if (filterResumeId === "all") return selectedResumes;
-    return selectedResumes.filter((r) => r.id === filterResumeId);
-  }, [selectedResumes, filterResumeId]);
+    if (safeFilterResumeId === "all") return selectedResumes;
+    return selectedResumes.filter((r) => r.id === safeFilterResumeId);
+  }, [selectedResumes, safeFilterResumeId]);
 
   function patchCell(cell: AtsBatchResultCell) {
     const key = cellKey(cell.resumeId, cell.engineId);
@@ -415,6 +424,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
 
   function toggleResume(id: string) {
     if (running) return;
+    setDetailKey(null);
     setSelectedResumeIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -439,6 +449,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
 
   function toggleEngine(id: AtsEngineId) {
     if (running) return;
+    setDetailKey(null);
     setSelectedEngineIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -1031,7 +1042,10 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
           ) : (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <Select value={filterResumeId} onValueChange={setFilterResumeId}>
+                <Select
+                  value={safeFilterResumeId}
+                  onValueChange={(v) => setFilterResumeId(v || "all")}
+                >
                   <SelectTrigger
                     className="border-border bg-background text-foreground h-8 w-auto min-w-[9rem] rounded-lg border px-2 text-[12px]"
                     aria-label="Filter by resume"
@@ -1049,7 +1063,10 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={filterEngineId} onValueChange={setFilterEngineId}>
+                <Select
+                  value={safeFilterEngineId}
+                  onValueChange={(v) => setFilterEngineId(v || "all")}
+                >
                   <SelectTrigger
                     className="border-border bg-background text-foreground h-8 w-auto min-w-[9rem] rounded-lg border px-2 text-[12px]"
                     aria-label="Filter by engine"
@@ -1060,11 +1077,14 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                     <SelectItem value="all" className="text-[12px]">
                       All engines
                     </SelectItem>
-                    {[...selectedEngineIds].map((id) => (
-                      <SelectItem key={id} value={id} className="text-[12px]">
-                        {getEngine(id)?.name}
-                      </SelectItem>
-                    ))}
+                    {[...selectedEngineIds].map((id) => {
+                      const name = getEngine(id)?.name ?? id;
+                      return (
+                        <SelectItem key={id} value={id} className="text-[12px]">
+                          {name}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -1073,7 +1093,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 <table className="w-full min-w-[36rem] border-collapse text-[12px]">
                   <thead>
                     <tr className="border-border/50 bg-muted/30 border-b">
-                      <th className="text-muted-foreground sticky left-0 z-10 bg-[color:var(--card)] px-3 py-2.5 text-left font-medium">
+                      <th className="text-muted-foreground bg-card sticky left-0 z-10 px-3 py-2.5 text-left font-medium">
                         Resume
                       </th>
                       {tableEngines.map((eng) => {
@@ -1099,7 +1119,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   <tbody>
                     {tableResumes.map((resume) => (
                       <tr key={resume.id} className="border-border/40 border-b last:border-b-0">
-                        <td className="text-foreground sticky left-0 z-10 max-w-[11rem] truncate bg-[color:var(--card)] px-3 py-2.5 font-medium">
+                        <td className="text-foreground bg-card sticky left-0 z-10 max-w-[11rem] truncate px-3 py-2.5 font-medium">
                           {resume.displayName}
                         </td>
                         {tableEngines.map((eng) => (

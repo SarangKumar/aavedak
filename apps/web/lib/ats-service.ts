@@ -41,13 +41,60 @@ async function postJson<T>(path: string, body: unknown): Promise<T | null> {
   }
 }
 
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function asObjectArray<T extends object>(value: unknown): T[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is T => Boolean(item) && typeof item === "object");
+}
+
+/** Ensure Flight/JSON payloads always have the arrays the UI reads with `.length` / `.map`. */
 function normalizeAnalysis(row: AtsAnalysis, engine: "fastapi" | "fallback"): AtsAnalysis {
   return {
     ...row,
-    overallScore: row.overallScore ?? row.atsScore ?? 0,
+    overallScore: typeof row.overallScore === "number" ? row.overallScore : (row.atsScore ?? 0),
+    scoreLabel: typeof row.scoreLabel === "string" ? row.scoreLabel : "",
+    scoreName: typeof row.scoreName === "string" ? row.scoreName : "Score",
+    mode: row.mode === "role_match" || row.mode === "job_match" ? row.mode : "resume_only",
+    scores: row.scores && typeof row.scores === "object" ? row.scores : {},
+    matchedSkills: asObjectArray(row.matchedSkills),
+    partialSkills: asObjectArray(row.partialSkills),
+    missingSkills: asObjectArray(row.missingSkills),
+    matchedResponsibilities: asObjectArray(row.matchedResponsibilities),
+    partialResponsibilities: asObjectArray(row.partialResponsibilities),
+    missingResponsibilities: asObjectArray(row.missingResponsibilities),
+    strengths: asStringArray(row.strengths),
+    improvements: asObjectArray(row.improvements),
     atsIssues: normalizeAtsIssues(row.atsIssues),
+    notes: asStringArray(row.notes),
+    confidence: row.confidence === "high" || row.confidence === "low" ? row.confidence : "medium",
     engine,
   };
+}
+
+export async function analyzeEngineViaService(input: {
+  engineId: string;
+  resumeId?: string;
+  resumeText: string;
+  jdText?: string;
+  role?: string;
+  mode?: string;
+}): Promise<AtsAnalysis | null> {
+  const remote = await postJson<AtsAnalysis>("/svc/v1/ats/score-engine", {
+    engineId: input.engineId,
+    resumeId: input.resumeId ?? "",
+    resumeText: input.resumeText,
+    jdText: input.jdText ?? "",
+    role: input.role ?? "",
+    mode: input.mode,
+  });
+  if (remote && typeof remote.overallScore === "number") {
+    return normalizeAnalysis({ ...remote, resumeId: input.resumeId || remote.resumeId }, "fastapi");
+  }
+  return null;
 }
 
 export async function analyzeResumeViaService(input: {

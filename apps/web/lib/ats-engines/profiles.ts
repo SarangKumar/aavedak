@@ -1,7 +1,7 @@
 import "server-only";
 
+import { analyzeEngineViaService, analyzeResumeViaService } from "@/lib/ats-service";
 import { analyzeResumeFallback } from "@/lib/ats-analyze-fallback";
-import { analyzeResumeViaService } from "@/lib/ats-service";
 import type { AtsAnalysis, AtsMode } from "@/lib/ats-types";
 
 import {
@@ -21,13 +21,54 @@ export {
   runTealStyle,
 } from "./reference-profiles";
 
-/** Aavedak native — Python primary with local fallback. */
+function runReferenceFallback(input: {
+  engineId: AtsEngineId;
+  resumeId: string;
+  resumeText: string;
+  role: string;
+  jdText: string;
+  mode: AtsMode;
+}): AtsAnalysis {
+  const shared = {
+    resumeId: input.resumeId,
+    resumeText: input.resumeText,
+    role: input.role,
+    jdText: input.jdText,
+    mode: input.mode,
+  };
+  switch (input.engineId) {
+    case "jobscan_style":
+      return runJobscanStyle(shared);
+    case "resume_worded_style":
+      return runResumeWordedStyle(shared);
+    case "teal_style":
+      return runTealStyle(shared);
+    case "rezi_style":
+      return runReziStyle(shared);
+    case "skillsyncer_style":
+      return runSkillSyncerStyle(shared);
+    default:
+      throw new Error(`Unsupported reference engine: ${input.engineId}`);
+  }
+}
+
+/** Aavedak native — Python primary with local TS fallback. */
 export async function runAavedakNative(input: {
   resumeId: string;
   resumeText: string;
   role: string;
   jdText: string;
 }): Promise<AtsAnalysis> {
+  const remote = await analyzeEngineViaService({
+    engineId: "aavedak",
+    resumeId: input.resumeId,
+    resumeText: input.resumeText,
+    jdText: input.jdText,
+    role: input.role,
+  });
+  if (remote) {
+    return { ...remote, engineVersion: remote.engineVersion ?? "aavedak-native@2.0" };
+  }
   const scored = await analyzeResumeViaService({
     resumeId: input.resumeId,
     resumeText: input.resumeText,
@@ -40,6 +81,7 @@ export async function runAavedakNative(input: {
   };
 }
 
+/** Any engine — FastAPI primary; TS reference or native fallback when API is unavailable. */
 export async function runEngineProfile(input: {
   engineId: AtsEngineId;
   resumeId: string;
@@ -56,27 +98,25 @@ export async function runEngineProfile(input: {
       jdText: input.jdText,
     });
   }
-  const shared = {
+
+  const remote = await analyzeEngineViaService({
+    engineId: input.engineId,
     resumeId: input.resumeId,
     resumeText: input.resumeText,
-    role: input.role,
     jdText: input.jdText,
+    role: input.role,
     mode: input.mode,
-  };
-  switch (input.engineId) {
-    case "aavedak":
-      return runAavedakNative(shared);
-    case "jobscan_style":
-      return runJobscanStyle(shared);
-    case "resume_worded_style":
-      return runResumeWordedStyle(shared);
-    case "teal_style":
-      return runTealStyle(shared);
-    case "rezi_style":
-      return runReziStyle(shared);
-    case "skillsyncer_style":
-      return runSkillSyncerStyle(shared);
-    default:
-      throw new Error(`Unsupported engine: ${input.engineId}`);
+  });
+  if (remote) return remote;
+
+  if (input.engineId === "aavedak") {
+    return analyzeResumeFallback({
+      resumeId: input.resumeId,
+      resumeText: input.resumeText,
+      role: input.role,
+      jdText: input.jdText,
+    });
   }
+
+  return runReferenceFallback(input);
 }

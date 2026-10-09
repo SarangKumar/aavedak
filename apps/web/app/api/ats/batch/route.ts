@@ -197,11 +197,11 @@ export async function POST(request: Request) {
         analysis: normalized,
         error: analysis.error,
         engineRuntime:
-          combo.engineId === "aavedak"
-            ? analysis.engine === "fastapi"
-              ? "fastapi"
-              : "fallback"
-            : "reference",
+          analysis.engine === "fastapi"
+            ? "fastapi"
+            : combo.engineId === "aavedak"
+              ? "fallback"
+              : "reference",
         profileVersion: eng.profileVersion,
       });
     } catch (err) {
