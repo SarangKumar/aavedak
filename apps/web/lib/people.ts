@@ -207,7 +207,17 @@ export async function detachPeopleForDeletedUser(userId: string): Promise<void> 
 
 export type VoteValue = -1 | 0 | 1;
 
-export type VoteSummary = { up: number; down: number; mine: VoteValue };
+/**
+ * `up` / `down` are user votes; `replies` is the system's credit (+1 per user the person
+ * replied to, see `person_reply_credits`). Score = up − down + replies.
+ */
+export type VoteSummary = { up: number; down: number; mine: VoteValue; replies: number };
+
+export const NO_VOTES: VoteSummary = { up: 0, down: 0, mine: 0, replies: 0 };
+
+export function voteScore(votes: VoteSummary): number {
+  return votes.up - votes.down + votes.replies;
+}
 
 /**
  * One vote per (user, person); voting again changes it, 0 removes it. Votes are a
@@ -231,7 +241,7 @@ export async function setPersonVote(
       ON CONFLICT (user_id, person_id) DO UPDATE SET vote = EXCLUDED.vote, updated_at = EXCLUDED.updated_at
     `;
   }
-  return (await getVoteSummaries(userId, [personId])).get(personId) ?? { up: 0, down: 0, mine: 0 };
+  return (await getVoteSummaries(userId, [personId])).get(personId) ?? NO_VOTES;
 }
 
 export async function getVoteSummaries(
@@ -241,17 +251,31 @@ export async function getVoteSummaries(
   await ensureAppSchema();
   const out = new Map<string, VoteSummary>();
   if (personIds.length === 0) return out;
-  const rows = (await getSql()`
-    SELECT person_id,
-           COUNT(*) FILTER (WHERE vote = 1)::int AS up,
-           COUNT(*) FILTER (WHERE vote = -1)::int AS down,
-           COALESCE(MAX(vote) FILTER (WHERE user_id = ${userId}), 0)::int AS mine
-    FROM person_votes
-    WHERE person_id = ANY(${personIds})
-    GROUP BY person_id
-  `) as Array<{ person_id: string; up: number; down: number; mine: number }>;
+  const [rows, credits] = (await Promise.all([
+    getSql()`
+      SELECT person_id,
+             COUNT(*) FILTER (WHERE vote = 1)::int AS up,
+             COUNT(*) FILTER (WHERE vote = -1)::int AS down,
+             COALESCE(MAX(vote) FILTER (WHERE user_id = ${userId}), 0)::int AS mine
+      FROM person_votes
+      WHERE person_id = ANY(${personIds})
+      GROUP BY person_id
+    `,
+    getSql()`
+      SELECT person_id, COUNT(*)::int AS replies
+      FROM person_reply_credits
+      WHERE person_id = ANY(${personIds})
+      GROUP BY person_id
+    `,
+  ])) as [
+    Array<{ person_id: string; up: number; down: number; mine: number }>,
+    Array<{ person_id: string; replies: number }>,
+  ];
   for (const r of rows) {
-    out.set(r.person_id, { up: r.up, down: r.down, mine: (r.mine as VoteValue) ?? 0 });
+    out.set(r.person_id, { ...NO_VOTES, up: r.up, down: r.down, mine: (r.mine as VoteValue) ?? 0 });
+  }
+  for (const c of credits) {
+    out.set(c.person_id, { ...(out.get(c.person_id) ?? NO_VOTES), replies: c.replies });
   }
   return out;
 }
@@ -295,12 +319,8 @@ export async function listPeopleForJob(
       ...mapRow(row),
       relevanceScore: Number(row.relevance_score),
       relevanceReason: row.relevance_reason,
-      votes: votes.get(row.id) ?? { up: 0, down: 0, mine: 0 as VoteValue },
+      votes: votes.get(row.id) ?? NO_VOTES,
     }))
-    .sort(
-      (a, b) =>
-        b.relevanceScore - a.relevanceScore ||
-        b.votes.up - b.votes.down - (a.votes.up - a.votes.down),
-    )
+    .sort((a, b) => b.relevanceScore - a.relevanceScore || voteScore(b.votes) - voteScore(a.votes))
     .slice(0, limit);
 }

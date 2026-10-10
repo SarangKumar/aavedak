@@ -39,6 +39,10 @@
       "schedule": "0 7 * * *"
     },
     {
+      "path": "/api/cron/sync-replies",
+      "schedule": "30 7 * * *"
+    },
+    {
       "path": "/svc/v1/discovery/cron/scan/0",
       "schedule": "15 18 * * *"
     },

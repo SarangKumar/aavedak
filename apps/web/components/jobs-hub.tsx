@@ -26,6 +26,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -801,22 +802,21 @@ export function JobsHub({
                 className="py-2"
               />
             </label>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" size="sm" type="button" onClick={() => setAddOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                loading={pendingAction === "create"}
-                disabled={pending}
-                onClick={() => void createJob()}
-                className="h-8"
-              >
-                Create
-              </Button>
-            </div>
           </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" type="button" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              loading={pendingAction === "create"}
+              disabled={pending}
+              onClick={() => void createJob()}
+            >
+              Create
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -842,7 +842,7 @@ export function JobsHub({
             placeholder="Paste job description text…"
             className="py-2"
           />
-          <div className="mt-3 flex justify-end gap-2">
+          <DialogFooter>
             <Button variant="outline" size="sm" type="button" onClick={() => setPasteOpen(false)}>
               Cancel
             </Button>
@@ -852,11 +852,10 @@ export function JobsHub({
               loading={pendingAction === "paste"}
               disabled={pending}
               onClick={() => void pasteJd()}
-              className="h-8"
             >
               Save analysis
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
@@ -1426,6 +1425,7 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
               type="button"
               size="sm"
               loading={running}
+              loadingText="Analyzing…"
               disabled={total === 0}
               onClick={() => void runScan()}
             >

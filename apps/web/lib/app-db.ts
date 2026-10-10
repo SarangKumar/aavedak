@@ -171,6 +171,26 @@ async function runSchema() {
   await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS gmail_rfc_message_id TEXT`;
   await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS send_error TEXT`;
   await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS mail_kind TEXT`;
+  // Reply detection (gmail.readonly): when a reply to this mail was last seen, and when the thread
+  // was last checked (oldest-checked threads are read first).
+  await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS replied_at TEXT`;
+  await db`ALTER TABLE follow_up_tasks ADD COLUMN IF NOT EXISTS reply_checked_at TEXT`;
+  await db`
+    CREATE TABLE IF NOT EXISTS mail_replies (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      follow_up_id TEXT NOT NULL,
+      gmail_message_id TEXT NOT NULL,
+      gmail_thread_id TEXT NOT NULL,
+      from_address TEXT NOT NULL,
+      subject TEXT,
+      body_text TEXT NOT NULL,
+      received_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (user_id, gmail_message_id)
+    )
+  `;
+  await db`CREATE INDEX IF NOT EXISTS mail_replies_follow_up_idx ON mail_replies (follow_up_id)`;
   await db`
     DO $$ BEGIN
       ALTER TABLE follow_up_tasks ADD CONSTRAINT follow_up_tasks_mail_kind_check
@@ -403,6 +423,19 @@ async function runDiscoverySchema(db: NeonQueryFunction<false, false>) {
       PRIMARY KEY (user_id, person_id)
     )`;
   await db`CREATE INDEX IF NOT EXISTS person_votes_person_idx ON person_votes (person_id)`;
+  // System credit, separate from user votes: +1 to a person's score the first time they
+  // reply (a real reply from their own address) to a given user's referral or follow-up mail.
+  // One row per (person, user), so mailing the same person again never adds more.
+  await db`
+    CREATE TABLE IF NOT EXISTS person_reply_credits (
+      person_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      follow_up_id TEXT NOT NULL,
+      gmail_message_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (person_id, user_id)
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS person_reply_credits_person_idx ON person_reply_credits (person_id)`;
 
   await purgeDemoJobs(db);
 }

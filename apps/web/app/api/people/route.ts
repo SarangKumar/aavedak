@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
-import { createPerson, getVoteSummaries, listPeople, type VoteSummary } from "@/lib/people";
+import {
+  createPerson,
+  getVoteSummaries,
+  listPeople,
+  NO_VOTES,
+  type VoteSummary,
+} from "@/lib/people";
 
 async function requireUser() {
   const result = await requireApiUser();
   if (result.error) return { error: result.error };
   return { user: result.user };
 }
-
-const NO_VOTES: VoteSummary = { up: 0, down: 0, mine: 0 };
 
 function toDto(row: Awaited<ReturnType<typeof listPeople>>[number], votes: VoteSummary = NO_VOTES) {
   return {

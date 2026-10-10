@@ -257,6 +257,13 @@
         "components/ui/label/index.tsx"
       ],
       "installedAt": "2026-10-10"
+    },
+    "tooltip": {
+      "files": [
+        "components/ui/tooltip/index.tsx",
+        "components/ui/tooltip/tooltip.css"
+      ],
+      "installedAt": "2026-10-10"
     }
   }
 }

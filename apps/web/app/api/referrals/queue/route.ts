@@ -31,7 +31,9 @@ function isBlockingSend(status: FollowUpRecord["status"]): boolean {
 /**
  * Queue outreach / follow-up mail for confirmed recipients.
  * Body: { applicationId, personIds, subject, body, dueDate?, sendAfterSeconds?,
- *         resumeId?, confirmed: true, mailKind?: "outreach" | "followup" }
+ *         resumeId?, confirmed: true, mailKind?: "outreach" | "followup", chatReply? }
+ * `chatReply: true` marks a message typed in the Outreach chat box: a direct reply in an
+ * ongoing conversation, so the follow-up cooldown does not apply.
  */
 export async function POST(request: Request) {
   const authResult = await requireApiUser();
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
   const resumeId =
     typeof body.resumeId === "string" && body.resumeId.trim() ? body.resumeId.trim() : null;
   const mailKind: FollowUpMailKind = body.mailKind === "followup" ? "followup" : "outreach";
+  const chatReply = mailKind === "followup" && body.chatReply === true;
 
   let sendAfterMs = 0;
   if (typeof body.sendAfterSeconds === "number" && Number.isFinite(body.sendAfterSeconds)) {
@@ -158,7 +161,19 @@ export async function POST(request: Request) {
         .filter((f) => f.status === "sent" || f.status === "sent_stub")
         .map((f) => new Date(f.updatedAt || f.createdAt).getTime())
         .reduce((max, t) => Math.max(max, t), 0);
-      if (lastSend && Date.now() - lastSend < FOLLOWUP_COOLDOWN_MS) {
+      // The cooldown stops repeated template nudges to someone who hasn't answered. It never
+      // applies to a chat reply (the user is writing in the conversation), nor once the person
+      // has replied after your last mail.
+      const lastReply = personRows
+        .map((f) => (f.repliedAt ? new Date(f.repliedAt).getTime() : 0))
+        .reduce((max, t) => Math.max(max, t), 0);
+      const repliedSinceLastSend = lastReply > lastSend;
+      if (
+        !chatReply &&
+        lastSend &&
+        !repliedSinceLastSend &&
+        Date.now() - lastSend < FOLLOWUP_COOLDOWN_MS
+      ) {
         const waitMin = Math.ceil((FOLLOWUP_COOLDOWN_MS - (Date.now() - lastSend)) / 60_000);
         return NextResponse.json(
           {

@@ -2,6 +2,8 @@ import { OutreachInbox } from "@/components/outreach-inbox";
 import { requireOnboarded } from "@/lib/app-access";
 import { listApplications } from "@/lib/applications";
 import { listFollowUps } from "@/lib/follow-ups";
+import { getGmailAuthStatus } from "@/lib/gmail";
+import { listRepliesForUser } from "@/lib/mail-replies";
 import { listPeople } from "@/lib/people";
 
 /** Shared loader for /outreach (page) and /outreach/board (full-screen inbox). */
@@ -10,6 +12,10 @@ export async function OutreachBoard({ variant }: { variant: "page" | "board" }) 
   const followUps = await listFollowUps(user.id, { includeClosed: true });
   const people = await listPeople({ includeArchived: true });
   const applications = await listApplications(user.id, "active");
+  const [replies, gmail] = await Promise.all([
+    listRepliesForUser(user.id),
+    getGmailAuthStatus(user.id),
+  ]);
 
   return (
     <div className="relative overflow-hidden">
@@ -36,6 +42,8 @@ export async function OutreachBoard({ variant }: { variant: "page" | "board" }) 
             createdAt: f.createdAt,
             updatedAt: f.updatedAt,
           }))}
+          initialReplies={replies}
+          replyDetectionReady={gmail.readReady}
           people={people.map((p) => ({
             id: p.id,
             name: p.name,

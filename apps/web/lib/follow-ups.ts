@@ -36,6 +36,8 @@ export type FollowUpRecord = {
   gmailThreadId: string | null;
   gmailRfcMessageId: string | null;
   sendError: string | null;
+  /** Latest reply received on this mail's Gmail thread (reply detection), if any. */
+  repliedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -58,6 +60,7 @@ type Row = {
   gmail_thread_id?: string | null;
   gmail_rfc_message_id?: string | null;
   send_error: string | null;
+  replied_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -88,6 +91,7 @@ function mapRow(row: Row): FollowUpRecord {
     gmailThreadId: row.gmail_thread_id ?? null,
     gmailRfcMessageId: row.gmail_rfc_message_id ?? null,
     sendError: row.send_error ?? null,
+    repliedAt: row.replied_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

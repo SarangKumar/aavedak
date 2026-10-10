@@ -329,6 +329,36 @@
   }
 }
 
+/* Chat wallpaper (Outreach inbox): a tinted backdrop with a faint line-doodle pattern, like a
+   messaging app. The doodles are a mask filled with --foreground, so they follow the theme.
+   Put it on a non-scrolling wrapper; the pattern sits behind the scrolling messages. */
+.aavedak-chat-wallpaper {
+  position: relative;
+  isolation: isolate;
+  background-color: color-mix(in oklch, var(--muted) 55%, var(--background));
+}
+
+.aavedak-chat-wallpaper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--foreground);
+  opacity: 0.06;
+  mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22220%22%20height%3D%22220%22%20viewBox%3D%220%200%20220%20220%22%20fill%3D%22none%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%2216%22%20y%3D%2220%22%20width%3D%2234%22%20height%3D%2224%22%20rx%3D%223%22%2F%3E%3Cpath%20d%3D%22m16%2023%2017%2012%2017-12%22%2F%3E%3Cpath%20d%3D%22m120%2018%2036%2014-36%2014%206-14z%22%2F%3E%3Cpath%20d%3D%22M126%2032h30%22%2F%3E%3Cpath%20d%3D%22M176%2092h28a6%206%200%200%201%206%206v14a6%206%200%200%201-6%206h-16l-8%207v-7h-4a6%206%200%200%201-6-6V98a6%206%200%200%201%206-6z%22%2F%3E%3Crect%20x%3D%2270%22%20y%3D%2284%22%20width%3D%2238%22%20height%3D%2226%22%20rx%3D%224%22%2F%3E%3Cpath%20d%3D%22M81%2084v-5a3%203%200%200%201%203-3h10a3%203%200%200%201%203%203v5M70%2096h38%22%2F%3E%3Cpath%20d%3D%22m30%20132%204%209%2010%201-7.5%206.5%202.5%209.5-9-5.5-9%205.5%202.5-9.5L16%20142l10-1z%22%2F%3E%3Ccircle%20cx%3D%22150%22%20cy%3D%22168%22%20r%3D%226%22%2F%3E%3Cpath%20d%3D%22M156%20162v8a4%204%200%200%200%208%200v-2a14%2014%200%201%200-5.5%2011%22%2F%3E%3Cpath%20d%3D%22M84%20150h18l8%208v28H84z%22%2F%3E%3Cpath%20d%3D%22M102%20150v8h8M90%20168h14M90%20176h10%22%2F%3E%3Ccircle%20cx%3D%22196%22%20cy%3D%2230%22%20r%3D%222%22%2F%3E%3Ccircle%20cx%3D%2260%22%20cy%3D%22200%22%20r%3D%222%22%2F%3E%3Ccircle%20cx%3D%22200%22%20cy%3D%22200%22%20r%3D%223%22%2F%3E%3Ccircle%20cx%3D%22110%22%20cy%3D%2256%22%20r%3D%221.5%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2280%22%20r%3D%221.5%22%2F%3E%3C%2Fsvg%3E");
+  mask-size: 220px 220px;
+  mask-repeat: repeat;
+}
+
+.dark .aavedak-chat-wallpaper {
+  background-color: color-mix(in oklch, var(--background) 70%, var(--muted));
+}
+
+.dark .aavedak-chat-wallpaper::before {
+  opacity: 0.045;
+}
+
 @keyframes aavedak-icon-spin {
   from {
     transform: rotate(-90deg);

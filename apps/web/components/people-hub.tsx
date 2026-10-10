@@ -49,7 +49,7 @@ export type PersonDto = {
   updatedAt: string;
 };
 
-const NO_VOTES: VoteSummaryDto = { up: 0, down: 0, mine: 0 };
+const NO_VOTES: VoteSummaryDto = { up: 0, down: 0, mine: 0, replies: 0 };
 
 export type ApplicationLite = {
   id: string;

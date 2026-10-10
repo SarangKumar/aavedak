@@ -1,15 +1,17 @@
 "use client";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { BoardToggleLink, FullscreenBoard } from "@/components/fullscreen-board";
-import { GmailConnectBanner } from "@/components/gmail-connect-banner";
+import { GmailConnectBanner, ReplyDetectionBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
+import { personInitials } from "@/components/person-vote";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
@@ -19,11 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDateTimeReadable } from "@/lib/format-datetime";
+import { formatDateOnly, formatDateTimeReadable } from "@/lib/format-datetime";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/search-input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/toast";
 
 export type FollowUpDto = {
   id: string;
@@ -127,16 +131,102 @@ function subjectFromMessage(f: FollowUpDto): string {
   return f.title;
 }
 
+const IST_OFFSET_MS = 330 * 60_000;
+
+/** "8:26 pm" in India time; computed from the timestamp so server and client agree. */
+function timeIst(iso: string): string {
+  const d = new Date(new Date(iso).getTime() + IST_OFFSET_MS);
+  if (Number.isNaN(d.getTime())) return "";
+  const h = d.getUTCHours();
+  return `${h % 12 || 12}:${String(d.getUTCMinutes()).padStart(2, "0")} ${h >= 12 ? "pm" : "am"}`;
+}
+
+/** Day-divider label: Today, Yesterday, or "12 Oct 2026" (India time). */
+function dayLabelIst(iso: string): string {
+  const label = formatDateOnly(iso, { zone: "ist" });
+  const now = new Date().toISOString();
+  if (label === formatDateOnly(now, { zone: "ist" })) return "Today";
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString();
+  if (label === formatDateOnly(yesterday, { zone: "ist" })) return "Yesterday";
+  return label;
+}
+
+function messageAt(f: FollowUpDto): string {
+  return f.updatedAt || f.createdAt;
+}
+
+type TimelineItem =
+  | { type: "day"; key: string; label: string }
+  | { type: "out"; key: string; msg: FollowUpDto; personLabel?: string }
+  | { type: "in"; key: string; reply: MailReplyView };
+
+/**
+ * Chat order: each sent mail followed by the replies to it, with a day divider whenever the
+ * India-time date changes.
+ */
+function buildTimeline(
+  entries: Array<{ msg: FollowUpDto; personLabel?: string }>,
+  replies: Record<string, MailReplyView[]>,
+): TimelineItem[] {
+  const out: TimelineItem[] = [];
+  let lastDay = "";
+  const pushDay = (iso: string) => {
+    const day = formatDateOnly(iso, { zone: "ist" });
+    if (day !== lastDay) {
+      lastDay = day;
+      out.push({ type: "day", key: `day:${day}:${out.length}`, label: dayLabelIst(iso) });
+    }
+  };
+  for (const { msg, personLabel } of entries) {
+    pushDay(messageAt(msg));
+    out.push({ type: "out", key: msg.id, msg, personLabel });
+    const answers = [...(replies[msg.id] ?? [])].sort(
+      (a, b) => new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime(),
+    );
+    for (const reply of answers) {
+      pushDay(reply.receivedAt);
+      out.push({ type: "in", key: reply.id, reply });
+    }
+  }
+  return out;
+}
+
 type Props = {
   initialFollowUps: FollowUpDto[];
+  /** Replies to sent mails, grouped by sent mail id (server-loaded). */
+  initialReplies?: Record<string, MailReplyView[]>;
+  /** False until the user grants gmail.readonly; shows the authorize prompt. */
+  replyDetectionReady?: boolean;
   people: PersonLite[];
   applications: ApplicationLite[];
   /** "board" = full-screen inbox only (/outreach/board). */
   variant?: "page" | "board";
 };
 
-export function OutreachInbox({ initialFollowUps, people, applications, variant = "page" }: Props) {
+type MailReplyView = {
+  id: string;
+  followUpId: string;
+  fromAddress: string;
+  subject: string | null;
+  bodyText: string;
+  receivedAt: string;
+};
+
+export function OutreachInbox({
+  initialFollowUps,
+  initialReplies = {},
+  replyDetectionReady = false,
+  people,
+  applications,
+  variant = "page",
+}: Props) {
+  const router = useRouter();
   const [items, setItems] = useState(initialFollowUps);
+  const [replies, setReplies] = useState(initialReplies);
+  const [checkingReplies, setCheckingReplies] = useState(false);
+  useEffect(() => {
+    setReplies(initialReplies);
+  }, [initialReplies]);
   const [query, setQuery] = useState("");
   const [applicationId, setApplicationId] = useState<string>("");
   const [duration, setDuration] = useState<DurationFilter>("all");
@@ -146,6 +236,16 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Phones show one pane at a time, like a messaging app: the list, or the open chat.
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  // Chat box: a custom message (optionally with a resume) sent as a follow-up in the thread.
+  const [draft, setDraft] = useState("");
+  const [draftResumeId, setDraftResumeId] = useState("");
+  const [resumeOptions, setResumeOptions] = useState<Array<{ id: string; displayName: string }>>(
+    [],
+  );
+  const [sendPhase, setSendPhase] = useState<"idle" | "sending">("idle");
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
   const appsById = useMemo(() => new Map(applications.map((a) => [a.id, a])), [applications]);
@@ -203,6 +303,13 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
     });
 
     for (const thread of list) {
+      for (const m of thread.messages) {
+        for (const r of replies[m.id] ?? []) {
+          if (new Date(r.receivedAt).getTime() > new Date(thread.latestAt).getTime()) {
+            thread.latestAt = r.receivedAt;
+          }
+        }
+      }
       thread.messages.sort(
         (a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() ||
@@ -211,7 +318,7 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
     }
     list.sort((a, b) => new Date(b.latestAt).getTime() - new Date(a.latestAt).getTime());
     return list;
-  }, [applicationId, appsById, duration, items, peopleById, query]);
+  }, [applicationId, appsById, duration, items, peopleById, query, replies]);
 
   const selectedApplication = applicationId ? appsById.get(applicationId) : null;
   const ALL_FOR_APP_KEY = "__all_for_app__";
@@ -291,64 +398,270 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
     }
   }
 
-  function renderMessageCard(msg: FollowUpDto, opts?: { personLabel?: string }) {
+  async function checkReplies() {
+    setCheckingReplies(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/outreach/replies/sync", { method: "POST" });
+      const data = (await res.json()) as {
+        status?: "ok" | "skipped";
+        reason?: string;
+        newReplies?: number;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error || "Could not check replies.");
+      if (data.status === "skipped") {
+        setNotice(data.reason ?? "Reply detection is not available yet.");
+      } else if (data.error) {
+        setError(data.error);
+      } else {
+        setNotice(
+          data.newReplies
+            ? `${data.newReplies} new repl${data.newReplies === 1 ? "y" : "ies"}.`
+            : "No new replies.",
+        );
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not check replies.");
+    } finally {
+      setCheckingReplies(false);
+    }
+  }
+
+  // Chat box ------------------------------------------------------------------------------
+
+  // Resumes for the attach picker, loaded once.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/resumes");
+        const data = (await res.json()) as {
+          resumes?: Array<{ id: string; displayName: string; status: string }>;
+        };
+        if (!cancelled && res.ok) {
+          setResumeOptions((data.resumes ?? []).filter((r) => r.status !== "archived"));
+        }
+      } catch {
+        // The picker just stays empty; sending without a resume still works.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function mergeFollowUps(rows: FollowUpDto[] | undefined) {
+    if (!rows?.length) return;
+    setItems((list) => {
+      const byId = new Map(list.map((f) => [f.id, f]));
+      for (const row of rows) byId.set(row.id, { ...byId.get(row.id), ...row } as FollowUpDto);
+      return [...byId.values()];
+    });
+  }
+
+  /** A chat message is sent as soon as the user presses Send: that press is the confirmation. */
+  function startSend(thread: Thread) {
+    const text = draft.trim();
+    if (!text || sendPhase !== "idle" || !thread.applicationId || !thread.personId) return;
+    void deliver(thread, text);
+  }
+
+  async function deliver(thread: Thread, text: string) {
+    setSendPhase("sending");
+    try {
+      const res = await fetch("/api/referrals/queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationId: thread.applicationId,
+          personIds: [thread.personId],
+          subject: "",
+          body: text,
+          confirmed: true,
+          sendAfterSeconds: 0,
+          resumeId: draftResumeId || null,
+          // A follow-up goes out as a reply in the same Gmail thread; as a chat reply it is
+          // exempt from the follow-up cooldown.
+          mailKind: "followup",
+          chatReply: true,
+        }),
+      });
+      const data = (await res.json()) as { followUps?: FollowUpDto[]; error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not queue the message.");
+      mergeFollowUps(data.followUps);
+      setDraft("");
+      setDraftResumeId("");
+
+      const sendRes = await fetch("/api/referrals/process-queue", { method: "POST" });
+      const sendData = (await sendRes.json()) as {
+        sent?: number;
+        failed?: number;
+        followUps?: FollowUpDto[];
+        error?: string;
+      };
+      if (!sendRes.ok) throw new Error(sendData.error || "Could not send the queued message.");
+      mergeFollowUps(sendData.followUps);
+      if ((sendData.failed ?? 0) > 0 && !(sendData.sent ?? 0)) {
+        toast.add({
+          title: "Send failed",
+          description: "Gmail could not send it. Use Retry on the message.",
+          type: "error",
+        });
+      } else {
+        toast.add({ title: "Message sent", description: thread.personName, type: "success" });
+      }
+    } catch (err) {
+      toast.add({
+        title: "Send failed",
+        description: err instanceof Error ? err.message : "Could not send the message.",
+        type: "error",
+      });
+    } finally {
+      setSendPhase("idle");
+    }
+  }
+
+  /** Why the chat box is unavailable for this thread, or null when a message can be sent. */
+  function composeBlocker(thread: Thread): string | null {
+    if (!thread.applicationId || !thread.personId) return "This conversation has no application.";
+    if (!thread.personEmail) return `${thread.personName} has no email address.`;
+    const outreachSent = thread.messages.some(
+      (m) => mailKindOf(m) === "outreach" && (m.status === "sent" || m.status === "sent_stub"),
+    );
+    if (!outreachSent) return "Send the referral email from Referrals first.";
+    return null;
+  }
+
+  // Chat view ------------------------------------------------------------------------------
+
+  /** Our referral / follow-up mail: right-hand bubble with a delivery tick or cross. */
+  function renderOutgoing(msg: FollowUpDto, personLabel?: string) {
     const kind = mailKindOf(msg);
     const retrying = retryingId === msg.id;
+    const delivered = msg.status === "sent" || msg.status === "sent_stub" || msg.status === "done";
+    const failed = msg.status === "failed";
+    const at = messageAt(msg);
     return (
-      <article
-        key={msg.id}
-        className="border-border/70 bg-background/60 space-y-2 rounded-xl border p-3 shadow-sm"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
-              {kind === "followup" ? "Follow-up (reply)" : "Referral email"}
-              {opts?.personLabel ? ` · ${opts.personLabel}` : ""}
-            </p>
-            <p className="text-foreground truncate text-[13px] font-medium">
-              {subjectFromMessage(msg)}
-            </p>
-            <p className="text-muted-foreground text-[11px]">
-              {formatDateTimeReadable(msg.updatedAt || msg.createdAt)}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Badge variant={statusVariant(msg.status)} className="h-6 text-[11px]">
-              {statusLabel(msg.status)}
-            </Badge>
-            {msg.status === "failed" ? (
+      <div className="flex justify-end pl-8 sm:pl-16">
+        <div className="text-foreground relative max-w-full space-y-1 rounded-xl rounded-tr-sm border border-[color-mix(in_oklch,var(--primary)_35%,transparent)] bg-[color-mix(in_oklch,var(--primary)_22%,var(--card))] px-3 py-2 shadow-sm sm:max-w-[80%]">
+          <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
+            {kind === "followup" ? "Follow-up" : "Referral"}
+            {personLabel ? ` · ${personLabel}` : ""}
+          </p>
+          {kind === "outreach" ? (
+            <p className="text-[12px] font-semibold">{subjectFromMessage(msg)}</p>
+          ) : null}
+          <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed">
+            {bodyFromMessage(msg) || "(empty body)"}
+          </p>
+          {failed && msg.sendError ? (
+            <p className="text-destructive text-[11px] leading-snug">{msg.sendError}</p>
+          ) : null}
+          <div className="text-muted-foreground flex items-center justify-end gap-1 text-[10px]">
+            <time dateTime={at} title={formatDateTimeReadable(at)}>
+              {timeIst(at)}
+            </time>
+            {delivered ? (
+              <span
+                role="img"
+                aria-label="Sent"
+                title={statusLabel(msg.status)}
+                className="text-primary"
+              >
+                <TickIcon className="size-3.5" />
+              </span>
+            ) : failed ? (
+              <span
+                role="img"
+                aria-label="Failed"
+                title={msg.sendError || "Failed"}
+                className="text-destructive"
+              >
+                <CrossIcon className="size-3.5" />
+              </span>
+            ) : (
+              <span>{statusLabel(msg.status)}</span>
+            )}
+            {failed ? (
               <Button
                 variant="outline"
-                size="icon-sm"
+                size="icon-xs"
                 title={msg.sendError || "Retry send"}
                 aria-label="Retry failed send"
                 loading={retrying}
                 loadingText=""
                 onClick={() => void retryMessage(msg.id)}
-                className="group"
               >
-                <RetryIcon className="size-3.5" />
-                <span
-                  role="tooltip"
-                  className="border-border bg-popover text-popover-foreground pointer-events-none absolute right-0 top-[calc(100%+6px)] z-20 w-52 rounded-md border px-2 py-1.5 text-left text-[11px] opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-                >
-                  {msg.sendError || "Retry sending this email"}
-                </span>
+                <RetryIcon className="size-3" />
               </Button>
             ) : null}
           </div>
         </div>
-        {msg.status === "failed" && msg.sendError ? (
-          <Alert variant="destructive">
-            <AlertDescription>{msg.sendError}</AlertDescription>
-          </Alert>
-        ) : null}
-        <pre className="text-foreground/90 whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
-          {bodyFromMessage(msg) || "(empty body)"}
-        </pre>
-      </article>
+      </div>
     );
   }
+
+  /** A reply from the person: left-hand bubble. */
+  function renderIncoming(reply: MailReplyView) {
+    return (
+      <div className="flex justify-start pr-8 sm:pr-16">
+        <div className="bg-card text-foreground border-border/70 max-w-full space-y-1 rounded-xl rounded-tl-sm border px-3 py-2 shadow-sm sm:max-w-[80%]">
+          <p className="text-primary text-[11px] font-medium">{reply.fromAddress || "Reply"}</p>
+          <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed">
+            {reply.bodyText || "(reply has no text)"}
+          </p>
+          <p className="text-muted-foreground text-right text-[10px]">
+            <time dateTime={reply.receivedAt} title={formatDateTimeReadable(reply.receivedAt)}>
+              {timeIst(reply.receivedAt)}
+            </time>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  function renderTimeline(items: TimelineItem[]) {
+    return (
+      <div className="flex flex-col gap-2 px-3 py-4 sm:px-6">
+        {items.map((item) =>
+          item.type === "day" ? (
+            <div key={item.key} className="flex justify-center py-1">
+              <span className="bg-card/90 text-muted-foreground border-border/60 rounded-md border px-2.5 py-0.5 text-[11px] shadow-sm">
+                {item.label}
+              </span>
+            </div>
+          ) : item.type === "out" ? (
+            <div key={item.key}>{renderOutgoing(item.msg, item.personLabel)}</div>
+          ) : (
+            <div key={item.key}>{renderIncoming(item.reply)}</div>
+          ),
+        )}
+      </div>
+    );
+  }
+
+  // Icon-only, so the spinner replaces the icon (no loading text; it would overflow the square).
+  const refreshLabel = replyDetectionReady
+    ? "Check for replies now"
+    : "Authorize reply detection first";
+  const refreshButton = (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon-sm"
+      loading={checkingReplies}
+      loadingText=""
+      disabled={!replyDetectionReady}
+      title={refreshLabel}
+      aria-label={refreshLabel}
+      onClick={() => void checkReplies()}
+    >
+      <RetryIcon className="size-3.5" />
+    </Button>
+  );
 
   const boardHref = variant === "board" ? "/outreach" : "/outreach/board";
 
@@ -428,11 +741,6 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
           30d
         </ToggleGroupItem>
       </ToggleGroup>
-      <span className="text-muted-foreground shrink-0 text-[11px] tabular-nums">
-        {applicationId
-          ? `${applicationMessages.length} mail · ${threads.length} people`
-          : `${threads.length} conversations`}
-      </span>
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <Button
           variant="outline"
@@ -444,48 +752,77 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
         >
           Process due queue
         </Button>
-        <Link
-          href={variant === "board" ? "/referrals/board" : "/referrals"}
-          className={buttonVariants({ variant: "outline", size: "sm" })}
-        >
-          Open referrals
-        </Link>
+        {refreshButton}
         <BoardToggleLink expanded={variant === "board"} href={boardHref} label="outreach inbox" />
       </div>
     </Card>
   );
 
+  function openThread(key: string) {
+    setSelectedKey(key);
+    setMobileChatOpen(true);
+  }
+
+  /** Last thing that happened in a thread, for the card preview. */
+  function threadPreview(thread: Thread): { text: string; fromThem: boolean } {
+    let best: { at: number; text: string; fromThem: boolean } | null = null;
+    for (const m of thread.messages) {
+      const t = new Date(messageAt(m)).getTime();
+      if (!best || t >= best.at) best = { at: t, text: bodyFromMessage(m), fromThem: false };
+      for (const r of replies[m.id] ?? []) {
+        const rt = new Date(r.receivedAt).getTime();
+        if (rt >= best.at) best = { at: rt, text: r.bodyText, fromThem: true };
+      }
+    }
+    return {
+      text: best?.text.replace(/\s+/g, " ").trim() || "",
+      fromThem: best?.fromThem ?? false,
+    };
+  }
+
+  const cardClass = (active: boolean) =>
+    cn(
+      "bg-background flex w-full cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-3 text-left shadow-sm transition-colors",
+      active
+        ? "border-primary/40 bg-primary/10"
+        : "border-border/80 hover:border-border hover:bg-accent/40",
+    );
+
   const listPane = (
     <>
-      <div className="border-border/60 text-muted-foreground shrink-0 border-b px-3 py-2.5 text-[11px] font-medium uppercase tracking-wide">
-        Conversations
+      <div className="border-border/60 text-muted-foreground shrink-0 border-b px-3 py-2.5 text-[11px] font-medium uppercase tabular-nums tracking-wide">
+        {applicationId
+          ? `${applicationMessages.length} mail · ${threads.length} people`
+          : `${threads.length} conversations`}
       </div>
       <ScrollArea className="min-h-0 flex-1">
-        <ul>
+        <ul className="space-y-2 p-2">
           {applicationId && threads.length > 0 ? (
             <li>
               <button
                 type="button"
-                onClick={() => setSelectedKey(ALL_FOR_APP_KEY)}
-                className={cn(
-                  "w-full cursor-pointer border-b px-3 py-2.5 text-left transition-colors",
-                  viewingAllForApp
-                    ? "border-primary/20 bg-primary/10"
-                    : "border-border/50 hover:bg-muted/40",
-                )}
+                onClick={() => openThread(ALL_FOR_APP_KEY)}
+                className={cardClass(viewingAllForApp)}
               >
-                <p className="text-foreground truncate text-[13px] font-semibold">
-                  All mail for this role
-                </p>
-                <p className="text-muted-foreground truncate text-[12px]">
-                  {selectedApplication
-                    ? `${selectedApplication.companyName} · ${selectedApplication.role}`
-                    : "Selected application"}
-                </p>
-                <p className="text-muted-foreground mt-0.5 text-[10px]">
-                  {applicationMessages.length} message
-                  {applicationMessages.length === 1 ? "" : "s"}
-                </p>
+                <Avatar className="mt-0.5 size-8 rounded-md">
+                  <AvatarFallback className="rounded-md text-[10px] font-semibold">
+                    All
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-foreground truncate text-[13px] font-semibold">
+                    All mail for this role
+                  </p>
+                  <p className="text-muted-foreground truncate text-[12px]">
+                    {selectedApplication
+                      ? `${selectedApplication.companyName} · ${selectedApplication.role}`
+                      : "Selected application"}
+                  </p>
+                  <p className="text-muted-foreground mt-1.5 text-[10px]">
+                    {applicationMessages.length} message
+                    {applicationMessages.length === 1 ? "" : "s"}
+                  </p>
+                </div>
               </button>
             </li>
           ) : null}
@@ -497,44 +834,72 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
             threads.map((thread) => {
               const active = !viewingAllForApp && thread.key === selectedKey;
               const last = thread.messages[thread.messages.length - 1];
+              const replyCount = thread.messages.reduce(
+                (n, m) => n + (replies[m.id]?.length ?? 0),
+                0,
+              );
+              const preview = threadPreview(thread);
               return (
                 <li key={thread.key}>
                   <button
                     type="button"
-                    onClick={() => setSelectedKey(thread.key)}
-                    className={cn(
-                      "w-full cursor-pointer border-b px-3 py-2.5 text-left transition-colors",
-                      active
-                        ? "border-primary/20 bg-primary/10"
-                        : "border-border/50 hover:bg-muted/40",
-                    )}
+                    onClick={() => openThread(thread.key)}
+                    className={cardClass(active)}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-foreground truncate text-[13px] font-semibold">
-                        {thread.personName}
+                    <Avatar className="mt-0.5 size-8 rounded-md">
+                      <AvatarFallback className="rounded-md text-[10px] font-semibold">
+                        {personInitials(thread.personName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-foreground truncate text-[13px] font-semibold">
+                          {thread.personName}
+                        </p>
+                        <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
+                          {dayLabelIst(thread.latestAt) === "Today"
+                            ? timeIst(thread.latestAt)
+                            : dayLabelIst(thread.latestAt)}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground truncate text-[12px]">
+                        {thread.company}
+                        {thread.role ? ` · ${thread.role}` : ""}
                       </p>
-                      {thread.hasFailed ? (
-                        <Badge variant="destructive" className="h-5 shrink-0 text-[10px]">
-                          Failed
-                        </Badge>
-                      ) : last ? (
-                        <Badge
-                          variant={statusVariant(last.status)}
-                          className="h-5 shrink-0 text-[10px]"
-                        >
-                          {statusLabel(last.status)}
-                        </Badge>
+                      {preview.text ? (
+                        <p className="text-muted-foreground mt-1 line-clamp-1 text-[12px]">
+                          <span className="text-foreground/70">
+                            {preview.fromThem ? `${thread.personName.split(" ")[0]}: ` : "You: "}
+                          </span>
+                          {preview.text}
+                        </p>
                       ) : null}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        {thread.hasFailed ? (
+                          <Badge variant="destructive" className="px-1.5 py-0 text-[10px]">
+                            Failed
+                          </Badge>
+                        ) : last ? (
+                          <Badge
+                            variant={statusVariant(last.status)}
+                            className="px-1.5 py-0 text-[10px]"
+                          >
+                            {statusLabel(last.status)}
+                          </Badge>
+                        ) : null}
+                        {replyCount > 0 ? (
+                          <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                            Replied
+                          </Badge>
+                        ) : null}
+                        <span className="text-muted-foreground text-[10px]">
+                          {thread.messages.length} sent
+                          {replyCount
+                            ? ` · ${replyCount} repl${replyCount === 1 ? "y" : "ies"}`
+                            : ""}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-muted-foreground truncate text-[12px]">
-                      {thread.company}
-                      {thread.role ? ` · ${thread.role}` : ""}
-                    </p>
-                    <p className="text-muted-foreground mt-0.5 text-[10px]">
-                      {thread.messages.length} message
-                      {thread.messages.length === 1 ? "" : "s"} ·{" "}
-                      {formatDateTimeReadable(thread.latestAt)}
-                    </p>
                   </button>
                 </li>
               );
@@ -545,59 +910,185 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
     </>
   );
 
-  const mailPane = (
+  const timeline = useMemo(() => {
+    if (viewingAllForApp) {
+      return buildTimeline(
+        applicationMessages.map(({ thread, message }) => ({
+          msg: message,
+          personLabel: thread.personName,
+        })),
+        replies,
+      );
+    }
+    return selected
+      ? buildTimeline(
+          selected.messages.map((msg) => ({ msg })),
+          replies,
+        )
+      : [];
+  }, [applicationMessages, replies, selected, viewingAllForApp]);
+
+  // Open at the newest message, like a messaging app.
+  useEffect(() => {
+    // The ref is on the wallpaper wrapper; the scrolling element is the ScrollArea inside it.
+    const el = chatScrollRef.current?.querySelector<HTMLElement>("[data-scroll-area]");
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [timeline, selectedKey, mobileChatOpen, isDesktop]);
+
+  const backButton = isDesktop ? null : (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Back to conversations"
+      title="Back"
+      onClick={() => setMobileChatOpen(false)}
+      className="-ml-1 shrink-0"
+    >
+      <BackIcon className="size-4" />
+    </Button>
+  );
+
+  const blocker = selected && !viewingAllForApp ? composeBlocker(selected) : null;
+  const composer =
+    selected && !viewingAllForApp ? (
+      <div className="border-border/60 bg-card/95 shrink-0 border-t p-2 sm:p-3">
+        {blocker ? (
+          <p className="text-muted-foreground px-1 py-1.5 text-center text-[12px]">{blocker}</p>
+        ) : (
+          <form
+            className="flex items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              startSend(selected);
+            }}
+          >
+            <div className="bg-background border-border focus-within:border-ring/70 flex min-w-0 flex-1 flex-col rounded-xl border transition-colors">
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  // Email bodies are multi-line, so Enter adds a line; ⌘/Ctrl+Enter sends.
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    startSend(selected);
+                  }
+                }}
+                rows={1}
+                maxRows={6}
+                maxLength={5000}
+                disabled={sendPhase !== "idle"}
+                placeholder={`Message ${selected.personName.split(" ")[0]}…`}
+                aria-label={`Message to ${selected.personName}`}
+                className="min-h-10 resize-none border-0 bg-transparent px-3 py-2.5 text-[13px] shadow-none outline-none focus:border-0 focus:outline-none focus-visible:border-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+              <div className="flex items-center gap-1.5 px-2 pb-1.5">
+                <PaperclipIcon className="text-muted-foreground size-3.5 shrink-0" />
+                <Select
+                  value={draftResumeId || "none"}
+                  onValueChange={(v) => setDraftResumeId(!v || v === "none" ? "" : v)}
+                  disabled={sendPhase !== "idle"}
+                >
+                  <SelectTrigger
+                    className="text-muted-foreground h-6 w-auto min-w-48 max-w-[20rem] border-0 bg-transparent px-1 text-[11px] shadow-none"
+                    aria-label="Attach a resume"
+                  >
+                    <SelectValue placeholder="No resume" />
+                  </SelectTrigger>
+                  <SelectContent className="z-240">
+                    <SelectItem value="none" className="text-[12px]">
+                      No resume
+                    </SelectItem>
+                    {resumeOptions.map((r) => (
+                      <SelectItem key={r.id} value={r.id} className="text-[12px]">
+                        {r.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button
+              type="submit"
+              size="icon"
+              className="size-10 shrink-0 rounded-full"
+              disabled={!draft.trim() || sendPhase !== "idle"}
+              loading={sendPhase === "sending"}
+              loadingText=""
+              aria-label="Send message"
+              title="Send now"
+            >
+              <SendIcon className="size-4" />
+            </Button>
+          </form>
+        )}
+      </div>
+    ) : null;
+
+  const chatHeader = viewingAllForApp ? (
+    <header className="border-border/60 bg-card/95 flex shrink-0 items-center gap-2.5 border-b px-3 py-2.5">
+      {backButton}
+      <Avatar className="size-9 rounded-md">
+        <AvatarFallback className="rounded-md text-[10px] font-semibold">All</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0">
+        <p className="text-foreground truncate text-[14px] font-semibold tracking-tight">
+          All mail · {selectedApplication?.companyName}
+          {selectedApplication?.role ? ` · ${selectedApplication.role}` : ""}
+        </p>
+        <p className="text-muted-foreground truncate text-[11px]">
+          Every referral and follow-up sent for this application
+        </p>
+      </div>
+    </header>
+  ) : selected ? (
+    <header className="border-border/60 bg-card/95 flex shrink-0 items-center gap-2.5 border-b px-3 py-2.5">
+      {backButton}
+      <Avatar className="size-9 rounded-full">
+        <AvatarFallback className="rounded-full text-[11px] font-semibold">
+          {personInitials(selected.personName)}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0">
+        <p className="text-foreground truncate text-[14px] font-semibold tracking-tight">
+          {selected.personName}
+        </p>
+        <p className="text-muted-foreground truncate text-[11px]">
+          {selected.company}
+          {selected.role ? ` · ${selected.role}` : ""}
+          {selected.personEmail ? ` · ${selected.personEmail}` : ""}
+        </p>
+      </div>
+    </header>
+  ) : null;
+
+  const mailPane = !chatHeader ? (
+    <div className="aavedak-chat-wallpaper text-muted-foreground flex flex-1 items-center justify-center p-6 text-center text-[13px]">
+      <span className="bg-card/90 border-border/60 rounded-lg border px-3 py-2 shadow-sm">
+        Select a conversation to read referral and follow-up mail.
+      </span>
+    </div>
+  ) : (
     <>
-      {viewingAllForApp ? (
-        <>
-          <header className="border-border/60 shrink-0 border-b px-4 py-3">
-            <p className="text-foreground text-[15px] font-semibold tracking-tight">
-              All mail · {selectedApplication?.companyName}
-              {selectedApplication?.role ? ` · ${selectedApplication.role}` : ""}
-            </p>
-            <p className="text-muted-foreground text-[12px]">
-              Every referral and follow-up sent for this application
-            </p>
-          </header>
-          <ScrollArea className="min-h-0 flex-1 space-y-3 p-4">
-            {applicationMessages.length === 0 ? (
-              <p className="text-muted-foreground py-8 text-center text-[13px]">
-                No mail for this application yet.
-              </p>
-            ) : (
-              applicationMessages.map(({ thread, message }) =>
-                renderMessageCard(message, { personLabel: thread.personName }),
-              )
-            )}
-          </ScrollArea>
-        </>
-      ) : !selected ? (
-        <div className="text-muted-foreground flex flex-1 items-center justify-center p-6 text-center text-[13px]">
-          Select a conversation to read referral and follow-up mail.
-        </div>
-      ) : (
-        <>
-          <header className="border-border/60 shrink-0 border-b px-4 py-3">
-            <p className="text-foreground text-[15px] font-semibold tracking-tight">
-              {selected.personName}
-            </p>
-            <p className="text-muted-foreground text-[12px]">
-              {selected.company}
-              {selected.role ? ` · ${selected.role}` : ""}
-              {selected.personEmail ? ` · ${selected.personEmail}` : ""}
-            </p>
-          </header>
-          <ScrollArea className="min-h-0 flex-1 space-y-3 p-4">
-            {selected.messages.map((msg) => renderMessageCard(msg))}
-          </ScrollArea>
-        </>
-      )}
+      {chatHeader}
+      {/* The wallpaper sits on this non-scrolling wrapper so it stays put while messages scroll. */}
+      <div ref={chatScrollRef} className="aavedak-chat-wallpaper flex min-h-0 flex-1 flex-col">
+        <ScrollArea className="min-h-0 flex-1" aria-label="Messages">
+          {timeline.length === 0 ? (
+            <p className="text-muted-foreground py-8 text-center text-[13px]">No mail here yet.</p>
+          ) : (
+            renderTimeline(timeline)
+          )}
+        </ScrollArea>
+      </div>
+      {composer}
     </>
   );
 
-  // Conversations | mail. Desktop: resizable blocks. Mobile: stacked cards.
+  // Desktop: conversations | chat, resizable. Phones: one pane at a time with a back button.
   const board = isDesktop ? (
     // The library sets height:100% inline, so the fixed height has to sit on this wrapper.
-    <div className={cn("flex", variant === "board" ? "min-h-0 flex-1" : "md:h-[min(70vh,44rem)]")}>
+    <div className={cn("flex", variant === "board" ? "min-h-0 flex-1" : "md:h-[min(75vh,48rem)]")}>
       <ResizablePanelGroup variant="blocks" orientation="horizontal" className="h-full w-full">
         <ResizablePanel
           id="inbox-list"
@@ -610,17 +1101,18 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
         </ResizablePanel>
         <ResizableHandle aria-label="Resize inbox panes" />
         <ResizablePanel id="inbox-mail">
-          <div className="flex h-full min-h-0 flex-col">{mailPane}</div>
+          <div className="flex h-full min-h-0 flex-col overflow-hidden">{mailPane}</div>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
+  ) : mobileChatOpen && chatHeader ? (
+    <Card className="flex h-[calc(100dvh-8rem)] min-h-[26rem] min-w-0 flex-col gap-0 overflow-hidden p-0">
+      {mailPane}
+    </Card>
   ) : (
-    <div className="flex flex-col gap-4">
-      <Card className="flex max-h-[42vh] w-full flex-col gap-0 overflow-hidden p-0">
-        {listPane}
-      </Card>
-      <Card className="flex min-h-96 min-w-0 flex-col gap-0 overflow-hidden p-0">{mailPane}</Card>
-    </div>
+    <Card className="flex max-h-[calc(100dvh-8rem)] min-h-[20rem] w-full flex-col gap-0 overflow-hidden p-0">
+      {listPane}
+    </Card>
   );
 
   if (variant === "board") {
@@ -635,20 +1127,23 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
 
   return (
     <ShellWidth className="aavedak-fade-up space-y-4 py-6 sm:py-8">
-      <header className="space-y-1">
-        <p className="text-primary/90 font-mono text-[12px] tracking-wide">Inbox</p>
-        <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Outreach</h1>
-        <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-          Referral and follow-up mail per person and role. Same company, different roles stay
-          separate. Follow-ups send as replies in the same Gmail thread. Compose on{" "}
-          <Link href="/referrals" className="text-primary cursor-pointer hover:underline">
-            Referrals
-          </Link>
-          .
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-1">
+          <p className="text-primary/90 font-mono text-[12px] tracking-wide">Inbox</p>
+          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Outreach</h1>
+        </div>
       </header>
+      <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
+        Referral and follow-up mail per person and role. Same company, different roles stay
+        separate. Follow-ups send as replies in the same Gmail thread. Compose on{" "}
+        <Link href="/referrals" className="text-primary cursor-pointer hover:underline">
+          Referrals
+        </Link>
+        .
+      </p>
 
       <GmailConnectBanner callbackURL="/outreach" />
+      <ReplyDetectionBanner readReady={replyDetectionReady} callbackURL="/outreach" />
 
       {noticesBlock}
       {toolbar}
@@ -664,6 +1159,81 @@ function RetryIcon({ className }: { className?: string }) {
         d="M13 8a5 5 0 1 1-1.2-3.3M13 3v3.2H9.8"
         stroke="currentColor"
         strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TickIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function CrossIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+function BackIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M15 18l-6-6 6-6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SendIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M22 2 11 13M22 2l-7 20-4-9-9-4z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PaperclipIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"
+        stroke="currentColor"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

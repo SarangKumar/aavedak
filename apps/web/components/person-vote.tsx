@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
-export type VoteSummaryDto = { up: number; down: number; mine: -1 | 0 | 1 };
+/** `replies`: system credit, +1 per user this person replied to (not a user vote). */
+export type VoteSummaryDto = { up: number; down: number; mine: -1 | 0 | 1; replies: number };
 
 /**
  * One up/down vote per user per person (clicking the active arrow clears it). Shown as a
@@ -22,6 +23,13 @@ export function PersonVote({
   className?: string;
 }) {
   const [votes, setVotes] = useState(initial);
+  const score = votes.up - votes.down + votes.replies;
+  const replyNote =
+    votes.replies > 0
+      ? ` Includes +${votes.replies} from Aavedak: replied to ${votes.replies} user${
+          votes.replies === 1 ? "" : "s"
+        }.`
+      : "";
   const [pending, setPending] = useState(false);
 
   async function cast(next: -1 | 1) {
@@ -50,7 +58,7 @@ export function PersonVote({
   return (
     <div
       className={cn("inline-flex items-center gap-0.5", className)}
-      title="Community signal from Aavedak users — not proof they will refer"
+      title={`Community signal from Aavedak users — not proof they will refer.${replyNote}`}
     >
       <Button
         size="icon-xs"
@@ -63,7 +71,7 @@ export function PersonVote({
         ▲
       </Button>
       <span className="text-foreground min-w-[2ch] text-center text-[11px] font-medium tabular-nums">
-        {votes.up - votes.down}
+        {score}
       </span>
       <Button
         size="icon-xs"

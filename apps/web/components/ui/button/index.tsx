@@ -66,7 +66,7 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   /** Shows a spinner overlay and forces disabled while true. Idle `children` stay mounted (invisible) so width does not shrink. Pass it only to the button that was pressed. */
   loading?: boolean;
-  /** Label next to the spinner while loading. Pass empty string for spinner-only. Default: "Saving…" */
+  /** Label next to the spinner while loading. Pass empty string for spinner-only. Default: "Loading…" */
   loadingText?: string;
 }
 
@@ -77,7 +77,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
     variant,
     size,
     loading = false,
-    loadingText = "Saving…",
+    loadingText = "Loading…",
     disabled,
     ...props
   },
@@ -92,17 +92,24 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
       aria-busy={loading || undefined}
       {...props}
     >
-      <span
-        className={cn("inline-flex items-center justify-center gap-1.5", loading && "invisible")}
-      >
-        {children}
-      </span>
-      {loading ? (
-        <span className="absolute inset-0 inline-flex items-center justify-center gap-1.5">
-          <Spinner className="size-3.5" label="" />
-          {loadingText ? <span>{loadingText}</span> : null}
+      {/* Content and loading state share one grid cell, so the button is as wide as the wider of
+          the two (e.g. "Save" vs "Saving…") and does not jump while loading. */}
+      <span className="inline-grid place-items-center">
+        <span
+          className={cn(
+            "col-start-1 row-start-1 inline-flex items-center justify-center gap-1.5",
+            loading && "invisible",
+          )}
+        >
+          {children}
         </span>
-      ) : null}
+        {loading ? (
+          <span className="col-start-1 row-start-1 inline-flex items-center justify-center gap-1.5">
+            <Spinner className="size-3.5" label="" />
+            {loadingText ? <span>{loadingText}</span> : null}
+          </span>
+        ) : null}
+      </span>
     </button>
   );
 });

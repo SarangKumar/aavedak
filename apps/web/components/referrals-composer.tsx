@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { ApplicationStatus } from "@/lib/application-status";
 import { CompanySelect } from "@/components/company-select";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
@@ -712,6 +713,16 @@ export function ReferralsComposer({
       if (data.followUps?.length) {
         setFollowUps((list) => [...data.followUps!, ...list]);
       }
+      // The undo window is over and the mail is saved: confirm that before Gmail sending
+      // (a separate step whose result gets its own toast below).
+      const queuedCount = data.count ?? queuedIds.size;
+      toast.add({
+        title: activeMailKind === "followup" ? "Follow-up queued" : "Mail queued",
+        description: `${queuedCount} email${queuedCount === 1 ? "" : "s"} queued${
+          resumeId ? " · resume attached" : ""
+        } · sending via Gmail now`,
+        type: "success",
+      });
       const sendRes = await fetch("/api/referrals/process-queue", { method: "POST" });
       const sendData = (await sendRes.json()) as {
         error?: string;
@@ -1326,12 +1337,15 @@ export function ReferralsComposer({
         ))}
       </ToggleGroup>
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
-        <Link
-          href={variant === "board" ? "/outreach/board" : "/outreach"}
-          className={buttonVariants({ variant: "outline", size: "sm" })}
-        >
-          Open outreach inbox
-        </Link>
+        <Tooltip content="Open outreach inbox" className="z-70 text-[12px]">
+          <Link
+            href={variant === "board" ? "/outreach/board" : "/outreach"}
+            className={buttonVariants({ variant: "outline", size: "icon-sm" })}
+            aria-label="Open outreach inbox"
+          >
+            <InboxIcon />
+          </Link>
+        </Tooltip>
         <BoardToggleLink
           expanded={variant === "board"}
           href={variant === "board" ? "/referrals" : "/referrals/board"}
@@ -1694,5 +1708,26 @@ function AppTags({ app, needsReferral = false }: { app: ApplicationDto; needsRef
         </Badge>
       ) : null}
     </span>
+  );
+}
+
+function InboxIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-4" aria-hidden>
+      <path
+        d="M22 12h-6l-2 3h-4l-2-3H2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

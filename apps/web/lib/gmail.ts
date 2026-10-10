@@ -2,9 +2,16 @@ import "server-only";
 
 import { auth } from "@/lib/auth";
 import { getSql } from "@/lib/app-db";
-import { GMAIL_SEND_SCOPE } from "@/lib/gmail-scopes";
+import { GMAIL_READ_SCOPE, GMAIL_SEND_SCOPE } from "@/lib/gmail-scopes";
+import {
+  extractPlainText,
+  headerValue,
+  bareAddress,
+  isAutomatedReply,
+  trimQuotedReply,
+} from "@/lib/mail-reply-parse";
 
-export { GMAIL_SEND_SCOPE } from "@/lib/gmail-scopes";
+export { GMAIL_READ_SCOPE, GMAIL_SEND_SCOPE } from "@/lib/gmail-scopes";
 
 export type GmailAuthStatus = {
   connected: boolean;
@@ -14,6 +21,8 @@ export type GmailAuthStatus = {
   scope: string | null;
   /** True when user can queue+send mail. */
   ready: boolean;
+  /** True when reply detection (gmail.readonly) has been granted. Optional: sending never needs it. */
+  readReady: boolean;
   reason: string | null;
 };
 
@@ -32,6 +41,16 @@ function parseScopes(scope: string | null | undefined): string[] {
     .split(/[\s,]+/)
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/** Read scope for reply detection. gmail.modify and the full-mail scope also cover reading. */
+export function scopesIncludeGmailRead(scope: string | null | undefined): boolean {
+  const scopes = parseScopes(scope);
+  return (
+    scopes.includes(GMAIL_READ_SCOPE) ||
+    scopes.includes("https://mail.google.com/") ||
+    scopes.includes("https://www.googleapis.com/auth/gmail.modify")
+  );
 }
 
 export function scopesIncludeGmailSend(scope: string | null | undefined): boolean {
@@ -53,8 +72,13 @@ async function getGoogleAccountRow(userId: string): Promise<AccountRow | null> {
   return rows[0] ?? null;
 }
 
-/** Public status for UI (no tokens). */
+/** Public status for UI (no tokens). `readReady` is computed from the same scope string. */
 export async function getGmailAuthStatus(userId: string): Promise<GmailAuthStatus> {
+  const status = await getSendAuthStatus(userId);
+  return { ...status, readReady: scopesIncludeGmailRead(status.scope) };
+}
+
+async function getSendAuthStatus(userId: string): Promise<Omit<GmailAuthStatus, "readReady">> {
   const account = await getGoogleAccountRow(userId);
   if (!account) {
     return {
@@ -307,6 +331,70 @@ export async function sendGmailMessage(opts: {
     throw new Error("Gmail send succeeded but no message id returned.");
   }
   return { id: data.id, threadId: data.threadId };
+}
+
+export type GmailReply = {
+  messageId: string;
+  threadId: string;
+  fromAddress: string;
+  subject: string;
+  receivedAt: string;
+  bodyText: string;
+  /** Sent by a system (auto-reply, out-of-office, bounce), not written by the person. */
+  automated: boolean;
+};
+
+/**
+ * Replies in one Gmail thread: every message that was not sent by the user, with its quoted
+ * history removed. Needs gmail.readonly. Returns [] for a thread with no replies yet.
+ */
+export async function fetchThreadReplies(
+  accessToken: string,
+  threadId: string,
+  userEmail: string,
+): Promise<GmailReply[]> {
+  const res = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/threads/${encodeURIComponent(threadId)}?format=full`,
+    { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
+  );
+  if (res.status === 404) return [];
+  if (!res.ok) {
+    throw new Error(
+      res.status === 401 || res.status === 403
+        ? "Gmail read permission missing. Authorize reply detection."
+        : `Gmail thread read failed (${res.status}).`,
+    );
+  }
+  const data = (await res.json()) as {
+    messages?: Array<{
+      id: string;
+      threadId: string;
+      labelIds?: string[];
+      snippet?: string;
+      internalDate?: string;
+      payload?: Parameters<typeof extractPlainText>[0] & {
+        headers?: Array<{ name: string; value: string }>;
+      };
+    }>;
+  };
+  const me = userEmail.trim().toLowerCase();
+  const replies: GmailReply[] = [];
+  for (const message of data.messages ?? []) {
+    const from = bareAddress(headerValue(message.payload, "From"));
+    const sentByMe = (message.labelIds ?? []).includes("SENT") || (me && from === me);
+    if (sentByMe) continue;
+    const subject = headerValue(message.payload, "Subject");
+    replies.push({
+      messageId: message.id,
+      threadId: message.threadId,
+      fromAddress: from,
+      subject,
+      automated: isAutomatedReply(message.payload, from, subject),
+      receivedAt: new Date(Number(message.internalDate ?? Date.now())).toISOString(),
+      bodyText: trimQuotedReply(extractPlainText(message.payload, message.snippet ?? "")),
+    });
+  }
+  return replies;
 }
 
 export function replySubject(originalSubject: string): string {

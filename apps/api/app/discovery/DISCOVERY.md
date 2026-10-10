@@ -112,7 +112,8 @@ CSV header row with `name` (required), `company`, `role`/`title`, `email`, `link
 name+company match with a conflicting email/LinkedIn is not merged (counted `ambiguous`).
 Enrichment only fills empty fields. Contacts go to `person_contacts` with source,
 provenance URL, and `unverified`. Votes (`person_votes`) are written by the web app and are
-a community signal separate from job relevance.
+a community signal separate from job relevance. The web app also adds a system credit (`person_reply_credits`, +1 per user a person replied to) to
+the displayed score; discovery does not read it.
 
 ## Schema
 

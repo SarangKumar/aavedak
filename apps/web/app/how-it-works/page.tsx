@@ -139,7 +139,7 @@ const referralSteps = [
   },
   {
     title: "Follow up",
-    body: "The Already sent tab lists applications where you've reached out, with when each person was last contacted. Follow-ups use their own templates, and you must wait at least an hour between follow-ups to the same person.",
+    body: "The Already sent tab lists applications where you've reached out, with when each person was last contacted. Follow-ups use their own templates. To avoid repeated nudges, you wait at least an hour between follow-ups to someone who hasn't answered; once they reply, you can answer straight away.",
   },
 ] as const;
 

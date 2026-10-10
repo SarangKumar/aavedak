@@ -21,6 +21,18 @@ Queued referral follow-ups send from the **user's Gmail** via the Gmail API (`us
      - `http://localhost:3000/api/auth/callback/google`
      - `https://aavedak.vercel.app/api/auth/callback/google`
 
+## Reply detection (gmail.readonly)
+
+Optional second consent. Sending works without it. With it, Aavedak reads only the threads of mails
+it sent (`users.threads.get`), stores replies in `mail_replies`, and shows them under the mail in
+Outreach. Reads run from **Check replies** (per user) and the daily `/api/cron/sync-replies` cron.
+
+- Scope: `https://www.googleapis.com/auth/gmail.readonly` (restricted). It shares the same unverified
+  screen and 100-user cap as `gmail.send`; our 8-user limit fits.
+- Requested by `ReplyDetectionBanner` (Outreach) via `linkSocial` with `GMAIL_READ_REAUTH_SCOPES`.
+- Troubleshooting: "Gmail read permission missing" means the read scope was not granted; authorize
+  reply detection again. Revoking the app in Google Account → Security removes both scopes.
+
 ## App env (no secrets in git)
 
 | Key                                       | Purpose                                                           |

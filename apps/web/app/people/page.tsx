@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { PeopleHub } from "@/components/people-hub";
 import { requireOnboarded } from "@/lib/app-access";
 import { listApplications } from "@/lib/applications";
-import { getVoteSummaries, listPeople } from "@/lib/people";
+import { getVoteSummaries, listPeople, NO_VOTES } from "@/lib/people";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -36,7 +36,7 @@ export default async function PeoplePage() {
             status: p.status,
             origin: p.origin,
             linkedin: p.linkedin ? `https://www.${p.linkedin}` : null,
-            votes: votes.get(p.id) ?? { up: 0, down: 0, mine: 0 },
+            votes: votes.get(p.id) ?? NO_VOTES,
             createdAt: p.createdAt,
             updatedAt: p.updatedAt,
           }))}

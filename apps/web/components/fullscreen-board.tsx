@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, type ReactNode } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 /**
@@ -48,19 +49,24 @@ export function BoardToggleLink({
   href: string;
   label?: string;
 }) {
+  const text = expanded ? `Collapse ${label}` : `Expand ${label} to full screen`;
   return (
-    <Link
-      href={href}
-      // Full-screen boards are a desktop affordance; the control is hidden on small screens.
-      className={cn(
-        buttonVariants({ variant: "outline", size: "icon-sm" }),
-        "hidden md:inline-flex",
-      )}
-      aria-label={expanded ? `Collapse ${label}` : `Expand ${label} to full screen`}
-      title={expanded ? "Collapse" : "Expand"}
-    >
-      {expanded ? <CollapseIcon /> : <ExpandIcon />}
-    </Link>
+    // Full-screen boards are a desktop affordance; the control is hidden on small screens.
+    // The wrapper (not the link) is hidden so the tooltip's own wrapper leaves no gap.
+    <span className="hidden md:inline-flex">
+      <Tooltip
+        content={expanded ? "Collapse" : "Expand to full screen"}
+        className="z-70 text-[12px]"
+      >
+        <Link
+          href={href}
+          className={buttonVariants({ variant: "outline", size: "icon-sm" })}
+          aria-label={text}
+        >
+          {expanded ? <CollapseIcon /> : <ExpandIcon />}
+        </Link>
+      </Tooltip>
+    </span>
   );
 }
 
