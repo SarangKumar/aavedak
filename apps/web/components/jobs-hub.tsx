@@ -519,7 +519,7 @@ export function JobsHub({
           >
             <SelectValue placeholder="All sources" />
           </SelectTrigger>
-          <SelectContent className="z-[240]">
+          <SelectContent className="z-240">
             <SelectItem value="all" className="text-[12px]">
               All sources ({sourceCounts.all ?? 0})
             </SelectItem>
@@ -563,11 +563,11 @@ export function JobsHub({
       <div
         className={cn(
           "flex flex-col gap-4 md:flex-row md:gap-0",
-          variant === "board" ? "min-h-0 flex-1" : "md:h-[calc(100dvh-17rem)] md:min-h-[32rem]",
+          variant === "board" ? "min-h-0 flex-1" : "md:min-h-128 md:h-[calc(100dvh-17rem)]",
         )}
       >
         <Card
-          className="flex max-h-[60vh] w-full shrink-0 flex-col gap-0 overflow-hidden p-0 md:max-h-none md:w-[var(--jobs-list-width)] md:max-w-[min(100%,560px)]"
+          className="md:w-(--jobs-list-width) flex max-h-[60vh] w-full shrink-0 flex-col gap-0 overflow-hidden p-0 md:max-h-none md:max-w-[min(100%,560px)]"
           style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
         >
           <div className="border-border/60 border-b p-3">
@@ -665,7 +665,7 @@ export function JobsHub({
               <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
                 <SelectValue placeholder="Source" />
               </SelectTrigger>
-              <SelectContent className="z-[240]">
+              <SelectContent className="z-240">
                 {JOB_SOURCES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {SOURCE_LABELS[s]}

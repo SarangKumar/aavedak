@@ -72,7 +72,7 @@ function TableSkeleton({ columns, rows = 5 }: { columns: number; rows?: number }
                     ? "w-28"
                     : c === columns - 1
                       ? "ml-auto h-7 w-20 rounded-md"
-                      : "w-20 max-w-[8rem] flex-1"
+                      : "w-20 max-w-32 flex-1"
                 }`}
               />
             ))}
@@ -124,7 +124,7 @@ function DashboardSkeleton() {
                 <Skeleton className="h-3 w-16 rounded-full" />
                 <Skeleton className="h-3 w-20 rounded-full" />
               </div>
-              <Skeleton className="h-[280px] w-full rounded-md" />
+              <Skeleton className="h-70 w-full rounded-md" />
             </div>
             <div className="flex justify-end">
               <div className="border-border/70 bg-card flex gap-1 rounded-lg border p-1">
@@ -326,8 +326,8 @@ function JobsSkeleton() {
     <ShellWidth className="flex flex-col gap-4 py-6 sm:py-8">
       <PageHeaderSkeleton titleWidth="w-20" blurbWidth="w-full max-w-2xl" withToolbar />
 
-      <div className="flex flex-col gap-4 md:h-[calc(100dvh-13.5rem)] md:min-h-[32rem] md:flex-row">
-        <Card className="w-full shrink-0 gap-0 overflow-hidden p-0 md:w-[360px]">
+      <div className="md:min-h-128 flex flex-col gap-4 md:h-[calc(100dvh-13.5rem)] md:flex-row">
+        <Card className="md:w-90 w-full shrink-0 gap-0 overflow-hidden p-0">
           <div className="border-border/60 space-y-2 border-b p-3">
             <Skeleton className="h-9 w-full rounded-lg" />
             <Skeleton className="h-8 w-full rounded-md" />
@@ -423,7 +423,7 @@ function FollowUpsSkeleton() {
               <Skeleton className="h-9 w-full rounded-md" />
               <Skeleton className="h-9 w-full rounded-md" />
             </div>
-            <Skeleton className="min-h-[72px] w-full rounded-md" />
+            <Skeleton className="min-h-18 w-full rounded-md" />
           </section>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -475,7 +475,7 @@ function ReferralsSkeleton() {
               {(["Applications", "Template", "People"] as const).map((label, i) => (
                 <section
                   key={label}
-                  className="border-border/80 bg-card relative flex h-[min(70vh,40rem)] min-w-[240px] flex-1 flex-col rounded-xl border shadow-sm"
+                  className="border-border/80 bg-card relative flex h-[min(70vh,40rem)] min-w-60 flex-1 flex-col rounded-xl border shadow-sm"
                   // Same proportions as the real columns: 1fr 2fr 1fr.
                   style={{ flex: `${i === 1 ? 2 : 1} 1 0%` }}
                 >

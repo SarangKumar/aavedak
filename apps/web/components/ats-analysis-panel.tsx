@@ -718,7 +718,7 @@ export function ScoringGuideContent() {
         {modes.map((mode) => (
           <div
             key={mode.title}
-            className="border-border/70 bg-background/40 rounded-xl border px-3.5 py-3 md:min-h-[8.5rem]"
+            className="border-border/70 bg-background/40 md:min-h-34 rounded-xl border px-3.5 py-3"
           >
             <p className="text-foreground text-[12px] font-semibold tracking-tight">{mode.title}</p>
             <p className="text-primary mt-1 text-[11px] font-medium">{mode.score}</p>

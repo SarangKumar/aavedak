@@ -999,7 +999,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 }}
                 rows={6}
                 placeholder="Paste the full job description here…"
-                className="border-border bg-background text-foreground box-border h-auto max-h-[min(50vh,420px)] min-h-[9rem] w-full resize-y rounded-lg border px-3 py-2.5 font-sans text-[13px] leading-relaxed disabled:opacity-60"
+                className="border-border bg-background text-foreground box-border h-auto max-h-[min(50vh,420px)] min-h-36 w-full resize-y rounded-lg border px-3 py-2.5 font-sans text-[13px] leading-relaxed disabled:opacity-60"
               />
             </label>
           </div>
@@ -1195,7 +1195,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   onValueChange={(v) => setFilterResumeId(v || "all")}
                 >
                   <SelectTrigger
-                    className="border-border bg-background text-foreground h-8 w-auto min-w-[9rem] rounded-lg border px-2 text-[12px]"
+                    className="border-border bg-background text-foreground h-8 w-auto min-w-36 rounded-lg border px-2 text-[12px]"
                     aria-label="Filter by resume"
                   >
                     <SelectValue placeholder="All resumes" />
@@ -1216,7 +1216,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   onValueChange={(v) => setFilterEngineId(v || "all")}
                 >
                   <SelectTrigger
-                    className="border-border bg-background text-foreground h-8 w-auto min-w-[9rem] rounded-lg border px-2 text-[12px]"
+                    className="border-border bg-background text-foreground h-8 w-auto min-w-36 rounded-lg border px-2 text-[12px]"
                     aria-label="Filter by engine"
                   >
                     <SelectValue placeholder="All engines" />

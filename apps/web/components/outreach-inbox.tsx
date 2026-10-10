@@ -412,12 +412,12 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
         }}
       >
         <SelectTrigger
-          className="border-border bg-background h-8 w-auto min-w-[10rem] max-w-[16rem] rounded-md border px-2.5 text-[12px]"
+          className="border-border bg-background h-8 w-auto min-w-40 max-w-[16rem] rounded-md border px-2.5 text-[12px]"
           aria-label="Filter by application"
         >
           <SelectValue placeholder="All applications" />
         </SelectTrigger>
-        <SelectContent className="z-[240]">
+        <SelectContent className="z-240">
           <SelectItem value="all" className="text-[12px]">
             All applications
           </SelectItem>
@@ -480,7 +480,7 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
       )}
     >
       <Card
-        className="flex max-h-[42vh] w-full shrink-0 flex-col gap-0 overflow-hidden p-0 md:max-h-none md:w-[var(--inbox-list-width)] md:max-w-[min(100%,560px)]"
+        className="md:w-(--inbox-list-width) flex max-h-[42vh] w-full shrink-0 flex-col gap-0 overflow-hidden p-0 md:max-h-none md:max-w-[min(100%,560px)]"
         style={{ ["--inbox-list-width" as string]: `${listWidth}px` }}
       >
         <div className="border-border/60 text-muted-foreground shrink-0 border-b px-3 py-2.5 text-[11px] font-medium uppercase tracking-wide">
@@ -577,7 +577,7 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
         />
       </div>
 
-      <Card className="flex min-h-[24rem] min-w-0 flex-1 flex-col gap-0 overflow-hidden p-0 md:min-h-0">
+      <Card className="flex min-h-96 min-w-0 flex-1 flex-col gap-0 overflow-hidden p-0 md:min-h-0">
         {viewingAllForApp ? (
           <>
             <header className="border-border/60 shrink-0 border-b px-4 py-3">

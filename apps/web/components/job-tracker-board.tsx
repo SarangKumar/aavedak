@@ -489,7 +489,7 @@ export function JobTrackerBoard({
               aria-pressed={prefs.trackerView === "kanban"}
               onClick={() => void setView("kanban")}
               className={cn(
-                "inline-flex size-8 cursor-pointer items-center justify-center rounded-[8px] transition-colors",
+                "inline-flex size-8 cursor-pointer items-center justify-center rounded-sm transition-colors",
                 prefs.trackerView === "kanban"
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:text-foreground",
@@ -504,7 +504,7 @@ export function JobTrackerBoard({
               aria-pressed={prefs.trackerView === "list"}
               onClick={() => void setView("list")}
               className={cn(
-                "inline-flex size-8 cursor-pointer items-center justify-center rounded-[8px] transition-colors",
+                "inline-flex size-8 cursor-pointer items-center justify-center rounded-sm transition-colors",
                 prefs.trackerView === "list"
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:text-foreground",
@@ -528,7 +528,7 @@ export function JobTrackerBoard({
                   aria-pressed={listPageSize === size}
                   onClick={() => setListPageSize(size)}
                   className={cn(
-                    "inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-[8px] px-2 text-[12px] font-medium tabular-nums transition-colors",
+                    "inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-sm px-2 text-[12px] font-medium tabular-nums transition-colors",
                     listPageSize === size
                       ? "bg-primary/15 text-primary"
                       : "text-muted-foreground hover:text-foreground",
@@ -895,7 +895,7 @@ export function JobTrackerBoard({
                   <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
-                  <SelectContent className="z-[280]">
+                  <SelectContent className="z-280">
                     <SelectItem value="__none">None</SelectItem>
                     {coverLetters.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
@@ -912,7 +912,7 @@ export function JobTrackerBoard({
                   value={draft.notes}
                   onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
                   rows={3}
-                  className="border-border bg-background text-foreground max-h-40 min-h-[4.5rem] w-full overflow-y-auto rounded-lg border px-3 py-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+                  className="border-border bg-background text-foreground min-h-18 focus-visible:ring-ring max-h-40 w-full overflow-y-auto rounded-lg border px-3 py-2 text-[13px] outline-none focus-visible:ring-2"
                 />
               </label>
               <div className="space-y-1">
@@ -1063,7 +1063,7 @@ function Field({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+        className="border-border bg-background text-foreground focus-visible:ring-ring h-9 w-full rounded-lg border px-3 text-[13px] outline-none focus-visible:ring-2"
       />
     </label>
   );

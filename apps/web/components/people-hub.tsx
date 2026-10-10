@@ -323,7 +323,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                     <TableCell className="text-muted-foreground text-[12px]">
                       {person.roleTitle ?? "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground max-w-[160px] truncate text-[12px]">
+                    <TableCell className="text-muted-foreground max-w-40 truncate text-[12px]">
                       {app ? `${app.companyName} · ${app.role}` : "—"}
                     </TableCell>
                     <TableCell>
@@ -448,7 +448,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                   Notes
                 </span>
                 <textarea
-                  className="border-input bg-muted text-foreground min-h-[88px] w-full resize-y rounded-md border px-3 py-2 text-sm"
+                  className="border-input bg-muted text-foreground min-h-22 w-full resize-y rounded-md border px-3 py-2 text-sm"
                   value={draft.notes}
                   onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
                   rows={3}

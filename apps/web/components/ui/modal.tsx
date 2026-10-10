@@ -60,7 +60,7 @@ export function Modal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4"
+      className="z-220 fixed inset-0 flex items-center justify-center p-3 sm:p-4"
       role="presentation"
     >
       <button

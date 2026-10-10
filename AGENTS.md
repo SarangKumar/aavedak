@@ -37,7 +37,7 @@ TEST_DATABASE_URL=postgresql://... .venv/bin/python -m pytest tests/test_discove
 npx --yes tsx lib/ats-engines/run-tests.ts   # registry/stages/stream only; scoring tests are in apps/api
 ```
 
-Known pre-existing failures: `tests/test_ats_benchmark.py::test_improvements_never_ask_to_invent` (a structural recommendation lacks the asserted wording), and `pnpm lint` (an unused eslint-disable in `app/opengraph-image.tsx`).
+Known pre-existing failure: `tests/test_ats_benchmark.py::test_improvements_never_ask_to_invent` (a structural recommendation lacks the asserted wording). `pnpm lint` passes clean — keep it at zero warnings.
 
 ### Agent context files
 

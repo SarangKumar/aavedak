@@ -763,7 +763,7 @@ export function DocumentsHub({
                   id="resume-display-name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+                  className="border-border bg-background text-foreground focus-visible:ring-ring h-9 w-full rounded-lg border px-3 text-[13px] outline-none focus-visible:ring-2"
                   placeholder="e.g. Primary Resume"
                   maxLength={120}
                 />
@@ -844,7 +844,7 @@ export function DocumentsHub({
                                 }}
                                 maxLength={120}
                                 aria-label="Resume display name"
-                                className="border-border bg-background text-foreground h-7 min-w-0 flex-1 rounded-md border px-2 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+                                className="border-border bg-background text-foreground focus-visible:ring-ring h-7 min-w-0 flex-1 rounded-md border px-2 text-[13px] font-medium outline-none focus-visible:ring-2"
                               />
                             ) : (
                               <button
@@ -1030,7 +1030,7 @@ export function DocumentsHub({
                         <SelectValue placeholder="Pick a job from Jobs…" />
                       </SelectTrigger>
                       <SelectContent
-                        className="z-[280]"
+                        className="z-280"
                         searchable
                         searchPlaceholder="Search title or company…"
                       >
@@ -1088,7 +1088,7 @@ export function DocumentsHub({
                     "Dear Hiring Manager,\n\nI am writing to apply for the {{role}} role at {{company}}…"
                   }
                   rows={1}
-                  className="border-border bg-background text-foreground box-border h-auto max-h-[min(80vh,800px)] min-h-[10rem] w-full resize-none rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
+                  className="border-border bg-background text-foreground box-border h-auto max-h-[min(80vh,800px)] min-h-40 w-full resize-none rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
                 />
                 <div className="space-y-1.5">
                   <p className="text-foreground text-[11px] font-semibold tracking-tight">
@@ -1181,7 +1181,7 @@ export function DocumentsHub({
                           <SelectTrigger className="border-border bg-background text-foreground h-8 w-full cursor-pointer rounded-lg border px-2 text-[12px]">
                             <SelectValue placeholder="Choose resume" />
                           </SelectTrigger>
-                          <SelectContent className="z-[240]">
+                          <SelectContent className="z-240">
                             {usableResumes.map((r) => (
                               <SelectItem key={r.id} value={r.id} className="text-[12px]">
                                 {r.displayName}
@@ -1235,7 +1235,7 @@ export function DocumentsHub({
                 </div>
               </Card>
 
-              <Card className="border-border/80 bg-card flex min-h-[36rem] flex-col gap-0 rounded-lg border p-3 shadow-sm xl:min-h-full">
+              <Card className="border-border/80 bg-card min-h-144 flex flex-col gap-0 rounded-lg border p-3 shadow-sm xl:min-h-full">
                 <CoverLetterPdfPreview
                   title={previewTitle}
                   body={previewBody}
@@ -1243,7 +1243,7 @@ export function DocumentsHub({
                   role={coverTarget.role}
                   footerRow={footerRow}
                   onOverflowChange={onClOverflowChange}
-                  className="min-h-[32rem] xl:min-h-0"
+                  className="min-h-128 xl:min-h-0"
                 />
               </Card>
             </div>

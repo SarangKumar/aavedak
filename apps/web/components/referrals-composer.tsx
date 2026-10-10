@@ -1212,7 +1212,7 @@ export function ReferralsComposer({
                       }
                     />
                   </SelectTrigger>
-                  <SelectContent className="z-[240]">
+                  <SelectContent className="z-240">
                     {activeTemplates.map((tpl) => (
                       <SelectItem key={tpl.id} value={tpl.id}>
                         {tpl.title}
@@ -1341,7 +1341,7 @@ export function ReferralsComposer({
               minWidth: 240,
               height: "100%",
             }}
-            className="border-border/0 bg-transparent p-0 shadow-none hover:bg-transparent data-[dragging]:opacity-40"
+            className="border-border/0 data-dragging:opacity-40 bg-transparent p-0 shadow-none hover:bg-transparent"
           >
             {renderColumn(id)}
           </DragDropItem>

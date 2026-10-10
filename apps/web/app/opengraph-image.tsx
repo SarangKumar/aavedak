@@ -38,7 +38,6 @@ export default async function OpenGraphImage() {
           letterSpacing: 2,
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element -- OG ImageResponse */}
         <img
           src={logoSrc}
           alt=""

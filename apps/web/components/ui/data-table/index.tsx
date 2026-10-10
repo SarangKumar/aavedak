@@ -324,7 +324,7 @@ export function DataTable<TData>({
                 setQuery(event.target.value);
                 setPage(1);
               }}
-              className="min-w-[12rem] max-w-sm flex-1"
+              className="min-w-48 max-w-sm flex-1"
             />
           ) : null}
           <div className="ml-auto flex flex-wrap items-center gap-2">
