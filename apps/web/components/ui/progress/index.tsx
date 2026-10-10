@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 export type ProgressProps = React.ComponentProps<"progress">;
 
 /**
- * Native progress bar (Vinyaas). Defaults max to 100 so value maps to a clear fill %.
+ * Native progress bar. Defaults max to 100 so value maps to a clear fill %.
  */
 export function Progress({ className, ref, value, max = 100, ...props }: ProgressProps) {
   const numericMax = typeof max === "number" && Number.isFinite(max) && max > 0 ? max : 100;

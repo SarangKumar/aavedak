@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -66,9 +67,9 @@ export function ApprovalStatusCard({ initialStatus, email, firstName }: Props) {
           — it will go back to the admin queue.
         </p>
         {errMsg ? (
-          <p className="text-destructive mt-3 text-[12px]" role="alert">
-            {errMsg}
-          </p>
+          <Alert variant="destructive" className="mt-3">
+            <AlertDescription>{errMsg}</AlertDescription>
+          </Alert>
         ) : null}
         <Button
           type="button"
@@ -111,9 +112,9 @@ export function ApprovalStatusCard({ initialStatus, email, firstName }: Props) {
         Status updates automatically. Use Check again anytime.
       </p>
       {errMsg ? (
-        <p className="text-destructive mt-3 text-[12px]" role="alert">
-          {errMsg}
-        </p>
+        <Alert variant="destructive" className="mt-3">
+          <AlertDescription>{errMsg}</AlertDescription>
+        </Alert>
       ) : null}
       <Button
         type="button"

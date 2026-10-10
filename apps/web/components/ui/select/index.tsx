@@ -278,7 +278,7 @@ export function SelectTrigger({
       disabled={disabled}
       data-slot="select-trigger"
       className={cn(
-        "border-input bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background aria-invalid:border-destructive aria-invalid:ring-destructive/20 relative box-border flex h-9 max-h-9 min-h-9 w-full min-w-0 cursor-pointer items-center justify-between rounded-md border pl-3 pr-9 text-sm leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "border-input bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background aria-invalid:border-destructive aria-invalid:ring-destructive/20 relative box-border flex h-9 max-h-9 min-h-9 w-full min-w-0 items-center justify-between gap-2 rounded-md border px-3 text-sm leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       ref={(node) => {
@@ -312,7 +312,8 @@ export function SelectTrigger({
       }}
     >
       <span className="flex min-w-0 flex-1 items-center truncate text-left">{children}</span>
-      <SelectChevron />
+      {/* In flow (not absolute) so a consumer's padding classes can never push text under the arrow. */}
+      <SelectChevron className="relative inset-auto w-4 shrink-0" />
       <span className="sr-only">
         {selectedLabel ? `Selected ${selectedLabel}` : "No value selected"}
       </span>
@@ -385,32 +386,19 @@ export function SelectContent({
   className,
   align = "start",
   side = "bottom",
-  searchable = false,
-  searchPlaceholder = "Search…",
 }: {
   children: React.ReactNode;
   className?: string;
   align?: Align;
   side?: Side;
-  /** Show a filter input and hide non-matching options. */
-  searchable?: boolean;
-  searchPlaceholder?: string;
 }) {
   const select = useSelect();
   const contentRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const [search, setSearch] = useState("");
   const [point, setPoint] = useState<{
     top: number;
     left: number;
     width: number;
   } | null>(null);
-
-  useEffect(() => {
-    if (!select.open) {
-      setSearch("");
-    }
-  }, [select.open]);
 
   useLayoutEffect(() => {
     for (const item of collectSelectItems(children)) {
@@ -500,10 +488,6 @@ export function SelectContent({
     }
 
     const timeout = window.setTimeout(() => {
-      if (searchable && searchRef.current) {
-        searchRef.current.focus();
-        return;
-      }
       const options = [
         ...(contentRef.current?.querySelectorAll<HTMLElement>(
           '[role="option"]:not([aria-disabled="true"])',
@@ -525,7 +509,7 @@ export function SelectContent({
     };
     // Intentionally only when the list opens — not on every activeValue change.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open/disabled gate initial focus
-  }, [select.open, select.disabled, searchable]);
+  }, [select.open, select.disabled]);
 
   useEffect(() => {
     if (!select.open || select.disabled) {
@@ -657,95 +641,17 @@ export function SelectContent({
       )}
       tabIndex={-1}
     >
-      {searchable ? (
-        <div className="border-border/70 sticky top-0 z-10 border-b bg-inherit p-1.5">
-          <input
-            ref={searchRef}
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={searchPlaceholder}
-            aria-label={searchPlaceholder}
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground h-8 w-full rounded-md border px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
-            onKeyDown={(event) => {
-              if (event.key === "ArrowDown" || event.key === "Enter") {
-                event.preventDefault();
-                const first = contentRef.current?.querySelector<HTMLElement>(
-                  '[role="option"]:not([aria-disabled="true"])',
-                );
-                first?.focus();
-                if (first?.dataset.value) {
-                  select.setActiveValue(first.dataset.value);
-                }
-              }
-              if (event.key === "Escape") {
-                event.preventDefault();
-                select.setOpen(false);
-              }
-            }}
-          />
-        </div>
-      ) : null}
       <div
         id={select.listboxId}
         role="listbox"
         aria-label="Options"
         className="overflow-y-auto overscroll-contain p-1"
       >
-        <SelectFilteredItems search={searchable ? search : ""}>{children}</SelectFilteredItems>
+        {children}
       </div>
     </div>,
     document.body,
   );
-}
-
-function SelectFilteredItems({ children, search }: { children: React.ReactNode; search: string }) {
-  const q = search.trim().toLowerCase();
-  if (!q) {
-    return <>{children}</>;
-  }
-
-  const matched: React.ReactNode[] = [];
-  React.Children.forEach(children, (child) => {
-    if (!React.isValidElement(child)) {
-      return;
-    }
-    if (child.type === SelectItem) {
-      const props = child.props as SelectItemProps;
-      const label = textContent(props.children).toLowerCase();
-      if (label.includes(q) || props.value.toLowerCase().includes(q)) {
-        matched.push(child);
-      }
-      return;
-    }
-    if (child.type === SelectGroup) {
-      const groupChildren = (child.props as { children?: React.ReactNode }).children;
-      const groupMatched: React.ReactNode[] = [];
-      React.Children.forEach(groupChildren, (nested) => {
-        if (!React.isValidElement(nested) || nested.type !== SelectItem) {
-          return;
-        }
-        const props = nested.props as SelectItemProps;
-        const label = textContent(props.children).toLowerCase();
-        if (label.includes(q) || props.value.toLowerCase().includes(q)) {
-          groupMatched.push(nested);
-        }
-      });
-      if (groupMatched.length > 0) {
-        matched.push(
-          React.cloneElement(child as React.ReactElement<{ children?: React.ReactNode }>, {
-            children: groupMatched,
-          }),
-        );
-      }
-    }
-  });
-
-  if (matched.length === 0) {
-    return <div className="text-muted-foreground px-2 py-3 text-center text-sm">No matches.</div>;
-  }
-
-  return <>{matched}</>;
 }
 
 export function SelectGroup({
@@ -807,7 +713,7 @@ export function SelectItem({ value, disabled, children, className }: SelectItemP
       aria-disabled={disabled || undefined}
       data-highlighted={highlighted ? "" : undefined}
       className={cn(
-        "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground relative flex w-full cursor-pointer select-none items-center rounded-sm py-2 pl-2 pr-8 text-sm outline-none",
+        "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground relative flex w-full cursor-default select-none items-center rounded-sm py-2 pl-2 pr-8 text-sm outline-none",
         disabled && "pointer-events-none opacity-50",
         className,
       )}

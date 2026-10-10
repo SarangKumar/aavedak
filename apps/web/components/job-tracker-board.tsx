@@ -1,10 +1,15 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ImportApplicationsDialog } from "@/components/import-applications-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Card,
   CardAction,
@@ -20,7 +25,14 @@ import {
   DragDropList,
   type DragDropItems,
 } from "@/components/ui/drag-and-drop";
-import { Modal } from "@/components/ui/modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Pagination,
   PaginationContent,
@@ -63,10 +75,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CompanySelect } from "@/components/company-select";
-import { DatePickerField } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { DatePicker } from "@/components/ui/date-picker";
 import { formatDateOnly } from "@/lib/format-datetime";
-import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/search-input";
+
+/** `YYYY-MM-DD…` → local Date (no timezone shift), or undefined. */
+function isoToDate(iso: string): Date | undefined {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? "");
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : undefined;
+}
 
 const LIST_PAGE_SIZES = [10, 25, 50] as const;
 type ListPageSize = (typeof LIST_PAGE_SIZES)[number];
@@ -460,9 +478,6 @@ export function JobTrackerBoard({
     [filteredApplications],
   );
 
-  const toolbarBtn =
-    "border-border bg-card text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center justify-center rounded-[10px] border transition-colors";
-
   return (
     <ShellWidth className="aavedak-fade-up space-y-6 py-8 sm:py-10">
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -477,102 +492,87 @@ export function JobTrackerBoard({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <div
-            className="border-border bg-card inline-flex items-center gap-0.5 rounded-[10px] border p-0.5"
-            role="group"
+          <ToggleGroup
             aria-label="Board view"
+            variant="outline"
+            size="sm"
+            value={[prefs.trackerView]}
+            onValueChange={(next) => {
+              // Single mode lets the pressed item turn off; a board always has one view.
+              if (next[0] === "kanban" || next[0] === "list") void setView(next[0]);
+            }}
           >
-            <button
-              type="button"
+            <ToggleGroupItem
+              value="kanban"
               title="Kanban"
               aria-label="Kanban view"
-              aria-pressed={prefs.trackerView === "kanban"}
-              onClick={() => void setView("kanban")}
-              className={cn(
-                "inline-flex size-8 cursor-pointer items-center justify-center rounded-sm transition-colors",
-                prefs.trackerView === "kanban"
-                  ? "bg-primary/15 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
+              className="size-8 px-0"
             >
               <KanbanGlyph className="size-3.5" />
-            </button>
-            <button
-              type="button"
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="list"
               title="List"
               aria-label="List view"
-              aria-pressed={prefs.trackerView === "list"}
-              onClick={() => void setView("list")}
-              className={cn(
-                "inline-flex size-8 cursor-pointer items-center justify-center rounded-sm transition-colors",
-                prefs.trackerView === "list"
-                  ? "bg-primary/15 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
+              className="size-8 px-0"
             >
               <ListGlyph className="size-3.5" />
-            </button>
-          </div>
+            </ToggleGroupItem>
+          </ToggleGroup>
           {prefs.trackerView === "list" ? (
-            <div
-              className="border-border bg-card inline-flex items-center gap-0.5 rounded-[10px] border p-0.5"
-              role="group"
+            <ToggleGroup
               aria-label="Applications per page"
+              variant="outline"
+              size="sm"
+              value={[String(listPageSize)]}
+              onValueChange={(next) => {
+                const size = LIST_PAGE_SIZES.find((n) => String(n) === next[0]);
+                if (size) setListPageSize(size);
+              }}
             >
               {LIST_PAGE_SIZES.map((size) => (
-                <button
+                <ToggleGroupItem
                   key={size}
-                  type="button"
+                  value={String(size)}
                   title={`${size} per page`}
                   aria-label={`${size} applications per page`}
-                  aria-pressed={listPageSize === size}
-                  onClick={() => setListPageSize(size)}
-                  className={cn(
-                    "inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-sm px-2 text-[12px] font-medium tabular-nums transition-colors",
-                    listPageSize === size
-                      ? "bg-primary/15 text-primary"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
+                  className="min-w-8 px-2 text-[12px] tabular-nums"
                 >
                   {size}
-                </button>
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
           ) : null}
           {prefs.trackerView === "kanban" ? (
-            <button
-              type="button"
-              onClick={() => setColumnsOpen((o) => !o)}
-              className={cn(toolbarBtn, "h-8 px-2.5 text-[12px]")}
-            >
+            <Button variant="outline" size="sm" onClick={() => setColumnsOpen((o) => !o)}>
               Columns
-            </button>
+            </Button>
           ) : null}
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="icon-sm"
             onClick={() => {
               setImportOpen(true);
               setError(null);
             }}
             title="Import applications"
             aria-label="Import applications"
-            className={cn(toolbarBtn, "size-8")}
           >
             <ImportGlyph className="size-3.5" />
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
             onClick={() => {
               window.location.assign("/api/applications/export");
             }}
             title="Download applications JSON backup"
             aria-label="Download applications JSON backup"
-            className={cn(toolbarBtn, "size-8")}
           >
             <DownloadGlyph className="size-3.5" />
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            size="sm"
             onClick={() => {
               setCreateOpen(true);
               setWarning(null);
@@ -580,43 +580,55 @@ export function JobTrackerBoard({
             }}
             title="New application"
             aria-label="New application"
-            className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-[10px] px-2.5 text-[13px] font-semibold shadow-sm ring-1 hover:opacity-90 sm:px-3"
           >
             <span aria-hidden className="text-[16px] leading-none">
               +
             </span>
             <span className="hidden sm:inline">New Application</span>
-          </button>
+          </Button>
         </div>
       </header>
 
       {columnsOpen && prefs.trackerView === "kanban" ? (
         <Card className="border-border/80 bg-card gap-0 rounded-xl border p-3">
           <p className="text-foreground mb-2 text-[12px] font-medium">Show / hide Kanban columns</p>
-          <div className="flex flex-wrap gap-1.5">
-            {DEFAULT_KANBAN_STATUSES.map((status) => {
-              const hidden = prefs.hiddenColumns.includes(status);
-              return (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => void toggleColumn(status)}
-                  className={cn(
-                    "inline-flex h-7 cursor-pointer items-center rounded-full border px-2.5 text-[11px] font-medium transition-colors",
-                    hidden
-                      ? "border-border text-muted-foreground bg-transparent"
-                      : "border-primary/30 bg-primary/10 text-primary",
-                  )}
-                >
-                  {STATUS_LABELS[status]}
-                </button>
+          <ToggleGroup
+            aria-label="Visible Kanban columns"
+            multiple
+            variant="outline"
+            size="sm"
+            spacing={1}
+            className="flex-wrap"
+            value={DEFAULT_KANBAN_STATUSES.filter((st) => !prefs.hiddenColumns.includes(st))}
+            onValueChange={(next) => {
+              // One click changes exactly one column; find which.
+              const visible = DEFAULT_KANBAN_STATUSES.filter(
+                (st) => !prefs.hiddenColumns.includes(st),
               );
-            })}
-          </div>
+              const changed = DEFAULT_KANBAN_STATUSES.find(
+                (st) => visible.includes(st) !== next.includes(st),
+              );
+              if (changed) void toggleColumn(changed);
+            }}
+          >
+            {DEFAULT_KANBAN_STATUSES.map((status) => (
+              <ToggleGroupItem
+                key={status}
+                value={status}
+                className="h-7 rounded-full px-2.5 text-[11px]"
+              >
+                {STATUS_LABELS[status]}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         </Card>
       ) : null}
 
-      {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
 
       <div className="mb-4 space-y-2">
         <label className="sr-only" htmlFor="tracker-search">
@@ -635,7 +647,7 @@ export function JobTrackerBoard({
         <Card className="border-border/70 bg-card gap-0 overflow-hidden rounded-xl border p-0">
           <div className="p-3 sm:p-4">
             <DragDrop items={columns} onReorder={onKanbanReorder}>
-              <div className="flex gap-3 overflow-x-auto pb-1">
+              <ScrollArea className="flex gap-3 pb-1" orientation="horizontal">
                 {visibleStatuses.map((status) => {
                   const ids = columns[status] ?? [];
                   return (
@@ -654,7 +666,7 @@ export function JobTrackerBoard({
                           {ids.length}
                         </Badge>
                       </div>
-                      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+                      <ScrollArea className="min-h-0 flex-1">
                         <DragDropList
                           id={status}
                           items={ids.filter((id) => filteredIds.has(id))}
@@ -714,11 +726,11 @@ export function JobTrackerBoard({
                               );
                             })}
                         </DragDropList>
-                      </div>
+                      </ScrollArea>
                     </section>
                   );
                 })}
-              </div>
+              </ScrollArea>
             </DragDrop>
           </div>
         </Card>
@@ -732,86 +744,103 @@ export function JobTrackerBoard({
         </Card>
       ) : null}
 
-      <Modal
+      <Dialog
         open={createOpen}
-        onClose={() => {
-          setCreateOpen(false);
-          setWarning(null);
+        onOpenChange={(next) => {
+          if (!next)
+            (() => {
+              setCreateOpen(false);
+              setWarning(null);
+            })();
         }}
-        title="New application"
-        description="Company, role, and location are required. Job link / id optional — applications can exist without a linked job."
-        footer={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setCreateOpen(false);
-                setWarning(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              loading={pendingAction === "create"}
-              disabled={pending}
-              onClick={() => void createApplication(Boolean(warning))}
-            >
-              {warning ? "Create anyway" : "Create"}
-            </Button>
-          </>
-        }
       >
-        <div className="space-y-2.5">
-          <label className="block space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Company name *</span>
-            <CompanySelect
-              value={draft.companyName}
-              onChange={(name) => setDraft((d) => ({ ...d, companyName: name }))}
-              placeholder="e.g. Stripe"
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New application</DialogTitle>
+            <DialogDescription>
+              Company, role, and location are required. Job link / id optional — applications can
+              exist without a linked job.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2.5">
+            <label className="block space-y-1">
+              <span className="text-foreground text-[12px] font-medium">Company name *</span>
+              <CompanySelect
+                value={draft.companyName}
+                onChange={(name) => setDraft((d) => ({ ...d, companyName: name }))}
+                placeholder="e.g. Stripe"
+              />
+            </label>
+            <Field
+              label="Role *"
+              value={draft.role}
+              onChange={(v) => setDraft((d) => ({ ...d, role: v }))}
             />
-          </label>
-          <Field
-            label="Role *"
-            value={draft.role}
-            onChange={(v) => setDraft((d) => ({ ...d, role: v }))}
-          />
-          <Field
-            label="Location *"
-            value={draft.location}
-            onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
-          />
-          <Field
-            label="CTC / salary"
-            value={draft.salaryCtc}
-            onChange={(v) => setDraft((d) => ({ ...d, salaryCtc: v }))}
-          />
-          <Field
-            label="Job link"
-            value={draft.jobLink}
-            onChange={(v) => setDraft((d) => ({ ...d, jobLink: v }))}
-          />
-          <DatePickerField
-            label="Applied date"
-            value={draft.appliedAt}
-            onChange={(iso) => setDraft((d) => ({ ...d, appliedAt: iso }))}
-            placeholder="Pick applied date"
-          />
-          <div className="space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Status</span>
-            <StatusSelect
-              value={draft.status === "archived" ? "bookmarked" : draft.status}
-              options={DEFAULT_KANBAN_STATUSES}
-              onChange={(s) => setDraft((d) => ({ ...d, status: s }))}
-              triggerClassName="h-9 w-full cursor-pointer text-[13px]"
+            <Field
+              label="Location *"
+              value={draft.location}
+              onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
             />
+            <Field
+              label="CTC / salary"
+              value={draft.salaryCtc}
+              onChange={(v) => setDraft((d) => ({ ...d, salaryCtc: v }))}
+            />
+            <Field
+              label="Job link"
+              value={draft.jobLink}
+              onChange={(v) => setDraft((d) => ({ ...d, jobLink: v }))}
+            />
+            <div className="space-y-1">
+              <span className="text-foreground text-[12px] font-medium">Applied date</span>
+              <DatePicker
+                value={isoToDate(draft.appliedAt)}
+                onValueChange={(date) =>
+                  setDraft((d) => ({ ...d, appliedAt: date ? format(date, "yyyy-MM-dd") : "" }))
+                }
+                placeholder="Pick applied date"
+                formatString="yyyy-MM-dd"
+              />
+            </div>
+            <div className="space-y-1">
+              <span className="text-foreground text-[12px] font-medium">Status</span>
+              <StatusSelect
+                value={draft.status === "archived" ? "bookmarked" : draft.status}
+                options={DEFAULT_KANBAN_STATUSES}
+                onChange={(s) => setDraft((d) => ({ ...d, status: s }))}
+                triggerClassName="h-9 w-full cursor-pointer text-[13px]"
+              />
+            </div>
+            {warning ? <p className="text-primary text-[12px] leading-relaxed">{warning}</p> : null}
           </div>
-          {warning ? <p className="text-primary text-[12px] leading-relaxed">{warning}</p> : null}
-        </div>
-      </Modal>
+
+          <DialogFooter>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCreateOpen(false);
+                  setWarning(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                loading={pendingAction === "create"}
+                disabled={pending}
+                onClick={() => void createApplication(Boolean(warning))}
+              >
+                {warning ? "Create anyway" : "Create"}
+              </Button>
+            </>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Sheet
         open={Boolean(editingId)}
@@ -879,11 +908,17 @@ export function JobTrackerBoard({
                 value={draft.jobLink}
                 onChange={(v) => setDraft((d) => ({ ...d, jobLink: v }))}
               />
-              <DatePickerField
-                label="Applied date"
-                value={draft.appliedAt}
-                onChange={(iso) => setDraft((d) => ({ ...d, appliedAt: iso }))}
-              />
+              <div className="space-y-1">
+                <span className="text-foreground text-[12px] font-medium">Applied date</span>
+                <DatePicker
+                  value={isoToDate(draft.appliedAt)}
+                  onValueChange={(date) =>
+                    setDraft((d) => ({ ...d, appliedAt: date ? format(date, "yyyy-MM-dd") : "" }))
+                  }
+                  placeholder="Pick a date"
+                  formatString="yyyy-MM-dd"
+                />
+              </div>
               <div className="space-y-1">
                 <span className="text-foreground text-[12px] font-medium">Cover letter used</span>
                 <Select
@@ -908,11 +943,11 @@ export function JobTrackerBoard({
               </div>
               <label className="block space-y-1">
                 <span className="text-foreground text-[12px] font-medium">Notes</span>
-                <textarea
+                <Textarea
                   value={draft.notes}
                   onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
                   rows={3}
-                  className="border-border bg-background text-foreground min-h-18 focus-visible:ring-ring max-h-40 w-full overflow-y-auto rounded-lg border px-3 py-2 text-[13px] outline-none focus-visible:ring-2"
+                  className="min-h-18 max-h-40 overflow-y-auto py-2"
                 />
               </label>
               <div className="space-y-1">
@@ -1060,11 +1095,7 @@ function Field({
   return (
     <label className="block space-y-1">
       <span className="text-foreground text-[12px] font-medium">{label}</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="border-border bg-background text-foreground focus-visible:ring-ring h-9 w-full rounded-lg border px-3 text-[13px] outline-none focus-visible:ring-2"
-      />
+      <Input value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }
@@ -1101,39 +1132,35 @@ function ListView({
 
   return (
     <Card className="border-border/80 bg-card/60 gap-0 space-y-2 overflow-hidden rounded-xl border p-3">
-      <div className="flex flex-wrap gap-1.5">
-        <button
-          type="button"
-          onClick={() => setStatusFilter("all")}
-          className={cn(
-            "inline-flex h-7 cursor-pointer items-center rounded-full border px-2.5 text-[11px] font-medium",
-            statusFilter === "all"
-              ? "border-primary/30 bg-primary/10 text-primary"
-              : "border-border text-muted-foreground",
-          )}
-        >
+      <ToggleGroup
+        aria-label="Filter by status"
+        variant="outline"
+        size="sm"
+        spacing={1}
+        className="flex-wrap"
+        value={[statusFilter]}
+        // Single mode lets the pressed item turn off, which means "All".
+        onValueChange={(next) =>
+          setStatusFilter((next[0] as typeof statusFilter | undefined) ?? "all")
+        }
+      >
+        <ToggleGroupItem value="all" className="h-7 rounded-full px-2.5 text-[11px]">
           All ({applications.length})
-        </button>
+        </ToggleGroupItem>
         {DEFAULT_KANBAN_STATUSES.map((status) => {
           const count = applications.filter((a) => a.status === status).length;
           if (count === 0) return null;
           return (
-            <button
+            <ToggleGroupItem
               key={status}
-              type="button"
-              onClick={() => setStatusFilter(status)}
-              className={cn(
-                "inline-flex h-7 cursor-pointer items-center rounded-full border px-2.5 text-[11px] font-medium",
-                statusFilter === status
-                  ? "border-primary/30 bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground",
-              )}
+              value={status}
+              className="h-7 rounded-full px-2.5 text-[11px]"
             >
               {STATUS_LABELS[status]} ({count})
-            </button>
+            </ToggleGroupItem>
           );
         })}
-      </div>
+      </ToggleGroup>
       <Table className="text-[12px] font-normal">
         <TableHeader>
           <TableRow className="hover:bg-transparent">

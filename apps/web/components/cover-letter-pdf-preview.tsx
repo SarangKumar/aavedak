@@ -1,5 +1,7 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   useEffect,
   useLayoutEffect,
@@ -10,7 +12,13 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { FooterRowItem } from "@/lib/cover-letter-download";
 import { cn } from "@/lib/utils";
 
@@ -236,7 +244,7 @@ export function CoverLetterPdfPreview({
         </p>
       </div>
 
-      <div className="relative min-h-0 flex-1 overflow-y-auto rounded-md bg-[#e8e8e8] p-3 sm:p-4 dark:bg-[#2a2a2a]">
+      <ScrollArea className="relative min-h-0 flex-1 rounded-md bg-[#e8e8e8] p-3 sm:p-4 dark:bg-[#2a2a2a]">
         <A4Paper pageRef={pageRef} showZoom onZoom={() => setZoomed(true)}>
           <PaperContent
             title={title}
@@ -248,44 +256,51 @@ export function CoverLetterPdfPreview({
             fillPage
           />
         </A4Paper>
-      </div>
+      </ScrollArea>
 
       {overflows ? (
-        <p className="text-destructive mt-2 shrink-0 text-[12px] leading-snug" role="alert">
-          Cover letter must fit on a single A4 page. Shorten the body or footer before saving or
-          downloading.
-        </p>
+        <Alert variant="destructive" className="mt-2 shrink-0">
+          <AlertDescription>
+            Cover letter must fit on a single A4 page. Shorten the body or footer before saving or
+            downloading.
+          </AlertDescription>
+        </Alert>
       ) : (
         <p className="text-muted-foreground mt-2 shrink-0 text-[11px]">Fits on one A4 page.</p>
       )}
 
-      <Modal
+      <Dialog
         open={zoomed}
-        onClose={() => setZoomed(false)}
-        title="Cover letter preview"
-        description="Full A4 preview (print-scale)."
-        size="xl"
-        className="max-w-5xl"
+        onOpenChange={(next) => {
+          if (!next) (() => setZoomed(false))();
+        }}
       >
-        <div className="rounded-md bg-[#e8e8e8] p-4 dark:bg-[#2a2a2a]">
-          <div
-            className="relative mx-auto w-full max-w-[48rem]"
-            style={{ aspectRatio: "210 / 297" }}
-          >
-            <div className="absolute inset-0 overflow-hidden rounded-[2px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.18)] ring-1 ring-black/5">
-              <PaperContent
-                title={title}
-                body={body}
-                companyName={companyName}
-                role={role}
-                footerRow={footerRow}
-                denser
-                fillPage
-              />
+        <DialogContent size="xl">
+          <DialogHeader>
+            <DialogTitle>Cover letter preview</DialogTitle>
+            <DialogDescription>Full A4 preview (print-scale).</DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-md bg-[#e8e8e8] p-4 dark:bg-[#2a2a2a]">
+            <div
+              className="relative mx-auto w-full max-w-[48rem]"
+              style={{ aspectRatio: "210 / 297" }}
+            >
+              <div className="absolute inset-0 overflow-hidden rounded-[2px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.18)] ring-1 ring-black/5">
+                <PaperContent
+                  title={title}
+                  body={body}
+                  companyName={companyName}
+                  role={role}
+                  footerRow={footerRow}
+                  denser
+                  fillPage
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </Modal>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

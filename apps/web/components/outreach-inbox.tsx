@@ -1,14 +1,17 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { BoardToggleLink, FullscreenBoard } from "@/components/fullscreen-board";
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { ResizeHandle } from "@/components/ui/resize-handle";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Select,
   SelectContent,
@@ -16,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { formatDateTimeReadable } from "@/lib/format-datetime";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -139,12 +141,11 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
   const [applicationId, setApplicationId] = useState<string>("");
   const [duration, setDuration] = useState<DurationFilter>("all");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [listWidth, setListWidth] = useState(LIST_DEFAULT);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const dragRef = useRef<{ startX: number; startW: number } | null>(null);
 
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
   const appsById = useMemo(() => new Map(applications.map((a) => [a.id, a])), [applications]);
@@ -237,31 +238,6 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
   const selected = threads.find((t) => t.key === selectedKey) ?? null;
   const viewingAllForApp = selectedKey === ALL_FOR_APP_KEY && Boolean(applicationId);
 
-  const onResizeStart = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      dragRef.current = { startX: event.clientX, startW: listWidth };
-      event.currentTarget.setPointerCapture(event.pointerId);
-    },
-    [listWidth],
-  );
-
-  const onResizeMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
-    const delta = event.clientX - dragRef.current.startX;
-    const next = Math.min(LIST_MAX, Math.max(LIST_MIN, dragRef.current.startW + delta));
-    setListWidth(next);
-  }, []);
-
-  const onResizeEnd = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    dragRef.current = null;
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
   async function processQueue() {
     setProcessing(true);
     setError(null);
@@ -341,31 +317,31 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
               {statusLabel(msg.status)}
             </Badge>
             {msg.status === "failed" ? (
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="icon-sm"
                 title={msg.sendError || "Retry send"}
                 aria-label="Retry failed send"
-                disabled={retrying}
+                loading={retrying}
+                loadingText=""
                 onClick={() => void retryMessage(msg.id)}
-                className="border-border text-foreground hover:bg-muted/60 group relative inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50"
+                className="group"
               >
-                {retrying ? (
-                  <Spinner className="size-3.5" label="Retrying" />
-                ) : (
-                  <RetryIcon className="size-3.5" />
-                )}
+                <RetryIcon className="size-3.5" />
                 <span
                   role="tooltip"
                   className="border-border bg-popover text-popover-foreground pointer-events-none absolute right-0 top-[calc(100%+6px)] z-20 w-52 rounded-md border px-2 py-1.5 text-left text-[11px] opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
                 >
                   {msg.sendError || "Retry sending this email"}
                 </span>
-              </button>
+              </Button>
             ) : null}
           </div>
         </div>
         {msg.status === "failed" && msg.sendError ? (
-          <p className="text-destructive text-[12px] leading-relaxed">{msg.sendError}</p>
+          <Alert variant="destructive">
+            <AlertDescription>{msg.sendError}</AlertDescription>
+          </Alert>
         ) : null}
         <pre className="text-foreground/90 whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
           {bodyFromMessage(msg) || "(empty body)"}
@@ -471,22 +447,13 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
     </Card>
   );
 
-  // Two cards with a small gap (conversations | mail); the gap is the resize handle.
-  const board = (
-    <div
-      className={cn(
-        "flex flex-col gap-4 md:flex-row md:gap-0",
-        variant === "board" ? "min-h-0 flex-1" : "md:h-[min(70vh,44rem)]",
-      )}
-    >
-      <Card
-        className="md:w-(--inbox-list-width) flex max-h-[42vh] w-full shrink-0 flex-col gap-0 overflow-hidden p-0 md:max-h-none md:max-w-[min(100%,560px)]"
-        style={{ ["--inbox-list-width" as string]: `${listWidth}px` }}
-      >
-        <div className="border-border/60 text-muted-foreground shrink-0 border-b px-3 py-2.5 text-[11px] font-medium uppercase tracking-wide">
-          Conversations
-        </div>
-        <ul className="min-h-0 flex-1 overflow-y-auto">
+  const listPane = (
+    <>
+      <div className="border-border/60 text-muted-foreground shrink-0 border-b px-3 py-2.5 text-[11px] font-medium uppercase tracking-wide">
+        Conversations
+      </div>
+      <ScrollArea className="min-h-0 flex-1">
+        <ul>
           {applicationId && threads.length > 0 ? (
             <li>
               <button
@@ -566,63 +533,86 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
             })
           )}
         </ul>
-      </Card>
+      </ScrollArea>
+    </>
+  );
 
-      <div className="hidden w-2 shrink-0 justify-center md:flex">
-        <ResizeHandle
-          aria-label="Resize inbox panes"
-          onPointerDown={onResizeStart}
-          onPointerMove={onResizeMove}
-          onPointerUp={onResizeEnd}
-        />
-      </div>
+  const mailPane = (
+    <>
+      {viewingAllForApp ? (
+        <>
+          <header className="border-border/60 shrink-0 border-b px-4 py-3">
+            <p className="text-foreground text-[15px] font-semibold tracking-tight">
+              All mail · {selectedApplication?.companyName}
+              {selectedApplication?.role ? ` · ${selectedApplication.role}` : ""}
+            </p>
+            <p className="text-muted-foreground text-[12px]">
+              Every referral and follow-up sent for this application
+            </p>
+          </header>
+          <ScrollArea className="min-h-0 flex-1 space-y-3 p-4">
+            {applicationMessages.length === 0 ? (
+              <p className="text-muted-foreground py-8 text-center text-[13px]">
+                No mail for this application yet.
+              </p>
+            ) : (
+              applicationMessages.map(({ thread, message }) =>
+                renderMessageCard(message, { personLabel: thread.personName }),
+              )
+            )}
+          </ScrollArea>
+        </>
+      ) : !selected ? (
+        <div className="text-muted-foreground flex flex-1 items-center justify-center p-6 text-center text-[13px]">
+          Select a conversation to read referral and follow-up mail.
+        </div>
+      ) : (
+        <>
+          <header className="border-border/60 shrink-0 border-b px-4 py-3">
+            <p className="text-foreground text-[15px] font-semibold tracking-tight">
+              {selected.personName}
+            </p>
+            <p className="text-muted-foreground text-[12px]">
+              {selected.company}
+              {selected.role ? ` · ${selected.role}` : ""}
+              {selected.personEmail ? ` · ${selected.personEmail}` : ""}
+            </p>
+          </header>
+          <ScrollArea className="min-h-0 flex-1 space-y-3 p-4">
+            {selected.messages.map((msg) => renderMessageCard(msg))}
+          </ScrollArea>
+        </>
+      )}
+    </>
+  );
 
-      <Card className="flex min-h-96 min-w-0 flex-1 flex-col gap-0 overflow-hidden p-0 md:min-h-0">
-        {viewingAllForApp ? (
-          <>
-            <header className="border-border/60 shrink-0 border-b px-4 py-3">
-              <p className="text-foreground text-[15px] font-semibold tracking-tight">
-                All mail · {selectedApplication?.companyName}
-                {selectedApplication?.role ? ` · ${selectedApplication.role}` : ""}
-              </p>
-              <p className="text-muted-foreground text-[12px]">
-                Every referral and follow-up sent for this application
-              </p>
-            </header>
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-              {applicationMessages.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-[13px]">
-                  No mail for this application yet.
-                </p>
-              ) : (
-                applicationMessages.map(({ thread, message }) =>
-                  renderMessageCard(message, { personLabel: thread.personName }),
-                )
-              )}
-            </div>
-          </>
-        ) : !selected ? (
-          <div className="text-muted-foreground flex flex-1 items-center justify-center p-6 text-center text-[13px]">
-            Select a conversation to read referral and follow-up mail.
-          </div>
-        ) : (
-          <>
-            <header className="border-border/60 shrink-0 border-b px-4 py-3">
-              <p className="text-foreground text-[15px] font-semibold tracking-tight">
-                {selected.personName}
-              </p>
-              <p className="text-muted-foreground text-[12px]">
-                {selected.company}
-                {selected.role ? ` · ${selected.role}` : ""}
-                {selected.personEmail ? ` · ${selected.personEmail}` : ""}
-              </p>
-            </header>
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-              {selected.messages.map((msg) => renderMessageCard(msg))}
-            </div>
-          </>
-        )}
+  // Conversations | mail. Desktop: resizable blocks. Mobile: stacked cards.
+  const board = isDesktop ? (
+    <ResizablePanelGroup
+      variant="blocks"
+      orientation="horizontal"
+      className={variant === "board" ? "min-h-0 flex-1" : "md:h-[min(70vh,44rem)]"}
+    >
+      <ResizablePanel
+        id="inbox-list"
+        defaultSize={`${LIST_DEFAULT}px`}
+        minSize={`${LIST_MIN}px`}
+        maxSize={`${LIST_MAX}px`}
+        groupResizeBehavior="preserve-pixel-size"
+      >
+        <div className="flex h-full min-h-0 flex-col">{listPane}</div>
+      </ResizablePanel>
+      <ResizableHandle aria-label="Resize inbox panes" />
+      <ResizablePanel id="inbox-mail">
+        <div className="flex h-full min-h-0 flex-col">{mailPane}</div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  ) : (
+    <div className="flex flex-col gap-4">
+      <Card className="flex max-h-[42vh] w-full flex-col gap-0 overflow-hidden p-0">
+        {listPane}
       </Card>
+      <Card className="flex min-h-96 min-w-0 flex-col gap-0 overflow-hidden p-0">{mailPane}</Card>
     </div>
   );
 

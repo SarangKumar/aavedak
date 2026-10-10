@@ -1,8 +1,10 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Card } from "@/components/ui/card";
 
@@ -20,7 +22,9 @@ type InvitePayload = {
 
 export function FriendsInviteCard() {
   const [loading, setLoading] = useState(true);
-  const [pending, setPending] = useState(false);
+  // Which action is running ("rotate" or "unfriend:<id>"), so only the pressed button spins.
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const pending = pendingKey !== null;
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [data, setData] = useState<InvitePayload | null>(null);
@@ -56,7 +60,7 @@ export function FriendsInviteCard() {
   }
 
   async function rotate() {
-    setPending(true);
+    setPendingKey("rotate");
     setError(null);
     try {
       const res = await fetch("/api/friends", {
@@ -73,12 +77,12 @@ export function FriendsInviteCard() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not rotate invite.");
     } finally {
-      setPending(false);
+      setPendingKey(null);
     }
   }
 
   async function unfriend(friendshipId: string) {
-    setPending(true);
+    setPendingKey(`unfriend:${friendshipId}`);
     setError(null);
     try {
       const res = await fetch("/api/friends", {
@@ -92,7 +96,7 @@ export function FriendsInviteCard() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not remove friend.");
     } finally {
-      setPending(false);
+      setPendingKey(null);
     }
   }
 
@@ -113,11 +117,11 @@ export function FriendsInviteCard() {
       ) : (
         <>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <input
+            <Input
               readOnly
               value={data?.invite.url ?? ""}
-              className="border-border bg-background text-foreground h-9 min-w-0 flex-1 rounded-lg border px-3 font-mono text-[11px]"
               onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1 font-mono text-[11px]"
             />
             <div className="flex shrink-0 gap-1.5">
               <Button type="button" size="sm" onClick={() => void copyInvite()}>
@@ -127,7 +131,8 @@ export function FriendsInviteCard() {
                 type="button"
                 size="sm"
                 variant="outline"
-                loading={pending}
+                loading={pendingKey === "rotate"}
+                disabled={pending}
                 onClick={() => void rotate()}
               >
                 New link
@@ -152,6 +157,8 @@ export function FriendsInviteCard() {
                     type="button"
                     size="sm"
                     variant="outline"
+                    loading={pendingKey === `unfriend:${f.friendshipId}`}
+                    loadingText="Removing…"
                     disabled={pending}
                     onClick={() => void unfriend(f.friendshipId)}
                   >
@@ -168,7 +175,11 @@ export function FriendsInviteCard() {
         </>
       )}
 
-      {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </Card>
   );
 }

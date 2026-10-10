@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 import { ShellWidth } from "@/components/shell-width";
@@ -103,13 +104,15 @@ export function ProfileView({
 
           {isOwner ? (
             onEdit ? (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 type="button"
                 onClick={onEdit}
-                className="aavedak-btn border-border bg-background/80 text-foreground hover:bg-muted inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border px-3 text-[12px] font-semibold"
+                className="shrink-0"
               >
                 Edit profile
-              </button>
+              </Button>
             ) : (
               <Link
                 href={`/${profile.username}/settings`}
@@ -237,13 +240,9 @@ export function ProfileView({
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Projects</h2>
             {onEdit ? (
-              <button
-                type="button"
-                onClick={onEdit}
-                className="text-muted-foreground hover:text-foreground cursor-pointer text-[11px] font-medium"
-              >
+              <Button variant="link" size="xs" type="button" onClick={onEdit}>
                 Add projects
-              </button>
+              </Button>
             ) : (
               <Link
                 href={`/${profile.username}/settings`}

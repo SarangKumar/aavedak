@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 
 import {
   Command,
@@ -14,18 +13,22 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Kbd } from "@/components/ui/kbd";
 import { authClient, signOutAndRedirect } from "@/lib/auth-client";
 import { themeCookieString, THEME_KEY, type ThemeMode } from "@/lib/theme";
-import { cn } from "@/lib/utils";
 
 export function CommandPalette() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const signedIn = Boolean(session?.user);
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -33,20 +36,10 @@ export function CommandPalette() {
         e.preventDefault();
         setOpen((v) => !v);
       }
-      if (e.key === "Escape") setOpen(false);
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
 
   const go = useCallback(
     (href: string) => {
@@ -84,26 +77,14 @@ export function CommandPalette() {
     }
   }
 
-  if (!mounted || !open) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[300] flex items-start justify-center px-4 pt-[min(20vh,8rem)]">
-      <button
-        type="button"
-        aria-label="Close command palette"
-        className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
-        onClick={() => setOpen(false)}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Command palette"
-        className={cn(
-          "border-border bg-card text-card-foreground dark relative z-10 w-full max-w-lg overflow-hidden rounded-xl border shadow-2xl shadow-black/50",
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Command className="bg-transparent">
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="gap-0 overflow-hidden p-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Command palette</DialogTitle>
+          <DialogDescription>Search pages and actions.</DialogDescription>
+        </DialogHeader>
+        <Command className="rounded-none border-0 bg-transparent shadow-none">
           <CommandInput placeholder="Search commands…" className="text-[14px]" />
           <CommandList className="max-h-80">
             <CommandEmpty>No results.</CommandEmpty>
@@ -178,14 +159,12 @@ export function CommandPalette() {
           </CommandList>
           <CommandFooter className="text-muted-foreground justify-between text-[11px]">
             <span>
-              <kbd className="font-mono">⌘</kbd>/<kbd className="font-mono">Ctrl</kbd>+
-              <kbd className="font-mono">K</kbd>
+              <Kbd>⌘</Kbd>/<Kbd>Ctrl</Kbd>+<Kbd>K</Kbd>
             </span>
             <span>↑↓ · ↵ · esc</span>
           </CommandFooter>
         </Command>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }

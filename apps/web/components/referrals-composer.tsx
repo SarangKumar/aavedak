@@ -1,10 +1,13 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DragDrop,
@@ -14,7 +17,14 @@ import {
   type DragDropItems,
 } from "@/components/ui/drag-and-drop";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Modal } from "@/components/ui/modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -35,7 +45,7 @@ import { STATUS_LABELS } from "@/lib/application-status";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/search-input";
-import { ToggleGroup } from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export type ApplicationDto = {
   id: string;
@@ -262,7 +272,9 @@ export function ReferralsComposer({
   );
   const [checkedPeople, setCheckedPeople] = useState<Set<string>>(new Set());
   const [confirmed, setConfirmed] = useState(false);
-  const [pending, setPending] = useState(false);
+  // Which action is running, so only the pressed button shows a spinner.
+  const [pendingAction, setPendingAction] = useState<"queue" | "addPerson" | null>(null);
+  const pending = pendingAction !== null;
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [resumeId, setResumeId] = useState<string | null>(null);
@@ -595,6 +607,8 @@ export function ReferralsComposer({
       title: "Sending in 20s",
       description: sendToastDescription(),
       type: "loading",
+      // The countdown below ends this toast; the default 5s auto-dismiss must not.
+      duration: Infinity,
       actionProps: {
         children: "Undo",
         onClick: () => cancelCountdown(),
@@ -658,7 +672,7 @@ export function ReferralsComposer({
 
   async function finalizeQueuedSend() {
     if (!selectedAppId) return;
-    setPending(true);
+    setPendingAction("queue");
     setCountdownVisible(false);
     dismissSendToast();
     try {
@@ -744,7 +758,7 @@ export function ReferralsComposer({
       setError(message);
       toast.add({ title: "Send failed", description: message, type: "error" });
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
 
@@ -754,7 +768,7 @@ export function ReferralsComposer({
       setError("Person name is required.");
       return;
     }
-    setPending(true);
+    setPendingAction("addPerson");
     try {
       const res = await fetch("/api/people", {
         method: "POST",
@@ -777,7 +791,7 @@ export function ReferralsComposer({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add person.");
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
 
@@ -805,8 +819,10 @@ export function ReferralsComposer({
           <Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />I confirm
           these {checkedPeople.size} recipient(s)
         </label>
-        <button
+        <Button
           type="button"
+          loading={pendingAction === "queue"}
+          loadingText="Sending…"
           disabled={
             pending ||
             !confirmed ||
@@ -816,14 +832,10 @@ export function ReferralsComposer({
             countdownVisible
           }
           onClick={() => void queueFollowUps()}
-          className="aavedak-btn bg-primary text-primary-foreground inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-lg px-4 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full"
         >
-          {pending
-            ? "Sending…"
-            : activeMailKind === "followup"
-              ? "Queue follow-up (20s)"
-              : "Queue referral (20s)"}
-        </button>
+          {activeMailKind === "followup" ? "Queue follow-up (20s)" : "Queue referral (20s)"}
+        </Button>
       </Card>
     );
   }
@@ -845,19 +857,15 @@ export function ReferralsComposer({
               </div>
               {renderColumnDragHandle(`${meta.title} & confirm`)}
             </header>
-            <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-3">
+            <ScrollArea className="min-h-0 flex-1 space-y-2.5 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-muted-foreground text-[11px]">
                   {checkedPeople.size} selected
                   {appReferralTab === "sent" ? " · follow-up" : " · referral"}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setManageOpen(true)}
-                  className="text-primary cursor-pointer text-[11px] font-medium hover:underline"
-                >
+                <Button variant="link" size="xs" type="button" onClick={() => setManageOpen(true)}>
                   Add person
-                </button>
+                </Button>
               </div>
               {selectedApp && peopleForColumn.length > 0 ? (
                 <label
@@ -935,12 +943,16 @@ export function ReferralsComposer({
                               {appReferralTab === "sent" &&
                               (mailMeta.outreach || mailMeta.followup || cooldown?.blocked) ? (
                                 <HoverCard openDelay={80} closeDelay={100}>
-                                  <HoverCardTrigger
-                                    className="text-muted-foreground hover:text-foreground border-border/70 hover:border-border inline-flex size-5 shrink-0 items-center justify-center rounded-full border"
-                                    aria-label="Mail status details"
-                                    onClick={(e) => e.preventDefault()}
-                                  >
-                                    <QuestionMarkIcon className="size-3" />
+                                  <HoverCardTrigger>
+                                    <Button
+                                      variant="outline"
+                                      size="icon-xs"
+                                      className="text-muted-foreground hover:text-foreground border-border/70 hover:border-border size-5 min-h-5 min-w-5 shrink-0 rounded-full"
+                                      aria-label="Mail status details"
+                                      onClick={(e) => e.preventDefault()}
+                                    >
+                                      <QuestionMarkIcon className="size-3" />
+                                    </Button>
                                   </HoverCardTrigger>
                                   <HoverCardContent side="top" align="end" className="space-y-1.5">
                                     <p className="text-foreground text-[11px] font-semibold tracking-tight">
@@ -1010,7 +1022,7 @@ export function ReferralsComposer({
                   })
                 )}
               </ul>
-            </div>
+            </ScrollArea>
           </Card>
           {renderConfirmPanel()}
         </div>
@@ -1143,10 +1155,10 @@ export function ReferralsComposer({
             <div className="flex h-full min-h-0 flex-col gap-2.5">
               <label className="block shrink-0 space-y-1">
                 <span className="text-muted-foreground text-[11px] font-medium">From</span>
-                <input
+                <Input
                   readOnly
                   value={userEmail}
-                  className="border-border bg-muted/40 text-foreground h-8 w-full cursor-not-allowed rounded-lg border px-2.5 text-[12px]"
+                  className="h-8 max-h-8 min-h-8 cursor-not-allowed text-[12px]"
                 />
               </label>
               <div className="shrink-0 space-y-1">
@@ -1250,26 +1262,28 @@ export function ReferralsComposer({
                   </pre>
                 </div>
                 <div className="border-border/50 flex shrink-0 flex-wrap items-center gap-2 border-t pt-2.5">
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
                     type="button"
                     onClick={() => setResumePickerOpen(true)}
-                    className="border-border bg-background text-foreground hover:bg-muted/60 inline-flex h-8 cursor-pointer items-center rounded-lg border px-3 text-[12px] font-medium"
                   >
                     {resumeId ? "Change resume" : "Attach resume"}
-                  </button>
+                  </Button>
                   {resumeId ? (
                     <>
                       <span className="text-muted-foreground truncate text-[11px]">
                         {resumeOptions.find((resume) => resume.id === resumeId)?.displayName ||
                           "resume"}
                       </span>
-                      <button
+                      <Button
+                        variant="link"
+                        size="xs"
                         type="button"
-                        className="text-muted-foreground cursor-pointer text-[11px] underline"
                         onClick={() => setResumeId(null)}
                       >
                         Remove
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <span className="text-muted-foreground text-[11px]">
@@ -1296,13 +1310,21 @@ export function ReferralsComposer({
       />
       <ToggleGroup
         aria-label="Filter by status"
-        items={STATUS_FILTERS.filter((f) => (statusCounts.get(f.value) ?? 0) > 0).map((f) => ({
-          ...f,
-          count: statusCounts.get(f.value) ?? 0,
-        }))}
-        value={statusFilter}
-        onValueChange={setStatusFilter}
-      />
+        multiple
+        variant="outline"
+        size="sm"
+        spacing={1}
+        className="flex-wrap"
+        value={[...statusFilter]}
+        onValueChange={(next) => setStatusFilter(new Set(next as StatusKey[]))}
+      >
+        {STATUS_FILTERS.filter((f) => (statusCounts.get(f.value) ?? 0) > 0).map((f) => (
+          <ToggleGroupItem key={f.value} value={f.value} className="rounded-full text-[11px]">
+            {f.label}
+            <span className="tabular-nums opacity-70">{statusCounts.get(f.value) ?? 0}</span>
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <Link
           href={variant === "board" ? "/outreach/board" : "/outreach"}
@@ -1352,167 +1374,206 @@ export function ReferralsComposer({
 
   const modals = (
     <>
-      <Modal
+      <Dialog
         open={resumePickerOpen}
-        onClose={() => setResumePickerOpen(false)}
-        title="Attach resume"
-        description="Pick one uploaded resume to attach as a PDF. Upload new files on Documents."
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setResumePickerOpen(false)}
-              className="border-border text-muted-foreground inline-flex h-8 cursor-pointer items-center rounded-lg border px-3 text-[12px]"
-            >
-              Cancel
-            </button>
-            {resumeId ? (
-              <button
+        onOpenChange={(next) => {
+          if (!next) (() => setResumePickerOpen(false))();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Attach resume</DialogTitle>
+            <DialogDescription>
+              Pick one uploaded resume to attach as a PDF. Upload new files on Documents.
+            </DialogDescription>
+          </DialogHeader>
+
+          {resumeOptions.length === 0 ? (
+            <p className="text-muted-foreground text-[13px]">
+              No resumes uploaded yet — add one on Documents first.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {resumeOptions.map((resume) => {
+                const selected = resumeId === resume.id;
+                return (
+                  <li key={resume.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResumeId(resume.id);
+                        setResumePickerOpen(false);
+                      }}
+                      className={cn(
+                        "w-full cursor-pointer rounded-xl border px-3 py-2.5 text-left transition-colors",
+                        selected
+                          ? "border-primary/40 bg-primary/10"
+                          : "border-border/70 bg-muted/30 hover:bg-muted/50",
+                      )}
+                    >
+                      <p className="text-foreground truncate text-[13px] font-medium">
+                        {resume.displayName}
+                      </p>
+                      <p className="text-muted-foreground text-[11px]">{resume.status}</p>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          <DialogFooter>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
                 type="button"
-                onClick={() => {
-                  setResumeId(null);
-                  setResumePickerOpen(false);
-                }}
-                className="border-border text-foreground inline-flex h-8 cursor-pointer items-center rounded-lg border px-3 text-[12px]"
+                onClick={() => setResumePickerOpen(false)}
               >
-                Remove attachment
-              </button>
-            ) : null}
-          </>
-        }
-      >
-        {resumeOptions.length === 0 ? (
-          <p className="text-muted-foreground text-[13px]">
-            No resumes uploaded yet — add one on Documents first.
-          </p>
-        ) : (
-          <ul className="space-y-1.5">
-            {resumeOptions.map((resume) => {
-              const selected = resumeId === resume.id;
-              return (
-                <li key={resume.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResumeId(resume.id);
-                      setResumePickerOpen(false);
-                    }}
-                    className={cn(
-                      "w-full cursor-pointer rounded-xl border px-3 py-2.5 text-left transition-colors",
-                      selected
-                        ? "border-primary/40 bg-primary/10"
-                        : "border-border/70 bg-muted/30 hover:bg-muted/50",
-                    )}
-                  >
-                    <p className="text-foreground truncate text-[13px] font-medium">
-                      {resume.displayName}
-                    </p>
-                    <p className="text-muted-foreground text-[11px]">{resume.status}</p>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Modal>
+                Cancel
+              </Button>
+              {resumeId ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={() => {
+                    setResumeId(null);
+                    setResumePickerOpen(false);
+                  }}
+                >
+                  Remove attachment
+                </Button>
+              ) : null}
+            </>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <Modal
+      <Dialog
         open={manageOpen}
-        onClose={() => setManageOpen(false)}
-        title="Add person"
-        description="Contacts stay user-scoped. Use them as outreach recipients."
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setManageOpen(false)}
-              className="border-border text-muted-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => void addPerson()}
-              className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold disabled:opacity-60"
-            >
-              {pending ? "Saving…" : "Add"}
-            </button>
-          </>
-        }
+        onOpenChange={(next) => {
+          if (!next) (() => setManageOpen(false))();
+        }}
       >
-        <div className="space-y-2.5">
-          <label className="block space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Name *</span>
-            <input
-              value={personDraft.name}
-              onChange={(e) => setPersonDraft((d) => ({ ...d, name: e.target.value }))}
-              className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Email</span>
-            <input
-              value={personDraft.email}
-              onChange={(e) => setPersonDraft((d) => ({ ...d, email: e.target.value }))}
-              className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Company</span>
-            <CompanySelect
-              value={personDraft.company}
-              onChange={(name) => setPersonDraft((d) => ({ ...d, company: name }))}
-              placeholder="Select or add company"
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Role</span>
-            <input
-              value={personDraft.roleTitle}
-              onChange={(e) => setPersonDraft((d) => ({ ...d, roleTitle: e.target.value }))}
-              className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
-            />
-          </label>
-        </div>
-      </Modal>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add person</DialogTitle>
+            <DialogDescription>
+              Contacts stay user-scoped. Use them as outreach recipients.
+            </DialogDescription>
+          </DialogHeader>
 
-      <Modal
+          <div className="space-y-2.5">
+            <label className="block space-y-1">
+              <span className="text-foreground text-[12px] font-medium">Name *</span>
+              <Input
+                value={personDraft.name}
+                onChange={(e) => setPersonDraft((d) => ({ ...d, name: e.target.value }))}
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-foreground text-[12px] font-medium">Email</span>
+              <Input
+                value={personDraft.email}
+                onChange={(e) => setPersonDraft((d) => ({ ...d, email: e.target.value }))}
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-foreground text-[12px] font-medium">Company</span>
+              <CompanySelect
+                value={personDraft.company}
+                onChange={(name) => setPersonDraft((d) => ({ ...d, company: name }))}
+                placeholder="Select or add company"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-foreground text-[12px] font-medium">Role</span>
+              <Input
+                value={personDraft.roleTitle}
+                onChange={(e) => setPersonDraft((d) => ({ ...d, roleTitle: e.target.value }))}
+              />
+            </label>
+          </div>
+
+          <DialogFooter>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => setManageOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                type="button"
+                loading={pendingAction === "addPerson"}
+                disabled={pending}
+                onClick={() => void addPerson()}
+              >
+                Add
+              </Button>
+            </>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
         open={templatesOpen}
-        onClose={() => setTemplatesOpen(false)}
-        title="Manage templates"
-        description="Same editor as Documents → Referral Email. Preview uses a dummy application."
-        size="xl"
-        footer={
-          <button
-            type="button"
-            onClick={() => setTemplatesOpen(false)}
-            className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-          >
-            Close
-          </button>
-        }
+        onOpenChange={(next) => {
+          if (!next) (() => setTemplatesOpen(false))();
+        }}
       >
-        <ColdEmailTemplatesPanel
-          lockedKind="outreach"
-          listTitle="My referral templates"
-          newButtonLabel="New referral template"
-          templates={outreachTemplates}
-          onTemplatesChange={(next) =>
-            setTemplates((prev) => [...prev.filter((t) => t.kind !== "outreach"), ...next])
-          }
-          fromEmail={userEmail}
-          userName={userName}
-        />
-      </Modal>
+        <DialogContent size="xl">
+          <DialogHeader>
+            <DialogTitle>Manage templates</DialogTitle>
+            <DialogDescription>
+              Same editor as Documents → Referral Email. Preview uses a dummy application.
+            </DialogDescription>
+          </DialogHeader>
+
+          <ColdEmailTemplatesPanel
+            lockedKind="outreach"
+            listTitle="My referral templates"
+            newButtonLabel="New referral template"
+            templates={outreachTemplates}
+            onTemplatesChange={(next) =>
+              setTemplates((prev) => [...prev.filter((t) => t.kind !== "outreach"), ...next])
+            }
+            fromEmail={userEmail}
+            userName={userName}
+          />
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setTemplatesOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 
   if (variant === "board") {
     return (
       <FullscreenBoard className="gap-2">
-        {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
-        {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
+        {error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        {notice ? (
+          <Alert>
+            <AlertDescription>{notice}</AlertDescription>
+          </Alert>
+        ) : null}
 
         {toolbar}
         {columns}
@@ -1538,8 +1599,16 @@ export function ReferralsComposer({
 
       <GmailConnectBanner callbackURL="/referrals" />
 
-      {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
-      {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {notice ? (
+        <Alert>
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+      ) : null}
 
       <div className="space-y-2">
         {toolbar}

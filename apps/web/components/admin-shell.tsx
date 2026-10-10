@@ -1,5 +1,7 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -167,9 +169,9 @@ export function AdminShell({
           </p>
         </div>
         {actionError ? (
-          <p className="text-destructive text-[12px]" role="alert">
-            {actionError}
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>{actionError}</AlertDescription>
+          </Alert>
         ) : null}
         {pendingUsers.length === 0 ? (
           <div className="border-border/70 text-muted-foreground rounded-xl border border-dashed px-3 py-8 text-center text-[12px]">
@@ -262,7 +264,7 @@ export function AdminShell({
             No resumes match this filter.
           </div>
         ) : (
-          <div className="border-border/70 overflow-x-auto rounded-xl border">
+          <ScrollArea className="border-border/70 rounded-xl border" orientation="horizontal">
             <table className="w-full min-w-[48rem] text-left text-[12px]">
               <thead className="bg-muted/40 text-muted-foreground">
                 <tr>
@@ -342,7 +344,7 @@ export function AdminShell({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollArea>
         )}
 
         {filteredResumes.length > 0 ? (

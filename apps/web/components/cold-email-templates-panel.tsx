@@ -1,9 +1,20 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -242,7 +253,11 @@ export function ColdEmailTemplatesPanel({
         </div>
       </Card>
 
-      {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {/* 2) Create/edit | live preview — equal height columns; preview fills remainder */}
       <div className="grid items-stretch gap-3 lg:grid-cols-2">
@@ -256,14 +271,15 @@ export function ColdEmailTemplatesPanel({
             </p>
             <div className="flex shrink-0 items-center gap-2">
               {draft.id ? (
-                <button
+                <Button
+                  variant="link"
+                  size="xs"
                   type="button"
                   onClick={startNew}
-                  className="text-muted-foreground hover:text-foreground text-[11px] hover:underline"
                   title="Clear the editor and start a new blank template"
                 >
                   New blank
-                </button>
+                </Button>
               ) : null}
               <button
                 type="button"
@@ -287,12 +303,12 @@ export function ColdEmailTemplatesPanel({
               </button>
             </div>
           </div>
-          <input
+          <Input
             ref={titleRef}
             value={draft.title}
             onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
             placeholder="Title (e.g. Referral ask — Acme)"
-            className={cn(field, "shrink-0")}
+            className="shrink-0"
           />
           {lockedKind ? null : (
             <Select
@@ -317,24 +333,20 @@ export function ColdEmailTemplatesPanel({
           )}
           <label className="block shrink-0 space-y-1">
             <span className="text-muted-foreground text-[11px] font-medium">Subject</span>
-            <input
+            <Input
               value={draft.subject}
               onChange={(e) => setDraft((d) => ({ ...d, subject: e.target.value }))}
               placeholder={defaultSubjectForKind(draft.kind)}
-              className={field}
             />
           </label>
           <label className="flex min-h-0 flex-1 flex-col space-y-1">
             <span className="text-muted-foreground shrink-0 text-[11px] font-medium">Body</span>
-            <textarea
+            <Textarea
               value={draft.body}
               onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))}
               placeholder="Hi {{person_name}}, …"
               rows={14}
-              className={cn(
-                field,
-                "box-border h-auto min-h-[16rem] w-full flex-1 resize-y overflow-y-auto py-2 font-mono text-[11px] leading-relaxed",
-              )}
+              className="min-h-[16rem] flex-1 resize-y overflow-y-auto py-2 font-mono text-[11px] leading-relaxed"
             />
           </label>
           <Button
@@ -355,7 +367,7 @@ export function ColdEmailTemplatesPanel({
           <p className="text-muted-foreground mb-2 shrink-0 text-[11px]">
             Updates as you type subject and body.
           </p>
-          <div className="border-border/70 bg-background/50 min-h-0 flex-1 overflow-y-auto rounded-xl border p-3">
+          <ScrollArea className="border-border/70 bg-background/50 min-h-0 flex-1 rounded-xl border p-3">
             <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
               Subject
             </p>
@@ -368,7 +380,7 @@ export function ColdEmailTemplatesPanel({
             <pre className="text-foreground/90 mt-0.5 whitespace-pre-wrap font-sans text-[12px] leading-relaxed">
               {previewBody || "(empty body)"}
             </pre>
-          </div>
+          </ScrollArea>
         </Card>
       </div>
 
@@ -378,105 +390,118 @@ export function ColdEmailTemplatesPanel({
           <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
             {listTitle} ({templates.length})
           </h2>
-          <button
+          <Button
+            variant="outline"
+            size="xs"
             type="button"
             onClick={startNew}
             title="Create a new blank template in the editor above"
-            className="border-border text-foreground hover:text-primary inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
           >
             {newButtonLabel}
-          </button>
+          </Button>
         </div>
         {templates.length === 0 ? (
           <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-[13px]">
             No templates yet — create one above.
           </div>
         ) : (
-          <ul className="max-h-72 space-y-2 overflow-y-auto">
-            {templates.map((tpl) => {
-              const selected = draft.id === tpl.id;
-              return (
-                <li
-                  key={tpl.id}
-                  className={cn(
-                    "border-border/80 bg-card flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between",
-                    selected && "border-primary/40 bg-primary/10",
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => loadTemplate(tpl)}
-                    className="min-w-0 flex-1 text-left"
+          <ScrollArea className="max-h-72">
+            <ul className="space-y-2">
+              {templates.map((tpl) => {
+                const selected = draft.id === tpl.id;
+                return (
+                  <li
+                    key={tpl.id}
+                    className={cn(
+                      "border-border/80 bg-card flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between",
+                      selected && "border-primary/40 bg-primary/10",
+                    )}
                   >
-                    <p className="text-foreground truncate text-[13px] font-medium">
-                      {tpl.title}
-                      <span className="text-muted-foreground ml-2 text-[10px] font-semibold uppercase tracking-wide">
-                        {tpl.kind}
-                      </span>
-                    </p>
-                    <p className="text-muted-foreground line-clamp-1 text-[11px]">
-                      {tpl.body || "Empty body"}
-                    </p>
-                  </button>
-                  <div className="flex shrink-0 gap-1.5">
                     <button
                       type="button"
                       onClick={() => loadTemplate(tpl)}
-                      className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
+                      className="min-w-0 flex-1 text-left"
                     >
-                      Edit
+                      <p className="text-foreground truncate text-[13px] font-medium">
+                        {tpl.title}
+                        <span className="text-muted-foreground ml-2 text-[10px] font-semibold uppercase tracking-wide">
+                          {tpl.kind}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground line-clamp-1 text-[11px]">
+                        {tpl.body || "Empty body"}
+                      </p>
                     </button>
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => void archive(tpl.id)}
-                      className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
-                    >
-                      Archive
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                    <div className="flex shrink-0 gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={() => loadTemplate(tpl)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        disabled={pending}
+                        onClick={() => void archive(tpl.id)}
+                      >
+                        Archive
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </ScrollArea>
         )}
       </div>
 
-      <Modal
+      <Dialog
         open={infoOpen}
-        onClose={() => setInfoOpen(false)}
-        title="Template variables"
-        description="Placeholders are replaced from the dummy application strip when previewing."
-        size="lg"
-        footer={
-          <button
-            type="button"
-            onClick={() => setInfoOpen(false)}
-            className="aavedak-btn bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold"
-          >
-            Got it
-          </button>
-        }
+        onOpenChange={(next) => {
+          if (!next) (() => setInfoOpen(false))();
+        }}
       >
-        <ul className="space-y-2">
-          {TEMPLATE_PREVIEW_VAR_DOCS.map((doc) => (
-            <li key={doc.key} className="border-border/70 bg-muted/30 rounded-xl border px-3 py-2">
-              <p className="text-foreground font-mono text-[12px] font-semibold">
-                {`{{${doc.key}}}`}
-                <span className="text-muted-foreground ml-2 font-sans text-[11px] font-medium">
-                  {doc.label}
-                </span>
-              </p>
-              <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
-                {doc.description}
-              </p>
-              <p className="text-foreground/90 mt-1 font-mono text-[11px]">
-                → {vars[doc.key] || "(empty)"}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </Modal>
+        <DialogContent size="lg">
+          <DialogHeader>
+            <DialogTitle>Template variables</DialogTitle>
+            <DialogDescription>
+              Placeholders are replaced from the dummy application strip when previewing.
+            </DialogDescription>
+          </DialogHeader>
+
+          <ul className="space-y-2">
+            {TEMPLATE_PREVIEW_VAR_DOCS.map((doc) => (
+              <li
+                key={doc.key}
+                className="border-border/70 bg-muted/30 rounded-xl border px-3 py-2"
+              >
+                <p className="text-foreground font-mono text-[12px] font-semibold">
+                  {`{{${doc.key}}}`}
+                  <span className="text-muted-foreground ml-2 font-sans text-[11px] font-medium">
+                    {doc.label}
+                  </span>
+                </p>
+                <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
+                  {doc.description}
+                </p>
+                <p className="text-foreground/90 mt-1 font-mono text-[11px]">
+                  → {vars[doc.key] || "(empty)"}
+                </p>
+              </li>
+            ))}
+          </ul>
+
+          <DialogFooter>
+            <Button size="sm" type="button" onClick={() => setInfoOpen(false)}>
+              Got it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -78,9 +79,9 @@ export function SignInForm({ googleConfigured }: SignInFormProps) {
         Continue with Google
       </Button>
       {error ? (
-        <p className="text-destructive text-center text-[12px]" role="alert">
-          {error}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -123,51 +124,53 @@ function NotificationsPanel({ close, pendingCount, onCountChange }: PanelProps) 
           No pending registrations.
         </p>
       ) : (
-        <ul className="max-h-80 overflow-y-auto">
-          {items.map((u) => {
-            const busy = actionKey?.startsWith(`${u.userId}:`) ?? false;
-            return (
-              <li
-                key={u.userId}
-                className="border-border/60 space-y-2 border-b px-3 py-2.5 last:border-b-0"
-              >
-                <div className="min-w-0">
-                  <p className="text-foreground truncate text-[13px] font-medium">
-                    {u.name || u.username}
-                  </p>
-                  <p className="text-muted-foreground truncate font-mono text-[11px]">
-                    {u.email || "—"} · {formatDateTimeFixed(u.createdAt)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-7 cursor-pointer px-2.5 text-[11px]"
-                    disabled={busy}
-                    loading={actionKey === `${u.userId}:approved`}
-                    loadingText=""
-                    onClick={() => void decide(u.userId, "approved")}
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-7 cursor-pointer px-2.5 text-[11px]"
-                    disabled={busy}
-                    loading={actionKey === `${u.userId}:rejected`}
-                    loadingText=""
-                    onClick={() => void decide(u.userId, "rejected")}
-                  >
-                    Reject
-                  </Button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <ScrollArea className="max-h-80">
+          <ul>
+            {items.map((u) => {
+              const busy = actionKey?.startsWith(`${u.userId}:`) ?? false;
+              return (
+                <li
+                  key={u.userId}
+                  className="border-border/60 space-y-2 border-b px-3 py-2.5 last:border-b-0"
+                >
+                  <div className="min-w-0">
+                    <p className="text-foreground truncate text-[13px] font-medium">
+                      {u.name || u.username}
+                    </p>
+                    <p className="text-muted-foreground truncate font-mono text-[11px]">
+                      {u.email || "—"} · {formatDateTimeFixed(u.createdAt)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-7 cursor-pointer px-2.5 text-[11px]"
+                      disabled={busy}
+                      loading={actionKey === `${u.userId}:approved`}
+                      loadingText=""
+                      onClick={() => void decide(u.userId, "approved")}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 cursor-pointer px-2.5 text-[11px]"
+                      disabled={busy}
+                      loading={actionKey === `${u.userId}:rejected`}
+                      loadingText=""
+                      onClick={() => void decide(u.userId, "rejected")}
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </ScrollArea>
       )}
 
       {actionError ? (

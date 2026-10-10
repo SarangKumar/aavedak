@@ -19,9 +19,13 @@ import {
   closestCenter,
   closestCorners,
   defaultDropAnimationSideEffects,
+  getFirstCollision,
+  pointerWithin,
+  rectIntersection,
   useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -89,6 +93,40 @@ function flattenItems(items: DragDropItems): UniqueIdentifier[] {
     return items;
   }
   return Object.values(items).flat();
+}
+
+/**
+ * Board collision detection (after the dnd-kit multiple-containers recipe).
+ * `closestCorners` alone keeps choosing cards in a neighboring column, so an
+ * emptied column could never receive an item again. Prefer what the pointer
+ * is inside, then rect overlap; a hit on a non-empty column resolves to its
+ * closest card, and a hit on an empty column returns the column itself.
+ */
+function boardCollisionDetection(items: Record<string, UniqueIdentifier[]>): CollisionDetection {
+  return (args) => {
+    const pointerHits = pointerWithin(args);
+    const hits = pointerHits.length > 0 ? pointerHits : rectIntersection(args);
+    let overId = getFirstCollision(hits, "id");
+
+    if (overId == null) {
+      // Keyboard dragging has no pointer; fall back to corner distance.
+      return closestCorners(args);
+    }
+
+    const containerItems = items[String(overId)];
+
+    if (containerItems && containerItems.length > 0) {
+      overId =
+        closestCenter({
+          ...args,
+          droppableContainers: args.droppableContainers.filter(
+            (container) => container.id !== overId && containerItems.includes(container.id),
+          ),
+        })[0]?.id ?? overId;
+    }
+
+    return [{ id: overId }];
+  };
 }
 
 function findContainerId(
@@ -348,7 +386,11 @@ export function DragDrop({
       <DndContext
         id={dndId}
         sensors={sensors}
-        collisionDetection={multi ? closestCorners : closestCenter}
+        collisionDetection={
+          multi
+            ? boardCollisionDetection(items as Record<string, UniqueIdentifier[]>)
+            : closestCenter
+        }
         accessibility={{ announcements: defaultAnnouncements }}
         onDragStart={handleDragStart}
         onDragOver={multi ? handleDragOver : undefined}
@@ -546,7 +588,7 @@ export function DragDropItem({
         data-drop-target={showIndicator ? "" : undefined}
         style={itemStyle}
         className={cn(
-          "border-border bg-card text-card-foreground relative shrink-0 rounded-md border",
+          "border-border bg-card text-card-foreground relative rounded-md border",
           "transition-[opacity,box-shadow,background-color] duration-150 ease-linear",
           "motion-reduce:transition-none",
           !isDisabled && "hover:bg-accent/40",
@@ -574,9 +616,6 @@ export function DragDropHandle({
   className,
   children,
   "aria-label": ariaLabel = "Reorder",
-  onPointerDown,
-  onKeyDown,
-  onClick,
   ...props
 }: DragDropHandleProps) {
   const item = useContext(DragDropItemContext);
@@ -585,7 +624,7 @@ export function DragDropHandle({
   }
 
   const { handleProps, registerHandle, disabled } = item;
-  const { ref, onPointerDown: sensorPointerDown, onKeyDown: sensorKeyDown, ...rest } = handleProps;
+  const { ref, ...rest } = handleProps;
 
   React.useEffect(() => {
     registerHandle(true);
@@ -608,18 +647,6 @@ export function DragDropHandle({
       )}
       {...rest}
       {...props}
-      onPointerDown={(event) => {
-        // Keep dnd-kit listeners; callers must not replace them via {...props} last.
-        sensorPointerDown?.(event as React.PointerEvent<HTMLElement>);
-        onPointerDown?.(event);
-      }}
-      onKeyDown={(event) => {
-        sensorKeyDown?.(event as React.KeyboardEvent<HTMLElement>);
-        onKeyDown?.(event);
-      }}
-      onClick={(event) => {
-        onClick?.(event);
-      }}
     >
       {children ?? <DragDropHandleIcon />}
     </button>
@@ -629,12 +656,12 @@ export function DragDropHandle({
 function DragDropHandleIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" className="size-4">
-      <circle cx="5" cy="3.5" r="1.55" />
-      <circle cx="11" cy="3.5" r="1.55" />
-      <circle cx="5" cy="8" r="1.55" />
-      <circle cx="11" cy="8" r="1.55" />
-      <circle cx="5" cy="12.5" r="1.55" />
-      <circle cx="11" cy="12.5" r="1.55" />
+      <circle cx="5" cy="3.5" r="1.25" />
+      <circle cx="11" cy="3.5" r="1.25" />
+      <circle cx="5" cy="8" r="1.25" />
+      <circle cx="11" cy="8" r="1.25" />
+      <circle cx="5" cy="12.5" r="1.25" />
+      <circle cx="11" cy="12.5" r="1.25" />
     </svg>
   );
 }

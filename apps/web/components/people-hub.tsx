@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -7,6 +8,7 @@ import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
   SheetContent,
@@ -447,18 +449,18 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                 <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
                   Notes
                 </span>
-                <textarea
-                  className="border-input bg-muted text-foreground min-h-22 w-full resize-y rounded-md border px-3 py-2 text-sm"
+                <Textarea
                   value={draft.notes}
                   onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
                   rows={3}
                   placeholder="How you met, what to ask…"
+                  className="min-h-22 resize-y py-2"
                 />
               </label>
               {error ? (
-                <p className="text-destructive text-[12px]" role="alert">
-                  {error}
-                </p>
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               ) : null}
               <div className="flex flex-wrap gap-2 pt-1">
                 <Button onClick={() => void savePerson()} loading={saving}>

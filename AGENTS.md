@@ -64,7 +64,7 @@ The husky pre-commit hook runs lint-staged (ESLint `--fix --max-warnings=0` + Pr
 - **Resume PDFs** are stored in GCS (`lib/gcs.ts`); the DB stores only object keys.
 - **Gmail sending** goes through the user's own Gmail (`lib/gmail.ts`, `docs/gmail-oauth.md`). Outreach always requires user confirmation before sending: "Aavedak recommends and prepares. The user decides and sends."
 - **Client state** — Redux Toolkit in `lib/store/`.
-- **UI** — Vinyaas components installed with `npx vinyaas add <name>` into `components/ui/<name>/` (tracked in `.vinyaas/manifest.json`; local tweaks logged in `components/ui/.vinyaas`), with Vinyaas theme tokens (oklch CSS variables, Geist, dark by default). Add new primitives through the CLI rather than hand-copying files.
+- **UI** — Vinyaas components installed with `npx vinyaas add <name>` into `components/ui/<name>/` (tracked in `.vinyaas/manifest.json`; local tweaks logged in `components/ui/.vinyaas`), with Vinyaas theme tokens (oklch CSS variables, Geist, dark by default). **Use Vinyaas components as much as possible, wherever one applies** (Button, Input, InputGroup, Textarea, Select/Combobox, Dialog/AlertDialog, Sheet, Tabs, Toggle/ToggleGroup, Switch, Checkbox, Alert, ScrollArea, Command, Toast, Avatar, ScoreRing, DatePicker, …). Check `npx vinyaas list` before writing any UI primitive, and don't hand-build buttons, inputs, modals, tabs, toggles, alerts or scroll panes with raw elements and one-off classes. Add new primitives through the CLI rather than hand-copying files. Only keep a raw `<button>` for things that are not buttons semantically (list rows, cards, menu items, overlay backdrops). `vinyaas` is run via `npx` and is deliberately not a project dependency; if the CLI asks for a lockfile in `apps/web`, symlink `../../pnpm-lock.yaml` there temporarily and remove it afterwards. A forced re-pull (`add --force` / `update`) overwrites files, so afterwards re-apply and log every local divergence in `components/ui/.vinyaas`.
 
 ### ATS scoring (spans both apps)
 
@@ -115,6 +115,7 @@ Rules:
 - Use accurate types and validate data at boundaries.
 - Handle errors where they can be meaningfully recovered from.
 - Comment non-obvious reasoning, constraints, and edge cases.
+- Loading state belongs only to the control that was pressed. Never drive several buttons' `loading` from one shared boolean; key the pending state by action (e.g. `pendingAction === "save"`) so the other buttons only disable.
 - Avoid premature optimization and unnecessary abstractions.
 
 ## 6. Changelog and Documentation

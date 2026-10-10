@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -101,7 +102,11 @@ export function GmailConnectBanner({ className, callbackURL = "/referrals" }: Pr
           Recheck
         </Button>
       </div>
-      {error ? <p className="text-destructive text-[11px]">{error}</p> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </div>
   );
 }

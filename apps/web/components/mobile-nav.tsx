@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
@@ -32,13 +33,14 @@ export function MobileNav({ items }: { items: readonly NavItem[] }) {
 
   return (
     <div className="md:hidden">
-      <button
+      <Button
+        variant="outline"
+        size="icon-sm"
         type="button"
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
-        className="border-border bg-card text-foreground hover:text-primary inline-flex size-8 items-center justify-center rounded-lg border transition-colors"
       >
         <span className="sr-only">Menu</span>
         <span className="flex w-3.5 flex-col gap-0.5" aria-hidden>
@@ -61,7 +63,7 @@ export function MobileNav({ items }: { items: readonly NavItem[] }) {
             )}
           />
         </span>
-      </button>
+      </Button>
 
       {open ? (
         <>

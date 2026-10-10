@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -97,7 +98,11 @@ export function FriendInviteConfirm({
         ) : null}{" "}
         invited you to be friends on Aavedak for a friendly applications/day competition.
       </p>
-      {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" loading={pending} onClick={() => void accept()}>
           Confirm — become friends

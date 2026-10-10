@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -17,10 +18,10 @@ import {
 } from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { emptyCareerProfile, type CareerProfile } from "@/lib/career-profile";
-import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 
 type ResumeDto = {
@@ -227,31 +228,20 @@ export function OnboardingForm({
         </p>
       </header>
 
-      <div className="flex items-center gap-2 text-[12px]">
-        <button
-          type="button"
-          onClick={() => setStep(1)}
-          className={cn(
-            "rounded-full px-3 py-1 font-medium",
-            step === 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-          )}
-        >
-          1 · Career
-        </button>
-        <span className="text-border">→</span>
-        <button
-          type="button"
-          onClick={() => careerSaved && setStep(2)}
-          disabled={!careerSaved}
-          className={cn(
-            "rounded-full px-3 py-1 font-medium",
-            step === 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-            !careerSaved && "cursor-not-allowed opacity-60",
-          )}
-        >
-          2 · Resume
-        </button>
-      </div>
+      <Tabs
+        value={String(step)}
+        onValueChange={(next) => {
+          if (next === "1") setStep(1);
+          else if (careerSaved) setStep(2);
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="1">1 · Career</TabsTrigger>
+          <TabsTrigger value="2" disabled={!careerSaved}>
+            2 · Resume
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {step === 1 ? (
         <Card className="border-border/80 bg-card ring-ring/10 gap-0 space-y-4 rounded-xl border p-4 shadow-sm ring-1 sm:p-5">
@@ -265,7 +255,11 @@ export function OnboardingForm({
             </p>
           </div>
           <CareerProfileFields value={career} onChange={setCareer} idPrefix="onboarding" />
-          {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
           <Button
             type="button"
             loading={savingCareer}
@@ -393,21 +387,23 @@ export function OnboardingForm({
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {resume.status !== "active" ? (
-                        <button
+                        <Button
+                          variant="outline"
+                          size="sm"
                           type="button"
                           onClick={() => void setActive(resume.id)}
-                          className="aavedak-btn text-foreground hover:text-primary border-border inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                         >
                           Make active
-                        </button>
+                        </Button>
                       ) : null}
-                      <button
+                      <Button
+                        variant="outline"
+                        size="sm"
                         type="button"
                         onClick={() => void archive(resume.id)}
-                        className="aavedak-btn text-muted-foreground hover:text-foreground border-border inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                       >
                         Archive
-                      </button>
+                      </Button>
                     </div>
                   </li>
                 ))}
@@ -415,7 +411,11 @@ export function OnboardingForm({
             )}
           </section>
 
-          {error ? <p className="text-destructive text-center text-[13px]">{error}</p> : null}
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button

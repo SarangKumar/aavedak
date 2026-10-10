@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,9 +19,19 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Modal } from "@/components/ui/modal";
-import { ResizeHandle } from "@/components/ui/resize-handle";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import type { PanelImperativeHandle } from "react-resizable-panels";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Select,
   SelectContent,
@@ -32,7 +43,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "@/components/ui/toast";
 import { STATUS_LABELS, isApplicationStatus } from "@/lib/application-status";
 import { ATS_ENGINES } from "@/lib/ats-engines/registry";
@@ -45,6 +58,8 @@ import {
   clampJobsListWidth,
   JOBS_LIST_WIDTH_COOKIE,
   JOBS_LIST_WIDTH_DEFAULT,
+  JOBS_LIST_WIDTH_MAX,
+  JOBS_LIST_WIDTH_MIN,
 } from "@/lib/jobs-list-width";
 import { SearchInput } from "@/components/search-input";
 
@@ -158,10 +173,15 @@ export function JobsHub({
   // Newest posting first by default; the toggle beside the tabs flips it.
   const [postedSort, setPostedSort] = useState<JobsSort>(initialSort);
   const [query, setQuery] = useState("");
-  const [listWidth, setListWidth] = useState(initialListWidth);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const listPanelRef = useRef<PanelImperativeHandle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  // Which action is running. Only that action's button shows a spinner; the rest just disable.
+  const [pendingAction, setPendingAction] = useState<
+    "create" | "paste" | "apply" | "bookmark" | "ignore" | null
+  >(null);
+  const pending = pendingAction !== null;
   const [addOpen, setAddOpen] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
@@ -174,7 +194,6 @@ export function JobsHub({
     salary: "",
     description: "",
   });
-  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   const sourceCounts = useMemo(() => {
     const counts: Record<string, number> = { all: jobs.length };
@@ -243,28 +262,17 @@ export function JobsHub({
     setSelectedId((value === "applied" ? applied : discover)[0]?.id ?? null);
   }
 
-  function onResizeStart(event: React.PointerEvent<HTMLDivElement>) {
-    dragRef.current = { startX: event.clientX, startWidth: listWidth };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-
-  function onResizeMove(event: React.PointerEvent<HTMLDivElement>) {
-    if (!dragRef.current) return;
-    const delta = event.clientX - dragRef.current.startX;
-    const next = clampJobsListWidth(dragRef.current.startWidth + delta);
-    setListWidth(next);
-  }
-
-  function onResizeEnd() {
-    dragRef.current = null;
-    // Persist once per drag (not per pointer move) so the server renders this width next time.
-    document.cookie = `${JOBS_LIST_WIDTH_COOKIE}=${listWidth}; path=/; max-age=31536000; samesite=lax`;
+  // Persist once per completed drag (not per pointer move) so the server renders this width next time.
+  function saveListWidth() {
+    const px = listPanelRef.current?.getSize().inPixels;
+    if (!px) return;
+    document.cookie = `${JOBS_LIST_WIDTH_COOKIE}=${clampJobsListWidth(px)}; path=/; max-age=31536000; samesite=lax`;
   }
 
   async function createJob() {
     setError(null);
     setMessage(null);
-    setPending(true);
+    setPendingAction("create");
     try {
       const res = await fetch("/api/jobs", {
         method: "POST",
@@ -300,7 +308,7 @@ export function JobsHub({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed.");
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
 
@@ -374,7 +382,7 @@ export function JobsHub({
   async function ignoreJob(id: string) {
     setError(null);
     setMessage(null);
-    setPending(true);
+    setPendingAction("ignore");
     try {
       const res = await fetch(`/api/jobs/${id}/ignore`, { method: "POST" });
       const data = (await res.json()) as { error?: string };
@@ -385,7 +393,7 @@ export function JobsHub({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not ignore.");
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
 
@@ -393,7 +401,7 @@ export function JobsHub({
   async function createApplicationFromJob(job: JobDto, status: "bookmarked" | "applied") {
     setError(null);
     setMessage(null);
-    setPending(true);
+    setPendingAction(status === "applied" ? "apply" : "bookmark");
     try {
       const res = await fetch("/api/applications", {
         method: "POST",
@@ -431,7 +439,7 @@ export function JobsHub({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create application.");
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
 
@@ -442,7 +450,7 @@ export function JobsHub({
       setError("Paste a job description first.");
       return;
     }
-    setPending(true);
+    setPendingAction("paste");
     try {
       // Register as a manual job so it can be scored + used for cover letters
       const lines = pasteText
@@ -492,11 +500,102 @@ export function JobsHub({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed.");
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
 
   const boardQuery = `tab=${tab}&sort=${postedSort}${selected ? `&job=${encodeURIComponent(selected.id)}` : ""}`;
+
+  const listPane = (
+    <>
+      <div className="border-border/60 flex items-center gap-2 border-b p-3">
+        <Tabs value={tab} onValueChange={switchTab} className="min-w-0 flex-1">
+          <TabsList className="w-full">
+            <TabsTrigger value="discover" className="flex-1">
+              Discover
+              <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
+                {discover.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="applied" className="flex-1">
+              Applied
+              <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
+                {applied.length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <ToggleGroup
+          aria-label="Sort by posted date"
+          variant="outline"
+          size="sm"
+          value={[postedSort]}
+          // Single mode lets the pressed item turn off; a sort always has one active direction.
+          onValueChange={(next) => {
+            const direction = next[0];
+            if (direction === "newest" || direction === "oldest") setPostedSort(direction);
+          }}
+          className="shrink-0"
+        >
+          {(
+            [
+              { value: "newest", label: "Newest first", path: "M12 19V5m0 0-6 6m6-6 6 6" },
+              { value: "oldest", label: "Oldest first", path: "M12 5v14m0 0-6-6m6 6 6-6" },
+            ] as const
+          ).map((opt) => (
+            <ToggleGroupItem
+              key={opt.value}
+              value={opt.value}
+              aria-label={`Sort by posted date: ${opt.label.toLowerCase()}`}
+              title={opt.label}
+              className="size-8 px-0"
+            >
+              <svg viewBox="0 0 24 24" fill="none" className="size-3.5" aria-hidden>
+                <path
+                  d={opt.path}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
+      <JobList
+        jobs={filtered}
+        tab={tab}
+        selectedId={selected?.id ?? null}
+        onSelect={setSelectedId}
+      />
+    </>
+  );
+
+  const detailPane = (
+    <>
+      {!selected ? (
+        <EmptyState
+          tab={tab}
+          hasJobs={jobs.length > 0}
+          discoveryEnabled={discoveryEnabled}
+          onAdd={() => setAddOpen(true)}
+        />
+      ) : (
+        <JobDetail
+          key={selected.id}
+          job={selected}
+          stretch={variant === "board"}
+          tab={tab}
+          pendingAction={pendingAction}
+          resumes={resumes}
+          onApply={() => void createApplicationFromJob(selected, "applied")}
+          onBookmark={() => void createApplicationFromJob(selected, "bookmarked")}
+          onIgnore={() => void ignoreJob(selected.id)}
+        />
+      )}
+    </>
+  );
 
   const notices = (
     <>
@@ -514,7 +613,11 @@ export function JobsHub({
           </CardHeader>
         </Card>
       ) : null}
-      {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
       {message ? (
         <p className="text-primary text-[13px]">
           {message}{" "}
@@ -583,233 +686,173 @@ export function JobsHub({
         </div>
       </Card>
 
-      {/* Two cards with a gap (list | details). Each scrolls on its own. */}
-      <div
-        className={cn(
-          "flex flex-col gap-4 md:flex-row md:gap-0",
-          variant === "board" ? "min-h-0 flex-1" : "md:min-h-128 md:h-[calc(100dvh-17rem)]",
-        )}
-      >
-        <Card
-          className="md:w-(--jobs-list-width) flex max-h-[60vh] w-full shrink-0 flex-col gap-0 overflow-hidden p-0 md:max-h-none md:max-w-[min(100%,560px)]"
-          style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
+      {/* List | details. Desktop: resizable blocks (width saved to a cookie). Mobile: stacked cards. */}
+      {isDesktop ? (
+        <ResizablePanelGroup
+          variant="blocks"
+          orientation="horizontal"
+          onLayoutChanged={saveListWidth}
+          className={
+            variant === "board" ? "min-h-0 flex-1" : "md:min-h-128 md:h-[calc(100dvh-17rem)]"
+          }
         >
-          <div className="border-border/60 flex items-center gap-2 border-b p-3">
-            <Tabs value={tab} onValueChange={switchTab} className="min-w-0 flex-1">
-              <TabsList className="w-full">
-                <TabsTrigger value="discover" className="flex-1">
-                  Discover
-                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
-                    {discover.length}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="applied" className="flex-1">
-                  Applied
-                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
-                    {applied.length}
-                  </Badge>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <div
-              role="group"
-              aria-label="Sort by posted date"
-              className="border-border bg-background flex shrink-0 items-center gap-0.5 rounded-md border p-0.5"
-            >
-              {(
-                [
-                  { value: "newest", label: "Newest first", path: "M12 19V5m0 0-6 6m6-6 6 6" },
-                  { value: "oldest", label: "Oldest first", path: "M12 5v14m0 0-6-6m6 6 6-6" },
-                ] as const
-              ).map((opt) => {
-                const pressed = postedSort === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    aria-pressed={pressed}
-                    aria-label={`Sort by posted date: ${opt.label.toLowerCase()}`}
-                    title={opt.label}
-                    onClick={() => setPostedSort(opt.value)}
-                    className={cn(
-                      "focus-visible:ring-ring inline-flex size-7 cursor-pointer items-center justify-center rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-2",
-                      pressed
-                        ? "bg-primary/15 text-primary"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" className="size-3.5" aria-hidden>
-                      <path
-                        d={opt.path}
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <JobList
-            jobs={filtered}
-            tab={tab}
-            selectedId={selected?.id ?? null}
-            onSelect={setSelectedId}
-          />
-        </Card>
-
-        {/* The gap between the cards doubles as the resize handle. */}
-        <div className="hidden w-2 shrink-0 justify-center md:flex">
-          <ResizeHandle
-            aria-label="Resize panes"
-            onPointerDown={onResizeStart}
-            onPointerMove={onResizeMove}
-            onPointerUp={onResizeEnd}
-          />
+          <ResizablePanel
+            id="jobs-list"
+            panelRef={listPanelRef}
+            defaultSize={`${initialListWidth}px`}
+            minSize={`${JOBS_LIST_WIDTH_MIN}px`}
+            maxSize={`${JOBS_LIST_WIDTH_MAX}px`}
+            groupResizeBehavior="preserve-pixel-size"
+          >
+            <div className="flex h-full min-h-0 flex-col">{listPane}</div>
+          </ResizablePanel>
+          <ResizableHandle aria-label="Resize panes" />
+          <ResizablePanel id="jobs-detail" className="bg-muted/20">
+            <ScrollArea className="h-full">
+              <div className="flex min-h-full flex-col p-3 sm:p-4">{detailPane}</div>
+            </ScrollArea>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <Card className="flex max-h-[60vh] w-full flex-col gap-0 overflow-hidden p-0">
+            {listPane}
+          </Card>
+          <Card className="bg-muted/20 min-w-0 gap-0 p-3 sm:p-4">{detailPane}</Card>
         </div>
-
-        <Card className="bg-muted/20 min-h-0 min-w-0 flex-1 gap-0 overflow-y-auto p-3 sm:p-4">
-          {!selected ? (
-            <EmptyState
-              tab={tab}
-              hasJobs={jobs.length > 0}
-              discoveryEnabled={discoveryEnabled}
-              onAdd={() => setAddOpen(true)}
-            />
-          ) : (
-            <JobDetail
-              key={selected.id}
-              job={selected}
-              stretch={variant === "board"}
-              tab={tab}
-              pending={pending}
-              resumes={resumes}
-              onApply={() => void createApplicationFromJob(selected, "applied")}
-              onBookmark={() => void createApplicationFromJob(selected, "bookmarked")}
-              onIgnore={() => void ignoreJob(selected.id)}
-            />
-          )}
-        </Card>
-      </div>
+      )}
     </>
   );
 
   const modals = (
     <>
-      <Modal open={addOpen} title="Add job" onClose={() => setAddOpen(false)}>
-        <div className="space-y-2.5">
-          <Field
-            label="Title *"
-            value={draft.title}
-            onChange={(v) => setDraft((d) => ({ ...d, title: v }))}
-          />
-          <label className="block space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Company *</span>
-            <CompanySelect
-              value={draft.company}
-              onChange={(name) => setDraft((d) => ({ ...d, company: name }))}
-              placeholder="e.g. Stripe"
+      <Dialog
+        open={addOpen}
+        onOpenChange={(next) => {
+          if (!next) (() => setAddOpen(false))();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add job</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2.5">
+            <Field
+              label="Title *"
+              value={draft.title}
+              onChange={(v) => setDraft((d) => ({ ...d, title: v }))}
             />
-          </label>
-          <Field
-            label="Location *"
-            value={draft.location}
-            onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
-          />
-          <label className="block space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Source</span>
-            <Select
-              value={draft.source}
-              onValueChange={(v) =>
-                setDraft((d) => ({ ...d, source: (v as JobSource) || d.source }))
-              }
-            >
-              <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
-                <SelectValue placeholder="Source" />
-              </SelectTrigger>
-              <SelectContent className="z-240">
-                {JOB_SOURCES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {SOURCE_LABELS[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <Field
-            label="URL"
-            value={draft.url}
-            onChange={(v) => setDraft((d) => ({ ...d, url: v }))}
-          />
-          <Field
-            label="Salary / CTC"
-            value={draft.salary}
-            onChange={(v) => setDraft((d) => ({ ...d, salary: v }))}
-          />
-          <label className="block space-y-1">
-            <span className="text-foreground text-[12px] font-medium">Description</span>
-            <textarea
-              value={draft.description}
-              onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-              rows={5}
-              className="border-border bg-background text-foreground w-full rounded-md border px-3 py-2 text-[13px]"
+            <label className="block space-y-1">
+              <span className="text-foreground text-[12px] font-medium">Company *</span>
+              <CompanySelect
+                value={draft.company}
+                onChange={(name) => setDraft((d) => ({ ...d, company: name }))}
+                placeholder="e.g. Stripe"
+              />
+            </label>
+            <Field
+              label="Location *"
+              value={draft.location}
+              onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
             />
-          </label>
-          <div className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setAddOpen(false)}
-              className="border-border text-muted-foreground inline-flex h-8 items-center rounded-md border px-3 text-[12px]"
-            >
+            <label className="block space-y-1">
+              <span className="text-foreground text-[12px] font-medium">Source</span>
+              <Select
+                value={draft.source}
+                onValueChange={(v) =>
+                  setDraft((d) => ({ ...d, source: (v as JobSource) || d.source }))
+                }
+              >
+                <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
+                  <SelectValue placeholder="Source" />
+                </SelectTrigger>
+                <SelectContent className="z-240">
+                  {JOB_SOURCES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {SOURCE_LABELS[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            <Field
+              label="URL"
+              value={draft.url}
+              onChange={(v) => setDraft((d) => ({ ...d, url: v }))}
+            />
+            <Field
+              label="Salary / CTC"
+              value={draft.salary}
+              onChange={(v) => setDraft((d) => ({ ...d, salary: v }))}
+            />
+            <label className="block space-y-1">
+              <span className="text-foreground text-[12px] font-medium">Description</span>
+              <Textarea
+                value={draft.description}
+                onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+                rows={5}
+                className="py-2"
+              />
+            </label>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" type="button" onClick={() => setAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                loading={pendingAction === "create"}
+                disabled={pending}
+                onClick={() => void createJob()}
+                className="h-8"
+              >
+                Create
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pasteOpen}
+        onOpenChange={(next) => {
+          if (!next) (() => setPasteOpen(false))();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Paste JD (private analysis)</DialogTitle>
+            <DialogDescription>
+              Registers the JD as a job on your Jobs list, scores resume match + ATS, then you can
+              generate a cover letter.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            rows={10}
+            placeholder="Paste job description text…"
+            className="py-2"
+          />
+          <div className="mt-3 flex justify-end gap-2">
+            <Button variant="outline" size="sm" type="button" onClick={() => setPasteOpen(false)}>
               Cancel
-            </button>
+            </Button>
             <Button
               type="button"
               size="sm"
-              loading={pending}
-              onClick={() => void createJob()}
+              loading={pendingAction === "paste"}
+              disabled={pending}
+              onClick={() => void pasteJd()}
               className="h-8"
             >
-              Create
+              Save analysis
             </Button>
           </div>
-        </div>
-      </Modal>
-
-      <Modal
-        open={pasteOpen}
-        title="Paste JD (private analysis)"
-        onClose={() => setPasteOpen(false)}
-        description="Registers the JD as a job on your Jobs list, scores resume match + ATS, then you can generate a cover letter."
-      >
-        <textarea
-          value={pasteText}
-          onChange={(e) => setPasteText(e.target.value)}
-          rows={10}
-          placeholder="Paste job description text…"
-          className="border-border bg-background text-foreground w-full rounded-md border px-3 py-2 text-[13px]"
-        />
-        <div className="mt-3 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setPasteOpen(false)}
-            className="border-border text-muted-foreground inline-flex h-8 items-center rounded-md border px-3 text-[12px]"
-          >
-            Cancel
-          </button>
-          <Button
-            type="button"
-            size="sm"
-            loading={pending}
-            onClick={() => void pasteJd()}
-            className="h-8"
-          >
-            Save analysis
-          </Button>
-        </div>
-      </Modal>
+        </DialogContent>
+      </Dialog>
     </>
   );
 
@@ -899,7 +942,7 @@ function JobDetail({
   job,
   stretch,
   tab,
-  pending,
+  pendingAction,
   resumes,
   onApply,
   onBookmark,
@@ -909,12 +952,13 @@ function JobDetail({
   /** Full-screen board: fill the panel height and let "About the job" take the spare space. */
   stretch: boolean;
   tab: JobsTab;
-  pending: boolean;
+  pendingAction: "create" | "paste" | "apply" | "bookmark" | "ignore" | null;
   resumes: ResumeLite[];
   onApply: () => void;
   onBookmark: () => void;
   onIgnore: () => void;
 }) {
+  const pending = pendingAction !== null;
   const left = daysLeft(job);
   const reasons = [...(job.reasons?.skills ?? []), ...(job.reasons?.roles ?? [])].slice(0, 8);
 
@@ -1017,19 +1061,36 @@ function JobDetail({
         <div className="flex flex-wrap gap-1.5">
           {tab === "discover" ? (
             <>
-              <Button type="button" size="sm" loading={pending} onClick={onApply}>
+              <Button
+                type="button"
+                size="sm"
+                loading={pendingAction === "apply"}
+                loadingText="Applying…"
+                disabled={pending}
+                onClick={onApply}
+              >
                 Mark applied
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
+                loading={pendingAction === "bookmark"}
+                loadingText="Saving…"
                 disabled={pending}
                 onClick={onBookmark}
               >
                 Bookmark
               </Button>
-              <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={onIgnore}>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                loading={pendingAction === "ignore"}
+                loadingText="Hiding…"
+                disabled={pending}
+                onClick={onIgnore}
+              >
                 Ignore
               </Button>
             </>
@@ -1124,15 +1185,6 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
       const next = new Set(prev);
       if (on) next.add(id);
       else next.delete(id);
-      return next;
-    });
-  }
-
-  function toggleEngine(id: AtsEngineId) {
-    setEngineIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
       return next;
     });
   }
@@ -1257,51 +1309,32 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
         <>
           <div className="space-y-1.5">
             <p className="text-muted-foreground text-[11px] font-medium">Engines</p>
-            <div className="flex flex-wrap gap-1" role="group" aria-label="ATS engines">
-              {ATS_ENGINES.map((eng) => {
-                const on = engineIds.has(eng.id);
-                return (
-                  <Button
-                    key={eng.id}
-                    type="button"
-                    size="xs"
-                    variant="outline"
-                    aria-pressed={on}
-                    disabled={running}
-                    onClick={() => toggleEngine(eng.id)}
-                    title={eng.shortDescription}
-                    className={cn(
-                      "gap-1.5",
-                      on
-                        ? "border-primary text-foreground hover:bg-transparent"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {on ? (
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        className="text-primary size-3"
-                        aria-hidden
-                      >
-                        <path
-                          d="m5 12.5 4.5 4.5L19 7.5"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    ) : null}
-                    {eng.name}
-                    <EngineKindBadge engineId={eng.id} />
-                  </Button>
-                );
-              })}
-            </div>
+            <ToggleGroup
+              aria-label="ATS engines"
+              multiple
+              variant="outline"
+              size="sm"
+              spacing={1}
+              disabled={running}
+              className="flex-wrap"
+              value={[...engineIds]}
+              onValueChange={(next) => setEngineIds(new Set(next as AtsEngineId[]))}
+            >
+              {ATS_ENGINES.map((eng) => (
+                <ToggleGroupItem
+                  key={eng.id}
+                  value={eng.id}
+                  title={eng.shortDescription}
+                  className="h-7 gap-1.5 px-2 text-xs"
+                >
+                  {eng.name}
+                  <EngineKindBadge engineId={eng.id} />
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </div>
 
-          <div className="border-border/60 overflow-x-auto rounded-md border">
+          <ScrollArea orientation="horizontal" className="border-border/60 rounded-md border">
             {/* Fixed layout: the resume column has a set width and every engine column is the
                 same width, so the score rings line up in an even grid. */}
             <table
@@ -1380,7 +1413,7 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollArea>
 
           <div className="flex flex-wrap items-center gap-1.5">
             <Button
@@ -1569,63 +1602,65 @@ function JobList({
     );
   }
   return (
-    <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
-      {jobs.map((job) => (
-        <li key={job.id} className="relative">
-          <button
-            type="button"
-            onClick={() => onSelect(job.id)}
-            className={cn(
-              "bg-card flex w-full items-start gap-2.5 rounded-lg border px-3 py-3 text-left shadow-sm transition-colors",
-              job.url && "pr-20",
-              selectedId === job.id
-                ? "border-primary/40 bg-primary/10"
-                : "border-border/80 hover:border-border hover:bg-accent/40",
-            )}
-          >
-            <Avatar className="mt-0.5 size-8 rounded-md">
-              <AvatarFallback className="rounded-md text-[10px] font-semibold">
-                {initials(job.company)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="text-foreground truncate text-[13px] font-semibold">{job.title}</p>
-              <p className="text-muted-foreground truncate text-[12px]">
-                {job.company} · {job.location}
-              </p>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                  {job.sourceLabel}
-                </Badge>
-                {tab === "applied" && job.applicationStatus ? (
-                  <Badge className="px-1.5 py-0 text-[10px]">
-                    {statusLabel(job.applicationStatus)}
-                  </Badge>
-                ) : null}
-                {job.compatibilityScore != null ? (
-                  <span className="text-foreground/80 text-[10px] font-medium tabular-nums">
-                    Match {job.compatibilityScore}%
-                  </span>
-                ) : null}
-                <span className="text-muted-foreground text-[10px]">{ageLabel(job)}</span>
-              </div>
-            </div>
-          </button>
-          {job.url ? (
-            <a
-              href={job.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary absolute right-2.5 top-2.5 text-[11px] font-medium hover:underline"
-              title="Open the original job posting"
-              aria-label={`Original post for ${job.title} at ${job.company}`}
+    <ScrollArea className="min-h-0 flex-1">
+      <ul className="space-y-2 p-2">
+        {jobs.map((job) => (
+          <li key={job.id} className="relative">
+            <button
+              type="button"
+              onClick={() => onSelect(job.id)}
+              className={cn(
+                "bg-card flex w-full items-start gap-2.5 rounded-lg border px-3 py-3 text-left shadow-sm transition-colors",
+                job.url && "pr-20",
+                selectedId === job.id
+                  ? "border-primary/40 bg-primary/10"
+                  : "border-border/80 hover:border-border hover:bg-accent/40",
+              )}
             >
-              Original ↗
-            </a>
-          ) : null}
-        </li>
-      ))}
-    </ul>
+              <Avatar className="mt-0.5 size-8 rounded-md">
+                <AvatarFallback className="rounded-md text-[10px] font-semibold">
+                  {initials(job.company)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="text-foreground truncate text-[13px] font-semibold">{job.title}</p>
+                <p className="text-muted-foreground truncate text-[12px]">
+                  {job.company} · {job.location}
+                </p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                    {job.sourceLabel}
+                  </Badge>
+                  {tab === "applied" && job.applicationStatus ? (
+                    <Badge className="px-1.5 py-0 text-[10px]">
+                      {statusLabel(job.applicationStatus)}
+                    </Badge>
+                  ) : null}
+                  {job.compatibilityScore != null ? (
+                    <span className="text-foreground/80 text-[10px] font-medium tabular-nums">
+                      Match {job.compatibilityScore}%
+                    </span>
+                  ) : null}
+                  <span className="text-muted-foreground text-[10px]">{ageLabel(job)}</span>
+                </div>
+              </div>
+            </button>
+            {job.url ? (
+              <a
+                href={job.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary absolute right-2.5 top-2.5 text-[11px] font-medium hover:underline"
+                title="Open the original job posting"
+                aria-label={`Original post for ${job.title} at ${job.company}`}
+              >
+                Original ↗
+              </a>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </ScrollArea>
   );
 }
 
@@ -1641,11 +1676,7 @@ function Field({
   return (
     <label className="block space-y-1">
       <span className="text-foreground text-[12px] font-medium">{label}</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="border-border bg-background text-foreground h-9 w-full rounded-md border px-3 text-[13px]"
-      />
+      <Input value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }

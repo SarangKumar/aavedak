@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
@@ -16,11 +17,25 @@ import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -245,9 +260,6 @@ export function ProfileSettings({
     () => resumes.find((r) => r.status === "active")?.id ?? null,
     [resumes],
   );
-
-  const fieldClass =
-    "border-border bg-background text-foreground h-8 w-full rounded-md border px-2.5 text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]";
 
   function setLink(key: ProfileLinkKey, value: string) {
     setLinks((prev) => ({ ...prev, [key]: value }));
@@ -534,13 +546,9 @@ export function ProfileSettings({
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {onCancel ? (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 cursor-pointer items-center rounded-md border px-2.5 text-[12px]"
-            >
+            <Button variant="outline" size="sm" type="button" onClick={onCancel}>
               Done
-            </button>
+            </Button>
           ) : (
             <Link
               href={`/${profile.username}`}
@@ -552,8 +560,16 @@ export function ProfileSettings({
         </div>
       </div>
 
-      {error ? <p className="text-destructive mb-4 text-[12px]">{error}</p> : null}
-      {saved ? <p className="text-primary mb-4 text-[12px]">Saved.</p> : null}
+      {error ? (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {saved ? (
+        <Alert className="mb-4">
+          <AlertDescription>Saved.</AlertDescription>
+        </Alert>
+      ) : null}
       {careerSaved ? (
         <p className="text-primary mb-4 text-[12px]">Career preferences saved.</p>
       ) : null}
@@ -627,21 +643,20 @@ export function ProfileSettings({
               description="How you appear on your shareable Aavedak profile."
             >
               <SettingsBlock title="Display name">
-                <input
+                <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className={fieldClass}
                   maxLength={120}
                   placeholder="John Doe"
                 />
               </SettingsBlock>
               <SettingsBlock title="Bio" description="A short intro shown on your public profile.">
-                <textarea
+                <Textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  className={cn(fieldClass, "h-24 resize-y py-2")}
                   maxLength={600}
                   placeholder="A short intro for your shareable profile"
+                  className="h-24 resize-y py-2"
                 />
               </SettingsBlock>
               <div className="pt-1">
@@ -673,22 +688,22 @@ export function ProfileSettings({
                           <span className="text-muted-foreground text-[11px] font-medium">
                             {meta.label}
                           </span>
-                          <div className="border-border bg-background flex h-8 overflow-hidden rounded-md border focus-within:ring-2 focus-within:ring-[color:var(--ring)]">
-                            <span
-                              className="bg-muted/60 text-muted-foreground border-border flex max-w-[55%] shrink-0 items-center truncate border-r px-2 text-[10px] leading-none sm:max-w-none sm:text-[11px]"
+                          <InputGroup className="h-8 min-h-8 gap-0 overflow-hidden px-0">
+                            <InputGroupText
+                              className="bg-muted/60 border-border flex h-full max-w-[55%] items-center truncate border-r px-2 text-[10px] leading-none sm:max-w-none sm:text-[11px]"
                               title={baseUrl}
                             >
                               {baseUrl}
-                            </span>
-                            <input
+                            </InputGroupText>
+                            <InputGroupInput
                               value={usernameDrafts[key] ?? ""}
                               onChange={(e) => setUsernameDraft(key, e.target.value)}
-                              className="text-foreground h-full min-w-0 flex-1 bg-transparent px-2 text-[12px] outline-none"
+                              className="h-full px-2 text-[12px]"
                               placeholder={meta.placeholder}
                               autoComplete="off"
                               spellCheck={false}
                             />
-                          </div>
+                          </InputGroup>
                         </label>
                       );
                     }
@@ -697,10 +712,9 @@ export function ProfileSettings({
                         <span className="text-muted-foreground text-[11px] font-medium">
                           {meta.label}
                         </span>
-                        <input
+                        <Input
                           value={links[key] ?? ""}
                           onChange={(e) => setLink(key, e.target.value)}
-                          className={fieldClass}
                           placeholder={meta.placeholder}
                           inputMode="url"
                           autoComplete="url"
@@ -725,18 +739,16 @@ export function ProfileSettings({
                           key={`custom-${index}`}
                           className="grid gap-2 sm:grid-cols-[minmax(0,0.4fr)_minmax(0,1fr)_auto]"
                         >
-                          <input
+                          <Input
                             value={row.title}
                             onChange={(e) => setCustomLink(index, { title: e.target.value })}
-                            className={fieldClass}
                             placeholder="Title"
                             maxLength={80}
                             autoComplete="off"
                           />
-                          <input
+                          <Input
                             value={row.url}
                             onChange={(e) => setCustomLink(index, { url: e.target.value })}
-                            className={fieldClass}
                             placeholder="https://…"
                             inputMode="url"
                             autoComplete="url"
@@ -799,10 +811,9 @@ export function ProfileSettings({
                             <span className="text-muted-foreground text-[11px] font-medium">
                               Title
                             </span>
-                            <input
+                            <Input
                               value={project.title}
                               onChange={(e) => setProject(index, { title: e.target.value })}
-                              className={fieldClass}
                               placeholder="Project name"
                               maxLength={120}
                             />
@@ -812,8 +823,8 @@ export function ProfileSettings({
                             <span className="text-muted-foreground text-[11px] font-medium">
                               Website <span className="font-normal opacity-70">(optional)</span>
                             </span>
-                            <div className="border-border bg-background flex h-8 overflow-hidden rounded-md border focus-within:ring-2 focus-within:ring-[color:var(--ring)]">
-                              <span className="bg-muted/60 border-border flex w-9 shrink-0 items-center justify-center border-r">
+                            <InputGroup className="h-8 min-h-8 gap-0 overflow-hidden px-0">
+                              <InputGroupAddon className="bg-muted/60 border-border flex h-full w-9 justify-center border-r">
                                 {previewPending === project.id ? (
                                   <Spinner
                                     className="text-muted-foreground size-3.5"
@@ -829,32 +840,32 @@ export function ProfileSettings({
                                 ) : (
                                   <span className="text-muted-foreground text-[10px]">◈</span>
                                 )}
-                              </span>
-                              <input
+                              </InputGroupAddon>
+                              <InputGroupInput
                                 value={project.url}
                                 onChange={(e) => setProjectUrl(index, project.id, e.target.value)}
-                                className="text-foreground h-full min-w-0 flex-1 bg-transparent px-2.5 text-[12px] outline-none"
+                                className="h-full px-2.5 text-[12px]"
                                 placeholder="https://your-app.com"
                                 inputMode="url"
                                 autoComplete="url"
                               />
-                            </div>
+                            </InputGroup>
                           </label>
 
                           <label className="block space-y-1">
                             <span className="text-muted-foreground text-[11px] font-medium">
                               Description
                             </span>
-                            <textarea
+                            <Textarea
                               value={project.description}
                               onChange={(e) =>
                                 setProject(index, {
                                   description: e.target.value.slice(0, MAX_PROJECT_DESCRIPTION),
                                 })
                               }
-                              className={cn(fieldClass, "h-16 resize-y py-2")}
                               maxLength={MAX_PROJECT_DESCRIPTION}
                               placeholder="One or two lines on what it does…"
+                              className="h-16 resize-y py-2"
                             />
                             <span className="text-muted-foreground block text-right text-[10px] tabular-nums">
                               {project.description.length}/{MAX_PROJECT_DESCRIPTION}
@@ -942,16 +953,19 @@ export function ProfileSettings({
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <label className="flex cursor-pointer items-center gap-2 text-[12px]">
-                    <Checkbox
+                  <div className="flex items-center gap-2 text-[12px]">
+                    <Switch
+                      id="discovery-enabled"
                       checked={discoveryEnabled}
                       disabled={discoveryPending}
-                      onChange={(e) => void saveDiscovery(e.target.checked)}
+                      onCheckedChange={(next) => void saveDiscovery(next)}
                       aria-label="Enable daily job discovery"
                     />
-                    <span className="text-foreground">Enable daily job discovery</span>
+                    <label htmlFor="discovery-enabled" className="text-foreground cursor-pointer">
+                      Enable daily job discovery
+                    </label>
                     {discoveryPending ? <Spinner className="size-3.5" label="Saving" /> : null}
-                  </label>
+                  </div>
                 </CardContent>
               </Card>
             </SettingsPanel>
@@ -1109,99 +1123,129 @@ export function ProfileSettings({
         </main>
       </div>
 
-      <Modal
+      <Dialog
         open={wipeOpen}
-        onClose={() => (!wiping ? setWipeOpen(false) : undefined)}
-        title="Delete all account data"
-        description="This cannot be undone. Applications, resumes, jobs, and related data will be removed. Your account and people contacts stay."
-        footer={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={wiping}
-              onClick={() => setWipeOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              loading={wiping}
-              loadingText="Deleting…"
-              disabled={!canWipe}
-              onClick={() => void wipeAccountData()}
-            >
-              Delete data
-            </Button>
-          </>
-        }
+        onOpenChange={(next) => {
+          if (!next) (() => (!wiping ? setWipeOpen(false) : undefined))();
+        }}
       >
-        <div className="space-y-3">
-          <p className="text-muted-foreground text-[12px] leading-relaxed">
-            Type your username{" "}
-            <span className="text-foreground font-semibold">@{profile.username}</span> to confirm.
-          </p>
-          <Input
-            value={wipeConfirm}
-            onChange={(e) => setWipeConfirm(e.target.value)}
-            placeholder={profile.username}
-            autoComplete="off"
-            className="h-9 rounded-md text-[13px]"
-            disabled={wiping}
-          />
-          {wipeError ? <p className="text-destructive text-[12px]">{wipeError}</p> : null}
-        </div>
-      </Modal>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete all account data</DialogTitle>
+            <DialogDescription>
+              This cannot be undone. Applications, resumes, jobs, and related data will be removed.
+              Your account and people contacts stay.
+            </DialogDescription>
+          </DialogHeader>
 
-      <Modal
+          <div className="space-y-3">
+            <p className="text-muted-foreground text-[12px] leading-relaxed">
+              Type your username{" "}
+              <span className="text-foreground font-semibold">@{profile.username}</span> to confirm.
+            </p>
+            <Input
+              value={wipeConfirm}
+              onChange={(e) => setWipeConfirm(e.target.value)}
+              placeholder={profile.username}
+              autoComplete="off"
+              className="h-9 rounded-md text-[13px]"
+              disabled={wiping}
+            />
+            {wipeError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{wipeError}</AlertDescription>
+              </Alert>
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={wiping}
+                onClick={() => setWipeOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                loading={wiping}
+                loadingText="Deleting…"
+                disabled={!canWipe}
+                onClick={() => void wipeAccountData()}
+              >
+                Delete data
+              </Button>
+            </>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
         open={deleteOpen}
-        onClose={() => (!deleting ? setDeleteOpen(false) : undefined)}
-        title="Delete account"
-        description="This cannot be undone. Resumes in storage and all tracker data will be removed. Shared people contacts are kept."
-        footer={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={deleting}
-              onClick={() => setDeleteOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              loading={deleting}
-              loadingText="Deleting…"
-              disabled={!canDelete}
-              onClick={() => void deleteAccount()}
-            >
-              Delete forever
-            </Button>
-          </>
-        }
+        onOpenChange={(next) => {
+          if (!next) (() => (!deleting ? setDeleteOpen(false) : undefined))();
+        }}
       >
-        <div className="space-y-3">
-          <p className="text-muted-foreground text-[12px] leading-relaxed">
-            Type your username{" "}
-            <span className="text-foreground font-semibold">@{profile.username}</span> to confirm.
-          </p>
-          <Input
-            value={deleteConfirm}
-            onChange={(e) => setDeleteConfirm(e.target.value)}
-            placeholder={profile.username}
-            autoComplete="off"
-            className="h-9 rounded-md text-[13px]"
-            disabled={deleting}
-          />
-          {deleteError ? <p className="text-destructive text-[12px]">{deleteError}</p> : null}
-        </div>
-      </Modal>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete account</DialogTitle>
+            <DialogDescription>
+              This cannot be undone. Resumes in storage and all tracker data will be removed. Shared
+              people contacts are kept.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <p className="text-muted-foreground text-[12px] leading-relaxed">
+              Type your username{" "}
+              <span className="text-foreground font-semibold">@{profile.username}</span> to confirm.
+            </p>
+            <Input
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder={profile.username}
+              autoComplete="off"
+              className="h-9 rounded-md text-[13px]"
+              disabled={deleting}
+            />
+            {deleteError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{deleteError}</AlertDescription>
+              </Alert>
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={deleting}
+                onClick={() => setDeleteOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                loading={deleting}
+                loadingText="Deleting…"
+                disabled={!canDelete}
+                onClick={() => void deleteAccount()}
+              >
+                Delete forever
+              </Button>
+            </>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ShellWidth>
   );
 }

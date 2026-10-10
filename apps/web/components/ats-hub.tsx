@@ -1,5 +1,7 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { CellStatusLabel, EngineLabel } from "@/components/ats-engine-badge";
@@ -7,7 +9,6 @@ import { FinalScoreCell } from "@/components/final-score-cell";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { AnalysisDetails, modeHint, ScoringGuideContent } from "@/components/ats-analysis-panel";
 import { ShellWidth } from "@/components/shell-width";
-import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import {
   Accordion,
   AccordionContent,
@@ -15,6 +16,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -24,7 +27,14 @@ import {
   type FileUploadFile,
 } from "@/components/ui/file-upload";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Modal } from "@/components/ui/modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -218,6 +228,8 @@ function RunAnalysisButton({
       <Button
         type="button"
         size="sm"
+        loading={running}
+        loadingText="Analyzing…"
         disabled={!canRun}
         onClick={(e) => {
           e.stopPropagation();
@@ -226,14 +238,7 @@ function RunAnalysisButton({
         className={cn("hidden sm:inline-flex", className)}
         aria-label={label}
       >
-        {running ? (
-          <span className="inline-flex items-center gap-1.5">
-            <Spinner className="size-3.5" label="Running" />
-            Analyzing…
-          </span>
-        ) : (
-          label
-        )}
+        {`Run ${readyCount} analysis${readyCount === 1 ? "" : "es"}`}
       </Button>
       <Button
         type="button"
@@ -352,8 +357,6 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
       )
       .finally(() => setResumesLoaded(true));
   }, [resumesLoaded]);
-
-  const { ref: jdTextareaRef, resize: resizeJdTextarea } = useAutosizeTextarea(jdText);
 
   const selectedResumes = useMemo(
     () => resumes.filter((r) => selectedResumeIds.has(r.id)),
@@ -716,31 +719,32 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
     if (cell?.status === "done" && cell.overallScore != null) {
       const warned = cell.stage === "completed_with_warnings";
       return box(
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => setDetailKey(active ? null : key)}
           title={`${cell.scoreLabel || "View details"}${warned ? " · completed with warnings" : ""}`}
           aria-label={`${cell.overallScore} — ${cell.scoreLabel || "view details"}${warned ? ", completed with warnings" : ""}`}
           className={cn(
-            "inline-flex cursor-pointer items-center justify-center rounded-full p-0.5",
+            "size-9 max-h-9 min-h-9 min-w-9 max-w-9 rounded-full p-0.5",
             active ? "ring-primary/60 ring-2" : "hover:ring-muted-foreground/30 hover:ring-2",
             warned && !active && "ring-2 ring-amber-500/50",
           )}
         >
           <ScoreRing value={cell.overallScore} size="xs" />
-        </button>,
+        </Button>,
       );
     }
     if (cell?.status === "error") {
       return box(
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={() => setDetailKey(active ? null : key)}
-          className="hover:bg-muted/40 cursor-pointer rounded-md px-1.5 py-1"
           title={cell.error}
         >
           <CellStatusLabel cell={cell} />
-        </button>,
+        </Button>,
       );
     }
     return box(<CellStatusLabel cell={cell} />);
@@ -831,21 +835,31 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                       </span>
                     </label>
                     <HoverCard>
-                      <HoverCardTrigger
-                        className="text-muted-foreground hover:text-foreground mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md"
-                        aria-label={`How ${eng.name} scores`}
-                        onClick={(e) => e.preventDefault()}
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" className="size-3.5" aria-hidden>
-                          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
-                          <path
-                            d="M12 11v5"
-                            stroke="currentColor"
-                            strokeWidth="1.75"
-                            strokeLinecap="round"
-                          />
-                          <circle cx="12" cy="8" r="0.9" fill="currentColor" />
-                        </svg>
+                      <HoverCardTrigger>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-muted-foreground hover:text-foreground mt-0.5 size-6 min-h-6 min-w-6 shrink-0"
+                          aria-label={`How ${eng.name} scores`}
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" className="size-3.5" aria-hidden>
+                            <circle
+                              cx="12"
+                              cy="12"
+                              r="9"
+                              stroke="currentColor"
+                              strokeWidth="1.75"
+                            />
+                            <path
+                              d="M12 11v5"
+                              stroke="currentColor"
+                              strokeWidth="1.75"
+                              strokeLinecap="round"
+                            />
+                            <circle cx="12" cy="8" r="0.9" fill="currentColor" />
+                          </svg>
+                        </Button>
                       </HoverCardTrigger>
                       <HoverCardContent
                         side="bottom"
@@ -884,7 +898,9 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
           {!resumesLoaded ? (
             <ResumeListSkeleton rows={3} variant="ats" />
           ) : resumesLoadError ? (
-            <p className="text-destructive text-[12px]">{resumesLoadError}</p>
+            <Alert variant="destructive">
+              <AlertDescription>{resumesLoadError}</AlertDescription>
+            </Alert>
           ) : resumes.length === 0 ? (
             <div className="flex flex-col items-start gap-2">
               <p className="text-muted-foreground text-[12px]">No resumes yet.</p>
@@ -937,44 +953,46 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   </Button>
                 </div>
               </div>
-              <ul className="divide-border/50 border-border/60 max-h-72 divide-y overflow-y-auto rounded-lg border">
-                {filteredResumes.length === 0 ? (
-                  <li className="text-muted-foreground px-3 py-3 text-[12px]">
-                    No resumes match “{resumeQuery.trim()}”.
-                  </li>
-                ) : (
-                  filteredResumes.map((r) => {
-                    const checked = selectedResumeIds.has(r.id);
-                    return (
-                      <li key={r.id}>
-                        <label
-                          className={cn(
-                            "hover:bg-muted/30 flex cursor-pointer items-start gap-2.5 px-3 py-2",
-                            running && "pointer-events-none opacity-60",
-                          )}
-                        >
-                          <Checkbox
-                            checked={checked}
-                            onChange={() => toggleResume(r.id)}
-                            disabled={running}
-                            className="mt-0.5"
-                            aria-label={`Select ${r.displayName}`}
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="text-foreground block truncate text-[12px] font-medium">
-                              {r.displayName}
+              <ScrollArea className="border-border/60 max-h-72 rounded-lg border">
+                <ul className="divide-border/50 divide-y">
+                  {filteredResumes.length === 0 ? (
+                    <li className="text-muted-foreground px-3 py-3 text-[12px]">
+                      No resumes match “{resumeQuery.trim()}”.
+                    </li>
+                  ) : (
+                    filteredResumes.map((r) => {
+                      const checked = selectedResumeIds.has(r.id);
+                      return (
+                        <li key={r.id}>
+                          <label
+                            className={cn(
+                              "hover:bg-muted/30 flex cursor-pointer items-start gap-2.5 px-3 py-2",
+                              running && "pointer-events-none opacity-60",
+                            )}
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onChange={() => toggleResume(r.id)}
+                              disabled={running}
+                              className="mt-0.5"
+                              aria-label={`Select ${r.displayName}`}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="text-foreground block truncate text-[12px] font-medium">
+                                {r.displayName}
+                              </span>
+                              <span className="text-muted-foreground block truncate text-[10px]">
+                                {r.originalFilename || r.status}
+                                {r.updatedAt ? ` · ${formatUpdated(r.updatedAt)}` : ""}
+                              </span>
                             </span>
-                            <span className="text-muted-foreground block truncate text-[10px]">
-                              {r.originalFilename || r.status}
-                              {r.updatedAt ? ` · ${formatUpdated(r.updatedAt)}` : ""}
-                            </span>
-                          </span>
-                        </label>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
+                          </label>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              </ScrollArea>
             </div>
           )}
         </StepBlock>
@@ -1002,13 +1020,12 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                       ? `Optional for ${engineNames(titleOptionalEngines.map((e) => e.id))}`
                       : "Not used by the selected engines."}
               </span>
-              <input
+              <Input
                 type="text"
                 value={role}
                 disabled={running}
                 onChange={(e) => setRole(e.target.value)}
                 placeholder="e.g. Software Engineer, Cloud Engineer"
-                className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] disabled:opacity-60"
               />
             </label>
             <label className="block space-y-1 text-[12px]">
@@ -1026,17 +1043,14 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                       ? `Optional for ${engineNames(jdOptionalEngines.map((e) => e.id))}`
                       : "Not used by the selected engines."}
               </span>
-              <textarea
-                ref={jdTextareaRef}
+              <Textarea
                 value={jdText}
                 disabled={running}
-                onChange={(e) => {
-                  setJdText(e.target.value);
-                  resizeJdTextarea();
-                }}
+                onChange={(e) => setJdText(e.target.value)}
                 rows={6}
+                maxRows={18}
                 placeholder="Paste the full job description here…"
-                className="border-border bg-background text-foreground box-border h-auto max-h-[min(50vh,420px)] min-h-36 w-full resize-y rounded-lg border px-3 py-2.5 font-sans text-[13px] leading-relaxed disabled:opacity-60"
+                className="min-h-36 font-sans text-[13px] leading-relaxed"
               />
             </label>
           </div>
@@ -1203,7 +1217,11 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 </p>
               ) : null}
             </div>
-            {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
           </div>
         </StepBlock>
 
@@ -1274,7 +1292,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 </Select>
               </div>
 
-              <div className="border-border/60 overflow-x-auto rounded-lg border">
+              <ScrollArea className="border-border/60 rounded-lg border" orientation="horizontal">
                 {/* Fixed layout: equal-width engine columns so score rings form an even grid. */}
                 <table
                   className="w-full table-fixed border-collapse text-[12px]"
@@ -1340,7 +1358,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </ScrollArea>
 
               {detailCell?.analysis && !detailCell.analysis.error ? (
                 <div className="border-border/60 rounded-xl border p-3 md:p-4">
@@ -1377,7 +1395,9 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   </Button>
                 </div>
               ) : detailCell?.error ? (
-                <p className="text-destructive text-[12px]">{detailCell.error}</p>
+                <Alert variant="destructive">
+                  <AlertDescription>{detailCell.error}</AlertDescription>
+                </Alert>
               ) : null}
             </div>
           )}
@@ -1473,66 +1493,81 @@ function UploadResumeModal({
   }
 
   return (
-    <Modal
+    <Dialog
       open={open}
-      onClose={() => {
-        if (!pending) {
-          reset();
-          onClose();
-        }
-      }}
-      title="Upload resume"
-      description="Add a PDF resume to score. It is saved to your Documents."
-      footer={
-        <>
-          <Button type="button" variant="outline" size="sm" disabled={pending} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            disabled={pending || !selectedPdf}
-            onClick={() => void upload()}
-          >
-            {pending ? <Spinner className="size-3.5" label="" /> : null}
-            {pending ? "Uploading…" : "Upload"}
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-3">
-        <label className="block space-y-1 text-[12px]">
-          <span className="text-foreground font-medium">Name</span>
-          <input
-            type="text"
-            value={displayName}
-            disabled={pending}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder={
-              selectedPdf ? selectedPdf.name.replace(/\.pdf$/i, "") : "e.g. Primary Resume"
+      onOpenChange={(next) => {
+        if (!next)
+          (() => {
+            if (!pending) {
+              reset();
+              onClose();
             }
-            maxLength={120}
-            className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] disabled:opacity-60"
-          />
-          <span className="text-muted-foreground block text-[11px]">
-            Defaults to the file name. Must be unique.
-          </span>
-        </label>
-        <FileUpload
-          accept="application/pdf,.pdf"
-          multiple={false}
-          maxSize={10 * 1024 * 1024}
-          files={files}
-          onFilesChange={setFiles}
-          disabled={pending}
-        >
-          <FileUploadDropzone className="min-h-32 rounded-lg text-[13px]">
-            Drop a PDF resume here, or browse
-          </FileUploadDropzone>
-          <FileUploadList />
-        </FileUpload>
-        {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
-      </div>
-    </Modal>
+          })();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Upload resume</DialogTitle>
+          <DialogDescription>
+            Add a PDF resume to score. It is saved to your Documents.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <label className="block space-y-1 text-[12px]">
+            <span className="text-foreground font-medium">Name</span>
+            <Input
+              type="text"
+              value={displayName}
+              disabled={pending}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder={
+                selectedPdf ? selectedPdf.name.replace(/\.pdf$/i, "") : "e.g. Primary Resume"
+              }
+              maxLength={120}
+            />
+            <span className="text-muted-foreground block text-[11px]">
+              Defaults to the file name. Must be unique.
+            </span>
+          </label>
+          <FileUpload
+            accept="application/pdf,.pdf"
+            multiple={false}
+            maxSize={10 * 1024 * 1024}
+            files={files}
+            onFilesChange={setFiles}
+            disabled={pending}
+          >
+            <FileUploadDropzone className="min-h-32 rounded-lg text-[13px]">
+              Drop a PDF resume here, or browse
+            </FileUploadDropzone>
+            <FileUploadList />
+          </FileUpload>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
+
+        <DialogFooter>
+          <>
+            <Button type="button" variant="outline" size="sm" disabled={pending} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              loading={pending}
+              loadingText="Uploading…"
+              disabled={!selectedPdf}
+              onClick={() => void upload()}
+            >
+              Upload
+            </Button>
+          </>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

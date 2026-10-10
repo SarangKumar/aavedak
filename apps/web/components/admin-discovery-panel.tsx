@@ -1,5 +1,6 @@
 "use client";
 
+import { Textarea } from "@/components/ui/textarea";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -698,14 +699,14 @@ function SourcesSheet({
           <div className="space-y-4">
             <div className="space-y-2">
               <p className="text-foreground text-[12px] font-medium">Add career pages</p>
-              <textarea
+              <Textarea
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
                 rows={4}
                 placeholder={
                   "One per line: URL, or Company, URL[, software|core|mixed]\nhttps://jobs.lever.co/acme\nAcme Motors, https://www.acme.in/careers, core"
                 }
-                className="border-border bg-background text-foreground w-full rounded-md border px-3 py-2 font-mono text-[12px]"
+                className="py-2 font-mono text-[12px]"
               />
               <div className="flex flex-wrap gap-1.5">
                 <Button

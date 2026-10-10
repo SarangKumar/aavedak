@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, XAxis, YAxis } from "recharts";
 
@@ -248,7 +249,11 @@ export function ApplicationsActivityCharts() {
           </TabsList>
         </div>
 
-        {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
+        {error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
 
         <TabsContent value={months} className="min-w-0">
           {chartBody}

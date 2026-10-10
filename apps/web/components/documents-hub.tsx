@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -12,7 +13,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileUpload,
@@ -23,7 +27,15 @@ import {
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { CoverLetterPdfPreview } from "@/components/cover-letter-pdf-preview";
 import { ShellWidth } from "@/components/shell-width";
-import { Modal } from "@/components/ui/modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Combobox, ComboboxContent, ComboboxItem, ComboboxTrigger } from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -49,7 +61,6 @@ import {
 } from "@/lib/profile-links";
 import { renderTemplatePreview } from "@/lib/template-preview";
 import { CompanySelect } from "@/components/company-select";
-import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 
@@ -289,7 +300,6 @@ export function DocumentsHub({
   const [jobs] = useState(initialJobs);
   const [clTitle, setClTitle] = useState(DEFAULT_COVER_TITLE);
   const [clBody, setClBody] = useState(DEFAULT_COVER_BODY);
-  const { ref: clBodyRef, resize: resizeClBody } = useAutosizeTextarea(clBody);
   const [clMode, setClMode] = useState<"job" | "custom">(initialJobs[0] ? "job" : "custom");
   const [clJobId, setClJobId] = useState<string>(initialJobs[0]?.id ?? "");
   const [clCustomCompany, setClCustomCompany] = useState("");
@@ -530,7 +540,8 @@ export function DocumentsHub({
     patch: { status?: string; displayName?: string },
   ): Promise<boolean> {
     setError(null);
-    setResumeActionId(id);
+    // Keyed per action so only the pressed button shows its spinner.
+    setResumeActionId(`${id}:${patch.status ? "status" : "rename"}`);
     try {
       const res = await fetch(`/api/resumes/${id}`, {
         method: "PATCH",
@@ -633,7 +644,7 @@ export function DocumentsHub({
 
   async function archiveResume(id: string) {
     setError(null);
-    setResumeActionId(id);
+    setResumeActionId(`${id}:archive`);
     try {
       const res = await fetch(`/api/resumes/${id}`, { method: "DELETE" });
       const data = (await res.json()) as { error?: string };
@@ -769,7 +780,11 @@ export function DocumentsHub({
           </TabsTrigger>
         </TabsList>
 
-        {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
+        {error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
 
         <TabsContent value="resumes" className="mt-0 outline-none">
           <section className="space-y-4">
@@ -781,11 +796,10 @@ export function DocumentsHub({
                 >
                   Display name
                 </label>
-                <input
+                <Input
                   id="resume-display-name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="border-border bg-background text-foreground focus-visible:ring-ring h-9 w-full rounded-lg border px-3 text-[13px] outline-none focus-visible:ring-2"
                   placeholder="e.g. Primary Resume"
                   maxLength={120}
                 />
@@ -809,15 +823,16 @@ export function DocumentsHub({
                 <FileUploadList />
               </FileUpload>
 
-              <button
+              <Button
                 type="button"
-                disabled={pending || !selectedPdf}
+                loading={pending}
+                loadingText="Uploading…"
+                disabled={!selectedPdf}
                 onClick={() => void uploadResume()}
-                className="aavedak-btn bg-primary text-primary-foreground ring-primary/30 inline-flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-[13px] font-semibold shadow-sm ring-1 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full"
               >
-                {pending ? <Spinner className="size-3.5" label="Uploading" /> : null}
-                {pending ? "Uploading…" : "Upload PDF resume"}
-              </button>
+                Upload PDF resume
+              </Button>
             </Card>
 
             <div className="space-y-2">
@@ -845,7 +860,9 @@ export function DocumentsHub({
               ) : (
                 <ul className="space-y-2">
                   {resumes.map((resume) => {
-                    const busy = resumeActionId === resume.id;
+                    const busy = Boolean(resumeActionId?.startsWith(`${resume.id}:`));
+                    const statusBusy = resumeActionId === `${resume.id}:status`;
+                    const archiveBusy = resumeActionId === `${resume.id}:archive`;
                     const renaming = editingResumeId === resume.id;
                     return (
                       <li
@@ -855,7 +872,7 @@ export function DocumentsHub({
                         <div className="min-w-0 flex-1">
                           <div className="flex min-w-0 items-center gap-1.5">
                             {renaming ? (
-                              <input
+                              <Input
                                 ref={renameInputRef}
                                 value={editName}
                                 onChange={(e) => setEditName(e.target.value)}
@@ -872,7 +889,7 @@ export function DocumentsHub({
                                 }}
                                 maxLength={120}
                                 aria-label="Resume display name"
-                                className="border-border bg-background text-foreground focus-visible:ring-ring h-7 min-w-0 flex-1 rounded-md border px-2 text-[13px] font-medium outline-none focus-visible:ring-2"
+                                className="h-7 min-w-0 flex-1 px-2 font-medium"
                               />
                             ) : (
                               <button
@@ -909,99 +926,95 @@ export function DocumentsHub({
                           </p>
                         </div>
                         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
-                          <button
+                          <Button
+                            variant="outline"
+                            size="icon-sm"
                             type="button"
                             title="Preview"
                             aria-label={`Preview ${resume.displayName}`}
                             onClick={() => setPreviewResume(resume)}
-                            className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border"
                           >
                             <SearchIcon className="size-3.5" />
-                          </button>
+                          </Button>
                           <a
                             href={`/api/resumes/${resume.id}/file`}
                             target="_blank"
                             rel="noreferrer"
                             title="Open"
                             aria-label={`Open ${resume.displayName}`}
-                            className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border sm:h-8 sm:w-auto sm:px-2.5"
+                            className={cn(
+                              buttonVariants({ variant: "outline", size: "sm" }),
+                              "max-sm:w-8 max-sm:min-w-8 max-sm:px-0",
+                            )}
                           >
                             <OpenIcon className="size-3.5 sm:hidden" />
                             <span className="hidden text-[12px] sm:inline">Open</span>
                           </a>
                           {resume.status !== "active" ? (
-                            <button
+                            <Button
+                              variant="outline"
+                              size="sm"
                               type="button"
+                              loading={statusBusy}
+                              loadingText=""
                               disabled={busy}
                               title="Set as showcase"
                               aria-label={`Set ${resume.displayName} as showcase`}
+                              className="max-sm:w-8 max-sm:min-w-8 max-sm:px-0"
                               onClick={() => void patchResume(resume.id, { status: "active" })}
-                              className="border-border text-foreground hover:text-primary inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
                             >
-                              {busy ? (
-                                <Spinner className="size-3.5" label="Updating" />
-                              ) : (
-                                <>
-                                  <StarIcon className="size-3.5 sm:hidden" />
-                                  <span className="hidden text-[12px] sm:inline">
-                                    Set as showcase
-                                  </span>
-                                </>
-                              )}
-                            </button>
+                              <StarIcon className="size-3.5 sm:hidden" />
+                              <span className="hidden text-[12px] sm:inline">Set as showcase</span>
+                            </Button>
                           ) : (
-                            <button
+                            <Button
+                              variant="outline"
+                              size="sm"
                               type="button"
+                              loading={statusBusy}
+                              loadingText=""
                               disabled={busy}
                               title="Unset showcase"
                               aria-label={`Unset showcase for ${resume.displayName}`}
+                              className="max-sm:w-8 max-sm:min-w-8 max-sm:px-0"
                               onClick={() => void patchResume(resume.id, { status: "inactive" })}
-                              className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
                             >
-                              {busy ? (
-                                <Spinner className="size-3.5" label="Updating" />
-                              ) : (
-                                <>
-                                  <StarOffIcon className="size-3.5 sm:hidden" />
-                                  <span className="hidden text-[12px] sm:inline">
-                                    Unset showcase
-                                  </span>
-                                </>
-                              )}
-                            </button>
+                              <StarOffIcon className="size-3.5 sm:hidden" />
+                              <span className="hidden text-[12px] sm:inline">Unset showcase</span>
+                            </Button>
                           )}
                           {resume.status === "inactive" ? (
-                            <button
+                            <Button
+                              variant="destructive"
+                              size="sm"
                               type="button"
                               disabled={busy || deletePending}
                               title="Delete permanently"
                               aria-label={`Delete ${resume.displayName} permanently`}
+                              className="max-sm:w-8 max-sm:min-w-8 max-sm:px-0"
                               onClick={() => setDeleteTarget(resume)}
-                              className="border-border text-destructive hover:bg-destructive/10 inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
                             >
                               <TrashIcon className="size-3.5 sm:hidden" />
                               <span className="hidden text-[12px] sm:inline">
                                 Delete permanently
                               </span>
-                            </button>
+                            </Button>
                           ) : (
-                            <button
+                            <Button
+                              variant="outline"
+                              size="sm"
                               type="button"
+                              loading={archiveBusy}
+                              loadingText=""
                               disabled={busy}
                               title="Archive"
                               aria-label={`Archive ${resume.displayName}`}
+                              className="max-sm:w-8 max-sm:min-w-8 max-sm:px-0"
                               onClick={() => void archiveResume(resume.id)}
-                              className="border-border text-muted-foreground hover:text-foreground inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:w-auto sm:px-2.5"
                             >
-                              {busy ? (
-                                <Spinner className="size-3.5" label="Archiving" />
-                              ) : (
-                                <>
-                                  <ArchiveIcon className="size-3.5 sm:hidden" />
-                                  <span className="hidden text-[12px] sm:inline">Archive</span>
-                                </>
-                              )}
-                            </button>
+                              <ArchiveIcon className="size-3.5 sm:hidden" />
+                              <span className="hidden text-[12px] sm:inline">Archive</span>
+                            </Button>
                           )}
                         </div>
                       </li>
@@ -1026,55 +1039,46 @@ export function DocumentsHub({
                 <p className="aavedak-section-title text-foreground">
                   {editingClId ? "Edit cover letter" : "New cover letter"}
                 </p>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setClMode("job")}
-                    className={
-                      clMode === "job"
-                        ? "bg-primary/15 text-primary inline-flex h-7 items-center rounded-full px-2.5 text-[11px] font-medium"
-                        : "border-border text-muted-foreground inline-flex h-7 items-center rounded-full border px-2.5 text-[11px]"
-                    }
-                  >
+                <ToggleGroup
+                  aria-label="Cover letter target"
+                  variant="outline"
+                  size="sm"
+                  spacing={1}
+                  value={[clMode]}
+                  onValueChange={(next) => {
+                    if (next[0] === "job" || next[0] === "custom") setClMode(next[0]);
+                  }}
+                >
+                  <ToggleGroupItem value="job" className="h-7 rounded-full px-2.5 text-[11px]">
                     From Jobs
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setClMode("custom")}
-                    className={
-                      clMode === "custom"
-                        ? "bg-primary/15 text-primary inline-flex h-7 items-center rounded-full px-2.5 text-[11px] font-medium"
-                        : "border-border text-muted-foreground inline-flex h-7 items-center rounded-full border px-2.5 text-[11px]"
-                    }
-                  >
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="custom" className="h-7 rounded-full px-2.5 text-[11px]">
                     Custom company + role
-                  </button>
-                </div>
+                  </ToggleGroupItem>
+                </ToggleGroup>
                 {clMode === "job" ? (
                   <label className="block space-y-1">
                     <span className="text-muted-foreground text-[11px] font-medium">Job *</span>
-                    <Select value={clJobId || undefined} onValueChange={(v) => setClJobId(v || "")}>
-                      <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]">
-                        <SelectValue placeholder="Pick a job from Jobs…" />
-                      </SelectTrigger>
-                      <SelectContent
+                    <Combobox
+                      value={clJobId || undefined}
+                      onValueChange={(v) => setClJobId(v ?? "")}
+                    >
+                      <ComboboxTrigger
+                        placeholder="Pick a job from Jobs…"
+                        className="h-9 text-[13px]"
+                      />
+                      <ComboboxContent
                         className="z-280"
-                        searchable
                         searchPlaceholder="Search title or company…"
+                        emptyMessage="No jobs yet — add or paste a JD on Jobs"
                       >
-                        {jobs.length === 0 ? (
-                          <SelectItem value="__none" disabled>
-                            No jobs yet — add or paste a JD on Jobs
-                          </SelectItem>
-                        ) : (
-                          jobs.map((job) => (
-                            <SelectItem key={job.id} value={job.id}>
-                              {job.company} · {job.title}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
+                        {jobs.map((job) => (
+                          <ComboboxItem key={job.id} value={job.id}>
+                            {job.company} · {job.title}
+                          </ComboboxItem>
+                        ))}
+                      </ComboboxContent>
+                    </Combobox>
                   </label>
                 ) : (
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -1090,33 +1094,28 @@ export function DocumentsHub({
                     </label>
                     <label className="block space-y-1">
                       <span className="text-muted-foreground text-[11px] font-medium">Role *</span>
-                      <input
+                      <Input
                         value={clCustomRole}
                         onChange={(e) => setClCustomRole(e.target.value)}
                         placeholder="e.g. Software Engineer"
-                        className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
                       />
                     </label>
                   </div>
                 )}
-                <input
+                <Input
                   value={clTitle}
                   onChange={(e) => setClTitle(e.target.value)}
                   placeholder="Title — e.g. Cover for {{role}} at {{company}}"
-                  className="border-border bg-background text-foreground h-9 w-full rounded-lg border px-3 text-[13px]"
                 />
-                <textarea
-                  ref={clBodyRef}
+                <Textarea
                   value={clBody}
-                  onChange={(e) => {
-                    setClBody(e.target.value);
-                    resizeClBody();
-                  }}
+                  onChange={(e) => setClBody(e.target.value)}
                   placeholder={
                     "Dear Hiring Manager,\n\nI am writing to apply for the {{role}} role at {{company}}…"
                   }
-                  rows={1}
-                  className="border-border bg-background text-foreground box-border h-auto max-h-[min(80vh,800px)] min-h-40 w-full resize-none rounded-lg border px-3 py-2 font-mono text-[12px] leading-relaxed"
+                  rows={8}
+                  maxRows={32}
+                  className="min-h-40 font-mono text-[12px] leading-relaxed"
                 />
                 <div className="space-y-1.5">
                   <p className="text-foreground text-[11px] font-semibold tracking-tight">
@@ -1244,22 +1243,24 @@ export function DocumentsHub({
                   >
                     {editingClId ? "Update" : "Save cover letter"}
                   </Button>
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
                     type="button"
                     disabled={downloadBusy === "draft-pdf" || clOverflowsPage}
                     onClick={() => void downloadDraft("pdf")}
-                    className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
                   >
                     {downloadBusy === "draft-pdf" ? "PDF…" : "Download PDF"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     type="button"
                     disabled={downloadBusy === "draft-docx" || clOverflowsPage}
                     onClick={() => void downloadDraft("docx")}
-                    className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
                   >
                     {downloadBusy === "draft-docx" ? "DOCX…" : "Download DOCX"}
-                  </button>
+                  </Button>
                 </div>
               </Card>
 
@@ -1306,23 +1307,27 @@ export function DocumentsHub({
                             </p>
                           </div>
                           <div className="flex shrink-0 flex-wrap gap-1.5">
-                            <button
+                            <Button
+                              variant="outline"
+                              size="sm"
                               type="button"
                               disabled={downloadBusy === `${cl.id}-pdf`}
                               onClick={() => void downloadCl(cl, "pdf")}
-                              className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
                             >
                               {downloadBusy === `${cl.id}-pdf` ? "PDF…" : "PDF"}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               type="button"
                               disabled={downloadBusy === `${cl.id}-docx`}
                               onClick={() => void downloadCl(cl, "docx")}
-                              className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px] disabled:opacity-50"
                             >
                               {downloadBusy === `${cl.id}-docx` ? "DOCX…" : "DOCX"}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               type="button"
                               onClick={() => {
                                 setEditingClId(cl.id);
@@ -1338,17 +1343,17 @@ export function DocumentsHub({
                                   setClCustomRole(cl.roleTitle ?? "");
                                 }
                               }}
-                              className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                             >
                               Edit
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               type="button"
                               onClick={() => void archiveCoverLetter(cl.id)}
-                              className="border-border text-muted-foreground hover:text-foreground inline-flex h-8 items-center rounded-lg border px-2.5 text-[12px]"
                             >
                               Archive
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       </li>
@@ -1401,48 +1406,50 @@ export function DocumentsHub({
         </TabsContent>
       </Tabs>
 
-      <Modal
+      <Dialog
         open={Boolean(previewResume)}
-        onClose={() => setPreviewResume(null)}
-        title={previewResume?.displayName ?? "Resume preview"}
-        description={
-          previewResume
-            ? `${previewResume.originalFilename} · ${formatBytes(previewResume.byteSize)}`
-            : undefined
-        }
-        size="xl"
-        className="max-w-5xl"
-        footer={
-          previewResume ? (
-            <>
-              <a
-                href={`/api/resumes/${previewResume.id}/file`}
-                target="_blank"
-                rel="noreferrer"
-                className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
-              >
-                Open in new tab
-              </a>
-              <button
-                type="button"
-                onClick={() => setPreviewResume(null)}
-                className="bg-primary text-primary-foreground inline-flex h-8 items-center rounded-lg px-3 text-[12px] font-semibold"
-              >
-                Close
-              </button>
-            </>
-          ) : null
-        }
+        onOpenChange={(next) => {
+          if (!next) (() => setPreviewResume(null))();
+        }}
       >
-        {previewResume ? (
-          <iframe
-            key={previewResume.id}
-            src={`/api/resumes/${previewResume.id}/file`}
-            title={`Preview of ${previewResume.displayName}`}
-            className="bg-background h-[min(72vh,46rem)] w-full rounded-md border-0"
-          />
-        ) : null}
-      </Modal>
+        <DialogContent size="xl">
+          <DialogHeader>
+            <DialogTitle>{previewResume?.displayName ?? "Resume preview"}</DialogTitle>
+            <DialogDescription>
+              {previewResume
+                ? `${previewResume.originalFilename} · ${formatBytes(previewResume.byteSize)}`
+                : undefined}
+            </DialogDescription>
+          </DialogHeader>
+
+          {previewResume ? (
+            <iframe
+              key={previewResume.id}
+              src={`/api/resumes/${previewResume.id}/file`}
+              title={`Preview of ${previewResume.displayName}`}
+              className="bg-background h-[min(72vh,46rem)] w-full rounded-md border-0"
+            />
+          ) : null}
+
+          <DialogFooter>
+            {previewResume ? (
+              <>
+                <a
+                  href={`/api/resumes/${previewResume.id}/file`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="border-border text-foreground inline-flex h-8 items-center rounded-lg border px-3 text-[12px]"
+                >
+                  Open in new tab
+                </a>
+                <Button size="sm" type="button" onClick={() => setPreviewResume(null)}>
+                  Close
+                </Button>
+              </>
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={Boolean(deleteTarget)}

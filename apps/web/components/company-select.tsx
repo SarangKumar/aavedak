@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 export type CompanyOption = { id: string; name: string };
@@ -82,7 +85,7 @@ export function CompanySelect({
 
   return (
     <div ref={rootRef} className={cn("relative", className)}>
-      <input
+      <Input
         id={id}
         disabled={disabled}
         value={query}
@@ -96,7 +99,6 @@ export function CompanySelect({
           setOpen(true);
           onChange(e.target.value, null);
         }}
-        className="border-border bg-background text-foreground placeholder:text-muted-foreground h-9 w-full rounded-md border px-3 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
         autoComplete="off"
         role="combobox"
         aria-expanded={open}
@@ -104,17 +106,17 @@ export function CompanySelect({
         aria-autocomplete="list"
       />
       {open ? (
-        <div
+        <ScrollArea
           id="company-select-listbox"
           role="listbox"
-          className="border-border bg-popover absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border shadow-md"
+          className="border-border bg-popover absolute z-50 mt-1 max-h-56 w-full rounded-md border shadow-md"
         >
           {loading ? <p className="text-muted-foreground px-3 py-2 text-[12px]">Loading…</p> : null}
           {options.map((opt) => (
-            <button
+            <Button
               key={opt.id}
-              type="button"
-              className="hover:bg-accent text-foreground flex w-full px-3 py-2 text-left text-[13px]"
+              variant="ghost"
+              className="h-auto min-h-9 w-full justify-start rounded-none py-2 text-left text-[13px] font-normal"
               onClick={() => {
                 onChange(opt.name, opt.id);
                 setQuery(opt.name);
@@ -122,21 +124,21 @@ export function CompanySelect({
               }}
             >
               {opt.name}
-            </button>
+            </Button>
           ))}
           {query.trim() && !exact ? (
-            <button
-              type="button"
-              className="border-border text-primary hover:bg-accent flex w-full border-t px-3 py-2 text-left text-[12px] font-medium"
+            <Button
+              variant="ghost"
+              className="border-border text-primary h-auto min-h-9 w-full justify-start rounded-none border-t py-2 text-left text-[12px]"
               onClick={() => void createAndSelect()}
             >
               Add “{query.trim()}”
-            </button>
+            </Button>
           ) : null}
           {!loading && options.length === 0 && !query.trim() ? (
             <p className="text-muted-foreground px-3 py-2 text-[12px]">Type to search companies</p>
           ) : null}
-        </div>
+        </ScrollArea>
       ) : null}
     </div>
   );

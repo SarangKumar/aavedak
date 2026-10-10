@@ -98,7 +98,7 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
         }
         trigger={
           <span className="relative inline-flex size-8">
-            <Avatar className="border-border size-8 border">
+            <Avatar className="size-8">
               {user.image ? (
                 <AvatarImage src={user.image} alt="" referrerPolicy="no-referrer" />
               ) : null}
