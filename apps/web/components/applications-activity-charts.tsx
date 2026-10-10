@@ -10,8 +10,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
+import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ActivityDay = { date: string; count: number };
 
@@ -30,10 +30,10 @@ type ActivityResponse = {
 };
 
 const RANGES = [
-  { value: "1", label: "1 month" },
-  { value: "3", label: "3 months" },
-  { value: "6", label: "6 months" },
-  { value: "12", label: "12 months" },
+  { value: "1", label: "month", short: "1M" },
+  { value: "3", label: "3 months", short: "3M" },
+  { value: "6", label: "6 months", short: "6M" },
+  { value: "12", label: "12 months", short: "12M" },
 ] as const;
 
 /** Friend lines only — the current user always uses CSS `--primary` (brand yellow). */
@@ -133,134 +133,121 @@ export function ApplicationsActivityCharts() {
   const tickInterval = Math.max(0, Math.ceil(chartData.length / 6) - 1);
   const rangeLabel = RANGES.find((r) => r.value === months)?.label ?? `${months} months`;
 
-  return (
-    <section aria-labelledby="activity-heading" className="space-y-3">
-      <div>
-        <h2
-          id="activity-heading"
-          className="text-foreground text-[13px] font-semibold tracking-tight"
+  const totalMine = series.find((s) => s.isMe)?.days.reduce((sum, d) => sum + d.count, 0) ?? 0;
+
+  const chartBody =
+    loading && !data ? (
+      <div className="text-muted-foreground flex h-[220px] items-center justify-center gap-2 text-[12px] sm:h-[280px]">
+        <Spinner label="" /> Loading chart…
+      </div>
+    ) : chartData.length === 0 ? (
+      <p className="text-muted-foreground flex h-[220px] items-center justify-center text-[12px]">
+        No application activity in this range yet.
+      </p>
+    ) : (
+      <ChartContainer config={chartConfig} className="aspect-auto h-[220px] w-full sm:h-[280px]">
+        <LineChart
+          data={chartData}
+          accessibilityLayer
+          margin={{ left: 4, right: 8, top: 8, bottom: 28 }}
         >
-          Applications per day
-        </h2>
-        <p className="text-muted-foreground text-[11px] leading-relaxed">
-          One shared chart — you and your friends as colored lines. Live counts from the tracker
-          (deleting an application removes that day&apos;s contribution).
-        </p>
-      </div>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <XAxis
+            dataKey="label"
+            tickLine={false}
+            axisLine={false}
+            minTickGap={24}
+            interval={tickInterval}
+            tickMargin={8}
+          />
+          <YAxis
+            allowDecimals={false}
+            width={28}
+            tickLine={false}
+            axisLine={false}
+            tickMargin={4}
+          />
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                labelFormatter={(_, payload) => {
+                  const row = payload?.[0]?.payload as { date?: string } | undefined;
+                  return row?.date ?? "";
+                }}
+              />
+            }
+          />
+          <Legend
+            verticalAlign="bottom"
+            align="left"
+            wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+          />
+          {series.map((s, i) => {
+            const key = seriesKey(s);
+            const friendIndex = series.slice(0, i).filter((x) => !x.isMe).length;
+            const stroke = strokeForSeries(s, friendIndex);
+            return (
+              <Line
+                key={s.userId}
+                dataKey={key}
+                name={seriesLabel(s)}
+                type="monotone"
+                stroke={stroke}
+                strokeWidth={s.isMe ? 2.5 : 2}
+                dot={{
+                  r: s.isMe ? 3.5 : 2.5,
+                  fill: "var(--color-foreground)",
+                  stroke,
+                  strokeWidth: 2,
+                }}
+                activeDot={{
+                  r: 5,
+                  fill: "var(--color-foreground)",
+                  stroke,
+                  strokeWidth: 2,
+                }}
+              />
+            );
+          })}
+        </LineChart>
+      </ChartContainer>
+    );
 
-      {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
+  return (
+    <Tabs value={months} onValueChange={setMonths} className="h-full gap-0">
+      <Card role="region" className="h-full gap-3" aria-labelledby="activity-heading">
+        <CardHeader className="gap-y-1.5">
+          <CardTitle id="activity-heading" className="text-[13px] tracking-tight">
+            Applications per day
+          </CardTitle>
+          <CardDescription className="text-[11px] leading-relaxed">
+            {loading && !data
+              ? "Loading…"
+              : `${totalMine} logged in the last ${rangeLabel}${hasFriends ? " · friends shown as extra lines" : ""}`}
+          </CardDescription>
+          <CardAction className="max-sm:col-start-1 max-sm:row-span-1 max-sm:row-start-3 max-sm:justify-self-start">
+            <TabsList aria-label="Chart time range" className="h-8">
+              {RANGES.map((r) => (
+                <TabsTrigger key={r.value} value={r.value} className="px-2 text-[11px]">
+                  {r.short}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </CardAction>
+        </CardHeader>
 
-      <div className="space-y-2">
-        <Card className="border-border/80 bg-card gap-0 rounded-lg border p-4 shadow-sm">
-          {loading && !data ? (
-            <div className="text-muted-foreground flex h-[260px] items-center justify-center gap-2 text-[12px]">
-              <Spinner label="" /> Loading chart…
-            </div>
-          ) : chartData.length === 0 ? (
-            <p className="text-muted-foreground flex h-[200px] items-center justify-center text-[12px]">
-              No application activity in this range yet.
-            </p>
-          ) : (
-            <ChartContainer config={chartConfig} className="aspect-auto h-[280px] w-full">
-              <LineChart
-                data={chartData}
-                accessibilityLayer
-                margin={{ left: 4, right: 8, top: 8, bottom: 28 }}
-              >
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  minTickGap={24}
-                  interval={tickInterval}
-                  tickMargin={8}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  width={28}
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={4}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={(_, payload) => {
-                        const row = payload?.[0]?.payload as { date?: string } | undefined;
-                        return row?.date ?? "";
-                      }}
-                    />
-                  }
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  align="left"
-                  wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-                />
-                {series.map((s, i) => {
-                  const key = seriesKey(s);
-                  const friendIndex = series.slice(0, i).filter((x) => !x.isMe).length;
-                  const stroke = strokeForSeries(s, friendIndex);
-                  return (
-                    <Line
-                      key={s.userId}
-                      dataKey={key}
-                      name={seriesLabel(s)}
-                      type="monotone"
-                      stroke={stroke}
-                      strokeWidth={s.isMe ? 2.5 : 2}
-                      dot={{
-                        r: s.isMe ? 3.5 : 2.5,
-                        fill: "var(--color-foreground)",
-                        stroke,
-                        strokeWidth: 2,
-                      }}
-                      activeDot={{
-                        r: 5,
-                        fill: "var(--color-foreground)",
-                        stroke,
-                        strokeWidth: 2,
-                      }}
-                    />
-                  );
-                })}
-              </LineChart>
-            </ChartContainer>
-          )}
-        </Card>
+        {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
 
-        <div className="flex justify-end">
-          <Card
-            className="border-border/70 bg-card inline-flex items-center gap-1 rounded-lg border p-1 text-[11px] shadow-sm"
-            role="group"
-            aria-label="Chart time range"
-          >
-            {RANGES.map((r) => (
-              <button
-                key={r.value}
-                type="button"
-                className={cn(
-                  "cursor-pointer rounded-md px-2 py-1",
-                  months === r.value
-                    ? "bg-primary/15 text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => setMonths(r.value)}
-              >
-                {r.label}
-              </button>
-            ))}
-          </Card>
-        </div>
-      </div>
+        <TabsContent value={months} className="min-w-0">
+          {chartBody}
+        </TabsContent>
 
-      {!hasFriends && !loading ? (
-        <p className="text-muted-foreground text-[12px] leading-relaxed">
-          Invite a friend from Profile → Friends. When they accept, their line appears on this same
-          chart ({rangeLabel} range).
-        </p>
-      ) : null}
-    </section>
+        {!hasFriends && !loading ? (
+          <p className="text-muted-foreground text-[11px] leading-relaxed">
+            Invite a friend from Profile → Friends to compare lines on this chart.
+          </p>
+        ) : null}
+      </Card>
+    </Tabs>
   );
 }

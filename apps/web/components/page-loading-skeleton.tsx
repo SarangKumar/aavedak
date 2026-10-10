@@ -101,119 +101,128 @@ function TableSkeleton({ columns, rows = 5 }: { columns: number; rows?: number }
   );
 }
 
+/**
+ * Mirrors app/dashboard/page.tsx: header, then groups — Overview (KPIs + full-width chart),
+ * Needs attention (two lists), Jobs and applications (2/3 + 1/3), Pipeline health (two cards),
+ * Workspace strip.
+ */
 function DashboardSkeleton() {
+  const cardClass = "border-border bg-card rounded-md border p-4";
+
+  const groupHeading = (
+    <div className="space-y-1">
+      <Skeleton className="h-3 w-28" />
+      <Skeleton className="h-3 w-64 max-w-full" />
+    </div>
+  );
+
+  const listCard = (key: number, className?: string, withRing = false) => (
+    <div key={key} className={cn(cardClass, "space-y-2.5", className)}>
+      <div className="flex items-center justify-between gap-2">
+        <Skeleton className="h-4 w-36" />
+        <Skeleton className="h-3 w-16" />
+      </div>
+      <div className="divide-border/60 divide-y">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-2.5">
+            {withRing ? <Skeleton className="size-8 shrink-0 rounded-full" /> : null}
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-3.5 w-40 max-w-full" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+            <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="relative overflow-hidden">
-      <SkeletonPage className="relative space-y-7 py-8 sm:py-10">
-        <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-          <div className="space-y-1">
-            <Skeleton className="h-3 w-14" />
-            <Skeleton className="h-8 w-56 sm:h-9" />
-            <Skeleton className="h-4 w-72 max-w-full" />
-          </div>
-          <Skeleton className="h-3 w-36" />
-        </header>
+    <SkeletonPage className="space-y-8 py-8 sm:py-10">
+      <header className="space-y-1.5">
+        <Skeleton className="h-3 w-14" />
+        <Skeleton className="h-8 w-56 sm:h-9" />
+        <Skeleton className="h-4 w-72 max-w-full" />
+        <Skeleton className="h-3 w-40" />
+      </header>
 
-        <section className="space-y-2.5">
-          <Skeleton className="h-4 w-28" />
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                className="border-border/80 bg-card space-y-2 rounded-lg border p-3.5 shadow-sm"
-              >
-                <Skeleton className="h-3.5 w-24" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-4/5" />
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Matches ApplicationsActivityCharts: chart card + range chips outside, bottom-right */}
-        <section className="space-y-3">
-          <div className="space-y-1">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-3 w-72 max-w-full" />
-          </div>
-          <div className="space-y-2">
-            <div className="border-border/80 bg-card rounded-lg border p-4 shadow-sm">
-              <div className="mb-3 flex flex-wrap gap-2">
-                <Skeleton className="h-3 w-16 rounded-full" />
-                <Skeleton className="h-3 w-20 rounded-full" />
-              </div>
-              <Skeleton className="h-70 w-full rounded-md" />
+      <section className="space-y-4">
+        {groupHeading}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className={cn(cardClass, "space-y-2 p-3 sm:p-4")}>
+              <Skeleton className="h-2.5 w-24" />
+              <Skeleton className="h-8 w-12" />
+              <Skeleton className="h-3 w-full max-w-36" />
             </div>
-            <div className="flex justify-end">
-              <div className="border-border/70 bg-card flex gap-1 rounded-lg border p-1">
-                <Skeleton className="h-7 w-16 rounded-md" />
-                <Skeleton className="h-7 w-16 rounded-md" />
-                <Skeleton className="h-7 w-16 rounded-md" />
-                <Skeleton className="h-7 w-16 rounded-md" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-2.5">
-          <Skeleton className="h-4 w-14" />
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <div
-                key={i}
-                className="border-border/80 bg-card space-y-1.5 rounded-lg border p-3 shadow-sm"
-              >
-                <Skeleton className="h-2.5 w-12" />
-                <Skeleton className="h-6 w-8" />
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="space-y-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3 w-20" />
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="border-border/80 bg-card space-y-1.5 rounded-lg border p-3 shadow-sm"
-              >
-                <Skeleton className="h-2.5 w-14" />
-                <Skeleton className="h-6 w-8" />
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {[0, 1].map((col) => (
-            <section
-              key={col}
-              className="border-border/80 bg-card space-y-2.5 rounded-lg border p-4 shadow-sm"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <Skeleton className="h-4 w-36" />
-                <Skeleton className="h-3 w-14" />
-              </div>
-              <div className="divide-border/60 divide-y">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-start justify-between gap-2 py-2.5">
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-32 max-w-full" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                    <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
-                  </div>
-                ))}
-              </div>
-            </section>
           ))}
         </div>
-      </SkeletonPage>
-    </div>
+        <div className={cn(cardClass, "space-y-3")}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-3 w-56 max-w-full" />
+            </div>
+            <Skeleton className="h-8 w-36 rounded-lg" />
+          </div>
+          <Skeleton className="h-[220px] w-full rounded-md sm:h-[280px]" />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        {groupHeading}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {[0, 1].map((i) => listCard(i))}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        {groupHeading}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {listCard(0, "lg:col-span-2", true)}
+          {listCard(1)}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        {groupHeading}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className={cn(cardClass, "space-y-3")}>
+            <Skeleton className="h-4 w-36" />
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Skeleton className="h-3 w-20 shrink-0" />
+                <Skeleton className="h-3.5 rounded-sm" style={{ width: `${70 - i * 6}%` }} />
+              </div>
+            ))}
+          </div>
+          <div className={cn(cardClass, "space-y-4")}>
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-full" />
+            </div>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <Skeleton className="h-3 w-24" />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className={cn(cardClass, "flex items-center justify-between p-3")}>
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-4 w-6" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </SkeletonPage>
   );
 }
 
@@ -271,7 +280,7 @@ function JobTrackerSkeleton() {
     <SkeletonPage className="space-y-6 py-8 sm:py-10">
       <PageHeaderSkeleton titleWidth="w-40" blurbWidth="w-full max-w-2xl" withToolbar />
 
-      {/* Status filter chips, then search (matches components/job-tracker-board.tsx) */}
+      {/* Status filter chips, then search; columns use the board's h-[min(75vh,46rem)] (components/job-tracker-board.tsx) */}
       <Card className="border-border/80 bg-card gap-0 rounded-xl border p-3">
         <div className="flex flex-wrap gap-1.5">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -287,14 +296,14 @@ function JobTrackerSkeleton() {
             {Array.from({ length: 6 }).map((_, i) => (
               <section
                 key={i}
-                className="border-border/60 bg-muted/25 flex h-[min(50vh,28rem)] w-[18rem] shrink-0 flex-col overflow-hidden rounded-lg border"
+                className="border-border/60 bg-muted/25 flex h-[min(75vh,46rem)] w-[18rem] shrink-0 flex-col overflow-hidden rounded-lg border"
               >
                 <div className="mb-0 flex shrink-0 items-center justify-between gap-2 px-2.5 pb-2 pt-2.5">
                   <Skeleton className="h-3.5 w-20" />
                   <Skeleton className="h-5 w-5 rounded-full" />
                 </div>
                 <div className="min-h-0 flex-1 space-y-2.5 overflow-hidden p-2.5 pt-0">
-                  {Array.from({ length: i % 3 === 0 ? 3 : 2 }).map((_, j) => (
+                  {Array.from({ length: i % 3 === 0 ? 5 : 4 }).map((_, j) => (
                     <div
                       key={j}
                       className="border-border/50 bg-muted/40 space-y-2 rounded-lg border p-3"
@@ -495,13 +504,27 @@ function ReferralsSkeleton() {
           </div>
           <Skeleton className="ml-auto h-8 w-28 rounded-md" />
         </Card>
-        <div className="flex min-h-96 gap-3">
+        {/* Same h-[min(70vh,44rem)] as the column row in components/referrals-composer.tsx */}
+        <div className="flex h-[min(70vh,44rem)] gap-3 overflow-hidden">
           {[1, 2, 1].map((weight, i) => (
-            <Card key={i} className="min-w-0 gap-2 p-3" style={{ flex: `${weight} 1 0%` }}>
+            <Card
+              key={i}
+              className="h-full min-w-[240px] gap-2 overflow-hidden p-3"
+              style={{ flex: `${weight} 1 0%` }}
+            >
               <Skeleton className="h-4 w-28" />
-              {Array.from({ length: i === 1 ? 5 : 3 }).map((_, j) => (
-                <Skeleton key={j} className="h-14 w-full rounded-md" />
-              ))}
+              {i === 1 ? (
+                <>
+                  <Skeleton className="h-8 w-full rounded-lg" />
+                  <Skeleton className="h-8 w-full rounded-lg" />
+                  <Skeleton className="min-h-0 w-full flex-1 rounded-xl" />
+                  <Skeleton className="h-9 w-32 self-end rounded-md" />
+                </>
+              ) : (
+                Array.from({ length: 7 }).map((_, j) => (
+                  <Skeleton key={j} className="h-14 w-full shrink-0 rounded-md" />
+                ))
+              )}
             </Card>
           ))}
         </div>
