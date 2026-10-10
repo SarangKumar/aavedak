@@ -179,8 +179,7 @@ export async function POST(request: Request) {
       scoreLabel: analysis.scoreLabel,
       analysis: { ...analysis, atsIssues: normalizeAtsIssues(analysis.atsIssues) },
       error: analysis.error,
-      engineRuntime:
-        analysis.engine === "fastapi" ? "fastapi" : eng.id === "aavedak" ? "fallback" : "reference",
+      engineRuntime: "fastapi",
       profileVersion: eng.profileVersion,
     };
     return NextResponse.json({ result });

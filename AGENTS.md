@@ -34,7 +34,7 @@ cd apps/api && .venv/bin/python -m pytest tests -q
 TEST_DATABASE_URL=postgresql://... .venv/bin/python -m pytest tests/test_discovery_db.py -q
 
 # Web ATS engine tests (plain node:assert script, no test framework), from apps/web
-npx --yes tsx lib/ats-engines/run-tests.ts
+npx --yes tsx lib/ats-engines/run-tests.ts   # registry/stages/stream only; scoring tests are in apps/api
 ```
 
 Known pre-existing failures: `tests/test_ats_benchmark.py::test_improvements_never_ask_to_invent` (a structural recommendation lacks the asserted wording), and `pnpm lint` (an unused eslint-disable in `app/opengraph-image.tsx`).
@@ -43,7 +43,7 @@ Known pre-existing failures: `tests/test_ats_benchmark.py::test_improvements_nev
 
 `AGENTS.md` is the single shared source. Claude reads it via `CLAUDE.md` (`@AGENTS.md`); Cursor reads it natively and via `.cursor/rules/project.mdc`. Area-specific detail goes in a doc next to the code, loaded only on demand through a glob-scoped `.cursor/rules/*.mdc` and a nested `CLAUDE.md` with an `@` import. Don't copy that detail here. When you change an area, update its doc and keep this file's summary accurate.
 
-Local dev: run `pnpm dev` and `pnpm dev:api` together. `next dev` writes to `apps/web/.next-dev` and builds to `.next` (`next.config.ts`), so running `pnpm build` while dev is up is safe; Next rewrites the `next-env.d.ts` reference accordingly — don't commit that churn. In development, `next.config.ts` rewrites `/svc/*` to `API_DEV_PROXY_URL` (default `http://127.0.0.1:8000`). Without the API, the native and reference engines silently use their TS fallbacks and the open-source engines show "Service unavailable". Vercel installs only `apps/api/requirements.txt` (runtime); uvicorn and pytest live in `requirements-dev.txt`. `.vercelignore` keeps tests/scripts/docs out of deployments. `apps/api/.venv` was created under an old path, so its `bin/*` shebangs are broken: call `.venv/bin/python -m <tool>`, or recreate the venv.
+Local dev: run `pnpm dev` and `pnpm dev:api` together. `next dev` writes to `apps/web/.next-dev` and builds to `.next` (`next.config.ts`), so running `pnpm build` while dev is up is safe; Next rewrites the `next-env.d.ts` reference accordingly — don't commit that churn. In development, `next.config.ts` rewrites `/svc/*` to `API_DEV_PROXY_URL` (default `http://127.0.0.1:8000`). Without the API, every ATS engine shows "Service unavailable" — scoring is Python-only, with no TS fallback. Vercel installs only `apps/api/requirements.txt` (runtime); uvicorn and pytest live in `requirements-dev.txt`. `.vercelignore` keeps tests/scripts/docs out of deployments. `apps/api/.venv` was created under an old path, so its `bin/*` shebangs are broken: call `.venv/bin/python -m <tool>`, or recreate the venv.
 
 The husky pre-commit hook runs lint-staged (ESLint `--fix --max-warnings=0` + Prettier on `apps/web`, Prettier on json/md/yml/css).
 
@@ -68,14 +68,14 @@ The husky pre-commit hook runs lint-staged (ESLint `--fix --max-warnings=0` + Pr
 
 ### ATS scoring (spans both apps)
 
-`/api/ats` (web) → `lib/ats-service.ts` → FastAPI `POST /svc/v1/ats/score` / `score-batch` (base URL from `NEXT_PUBLIC_API_URL` via `lib/api-url.ts`). If the API is unreachable, it falls back to the local TS heuristics in `lib/ats-analyze-fallback.ts`, and the result is tagged `engine: "fastapi" | "fallback"`.
+`/api/ats` (web) → `lib/ats-service.ts` → FastAPI `POST /svc/v1/ats/score` / `score-batch` (base URL from `NEXT_PUBLIC_API_URL` via `lib/api-url.ts`). There is no local fallback: if the API is unreachable, runs fail as "Service unavailable" (`/api/ats` returns 503). Don't add TS scoring back.
 
 - Python engine (`apps/api/app/ats/`): `resume_profile` + `jd_profile` + `evidence` → `scoring`/`analyze`. It runs in the mode `resume_only`, `role_match`, or `job_match`, chosen automatically. `version.py` emits `engineVersion`; bump it when scoring changes. Notes are in `app/ats/AUDIT.md`.
-- `lib/ats-engines/` (web) adds a registry of "reference" engines that approximate third-party ATS tools (Jobscan-, Teal-, SkillSyncer-style, …). Python mirrors them in `reference_profiles.py` / `reference_signals.py` / `reference_weights.py`. Keep both sides consistent when changing weights or signals.
-- Four `open_source` engines (Open ATS, ATS Resume Checker, Resume Skills Extractor, Hybrid Resume Analyzer) live only in Python (`oss_profiles.py` on the shared `pipeline.py`). They have no TS fallback and fail explicitly when FastAPI is down.
+- `lib/ats-engines/` (web) holds the engine registry (names, modes, input contracts, score types), stage labels, and the stream reader — no scoring. The "reference" engines that approximate third-party tools (Jobscan-, Teal-, SkillSyncer-style, …) are implemented only in Python (`reference_profiles.py` / `reference_signals.py` / `reference_weights.py`).
+- Four `open_source` engines (Open ATS, ATS Resume Checker, Resume Skills Extractor, Hybrid Resume Analyzer) live only in Python (`oss_profiles.py` on the shared `pipeline.py`).
 - The ATS page runs one resume × engine per request: `/api/ats/run` with `stream: true` → FastAPI `/score-engine/stream` (NDJSON stage events). Stage/outcome labels are defined centrally in `lib/ats-engines/stages.ts`; the results-table score cell is a circular `ScoreRing` gauge (`components/ui/score-ring.tsx`). Engines are shown by name with a small Native/OSS/Ref tag (`components/ats-engine-badge.tsx`).
 - Full engine methodology, contracts, and the stage protocol are in `apps/api/app/ats/ENGINES.md`. It is auto-loaded for ATS files via `.cursor/rules/ats-engines.mdc` and nested `CLAUDE.md` files; read it before changing any engine.
-- Calibration fixtures: `apps/api/app/ats/benchmarks/fixtures.py` (expected ordering: excellent → unrelated for a backend JD) and `apps/web/lib/ats-engines/calibration/`.
+- Calibration fixtures: `apps/api/app/ats/benchmarks/fixtures.py` (expected ordering: excellent → unrelated for a backend JD).
 
 ### Job & people discovery (FastAPI; web shows results)
 

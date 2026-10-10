@@ -62,6 +62,12 @@
         "components/ui/alert-dialog/index.tsx"
       ],
       "installedAt": "2026-10-09"
+    },
+    "input-group": {
+      "files": [
+        "components/ui/input-group/index.tsx"
+      ],
+      "installedAt": "2026-10-10"
     }
   }
 }

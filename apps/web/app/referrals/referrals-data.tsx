@@ -3,6 +3,7 @@ import { isAdminEmail } from "@/lib/admin";
 import { requireOnboarded } from "@/lib/app-access";
 import { listApplications } from "@/lib/applications";
 import { listFollowUps } from "@/lib/follow-ups";
+import { listDiscoverJobs } from "@/lib/jobs";
 import { listPeople } from "@/lib/people";
 import { ensureDefaultOutreachTemplate, listTemplates } from "@/lib/templates";
 
@@ -16,6 +17,8 @@ export async function ReferralsBoard({ variant }: { variant: "page" | "board" })
   const templates = await listTemplates(user.id);
   // Include sent follow-ups so Applications can split Needs referral vs Already sent.
   const followUps = await listFollowUps(user.id, { includeClosed: true });
+  // Jobs-page jobs with no application yet (shown as "Not applied" in Active applications).
+  const discoverJobs = await listDiscoverJobs(user.id);
 
   return (
     <div className="relative overflow-hidden">
@@ -34,6 +37,12 @@ export async function ReferralsBoard({ variant }: { variant: "page" | "board" })
             status: app.status,
             jobId: app.jobId,
             updatedAt: app.updatedAt,
+          }))}
+          initialDiscoverJobs={discoverJobs.map((j) => ({
+            id: j.id,
+            title: j.title,
+            company: j.company,
+            location: j.location,
           }))}
           initialPeople={people.map((p) => ({
             id: p.id,

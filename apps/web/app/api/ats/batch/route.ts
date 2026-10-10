@@ -196,12 +196,7 @@ export async function POST(request: Request) {
         scoreLabel: analysis.scoreLabel,
         analysis: normalized,
         error: analysis.error,
-        engineRuntime:
-          analysis.engine === "fastapi"
-            ? "fastapi"
-            : combo.engineId === "aavedak"
-              ? "fallback"
-              : "reference",
+        engineRuntime: "fastapi",
         profileVersion: eng.profileVersion,
       });
     } catch (err) {

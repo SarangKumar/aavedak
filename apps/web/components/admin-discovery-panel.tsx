@@ -27,7 +27,6 @@ import {
   FileUploadList,
   type FileUploadFile,
 } from "@/components/ui/file-upload";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -40,6 +39,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { formatDateTimeFixed } from "@/lib/format-datetime";
+import { SearchInput } from "@/components/search-input";
 
 /**
  * Admin control surface for job + people discovery. All work runs in FastAPI; this panel
@@ -727,7 +727,8 @@ function SourcesSheet({
               </div>
             </div>
             <Separator />
-            <Input
+            <SearchInput
+              className="h-9"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search company or token…"

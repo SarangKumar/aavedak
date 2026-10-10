@@ -50,6 +50,7 @@ import type {
 import { takeAtsPrefill, type AtsPrefill } from "@/lib/ats-prefill";
 import { detectAtsMode } from "@/lib/ats-types";
 import { cn } from "@/lib/utils";
+import { SearchInput } from "@/components/search-input";
 
 type ResumeRow = {
   id: string;
@@ -862,13 +863,12 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
           ) : (
             <div className="space-y-2">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <input
-                  type="search"
+                <SearchInput
                   value={resumeQuery}
                   disabled={running}
                   onChange={(e) => setResumeQuery(e.target.value)}
                   placeholder="Search resumes…"
-                  className="border-border bg-background text-foreground w-full rounded-lg border px-3 py-2 text-[13px] disabled:opacity-60 sm:max-w-sm"
+                  className="h-9 w-full sm:max-w-sm"
                   aria-label="Search resumes"
                 />
                 <Button

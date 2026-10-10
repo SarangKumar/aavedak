@@ -8,7 +8,6 @@ import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ResizeHandle } from "@/components/ui/resize-handle";
 import {
   Select,
@@ -22,6 +21,7 @@ import { formatDateTimeReadable } from "@/lib/format-datetime";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { SearchInput } from "@/components/search-input";
 
 export type FollowUpDto = {
   id: string;
@@ -396,12 +396,12 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
 
   const toolbar = (
     <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2">
-      <Input
+      <SearchInput
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search company, person, role…"
         aria-label="Search conversations"
-        className="h-8 w-full text-[13px] sm:max-w-xs"
+        className="w-full sm:max-w-xs"
       />
       <Select
         value={applicationId || "all"}

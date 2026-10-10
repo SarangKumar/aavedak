@@ -66,6 +66,7 @@ import { CompanySelect } from "@/components/company-select";
 import { DatePickerField } from "@/components/ui/calendar";
 import { formatDateOnly } from "@/lib/format-datetime";
 import { cn } from "@/lib/utils";
+import { SearchInput } from "@/components/search-input";
 
 const LIST_PAGE_SIZES = [10, 25, 50] as const;
 type ListPageSize = (typeof LIST_PAGE_SIZES)[number];
@@ -621,13 +622,12 @@ export function JobTrackerBoard({
         <label className="sr-only" htmlFor="tracker-search">
           Search applications
         </label>
-        <input
+        <SearchInput
           id="tracker-search"
-          type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search company, role, location…"
-          className="border-border bg-card text-foreground placeholder:text-muted-foreground h-9 w-full rounded-xl border px-3 text-[13px]"
+          className="h-9 w-full"
         />
       </div>
 

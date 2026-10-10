@@ -34,6 +34,8 @@ import { formatDateTimeReadable } from "@/lib/format-datetime";
 import { STATUS_LABELS } from "@/lib/application-status";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { SearchInput } from "@/components/search-input";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 
 export type ApplicationDto = {
   id: string;
@@ -43,8 +45,31 @@ export type ApplicationDto = {
   status: ApplicationStatus;
   /** Set when the application was created from a job on the Jobs page. */
   jobId?: string | null;
+  /**
+   * A Jobs-page job with no application yet (id = `job:<jobId>`). Picking it and sending
+   * creates a Bookmarked application first, because referral mail attaches to an application.
+   */
+  jobOnly?: boolean;
   updatedAt: string;
 };
+
+export type DiscoverJobLite = { id: string; title: string; company: string; location: string };
+
+/** Filter keys for the status toggles: real statuses plus jobs not applied to yet. */
+type StatusKey = ApplicationStatus | "not_applied";
+
+const STATUS_FILTERS: Array<{ value: StatusKey; label: string }> = [
+  { value: "not_applied", label: "Not applied" },
+  { value: "bookmarked", label: "Bookmarked" },
+  { value: "preparing", label: "Preparing" },
+  { value: "applied", label: "Applied" },
+  { value: "under_review", label: "Under review" },
+  { value: "assessment", label: "Assessment" },
+  { value: "interview", label: "Interview" },
+  { value: "ghosted", label: "Ghosted" },
+];
+
+const statusKeyOf = (app: ApplicationDto): StatusKey => (app.jobOnly ? "not_applied" : app.status);
 
 /** Statuses where asking for a referral can still help (everything still open). */
 const REFERRAL_ACTIVE_STATUSES: ReadonlySet<ApplicationStatus> = new Set([
@@ -165,6 +190,8 @@ type ReferralsComposerProps = {
   /** Kept for the page contract; no admin-only UI on this page now. */
   isAdmin?: boolean;
   initialApplications: ApplicationDto[];
+  /** Jobs-page jobs (recommended or added) the user hasn't applied to or bookmarked yet. */
+  initialDiscoverJobs?: DiscoverJobLite[];
   initialPeople: PersonDto[];
   initialTemplates: TemplateDto[];
   initialFollowUps: FollowUpDto[];
@@ -198,11 +225,26 @@ export function ReferralsComposer({
   userEmail,
   userName,
   initialApplications,
+  initialDiscoverJobs = [],
   initialPeople,
   initialTemplates,
   initialFollowUps,
 }: ReferralsComposerProps) {
-  const [applications] = useState(initialApplications);
+  const [applications, setApplications] = useState<ApplicationDto[]>(() => [
+    ...initialApplications,
+    ...initialDiscoverJobs.map((job): ApplicationDto => ({
+      id: `job:${job.id}`,
+      companyName: job.company,
+      role: job.title,
+      location: job.location,
+      status: "bookmarked",
+      jobId: job.id,
+      jobOnly: true,
+      updatedAt: "",
+    })),
+  ]);
+  const [listQuery, setListQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Set<StatusKey>>(() => new Set());
   const [people, setPeople] = useState(initialPeople);
   const [templates, setTemplates] = useState(initialTemplates);
   const [followUps, setFollowUps] = useState(initialFollowUps);
@@ -317,12 +359,30 @@ export function ReferralsComposer({
     [applications],
   );
 
+  const statusCounts = useMemo(() => {
+    const counts = new Map<StatusKey, number>();
+    for (const app of appliedApplications) {
+      counts.set(statusKeyOf(app), (counts.get(statusKeyOf(app)) ?? 0) + 1);
+    }
+    return counts;
+  }, [appliedApplications]);
+
+  /** Search + status toggles (an empty toggle selection means all statuses). */
+  const filteredApplications = useMemo(() => {
+    const q = listQuery.trim().toLowerCase();
+    return appliedApplications.filter((app) => {
+      if (statusFilter.size > 0 && !statusFilter.has(statusKeyOf(app))) return false;
+      if (!q) return true;
+      return `${app.companyName} ${app.role} ${app.location}`.toLowerCase().includes(q);
+    });
+  }, [appliedApplications, listQuery, statusFilter]);
+
   /** Needs tab keeps every active application even after some referrals were sent. */
-  const needsReferralApps = appliedApplications;
+  const needsReferralApps = filteredApplications;
 
   const referredApps = useMemo(
-    () => appliedApplications.filter((app) => hasSuccessfulReferral(app.id, followUps)),
-    [appliedApplications, followUps],
+    () => filteredApplications.filter((app) => hasSuccessfulReferral(app.id, followUps)),
+    [filteredApplications, followUps],
   );
 
   const visibleApplications = appReferralTab === "needs" ? needsReferralApps : referredApps;
@@ -556,12 +616,53 @@ export function ReferralsComposer({
     });
   }
 
+  /**
+   * Referral mail attaches to an application. For a Jobs-page job with no application yet,
+   * create a Bookmarked one (linked to the job) and swap it into the list.
+   */
+  async function ensureApplicationId(id: string): Promise<string> {
+    const app = applications.find((a) => a.id === id);
+    if (!app?.jobOnly) return id;
+    const res = await fetch("/api/applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        companyName: app.companyName,
+        role: app.role,
+        location: app.location || "Remote",
+        jobId: app.jobId,
+        status: "bookmarked",
+      }),
+    });
+    const data = (await res.json()) as { application?: { id: string }; error?: string };
+    if (!res.ok || !data.application) {
+      throw new Error(data.error || "Could not create an application for this job.");
+    }
+    const realId = data.application.id;
+    setApplications((list) =>
+      list.map((a) =>
+        a.id === id
+          ? {
+              ...a,
+              id: realId,
+              jobOnly: false,
+              status: "bookmarked",
+              updatedAt: new Date().toISOString(),
+            }
+          : a,
+      ),
+    );
+    setSelectedAppId(realId);
+    return realId;
+  }
+
   async function finalizeQueuedSend() {
     if (!selectedAppId) return;
     setPending(true);
     setCountdownVisible(false);
     dismissSendToast();
     try {
+      const applicationId = await ensureApplicationId(selectedAppId);
       const due = new Date();
       due.setUTCDate(due.getUTCDate() + 3);
       const dueDate = due.toISOString().slice(0, 10);
@@ -570,7 +671,7 @@ export function ReferralsComposer({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          applicationId: selectedAppId,
+          applicationId,
           personIds,
           subject,
           body,
@@ -964,10 +1065,11 @@ export function ReferralsComposer({
               </TabsList>
               <TabsContent value="needs" className="mt-0 outline-none focus-visible:ring-0">
                 <ul className="space-y-1.5">
-                  {appliedApplications.length === 0 ? (
+                  {needsReferralApps.length === 0 ? (
                     <li className="text-muted-foreground text-[12px]">
-                      No active applications yet. Add one on the job tracker, or apply to or
-                      bookmark a job on Jobs.
+                      {appliedApplications.length === 0
+                        ? "No active applications or jobs yet. Add one on the job tracker or find jobs on Jobs."
+                        : "Nothing matches this search or status filter."}
                     </li>
                   ) : (
                     needsReferralApps.map((app) => {
@@ -1184,22 +1286,36 @@ export function ReferralsComposer({
   }
 
   const toolbar = (
-    <Card size="sm" className="flex-row items-center gap-2 px-3 py-2">
-      <p className="text-muted-foreground min-w-0 flex-1 truncate text-[12px]">
-        Pick an application, a template and people, then confirm. Drag a column by its grip to
-        reorder.
-      </p>
-      <Link
-        href={variant === "board" ? "/outreach/board" : "/outreach"}
-        className={buttonVariants({ variant: "outline", size: "sm" })}
-      >
-        Open outreach inbox
-      </Link>
-      <BoardToggleLink
-        expanded={variant === "board"}
-        href={variant === "board" ? "/referrals" : "/referrals/board"}
-        label="referrals board"
+    <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2">
+      <SearchInput
+        value={listQuery}
+        onChange={(e) => setListQuery(e.target.value)}
+        placeholder="Search company, role, location…"
+        aria-label="Search applications and jobs"
+        className="w-full sm:max-w-xs"
       />
+      <ToggleGroup
+        aria-label="Filter by status"
+        items={STATUS_FILTERS.filter((f) => (statusCounts.get(f.value) ?? 0) > 0).map((f) => ({
+          ...f,
+          count: statusCounts.get(f.value) ?? 0,
+        }))}
+        value={statusFilter}
+        onValueChange={setStatusFilter}
+      />
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        <Link
+          href={variant === "board" ? "/outreach/board" : "/outreach"}
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Open outreach inbox
+        </Link>
+        <BoardToggleLink
+          expanded={variant === "board"}
+          href={variant === "board" ? "/referrals" : "/referrals/board"}
+          label="referrals board"
+        />
+      </div>
     </Card>
   );
 
@@ -1394,7 +1510,7 @@ export function ReferralsComposer({
 
   if (variant === "board") {
     return (
-      <FullscreenBoard>
+      <FullscreenBoard className="gap-2">
         {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
         {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
 
@@ -1425,8 +1541,10 @@ export function ReferralsComposer({
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
       {notice ? <p className="text-primary text-[13px] font-medium">{notice}</p> : null}
 
-      {toolbar}
-      {columns}
+      <div className="space-y-2">
+        {toolbar}
+        {columns}
+      </div>
 
       <Card className="border-border/80 bg-card gap-0 space-y-2 rounded-xl border p-4">
         <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
@@ -1494,7 +1612,7 @@ function AppTags({ app, needsReferral = false }: { app: ApplicationDto; needsRef
   return (
     <span className="mt-1 flex flex-wrap gap-1">
       <Badge variant="outline" className="h-5 text-[10px]">
-        {STATUS_LABELS[app.status]}
+        {app.jobOnly ? "Not applied" : STATUS_LABELS[app.status]}
       </Badge>
       {app.jobId ? (
         <Badge variant="outline" className="h-5 text-[10px]">

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Referrals — search, status filter and unapplied jobs** — The top strip has a search box and status toggles (Not applied, Bookmarked, Preparing, Applied and more) to narrow the Active applications list. The list now includes jobs from the Jobs page you haven't applied to yet, marked "Not applied". Sending a referral for one adds it to your tracker as Bookmarked first. The strip sits closer to the columns.
+- **Search icons** — Every search box now shows a magnifying-glass icon before the placeholder.
 - **Referrals and Outreach — full-screen boards** — Like Jobs, the Referrals columns and the Outreach inbox can expand to a full-screen board and collapse back. Each top strip links to the other page, and in full-screen mode that link opens the other board full-screen too.
 - **Referrals — active applications** — The left column now lists every open application, from your tracker and from jobs you applied to or bookmarked on Jobs, not just ones marked Applied. Each shows its status and a "From Jobs" tag where it applies. The page header is simpler: the Admin badge and Manage people button are gone, and Open outreach inbox moved to the top strip.
 - **Jobs — full-screen board** — A top bar holds search, a source filter, Add job and Paste JD. The expand button opens the jobs board on its own full-screen page, and collapse brings you back to the same job.
@@ -29,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Jobs full-screen board** — Both panels now fill the full height, and "About the job" stretches to use the spare space.
+- **Referrals loading state** — The loading placeholder now matches the real column widths, with the middle column twice as wide.
 - **Outreach inbox layout** — The inbox now matches Jobs: a top strip with search, application filter, time range, Process due queue and expand, then the conversation list and the mail as two separate panels. The time-range buttons no longer stack vertically.
 - **Frozen resume column** — On the ATS page and in the Jobs resume check, the resume column stays put while engine columns scroll, and its divider no longer scrolls away.
 - **Admin — starting a job scan** — Starting the first scan no longer shows a false "service unavailable" error, and clicking it again resumes the scan in progress instead of starting a duplicate. First-time setup of the job sources is much faster.
@@ -41,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Version** — Aavedak is now labelled v0.1.0, since it hasn't had a public release yet.
+- **ATS scores always come from the full scoring engine** — Every ATS engine now scores only through the scoring service. If the service is down, the result says "Service unavailable" instead of showing a simplified offline score that could differ from the real one.
 - **Resizable panels** — The divider between side-by-side panels (Jobs, Outreach) is now a simple three-dot grip in a gap half as wide as before, instead of a border line and handle. In the Jobs resume check, the resume column stays in place while you scroll across engines.
 - **Faster ATS scans** — When you score several resumes, they are now scanned at the same time instead of one after another, on both the ATS page and the Jobs page.
 - **Smaller API deployment** — The Python function no longer ships the local development server or test tooling, and tests, scripts and docs are excluded from deployments, roughly halving the API bundle.
@@ -97,9 +103,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Referrals composer** — Three reorderable columns (Applications / Cold email / People), Gmail From locked to signed-in user, confirm + queue follow-ups (no send). Admin allowlist via `ADMIN_EMAILS` (+ local fallback). `POST /api/referrals/queue`.
 - **Dashboard** — Live SQLite snapshot: status counts, active apps / follow-ups / resumes / jobs, recent applications (5), upcoming follow-ups (5). Optional `GET /api/dashboard`.
 
-## [1.0.0] - 2026-10-07
+## [0.1.0] - not yet released
 
-First product cut of the Aavedak web app (local SQLite + Google Better Auth).
+First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Better Auth).
 
 ### Added
 

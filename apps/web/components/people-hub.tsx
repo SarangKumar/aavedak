@@ -27,6 +27,7 @@ import { PersonVote, personInitials, type VoteSummaryDto } from "@/components/pe
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { SearchInput } from "@/components/search-input";
 
 export type PersonDto = {
   id: string;
@@ -236,8 +237,8 @@ export function PeopleHub({ initialPeople, applications }: Props) {
       ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Input
-          className="sm:max-w-sm"
+        <SearchInput
+          className="h-9 sm:max-w-sm"
           placeholder="Search name, email, company…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}

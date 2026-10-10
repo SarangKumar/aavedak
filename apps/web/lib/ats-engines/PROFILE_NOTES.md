@@ -2,11 +2,11 @@
 
 > The open-source-adapted engines (Open ATS, ATS Resume Checker, Resume Skills Extractor, Hybrid Resume Analyzer) and the stage protocol are documented in `apps/api/app/ats/ENGINES.md`.
 
-These five engines are **independent Aavedak approximations** inspired by publicly documented product concepts. They are **not** vendor APIs, endorsements, or exact proprietary replicas.
+These five engines (implemented only in Python: `apps/api/app/ats/reference_profiles.py`) are **independent Aavedak approximations** inspired by publicly documented product concepts. They are **not** vendor APIs, endorsements, or exact proprietary replicas.
 
 | Profile       | Score type                    | Documented / verified                                                                                                                             | Approximation                                                 |
 | ------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Jobscan       | Job Match                     | Job-specific match vs one JD; hard/soft/other/title themes; readability often separate                                                            | Weights 45/15/25/15 configurable in `weights.ts`              |
+| Jobscan       | Job Match                     | Job-specific match vs one JD; hard/soft/other/title themes; readability often separate                                                            | Weights 45/15/25/15 in Python `reference_weights.py`          |
 | Resume Worded | Resume Quality / Targeted     | Weighted checks (impact, skills, wording, presentation)                                                                                           | Exact vendor check list & weights unknown                     |
 | Teal          | Resume Score **or** Job Match | Two distinct products                                                                                                                             | Separate formulas by mode; weights approximated               |
 | Rezi          | Optimization / Readiness      | Content, Format, Optimization, Best Practices, Application Readiness                                                                              | Not the proprietary 23 audits                                 |

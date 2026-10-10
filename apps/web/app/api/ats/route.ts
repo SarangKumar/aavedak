@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
-import { analyzeResumeViaService } from "@/lib/ats-service";
+import { analyzeResumeViaService, AtsServiceUnavailableError } from "@/lib/ats-service";
 import { detectAtsMode, fingerprintText } from "@/lib/ats-types";
 import type { AtsAnalysis } from "@/lib/ats-types";
 import { ensureResumeText, getActiveResume, getResume, listResumes } from "@/lib/resumes";
@@ -57,7 +57,6 @@ function emptyTextAnalysis(
     ],
     confidence: "low",
     error: message,
-    engine: "fallback",
     textChars: 0,
     textFingerprint: "empty",
   };
@@ -138,12 +137,21 @@ export async function POST(request: Request) {
     });
   }
 
-  const scored = await analyzeResumeViaService({
-    resumeId: resume.id,
-    resumeText: ensured.text,
-    jdText,
-    role,
-  });
+  let scored: Awaited<ReturnType<typeof analyzeResumeViaService>>;
+  try {
+    scored = await analyzeResumeViaService({
+      resumeId: resume.id,
+      resumeText: ensured.text,
+      jdText,
+      role,
+    });
+  } catch (err) {
+    // Python-only scoring: no local substitute when the service is down.
+    if (err instanceof AtsServiceUnavailableError) {
+      return NextResponse.json({ error: err.message }, { status: 503 });
+    }
+    throw err;
+  }
 
   return NextResponse.json({
     resume: {

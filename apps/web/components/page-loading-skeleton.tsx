@@ -460,47 +460,57 @@ function ReferralsSkeleton() {
               <Skeleton className="h-8 w-32 sm:h-9" />
               <Skeleton className="h-4 w-full max-w-2xl" />
             </div>
-            <Skeleton className="h-8 w-36 rounded-lg" />
           </header>
 
-          <div className="flex w-full gap-3 overflow-hidden pb-1">
-            {(["Applications", "Template", "People"] as const).map((label, i) => (
-              <section
-                key={label}
-                className="border-border/80 bg-card relative flex h-[min(70vh,40rem)] min-w-[240px] flex-1 flex-col rounded-xl border shadow-sm"
-                style={{ flex: `${i === 1 ? 1.1 : 1} 1 0%` }}
-              >
-                <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
-                  <div className="min-w-0 space-y-1.5">
-                    <Skeleton className="h-3.5 w-24" />
-                    <Skeleton className="h-3 w-36 max-w-full" />
+          <div className="space-y-2">
+            <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2">
+              <Skeleton className="h-8 w-full rounded-md sm:max-w-xs" />
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-7 w-24 rounded-full" />
+              ))}
+              <Skeleton className="ml-auto h-8 w-36 rounded-md" />
+              <Skeleton className="size-8 rounded-md" />
+            </Card>
+            <div className="flex w-full gap-3 overflow-hidden pb-1">
+              {(["Applications", "Template", "People"] as const).map((label, i) => (
+                <section
+                  key={label}
+                  className="border-border/80 bg-card relative flex h-[min(70vh,40rem)] min-w-[240px] flex-1 flex-col rounded-xl border shadow-sm"
+                  // Same proportions as the real columns: 1fr 2fr 1fr.
+                  style={{ flex: `${i === 1 ? 2 : 1} 1 0%` }}
+                >
+                  <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
+                    <div className="min-w-0 space-y-1.5">
+                      <Skeleton className="h-3.5 w-24" />
+                      <Skeleton className="h-3 w-36 max-w-full" />
+                    </div>
+                    <Skeleton className="size-8 shrink-0 rounded-md" />
+                  </header>
+                  <div className="min-h-0 flex-1 space-y-2 overflow-hidden p-3">
+                    {i === 1 ? (
+                      <>
+                        <Skeleton className="h-3 w-10" />
+                        <Skeleton className="h-8 w-full rounded-lg" />
+                        <Skeleton className="h-3 w-28" />
+                        <Skeleton className="h-8 w-full rounded-lg" />
+                        <Skeleton className="min-h-40 w-full rounded-lg" />
+                      </>
+                    ) : (
+                      Array.from({ length: 5 }).map((_, j) => (
+                        <div
+                          key={j}
+                          className="border-border/70 bg-muted/30 space-y-1.5 rounded-xl border px-2.5 py-2"
+                        >
+                          <Skeleton className="h-3.5 w-28" />
+                          <Skeleton className="h-3 w-36 max-w-full" />
+                          {i === 0 ? <Skeleton className="mt-1 h-5 w-16 rounded-full" /> : null}
+                        </div>
+                      ))
+                    )}
                   </div>
-                  <Skeleton className="size-8 shrink-0 rounded-md" />
-                </header>
-                <div className="min-h-0 flex-1 space-y-2 overflow-hidden p-3">
-                  {i === 1 ? (
-                    <>
-                      <Skeleton className="h-3 w-10" />
-                      <Skeleton className="h-8 w-full rounded-lg" />
-                      <Skeleton className="h-3 w-28" />
-                      <Skeleton className="h-8 w-full rounded-lg" />
-                      <Skeleton className="min-h-40 w-full rounded-lg" />
-                    </>
-                  ) : (
-                    Array.from({ length: 5 }).map((_, j) => (
-                      <div
-                        key={j}
-                        className="border-border/70 bg-muted/30 space-y-1.5 rounded-xl border px-2.5 py-2"
-                      >
-                        <Skeleton className="h-3.5 w-28" />
-                        <Skeleton className="h-3 w-36 max-w-full" />
-                        {i === 0 ? <Skeleton className="mt-1 h-5 w-16 rounded-full" /> : null}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
-            ))}
+                </section>
+              ))}
+            </div>
           </div>
 
           <section className="border-border/80 bg-card space-y-2 rounded-xl border p-4">

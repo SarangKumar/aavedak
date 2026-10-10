@@ -136,7 +136,8 @@ export type AtsAnalysis = {
   notes?: string[];
   weighting?: Record<string, number>;
   blurb?: string;
-  engine: "fastapi" | "fallback";
+  /** Always FastAPI (Python); absent on error placeholders that were never scored. */
+  engine?: "fastapi";
   /** Scoring formula version (Python primary emits this; fallback mirrors when aligned). */
   engineVersion?: string;
   error?: string;

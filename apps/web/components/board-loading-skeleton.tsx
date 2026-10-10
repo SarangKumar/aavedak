@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** Full-screen loading state for the `/…/board` routes (covers the site header like the board). */
 export function BoardLoadingSkeleton({ columns = 2 }: { columns?: 2 | 3 }) {
   return (
-    <div className="bg-background fixed inset-0 z-[60] flex flex-col gap-3 p-3 sm:p-4">
+    <div className="bg-background fixed inset-0 z-[60] flex flex-col gap-2 p-3 sm:p-4">
       <Card size="sm" className="flex-row items-center gap-2 p-2">
         <Skeleton className="h-8 w-full max-w-md rounded-md" />
         <Skeleton className="h-8 w-40 rounded-md" />
@@ -13,7 +13,8 @@ export function BoardLoadingSkeleton({ columns = 2 }: { columns?: 2 | 3 }) {
       {columns === 3 ? (
         <div className="flex min-h-0 flex-1 gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} className="min-w-0 flex-1 gap-2 p-3">
+            // 1fr 2fr 1fr, like the Referrals columns
+            <Card key={i} className="min-w-0 gap-2 p-3" style={{ flex: `${i === 1 ? 2 : 1} 1 0%` }}>
               <Skeleton className="h-6 w-32" />
               {Array.from({ length: 6 }).map((__, j) => (
                 <Skeleton key={j} className="h-12 w-full rounded-md" />

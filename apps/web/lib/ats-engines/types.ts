@@ -36,8 +36,6 @@ export type EngineCapability = {
   kind: "native" | "reference" | "open_source";
   /** Open-source project the engine is adapted from (kind "open_source"). */
   referenceRepo?: string;
-  /** Local TS fallback when FastAPI is unreachable; "none" fails explicitly instead of faking a score. */
-  fallback: "ts" | "none";
   /** Modes this engine can run (product config — not a vendor claim). */
   supportedModes: AtsMode[];
   title: InputRequirement;
@@ -119,7 +117,7 @@ export type AtsBatchResultCell = {
   analysis?: AtsAnalysis | null;
   error?: string;
   failureKind?: AtsFailureKind;
-  engineRuntime?: "fastapi" | "fallback" | "reference";
+  engineRuntime?: "fastapi";
   profileVersion?: string;
   /** Current/last backend stage for this combination. */
   stage?: AtsStage;

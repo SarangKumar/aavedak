@@ -19,7 +19,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ResizeHandle } from "@/components/ui/resize-handle";
 import {
@@ -42,6 +41,7 @@ import { saveAtsPrefill } from "@/lib/ats-prefill";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
 import type { JobDtoBase } from "@/lib/job-dto";
 import { cn } from "@/lib/utils";
+import { SearchInput } from "@/components/search-input";
 
 export type JobDto = JobDtoBase;
 
@@ -438,11 +438,11 @@ export function JobsHub({
     <>
       {/* Top bar: search, filter, add, expand/collapse */}
       <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2 sm:flex-nowrap">
-        <Input
+        <SearchInput
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search title, company, location, description…"
-          className="h-8 w-full text-[13px] sm:max-w-md"
+          className="w-full sm:max-w-md"
           aria-label="Search jobs"
         />
         <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v || "all")}>
@@ -795,7 +795,8 @@ function JobDetail({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    // flex-1: fill the details panel's full height (board and page) so no empty band is left.
+    <div className="flex flex-1 flex-col gap-4">
       {/* 1 · Job */}
       <Card className="gap-3">
         <div className="flex items-start gap-3">
@@ -912,8 +913,8 @@ function JobDetail({
         </div>
       </Card>
 
-      {/* 2 · About / JD */}
-      <Card className="gap-2">
+      {/* 2 · About / JD — stretches to take any spare height */}
+      <Card className="min-h-48 flex-1 gap-2">
         <SectionTitle
           action={
             job.description ? (
@@ -932,7 +933,7 @@ function JobDetail({
         >
           About the job
         </SectionTitle>
-        <pre className="text-muted-foreground max-h-96 overflow-auto whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
+        <pre className="text-muted-foreground min-h-0 flex-1 overflow-auto whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
           {job.description || "No description provided."}
         </pre>
       </Card>

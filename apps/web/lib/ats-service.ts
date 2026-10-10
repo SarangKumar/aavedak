@@ -1,12 +1,24 @@
 import "server-only";
 
-import { analyzeResumeFallback } from "@/lib/ats-analyze-fallback";
 import { absoluteApiUrl } from "@/lib/api-url";
 import { isAtsStage } from "@/lib/ats-engines/stages";
 import type { AtsFailureKind, AtsStage } from "@/lib/ats-engines/types";
 import { normalizeAtsIssues, type AtsAnalysis } from "@/lib/ats-types";
 
 export type { AtsAnalysis } from "@/lib/ats-types";
+
+/** All ATS scoring runs in FastAPI; there is no local fallback. */
+export const SERVICE_UNAVAILABLE_MESSAGE =
+  process.env.NODE_ENV === "development"
+    ? "Scoring service is not reachable. Start it with `pnpm dev:api` (FastAPI on :8000)."
+    : "Scoring service is unavailable right now. Try again shortly.";
+
+export class AtsServiceUnavailableError extends Error {
+  constructor(message = SERVICE_UNAVAILABLE_MESSAGE) {
+    super(message);
+    this.name = "AtsServiceUnavailableError";
+  }
+}
 
 async function postJson<T>(path: string, body: unknown): Promise<T | null> {
   try {
@@ -35,7 +47,7 @@ function asObjectArray<T extends object>(value: unknown): T[] {
 }
 
 /** Ensure Flight/JSON payloads always have the arrays the UI reads with `.length` / `.map`. */
-function normalizeAnalysis(row: AtsAnalysis, engine: "fastapi" | "fallback"): AtsAnalysis {
+function normalizeAnalysis(row: AtsAnalysis, engine: "fastapi"): AtsAnalysis {
   return {
     ...row,
     overallScore: typeof row.overallScore === "number" ? row.overallScore : (row.atsScore ?? 0),
@@ -101,7 +113,8 @@ const FAILURE_KINDS = new Set<AtsFailureKind>([
 
 /**
  * Stream one engine run from FastAPI (NDJSON). Calls `onStage` as the backend reports each stage.
- * Returns null when the service is unreachable or the stream is malformed (caller decides fallback).
+ * Returns null when the service is unreachable or the stream is malformed (caller reports
+ * "Service unavailable").
  */
 export async function streamEngineViaService(
   input: {
@@ -191,6 +204,7 @@ export async function streamEngineViaService(
   return null;
 }
 
+/** Native readiness / match score (legacy `/svc/v1/ats/score`). Throws when FastAPI is down. */
 export async function analyzeResumeViaService(input: {
   resumeId?: string;
   resumeText: string;
@@ -205,42 +219,5 @@ export async function analyzeResumeViaService(input: {
   if (remote && typeof remote.overallScore === "number") {
     return normalizeAnalysis({ ...remote, resumeId: input.resumeId || remote.resumeId }, "fastapi");
   }
-  return analyzeResumeFallback({
-    resumeId: input.resumeId || "",
-    resumeText: input.resumeText,
-    jdText: input.jdText,
-    role: input.role,
-  });
-}
-
-export async function analyzeResumesBatchViaService(input: {
-  resumes: Array<{ id: string; text: string }>;
-  jdText?: string;
-  role?: string;
-}): Promise<{ results: AtsAnalysis[]; engine: "fastapi" | "fallback"; mode?: string }> {
-  const remote = await postJson<{ results: AtsAnalysis[]; engine?: string; mode?: string }>(
-    "/svc/v1/ats/score-batch",
-    {
-      jdText: input.jdText ?? "",
-      role: input.role ?? "",
-      resumes: input.resumes,
-    },
-  );
-  if (remote?.results?.length) {
-    return {
-      results: remote.results.map((row) => normalizeAnalysis(row, "fastapi")),
-      engine: "fastapi",
-      mode: remote.mode,
-    };
-  }
-
-  const results = input.resumes.map((resume) =>
-    analyzeResumeFallback({
-      resumeId: resume.id,
-      resumeText: resume.text,
-      jdText: input.jdText,
-      role: input.role,
-    }),
-  );
-  return { results, engine: "fallback" };
+  throw new AtsServiceUnavailableError();
 }
