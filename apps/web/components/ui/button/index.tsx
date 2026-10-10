@@ -100,7 +100,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
       </span>
       {loading ? (
         <span className="absolute inset-0 inline-flex items-center justify-center gap-1.5">
-          <Spinner className="size-3.5" />
+          <Spinner className="size-3.5" label="" />
           {loadingText ? <span>{loadingText}</span> : null}
         </span>
       ) : null}

@@ -108,7 +108,7 @@ export function FriendsInviteCard() {
 
       {loading ? (
         <div className="text-muted-foreground flex items-center gap-2 text-[12px]">
-          <Spinner /> Loading…
+          <Spinner label="" /> Loading…
         </div>
       ) : (
         <>

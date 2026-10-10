@@ -340,7 +340,7 @@ export function OnboardingForm({
               <span className="text-muted-foreground text-[11px]">
                 {loadingList ? (
                   <span className="inline-flex items-center gap-1.5">
-                    <Spinner className="size-3" /> Loading…
+                    <Spinner className="size-3" label="" /> Loading…
                   </span>
                 ) : (
                   `${resumes.length} on file`

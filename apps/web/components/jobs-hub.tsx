@@ -1146,7 +1146,7 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
     // Every state renders in the same fixed-height, centered box: the score ring appearing
     // never changes the row height, and the spinner sits in the middle of the cell.
     const box = (content: React.ReactNode, title?: string) => (
-      <div className="flex h-16 items-center justify-center" title={title}>
+      <div className="flex h-12 items-center justify-center" title={title}>
         {content}
       </div>
     );
@@ -1155,7 +1155,7 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
       return box(<span className="text-muted-foreground text-[10px]">Queued</span>);
     if (cell === "running") return box(<Spinner className="size-5" label="Scanning" />);
     if (cell.status === "done" && cell.overallScore != null) {
-      return box(<ScoreRing value={cell.overallScore} size={44} />, cell.scoreName);
+      return box(<ScoreRing value={cell.overallScore} size="xs" />, cell.scoreName);
     }
     return box(
       <span
@@ -1299,7 +1299,7 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
                         {resumeIds.has(resume.id) ? (
                           renderCell(resume.id, eng.id)
                         ) : (
-                          <div className="h-16" />
+                          <div className="h-12" />
                         )}
                       </td>
                     ))}

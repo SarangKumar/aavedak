@@ -679,7 +679,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
     // Every state renders inside the same fixed-height box so the score ring
     // appearing never changes row height.
     const box = (content: ReactNode) => (
-      <div className="flex h-14 items-center justify-center">{content}</div>
+      <div className="flex h-12 items-center justify-center">{content}</div>
     );
 
     if (cell?.status === "done" && cell.overallScore != null) {
@@ -696,7 +696,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
             warned && !active && "ring-2 ring-amber-500/50",
           )}
         >
-          <ScoreRing value={cell.overallScore} size={44} />
+          <ScoreRing value={cell.overallScore} size="xs" />
         </button>,
       );
     }
@@ -1281,7 +1281,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                           {resume.displayName}
                         </td>
                         {tableEngines.map((eng) => (
-                          <td key={eng.id} className="h-16 px-2 text-center align-middle">
+                          <td key={eng.id} className="h-12 px-2 text-center align-middle">
                             {renderCell(resume.id, eng.id)}
                           </td>
                         ))}
@@ -1443,7 +1443,7 @@ function UploadResumeModal({
             disabled={pending || !selectedPdf}
             onClick={() => void upload()}
           >
-            {pending ? <Spinner className="size-3.5" /> : null}
+            {pending ? <Spinner className="size-3.5" label="" /> : null}
             {pending ? "Uploading…" : "Upload"}
           </Button>
         </>

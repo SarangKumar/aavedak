@@ -68,6 +68,12 @@
         "components/ui/input-group/index.tsx"
       ],
       "installedAt": "2026-10-10"
+    },
+    "spinner": {
+      "files": [
+        "components/ui/spinner/index.tsx"
+      ],
+      "installedAt": "2026-10-10"
     }
   }
 }

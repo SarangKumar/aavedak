@@ -154,7 +154,7 @@ export function ApplicationsActivityCharts() {
         <Card className="border-border/80 bg-card gap-0 rounded-lg border p-4 shadow-sm">
           {loading && !data ? (
             <div className="text-muted-foreground flex h-[260px] items-center justify-center gap-2 text-[12px]">
-              <Spinner /> Loading chart…
+              <Spinner label="" /> Loading chart…
             </div>
           ) : chartData.length === 0 ? (
             <p className="text-muted-foreground flex h-[200px] items-center justify-center text-[12px]">

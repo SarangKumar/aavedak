@@ -75,7 +75,7 @@ export function CellStatusLabel({ cell }: { cell: AtsBatchResultCell | undefined
       role={d.tone === "progress" ? "status" : undefined}
       aria-live={d.tone === "progress" ? "polite" : undefined}
     >
-      {d.tone === "progress" ? <Spinner className="size-3" /> : null}
+      {d.tone === "progress" ? <Spinner className="size-3" label="" /> : null}
       {d.label}
     </span>
   );
