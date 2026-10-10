@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
@@ -85,7 +85,7 @@ export function CompanySelect({
 
   return (
     <div ref={rootRef} className={cn("relative", className)}>
-      <Input
+      <SearchInput
         id={id}
         disabled={disabled}
         value={query}

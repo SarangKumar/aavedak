@@ -10,14 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Toggle } from "@/components/ui/toggle";
+import { Card } from "@/components/ui/card";
 import {
   DragDrop,
   DragDropHandle,
@@ -592,35 +586,20 @@ export function JobTrackerBoard({
       {columnsOpen && prefs.trackerView === "kanban" ? (
         <Card className="border-border/80 bg-card gap-0 rounded-xl border p-3">
           <p className="text-foreground mb-2 text-[12px] font-medium">Show / hide Kanban columns</p>
-          <ToggleGroup
-            aria-label="Visible Kanban columns"
-            multiple
-            variant="outline"
-            size="sm"
-            spacing={1}
-            className="flex-wrap"
-            value={DEFAULT_KANBAN_STATUSES.filter((st) => !prefs.hiddenColumns.includes(st))}
-            onValueChange={(next) => {
-              // One click changes exactly one column; find which.
-              const visible = DEFAULT_KANBAN_STATUSES.filter(
-                (st) => !prefs.hiddenColumns.includes(st),
-              );
-              const changed = DEFAULT_KANBAN_STATUSES.find(
-                (st) => visible.includes(st) !== next.includes(st),
-              );
-              if (changed) void toggleColumn(changed);
-            }}
-          >
+          <div className="flex flex-wrap gap-1.5">
             {DEFAULT_KANBAN_STATUSES.map((status) => (
-              <ToggleGroupItem
+              <Toggle
                 key={status}
-                value={status}
+                variant="outline"
+                size="sm"
+                pressed={!prefs.hiddenColumns.includes(status)}
+                onPressedChange={() => void toggleColumn(status)}
                 className="h-7 rounded-full px-2.5 text-[11px]"
               >
                 {STATUS_LABELS[status]}
-              </ToggleGroupItem>
+              </Toggle>
             ))}
-          </ToggleGroup>
+          </div>
         </Card>
       ) : null}
 
@@ -696,31 +675,40 @@ export function JobTrackerBoard({
                                     }}
                                     className="shrink-0 cursor-pointer gap-0 border-0 bg-transparent p-0 shadow-none"
                                   >
-                                    <CardHeader className="gap-0.5 p-3 pb-2">
-                                      <CardTitle className="text-foreground pr-8 text-[13px] font-semibold leading-snug tracking-tight">
-                                        {app.companyName}
-                                      </CardTitle>
-                                      <CardDescription className="text-foreground/80 text-[12px] leading-snug">
-                                        {app.role}
-                                      </CardDescription>
-                                      <CardAction>
-                                        <DragDropHandle
-                                          aria-label={`Move ${app.companyName}`}
-                                          className="text-muted-foreground size-7 cursor-grab"
-                                          onClick={(e) => e.stopPropagation()}
-                                        />
-                                      </CardAction>
-                                    </CardHeader>
-                                    <CardFooter className="flex-wrap gap-x-2 gap-y-1 px-3 pb-3 pt-0">
-                                      <p className="text-muted-foreground truncate text-[11px] leading-snug">
+                                    <div className="flex items-start gap-2 p-3 pb-2">
+                                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1">
+                                        <span className="text-foreground min-w-0 truncate text-[13px] font-semibold leading-snug tracking-tight">
+                                          {app.companyName}
+                                        </span>
+                                        <span
+                                          aria-hidden
+                                          className="text-muted-foreground text-[13px]"
+                                        >
+                                          ⋅
+                                        </span>
+                                        <Badge
+                                          variant="secondary"
+                                          className="max-w-full truncate text-[11px] font-medium"
+                                        >
+                                          {app.role}
+                                        </Badge>
+                                      </div>
+                                      <DragDropHandle
+                                        aria-label={`Move ${app.companyName}`}
+                                        className="text-muted-foreground size-7 shrink-0 cursor-grab"
+                                        onClick={(e) => e.stopPropagation()}
+                                      />
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-3">
+                                      <span className="text-muted-foreground min-w-0 truncate text-[11px] leading-snug">
                                         {app.location}
                                         {app.salaryCtc ? ` · ${app.salaryCtc}` : ""}
-                                      </p>
+                                      </span>
                                       <ApplicationDate app={app} />
                                       {app.statusReason === "job_expired" ? (
                                         <JobExpiredBadge />
                                       ) : null}
-                                    </CardFooter>
+                                    </div>
                                   </Card>
                                 </DragDropItem>
                               );

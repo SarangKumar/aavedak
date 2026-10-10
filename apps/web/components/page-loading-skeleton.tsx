@@ -346,7 +346,7 @@ function JobTrackerSkeleton() {
             {Array.from({ length: 6 }).map((_, i) => (
               <section
                 key={i}
-                className="border-border/60 bg-muted/25 flex h-[min(75vh,46rem)] w-[18rem] shrink-0 flex-col overflow-hidden rounded-lg border"
+                className="border-border/60 bg-card flex h-[min(75vh,46rem)] w-[18rem] shrink-0 flex-col overflow-hidden rounded-lg border"
               >
                 <div className="mb-0 flex shrink-0 items-center justify-between gap-2 px-2.5 pb-2 pt-2.5">
                   <Skeleton className="h-3.5 w-20" />
@@ -356,7 +356,7 @@ function JobTrackerSkeleton() {
                   {Array.from({ length: i % 3 === 0 ? 5 : 4 }).map((_, j) => (
                     <div
                       key={j}
-                      className="border-border/50 bg-muted/40 space-y-2 rounded-lg border p-3"
+                      className="border-border/50 bg-card space-y-2 rounded-lg border p-3"
                     >
                       <Skeleton className="h-3.5 w-28" />
                       <Skeleton className="h-3 w-36 max-w-full" />
@@ -422,9 +422,10 @@ export function JobsBoardSkeleton({ listWidth = 360 }: { listWidth?: number }) {
         <Skeleton className="size-8 rounded-md" />
       </Card>
 
+      {/* Same fixed-height wrapper and block styling as the real board, so nothing shifts. */}
       <div className="md:min-h-128 flex flex-col gap-4 md:h-[calc(100dvh-17rem)] md:flex-row md:gap-0">
         <Card
-          className="md:w-(--jobs-list-width) flex max-h-[60vh] w-full shrink-0 flex-col gap-0 overflow-hidden p-0 md:max-h-none md:max-w-[min(100%,560px)]"
+          className="md:w-(--jobs-list-width) border-border bg-card flex max-h-[60vh] w-full shrink-0 flex-col gap-0 overflow-hidden rounded-lg p-0 md:max-h-none"
           style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
         >
           <div className="border-border/60 flex items-center gap-2 border-b p-3">
@@ -449,10 +450,10 @@ export function JobsBoardSkeleton({ listWidth = 360 }: { listWidth?: number }) {
           </ul>
         </Card>
 
-        {/* Same 8px gutter as the resize handle on the real board. */}
+        {/* Gutter (the dots on the real board). */}
         <div className="hidden w-2 shrink-0 md:block" aria-hidden />
 
-        <Card className="bg-muted/20 min-h-0 min-w-0 flex-1 gap-0 overflow-y-auto p-3 sm:p-4">
+        <Card className="border-border bg-card min-h-0 min-w-0 flex-1 gap-0 overflow-y-auto rounded-lg p-3 sm:p-4">
           <div className="space-y-4">
             <Card className="gap-3">
               <div className="flex items-start gap-3">
@@ -732,7 +733,7 @@ function ProfileSkeleton() {
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-3 w-14" />
         </div>
-        <div className="border-border/70 bg-background/50 mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
+        <div className="border-border/70 bg-card mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
           <div className="min-w-0 flex-1 space-y-1.5">
             <Skeleton className="h-3.5 w-40 max-w-full" />
             <Skeleton className="h-3 w-56 max-w-full" />

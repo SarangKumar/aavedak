@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type ActivityDay = { date: string; count: number };
 
@@ -213,7 +213,7 @@ export function ApplicationsActivityCharts() {
     );
 
   return (
-    <Tabs value={months} onValueChange={setMonths} className="h-full gap-0">
+    <div className="h-full">
       <Card role="region" className="h-full gap-3" aria-labelledby="activity-heading">
         {/* Flex, not CardHeader's two-column grid: on phones the range switch drops below the
             title instead of squeezing it into a narrow column. */}
@@ -240,13 +240,24 @@ export function ApplicationsActivityCharts() {
               )}
             </CardDescription>
           </div>
-          <TabsList aria-label="Chart time range" className="h-8 shrink-0 self-start">
+          <ToggleGroup
+            aria-label="Chart time range"
+            variant="outline"
+            size="sm"
+            value={[months]}
+            onValueChange={(next) => {
+              // Single selection: a range is always on, so a press on the active one is ignored.
+              const range = RANGES.find((r) => r.value === next[0]);
+              if (range) setMonths(range.value);
+            }}
+            className="shrink-0 self-start"
+          >
             {RANGES.map((r) => (
-              <TabsTrigger key={r.value} value={r.value} className="px-2.5 text-[11px]">
+              <ToggleGroupItem key={r.value} value={r.value} className="h-7 px-2.5 text-[11px]">
                 {r.short}
-              </TabsTrigger>
+              </ToggleGroupItem>
             ))}
-          </TabsList>
+          </ToggleGroup>
         </div>
 
         {error ? (
@@ -255,9 +266,7 @@ export function ApplicationsActivityCharts() {
           </Alert>
         ) : null}
 
-        <TabsContent value={months} className="min-w-0">
-          {chartBody}
-        </TabsContent>
+        <div className="min-w-0">{chartBody}</div>
 
         {!hasFriends && !loading ? (
           <p className="text-muted-foreground text-[11px] leading-relaxed">
@@ -265,6 +274,6 @@ export function ApplicationsActivityCharts() {
           </p>
         ) : null}
       </Card>
-    </Tabs>
+    </div>
   );
 }

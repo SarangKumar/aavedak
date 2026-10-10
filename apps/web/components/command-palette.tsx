@@ -159,7 +159,7 @@ export function CommandPalette() {
           </CommandList>
           <CommandFooter className="text-muted-foreground justify-between text-[11px]">
             <span>
-              <Kbd>⌘</Kbd>/<Kbd>Ctrl</Kbd>+<Kbd>K</Kbd>
+              <Kbd>⌘</Kbd>+<Kbd>K</Kbd>
             </span>
             <span>↑↓ · ↵ · esc</span>
           </CommandFooter>

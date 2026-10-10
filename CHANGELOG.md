@@ -115,6 +115,7 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Fixed
 
+- **Layout and toggle fixes** — Jobs and Inbox panes keep a fixed height instead of stretching to the page, the Jobs loading state matches the new split layout, application cards on the job tracker show the company with a role pill and the location with the applied date, the cover letter editor has the same variables info icon as the referral email editor, the ⌘K palette footer shows just ⌘K, and single-choice controls (chart range, inbox duration, Jobs sort) are single-select toggle groups.
 - **ATS — long engine names keep the table centred** — Engine names that run long, such as Hybrid Resume Analyzer, wrap onto two lines in their column header instead of pushing the header off centre.
 - **ATS and Jobs — final score reads as one unit** — Each Final score shows the ring and then its verdict, centred in the column. The rings line up in one vertical line whatever the verdict's length.
 - **Jobs full-screen board** — Both panels now fill the full height, and "About the job" stretches to use the spare space.

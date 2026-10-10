@@ -688,31 +688,37 @@ export function JobsHub({
 
       {/* List | details. Desktop: resizable blocks (width saved to a cookie). Mobile: stacked cards. */}
       {isDesktop ? (
-        <ResizablePanelGroup
-          variant="blocks"
-          orientation="horizontal"
-          onLayoutChanged={saveListWidth}
-          className={
-            variant === "board" ? "min-h-0 flex-1" : "md:min-h-128 md:h-[calc(100dvh-17rem)]"
-          }
+        // The library sets height:100% inline, so the fixed height has to sit on this wrapper.
+        <div
+          className={cn(
+            "flex",
+            variant === "board" ? "min-h-0 flex-1" : "md:min-h-128 md:h-[calc(100dvh-17rem)]",
+          )}
         >
-          <ResizablePanel
-            id="jobs-list"
-            panelRef={listPanelRef}
-            defaultSize={`${initialListWidth}px`}
-            minSize={`${JOBS_LIST_WIDTH_MIN}px`}
-            maxSize={`${JOBS_LIST_WIDTH_MAX}px`}
-            groupResizeBehavior="preserve-pixel-size"
+          <ResizablePanelGroup
+            variant="blocks"
+            orientation="horizontal"
+            onLayoutChanged={saveListWidth}
+            className="h-full w-full"
           >
-            <div className="flex h-full min-h-0 flex-col">{listPane}</div>
-          </ResizablePanel>
-          <ResizableHandle aria-label="Resize panes" />
-          <ResizablePanel id="jobs-detail" className="bg-muted/20">
-            <ScrollArea className="h-full">
-              <div className="flex min-h-full flex-col p-3 sm:p-4">{detailPane}</div>
-            </ScrollArea>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+            <ResizablePanel
+              id="jobs-list"
+              panelRef={listPanelRef}
+              defaultSize={`${initialListWidth}px`}
+              minSize={`${JOBS_LIST_WIDTH_MIN}px`}
+              maxSize={`${JOBS_LIST_WIDTH_MAX}px`}
+              groupResizeBehavior="preserve-pixel-size"
+            >
+              <div className="flex h-full min-h-0 flex-col">{listPane}</div>
+            </ResizablePanel>
+            <ResizableHandle aria-label="Resize panes" />
+            <ResizablePanel id="jobs-detail" className="bg-muted/20">
+              <ScrollArea className="h-full">
+                <div className="flex min-h-full flex-col p-3 sm:p-4">{detailPane}</div>
+              </ScrollArea>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           <Card className="flex max-h-[60vh] w-full flex-col gap-0 overflow-hidden p-0">

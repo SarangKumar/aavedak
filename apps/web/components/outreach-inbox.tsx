@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateTimeReadable } from "@/lib/format-datetime";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/search-input";
@@ -404,22 +404,30 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
           ))}
         </SelectContent>
       </Select>
-      <Tabs value={duration} onValueChange={(v) => setDuration(v as DurationFilter)}>
-        <TabsList aria-label="Duration">
-          <TabsTrigger value="all" className="text-[12px]">
-            All time
-          </TabsTrigger>
-          <TabsTrigger value="24h" className="text-[12px]">
-            24h
-          </TabsTrigger>
-          <TabsTrigger value="7d" className="text-[12px]">
-            7d
-          </TabsTrigger>
-          <TabsTrigger value="30d" className="text-[12px]">
-            30d
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <ToggleGroup
+        aria-label="Duration"
+        variant="outline"
+        size="sm"
+        value={[duration]}
+        onValueChange={(next) => {
+          // Single selection: the chosen duration stays on until another one is picked.
+          const value = next[0] as DurationFilter | undefined;
+          if (value) setDuration(value);
+        }}
+      >
+        <ToggleGroupItem value="all" className="h-7 px-2.5 text-[12px]">
+          All time
+        </ToggleGroupItem>
+        <ToggleGroupItem value="24h" className="h-7 px-2.5 text-[12px]">
+          24h
+        </ToggleGroupItem>
+        <ToggleGroupItem value="7d" className="h-7 px-2.5 text-[12px]">
+          7d
+        </ToggleGroupItem>
+        <ToggleGroupItem value="30d" className="h-7 px-2.5 text-[12px]">
+          30d
+        </ToggleGroupItem>
+      </ToggleGroup>
       <span className="text-muted-foreground shrink-0 text-[11px] tabular-nums">
         {applicationId
           ? `${applicationMessages.length} mail · ${threads.length} people`
@@ -588,25 +596,24 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
 
   // Conversations | mail. Desktop: resizable blocks. Mobile: stacked cards.
   const board = isDesktop ? (
-    <ResizablePanelGroup
-      variant="blocks"
-      orientation="horizontal"
-      className={variant === "board" ? "min-h-0 flex-1" : "md:h-[min(70vh,44rem)]"}
-    >
-      <ResizablePanel
-        id="inbox-list"
-        defaultSize={`${LIST_DEFAULT}px`}
-        minSize={`${LIST_MIN}px`}
-        maxSize={`${LIST_MAX}px`}
-        groupResizeBehavior="preserve-pixel-size"
-      >
-        <div className="flex h-full min-h-0 flex-col">{listPane}</div>
-      </ResizablePanel>
-      <ResizableHandle aria-label="Resize inbox panes" />
-      <ResizablePanel id="inbox-mail">
-        <div className="flex h-full min-h-0 flex-col">{mailPane}</div>
-      </ResizablePanel>
-    </ResizablePanelGroup>
+    // The library sets height:100% inline, so the fixed height has to sit on this wrapper.
+    <div className={cn("flex", variant === "board" ? "min-h-0 flex-1" : "md:h-[min(70vh,44rem)]")}>
+      <ResizablePanelGroup variant="blocks" orientation="horizontal" className="h-full w-full">
+        <ResizablePanel
+          id="inbox-list"
+          defaultSize={`${LIST_DEFAULT}px`}
+          minSize={`${LIST_MIN}px`}
+          maxSize={`${LIST_MAX}px`}
+          groupResizeBehavior="preserve-pixel-size"
+        >
+          <div className="flex h-full min-h-0 flex-col">{listPane}</div>
+        </ResizablePanel>
+        <ResizableHandle aria-label="Resize inbox panes" />
+        <ResizablePanel id="inbox-mail">
+          <div className="flex h-full min-h-0 flex-col">{mailPane}</div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   ) : (
     <div className="flex flex-col gap-4">
       <Card className="flex max-h-[42vh] w-full flex-col gap-0 overflow-hidden p-0">

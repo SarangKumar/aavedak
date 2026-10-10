@@ -16,6 +16,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { TemplateVariablesInfo } from "@/components/template-variables-info";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -1036,9 +1037,12 @@ export function DocumentsHub({
 
             <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.18fr)] xl:items-stretch">
               <Card className="border-border/80 bg-card gap-0 space-y-2.5 rounded-lg border p-4 shadow-sm">
-                <p className="aavedak-section-title text-foreground">
-                  {editingClId ? "Edit cover letter" : "New cover letter"}
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="aavedak-section-title text-foreground">
+                    {editingClId ? "Edit cover letter" : "New cover letter"}
+                  </p>
+                  <TemplateVariablesInfo />
+                </div>
                 <ToggleGroup
                   aria-label="Cover letter target"
                   variant="outline"
