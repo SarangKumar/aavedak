@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Jobs — Refresh jobs button** — Anyone signed in can now refresh jobs from the top bar of the Jobs page. It scans every company career page right away instead of waiting for the nightly run, and new matches appear as each batch finishes.
 - **Referrals — search, status filter and unapplied jobs** — The top strip has a search box and status toggles (Not applied, Bookmarked, Preparing, Applied and more) to narrow the Active applications list. The list now includes jobs from the Jobs page you haven't applied to yet, marked "Not applied". Sending a referral for one adds it to your tracker as Bookmarked first. The strip sits closer to the columns.
 - **Search icons** — Every search box now shows a magnifying-glass icon before the placeholder.
 - **Referrals and Outreach — full-screen boards** — Like Jobs, the Referrals columns and the Outreach inbox can expand to a full-screen board and collapse back. Each top strip links to the other page, and in full-screen mode that link opens the other board full-screen too.
@@ -45,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Jobs page tweaks** — The source filter is wider, and "About the job" has a fixed maximum height in the normal view (it scrolls inside). In full screen it still stretches to fill the panel.
 - **Version** — Aavedak is now labelled v0.1.0, since it hasn't had a public release yet.
 - **ATS scores always come from the full scoring engine** — Every ATS engine now scores only through the scoring service. If the service is down, the result says "Service unavailable" instead of showing a simplified offline score that could differ from the real one.
 - **Resizable panels** — The divider between side-by-side panels (Jobs, Outreach) is now a simple three-dot grip in a gap half as wide as before, instead of a border line and handle. In the Jobs resume check, the resume column stays in place while you scroll across engines.

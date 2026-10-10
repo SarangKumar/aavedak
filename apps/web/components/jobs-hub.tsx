@@ -279,6 +279,73 @@ export function JobsHub({
     }
   }
 
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshProgress, setRefreshProgress] = useState("");
+
+  /** Reload both tabs from the server; returns the Discover ids now listed. */
+  async function reloadJobs(): Promise<string[] | null> {
+    const res = await fetch("/api/jobs", { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { discover: JobDto[]; applied: JobDto[] };
+    setDiscover(data.discover);
+    setApplied(data.applied);
+    return data.discover.map((j) => j.id);
+  }
+
+  /**
+   * Refresh jobs: queue (or resume) a scan of every career source, then run it in budgeted
+   * batches until done, reloading the list after each batch so new matches appear as they land.
+   */
+  async function refreshJobs() {
+    setRefreshing(true);
+    setRefreshProgress("Starting…");
+    const initialIds = new Set(discover.map((j) => j.id));
+    let latestIds: string[] = [...initialIds];
+    try {
+      const start = await fetch("/api/jobs/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: "start" }),
+      });
+      const started = (await start.json()) as { error?: string };
+      if (!start.ok) throw new Error(started.error || "Could not start the refresh.");
+      for (let round = 0; round < 40; round++) {
+        const res = await fetch("/api/jobs/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ step: "tick" }),
+        });
+        const tick = (await res.json()) as {
+          remaining?: number;
+          processed?: number;
+          error?: string;
+        };
+        if (!res.ok) throw new Error(tick.error || "Refresh failed.");
+        latestIds = (await reloadJobs()) ?? latestIds;
+        setRefreshProgress(`${tick.remaining ?? 0} sources left…`);
+        if (!tick.remaining || !tick.processed) break;
+      }
+      const added = latestIds.filter((id) => !initialIds.has(id)).length;
+      toast.add({
+        title: "Jobs refreshed",
+        description:
+          added > 0
+            ? `${added} new match${added === 1 ? "" : "es"} added to Discover.`
+            : "No new matches right now.",
+        type: "success",
+      });
+    } catch (err) {
+      toast.add({
+        title: "Refresh failed",
+        description: err instanceof Error ? err.message : undefined,
+        type: "error",
+      });
+    } finally {
+      setRefreshing(false);
+      setRefreshProgress("");
+    }
+  }
+
   async function ignoreJob(id: string) {
     setError(null);
     setMessage(null);
@@ -447,7 +514,7 @@ export function JobsHub({
         />
         <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v || "all")}>
           <SelectTrigger
-            className="border-border bg-background h-8 w-auto min-w-[10rem] rounded-md border px-2.5 text-[12px]"
+            className="border-border bg-background h-8 w-56 rounded-md border px-2.5 text-[12px]"
             aria-label="Filter by source"
           >
             <SelectValue placeholder="All sources" />
@@ -467,6 +534,17 @@ export function JobsHub({
           {filtered.length} of {jobs.length}
         </span>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            loading={refreshing}
+            loadingText={refreshProgress || "Refreshing…"}
+            onClick={() => void refreshJobs()}
+            title="Scan all company career pages now and reload your matches"
+          >
+            Refresh jobs
+          </Button>
           <Button type="button" variant="ghost" size="sm" onClick={() => setPasteOpen(true)}>
             Paste JD
           </Button>
@@ -540,6 +618,7 @@ export function JobsHub({
             <JobDetail
               key={selected.id}
               job={selected}
+              stretch={variant === "board"}
               tab={tab}
               pending={pending}
               resumes={resumes}
@@ -763,6 +842,7 @@ function SectionTitle({
 /** Right-hand side: four separate cards — job, about/JD, people, resume (ATS). */
 function JobDetail({
   job,
+  stretch,
   tab,
   pending,
   resumes,
@@ -771,6 +851,8 @@ function JobDetail({
   onIgnore,
 }: {
   job: JobDto;
+  /** Full-screen board: fill the panel height and let "About the job" take the spare space. */
+  stretch: boolean;
   tab: JobsTab;
   pending: boolean;
   resumes: ResumeLite[];
@@ -796,7 +878,7 @@ function JobDetail({
 
   return (
     // flex-1: fill the details panel's full height (board and page) so no empty band is left.
-    <div className="flex flex-1 flex-col gap-4">
+    <div className={cn("flex flex-col gap-4", stretch && "flex-1")}>
       {/* 1 · Job */}
       <Card className="gap-3">
         <div className="flex items-start gap-3">
@@ -914,7 +996,7 @@ function JobDetail({
       </Card>
 
       {/* 2 · About / JD — stretches to take any spare height */}
-      <Card className="min-h-48 flex-1 gap-2">
+      <Card className={cn("gap-2", stretch && "min-h-48 flex-1")}>
         <SectionTitle
           action={
             job.description ? (
@@ -933,7 +1015,13 @@ function JobDetail({
         >
           About the job
         </SectionTitle>
-        <pre className="text-muted-foreground min-h-0 flex-1 overflow-auto whitespace-pre-wrap font-sans text-[13px] leading-relaxed">
+        <pre
+          className={cn(
+            "text-muted-foreground overflow-auto whitespace-pre-wrap font-sans text-[13px] leading-relaxed",
+            // Normal view: capped height (scrolls inside). Board: stretch to fill.
+            stretch ? "min-h-0 flex-1" : "max-h-80",
+          )}
+        >
           {job.description || "No description provided."}
         </pre>
       </Card>
