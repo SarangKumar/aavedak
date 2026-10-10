@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+
 import { JobsHub, type JobsTab } from "@/components/jobs-hub";
 import { requireOnboarded } from "@/lib/app-access";
 import { toJobDto } from "@/lib/job-dto";
@@ -5,6 +7,7 @@ import { listJobScores } from "@/lib/job-scoring";
 import { listAppliedJobs, listDiscoverJobs } from "@/lib/jobs";
 import { getPreferences } from "@/lib/preferences";
 import { listResumes } from "@/lib/resumes";
+import { JOBS_LIST_WIDTH_COOKIE, parseJobsListWidth } from "@/lib/jobs-list-width";
 
 export type JobsSearchParams = Promise<{ tab?: string | string[]; job?: string | string[] }>;
 
@@ -22,6 +25,7 @@ export async function JobsBoard({
 }) {
   const { user, profile } = await requireOnboarded();
   const params = await searchParams;
+  const listWidth = parseJobsListWidth((await cookies()).get(JOBS_LIST_WIDTH_COOKIE)?.value);
   // Scores are written by discovery (FastAPI) and on manual job create — never computed here.
   const [discover, applied, scores, prefs, resumes] = await Promise.all([
     listDiscoverJobs(user.id),
@@ -39,6 +43,7 @@ export async function JobsBoard({
   return (
     <JobsHub
       variant={variant}
+      initialListWidth={listWidth}
       initialTab={initialTab}
       initialJobId={initialJobId}
       initialDiscover={discover.map((job) => toJobDto(job, byJob.get(job.id)))}

@@ -51,7 +51,11 @@ export function BoardToggleLink({
   return (
     <Link
       href={href}
-      className={buttonVariants({ variant: "outline", size: "icon-sm" })}
+      // Full-screen boards are a desktop affordance; the control is hidden on small screens.
+      className={cn(
+        buttonVariants({ variant: "outline", size: "icon-sm" }),
+        "hidden md:inline-flex",
+      )}
       aria-label={expanded ? `Collapse ${label}` : `Expand ${label} to full screen`}
       title={expanded ? "Collapse" : "Expand"}
     >

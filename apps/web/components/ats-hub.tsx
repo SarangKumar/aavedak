@@ -758,7 +758,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
       {prefilledJob ? (
         <Card
           size="sm"
-          className="border-primary/30 bg-primary/5 flex-row items-center gap-2 text-[12px]"
+          className="border-primary/30 bg-primary/5 flex-row flex-wrap items-center gap-2 text-[12px]"
         >
           <span className="text-foreground min-w-0 flex-1">
             Loaded from Jobs:{" "}
@@ -1226,13 +1226,13 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
             </p>
           ) : (
             <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
                 <Select
                   value={safeFilterResumeId}
                   onValueChange={(v) => setFilterResumeId(v || "all")}
                 >
                   <SelectTrigger
-                    className="border-border bg-background text-foreground h-8 w-auto min-w-36 rounded-lg border px-2 text-[12px]"
+                    className="border-border bg-background text-foreground h-8 w-full min-w-0 rounded-lg border px-2 text-[12px] sm:w-auto sm:min-w-36"
                     aria-label="Filter by resume"
                   >
                     <SelectValue placeholder="All resumes" />
@@ -1253,7 +1253,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   onValueChange={(v) => setFilterEngineId(v || "all")}
                 >
                   <SelectTrigger
-                    className="border-border bg-background text-foreground h-8 w-auto min-w-36 rounded-lg border px-2 text-[12px]"
+                    className="border-border bg-background text-foreground h-8 w-full min-w-0 rounded-lg border px-2 text-[12px] sm:w-auto sm:min-w-36"
                     aria-label="Filter by engine"
                   >
                     <SelectValue placeholder="All engines" />
@@ -1281,11 +1281,11 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   style={{ minWidth: `${Math.max(36, 11 + tableEngines.length * 7.5)}rem` }}
                 >
                   <colgroup>
-                    <col className="w-44" />
+                    <col className="w-32 sm:w-44" />
                     {tableEngines.map((eng) => (
                       <col key={eng.id} />
                     ))}
-                    <col className="w-40" />
+                    <col className="w-28 sm:w-40" />
                   </colgroup>
                   <thead>
                     <tr className="border-border/50 border-b">

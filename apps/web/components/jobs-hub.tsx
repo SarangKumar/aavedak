@@ -41,6 +41,11 @@ import { saveAtsPrefill } from "@/lib/ats-prefill";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
 import type { JobDtoBase } from "@/lib/job-dto";
 import { cn } from "@/lib/utils";
+import {
+  clampJobsListWidth,
+  JOBS_LIST_WIDTH_COOKIE,
+  JOBS_LIST_WIDTH_DEFAULT,
+} from "@/lib/jobs-list-width";
 import { SearchInput } from "@/components/search-input";
 
 export type JobDto = JobDtoBase;
@@ -52,6 +57,8 @@ type ResumeLite = { id: string; displayName: string; status: string };
 type JobsHubProps = {
   /** "page" = normal Jobs page; "board" = full-screen board only (/jobs/board). */
   variant?: "page" | "board";
+  /** Saved list-pane width from the cookie (server-read), so the first paint is already final. */
+  initialListWidth?: number;
   initialTab?: JobsTab;
   initialJobId?: string | null;
   resumes: ResumeLite[];
@@ -82,8 +89,6 @@ const SOURCE_LABELS: Record<JobSource, string> = {
   indeed: "Indeed",
   other: "Other",
 };
-
-const PANE_WIDTH_KEY = "aavedak-jobs-list-width";
 
 function initials(company: string): string {
   const parts = company.trim().split(/\s+/).filter(Boolean);
@@ -129,6 +134,7 @@ function statusLabel(status: string | null | undefined): string | null {
 
 export function JobsHub({
   variant = "page",
+  initialListWidth = JOBS_LIST_WIDTH_DEFAULT,
   initialTab = "discover",
   initialJobId = null,
   resumes,
@@ -149,7 +155,7 @@ export function JobsHub({
   // Newest posting first by default; the toggle beside the tabs flips it.
   const [postedSort, setPostedSort] = useState<"newest" | "oldest">("newest");
   const [query, setQuery] = useState("");
-  const [listWidth, setListWidth] = useState(360);
+  const [listWidth, setListWidth] = useState(initialListWidth);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -166,25 +172,6 @@ export function JobsHub({
     description: "",
   });
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(PANE_WIDTH_KEY);
-      if (!raw) return;
-      const n = Number(raw);
-      if (Number.isFinite(n)) setListWidth(Math.min(560, Math.max(260, n)));
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(PANE_WIDTH_KEY, String(listWidth));
-    } catch {
-      /* ignore */
-    }
-  }, [listWidth]);
 
   const sourceCounts = useMemo(() => {
     const counts: Record<string, number> = { all: jobs.length };
@@ -245,12 +232,14 @@ export function JobsHub({
   function onResizeMove(event: React.PointerEvent<HTMLDivElement>) {
     if (!dragRef.current) return;
     const delta = event.clientX - dragRef.current.startX;
-    const next = Math.min(560, Math.max(260, dragRef.current.startWidth + delta));
+    const next = clampJobsListWidth(dragRef.current.startWidth + delta);
     setListWidth(next);
   }
 
   function onResizeEnd() {
     dragRef.current = null;
+    // Persist once per drag (not per pointer move) so the server renders this width next time.
+    document.cookie = `${JOBS_LIST_WIDTH_COOKIE}=${listWidth}; path=/; max-age=31536000; samesite=lax`;
   }
 
   async function createJob() {
