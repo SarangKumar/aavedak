@@ -34,6 +34,15 @@ export function SiteFooter({ className }: { className?: string }) {
             ·
           </span>
           <Link
+            href="/how-it-works"
+            className="hover:text-foreground inline-flex min-h-8 items-center transition-colors"
+          >
+            How it works
+          </Link>
+          <span className="text-border hidden sm:inline" aria-hidden>
+            ·
+          </span>
+          <Link
             href="/changelog"
             className="hover:text-foreground inline-flex min-h-8 items-center transition-colors"
           >

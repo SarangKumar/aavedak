@@ -116,6 +116,9 @@ export function CommandPalette() {
                 <CommandItem value="about" onClick={() => go("/about")}>
                   About
                 </CommandItem>
+                <CommandItem value="how it works" onClick={() => go("/how-it-works")}>
+                  How it works
+                </CommandItem>
                 <CommandItem value="changelog" onClick={() => go("/changelog")}>
                   Changelog
                 </CommandItem>
@@ -127,6 +130,12 @@ export function CommandPalette() {
                 </CommandItem>
                 <CommandItem value="sign in" onClick={() => go("/sign-in")}>
                   Sign in
+                </CommandItem>
+                <CommandItem value="about" onClick={() => go("/about")}>
+                  About
+                </CommandItem>
+                <CommandItem value="how it works" onClick={() => go("/how-it-works")}>
+                  How it works
                 </CommandItem>
                 <CommandItem value="changelog" onClick={() => go("/changelog")}>
                   Changelog

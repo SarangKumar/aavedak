@@ -97,9 +97,16 @@ def is_india_eligible(locations: list[str], country_code: str | None = None) -> 
 
 # --- Role ----------------------------------------------------------------------------
 
+# Every engineering title counts, whatever the discipline (software, data, ML, cloud,
+# embedded, mechanical, civil, electrical, …): any title containing "engineer" matches,
+# plus the usual Indian junior titles that don't say "engineer".
 _ENGINEERING_RE = re.compile(
-    r"\b(?:engineer|engineers|engineering|developer|developers|programmer|sde|swe|sdet|"
-    r"devops|devsecops|sre|firmware|technologist|graduate engineer(?:ing)? trainee)\b",
+    r"\b(?:engineer|engineers|engineering|developer|developers|programmer|programmers|sde|swe|"
+    r"sdet|devops|devsecops|sre|firmware|technologist|graduate engineer(?:ing)? trainee|"
+    r"member of technical staff|mts|full[- ]?stack|front[- ]?end|back[- ]?end|"
+    r"software (?:development |engineering )?(?:trainee|associate)|technical trainee|"
+    r"technology (?:analyst|associate)|associate technology|"
+    r"trainee (?:software|developer|programmer))\b",
     re.I,
 )
 # Other tech roles that are open to juniors: data & analytics, ML/AI, QA/testing, IT &
@@ -138,7 +145,7 @@ _SENIOR_RE = re.compile(
 )
 # Level III+ (e.g. "Engineer III", "SDE-3", "L5", "IC4").
 _HIGH_LEVEL_RE = re.compile(
-    r"\b(?:engineer|developer|sde|swe|sdet|level|grade)\s*[-–]?\s*(?:iii|iv|v|vi|[3-9])\b"
+    r"\b(?:engineer|developer|sde|swe|sdet|mts|level|grade)\s*[-–]?\s*(?:iii|iv|v|vi|[3-9])\b"
     r"|\b(?:l[5-9]|e[5-9]|ic[4-9])\b",
     re.I,
 )
@@ -187,8 +194,11 @@ def is_engineering_title(title: str) -> bool:
     return bool(_ENGINEERING_RE.search(title) or _TECH_ROLE_RE.search(title) or _GET_RE.search(title))
 
 
-# Entry-level product titles contain "manager" but are junior roles.
-_JUNIOR_MANAGER_TITLE_RE = re.compile(r"\b(?:associate product manager|apm)\b", re.I)
+# Junior titles that contain a seniority word: entry-level product roles ("manager") and
+# "Member of Technical Staff" ("staff"). A "Senior"/"Principal" prefix still marks them senior.
+_JUNIOR_MANAGER_TITLE_RE = re.compile(
+    r"\b(?:associate product manager|apm|member of technical staff)\b", re.I
+)
 
 
 def is_senior_title(title: str) -> bool:

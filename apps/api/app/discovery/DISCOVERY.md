@@ -12,7 +12,9 @@ forwards admin actions to `/svc/v1/discovery/admin/*` after its own allowlist ch
   Indian city/state/tech park (common misspellings included), or a remote posting whose
   region includes India (worldwide / anywhere / global / APAC / Asia; not South-East or
   other Asian sub-regions). A bare "Remote" or a non-Indian country code is not enough.
-  Roles (`filters.is_engineering_title`): engineering in any discipline plus data &
+  Roles (`filters.is_engineering_title`): every engineering title in any discipline (any
+  title containing "engineer", plus MTS, GET, software trainee, technology analyst,
+  full-stack/frontend/backend) plus data &
   analytics, ML/AI, QA/testing, IT & infrastructure, security, UI/UX/product design, and
   associate product manager / product analyst. Matching uses explicit phrases, so generic
   "analyst" / "scientist" / "designer" titles stay out. Skip reasons keep their names
@@ -126,7 +128,8 @@ base web tables don't exist yet, endpoints return 503 instead of creating partia
 `scripts/verify_career_sources.py` tries likely board tokens for each candidate on each
 public ATS API and keeps boards with at least one current India-eligible posting (Indian
 location or remote open to India). Re-run it to grow or refresh the list; admins can also
-bulk-import career URLs from the Admin page. The seed only auto-loads into an empty
+bulk-import career URLs from the Admin page. The web `/how-it-works` page lists the seed
+companies (imported at build time via `apps/web/lib/career-sources.ts`). The seed only auto-loads into an empty
 `company_sources`; on an existing database, new seed boards arrive via the Admin page's
 seed import (`POST /admin/sources/import` with `seed: true`, which inserts missing rows only).
 
