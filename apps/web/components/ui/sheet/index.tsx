@@ -293,7 +293,7 @@ export function SheetContent({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50">
+    <div className="z-70 fixed inset-0">
       <div
         data-slot="sheet-overlay"
         className={cn(

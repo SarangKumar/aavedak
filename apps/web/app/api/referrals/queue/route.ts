@@ -252,6 +252,7 @@ export async function POST(request: Request) {
       mailKind: followUp.mailKind,
       mailTo: followUp.mailTo,
       mailSubject: followUp.mailSubject,
+      mailBody: followUp.mailBody,
       createdAt: followUp.createdAt,
       updatedAt: followUp.updatedAt,
     });

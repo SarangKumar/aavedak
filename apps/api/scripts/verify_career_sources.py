@@ -49,10 +49,21 @@ PARSERS = {
 }
 
 
+# Many boards use the company name plus a suffix (e.g. Headout → "headoutcareers").
+TOKEN_SUFFIXES = ("careers", "jobs", "hq", "inc", "india", "tech")
+
+
 def token_variants(name: str) -> list[str]:
+    """Likely board tokens, most likely first: "acmecorp", "acme-corp", "acme", then the joined
+    name with common suffixes ("acmecorpcareers", …)."""
     words = [w for w in re.split(r"[^A-Za-z0-9]+", name) if w]
+    if not words:
+        return []
+    joined = "".join(words).lower()
+    candidates = [joined, "-".join(words).lower(), words[0].lower() if len(words) > 1 else ""]
+    candidates += [f"{joined}{suffix}" for suffix in TOKEN_SUFFIXES]
     out: list[str] = []
-    for token in ("".join(words).lower(), "-".join(words).lower(), words[0].lower() if len(words) > 1 else ""):
+    for token in candidates:
         if token and token not in out:
             out.append(token)
     return out
@@ -112,6 +123,11 @@ def main() -> None:
     parser.add_argument("candidates")
     parser.add_argument("--out", default=str(SEED))
     parser.add_argument("--workers", type=int, default=12)
+    parser.add_argument(
+        "--skip-known",
+        action="store_true",
+        help="Skip candidates already in the output file (a fast run that only looks for new boards).",
+    )
     args = parser.parse_args()
 
     entries, seen = [], set()
@@ -127,6 +143,10 @@ def main() -> None:
     out_path = Path(args.out)
     existing = json.loads(out_path.read_text(encoding="utf-8")) if out_path.exists() else []
     by_key = {(e["provider"], e["token"].lower()): e for e in existing}
+    if args.skip_known:
+        known = {e["name"].lower() for e in existing}
+        entries = [e for e in entries if e[0].lower() not in known]
+        print(f"{len(entries)} candidates not in {out_path.name} yet", flush=True)
 
     headers = {"User-Agent": "AavedakSeedVerifier/1.0", "Accept": "application/json"}
     with httpx.Client(timeout=httpx.Timeout(60, connect=15), headers=headers, follow_redirects=True) as client:

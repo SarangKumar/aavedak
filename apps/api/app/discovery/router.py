@@ -18,7 +18,8 @@ from pydantic import BaseModel, Field
 
 from app.discovery.config import get_settings
 from app.discovery.db import DatabaseNotConfigured, connect
-from app.discovery.jobs import expiry, ranking, registry, scan
+from app.discovery.jobs import expiry, ranking, registry, scan, single
+from app.discovery.jobs.providers.base import make_client
 from app.discovery.people import importer
 from app.discovery.people import store as people_store
 from app.discovery.runs import store as runs
@@ -246,6 +247,22 @@ def admin_rerank_user(body: RerankUserBody, conn: psycopg.Connection = Conn) -> 
     """Re-rank one user's Discover list after a career preference change (server-to-server from
     the web profile route, which only passes the signed-in user's id)."""
     return ranking.rerank_user(conn, get_settings(), body.userId)
+
+
+class ParseJobUrlBody(BaseModel):
+    url: str = Field(min_length=1, max_length=2000)
+
+
+@router.post("/admin/parse-job-url", dependencies=[Auth])
+def admin_parse_job_url(body: ParseJobUrlBody) -> dict[str, Any]:
+    """Read one posting from its link for the web "Add job" form. Under /admin only for the
+    shared-secret auth; the web route lets any signed-in user call it. Stores nothing and
+    needs no database."""
+    try:
+        with make_client() as client:
+            return {"job": single.fetch_job_from_url(client, body.url).to_dict()}
+    except single.JobLinkError as exc:
+        raise HTTPException(status_code=422, detail=exc.message) from exc
 
 
 @router.post("/admin/rank", dependencies=[Auth])

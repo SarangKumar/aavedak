@@ -11,6 +11,24 @@ import { ShellWidth } from "@/components/shell-width";
 import { personInitials } from "@/components/person-vote";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Marker, MarkerContent } from "@/components/ui/marker";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -27,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/search-input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
 
 export type FollowUpDto = {
@@ -151,6 +170,9 @@ function dayLabelIst(iso: string): string {
   return label;
 }
 
+/** Id prefix for the optimistic bubble shown while a chat message is being queued. */
+const PENDING_PREFIX = "pending_";
+
 function messageAt(f: FollowUpDto): string {
   return f.updatedAt || f.createdAt;
 }
@@ -161,32 +183,36 @@ type TimelineItem =
   | { type: "in"; key: string; reply: MailReplyView };
 
 /**
- * Chat order: each sent mail followed by the replies to it, with a day divider whenever the
- * India-time date changes.
+ * Chat order: every sent mail and reply by time, with a day divider whenever the India-time date
+ * changes. Strictly chronological, because mails in one Gmail thread share their replies: reply
+ * detection may file a reply under a later mail in the same thread.
  */
 function buildTimeline(
   entries: Array<{ msg: FollowUpDto; personLabel?: string }>,
   replies: Record<string, MailReplyView[]>,
 ): TimelineItem[] {
+  const events: Array<{ at: string; item: TimelineItem }> = [];
+  const seenReplies = new Set<string>();
+  for (const { msg, personLabel } of entries) {
+    events.push({ at: messageAt(msg), item: { type: "out", key: msg.id, msg, personLabel } });
+    for (const reply of replies[msg.id] ?? []) {
+      if (seenReplies.has(reply.id)) continue;
+      seenReplies.add(reply.id);
+      events.push({ at: reply.receivedAt, item: { type: "in", key: reply.id, reply } });
+    }
+  }
+  // Stable sort: equal times keep insertion order (a mail before its replies).
+  events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
   const out: TimelineItem[] = [];
   let lastDay = "";
-  const pushDay = (iso: string) => {
-    const day = formatDateOnly(iso, { zone: "ist" });
+  for (const { at, item } of events) {
+    const day = formatDateOnly(at, { zone: "ist" });
     if (day !== lastDay) {
       lastDay = day;
-      out.push({ type: "day", key: `day:${day}:${out.length}`, label: dayLabelIst(iso) });
+      out.push({ type: "day", key: `day:${day}`, label: dayLabelIst(at) });
     }
-  };
-  for (const { msg, personLabel } of entries) {
-    pushDay(messageAt(msg));
-    out.push({ type: "out", key: msg.id, msg, personLabel });
-    const answers = [...(replies[msg.id] ?? [])].sort(
-      (a, b) => new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime(),
-    );
-    for (const reply of answers) {
-      pushDay(reply.receivedAt);
-      out.push({ type: "in", key: reply.id, reply });
-    }
+    out.push(item);
   }
   return out;
 }
@@ -245,6 +271,11 @@ export function OutreachInbox({
     [],
   );
   const [sendPhase, setSendPhase] = useState<"idle" | "sending">("idle");
+  // Resume picker dialog: the radio choice is only applied on Confirm.
+  const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
+  const [resumeChoice, setResumeChoice] = useState("");
+  // Phones: the application and duration filters live in a bottom sheet.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
@@ -471,6 +502,30 @@ export function OutreachInbox({
 
   async function deliver(thread: Thread, text: string) {
     setSendPhase("sending");
+    // Show the message in the chat straight away; swapped for the saved mail once queued.
+    const now = new Date().toISOString();
+    const pendingId = `${PENDING_PREFIX}${now}`;
+    setItems((list) => [
+      ...list,
+      {
+        id: pendingId,
+        title: `Follow-up: ${thread.personName}`,
+        dueDate: null,
+        sendAfter: null,
+        status: "queued",
+        personId: thread.personId,
+        applicationId: thread.applicationId,
+        notes: null,
+        mailKind: "followup",
+        mailTo: thread.personEmail,
+        mailBody: text,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    setDraft("");
+    const removePending = () => setItems((list) => list.filter((f) => f.id !== pendingId));
+    let queued = false;
     try {
       const res = await fetch("/api/referrals/queue", {
         method: "POST",
@@ -490,9 +545,12 @@ export function OutreachInbox({
         }),
       });
       const data = (await res.json()) as { followUps?: FollowUpDto[]; error?: string };
-      if (!res.ok) throw new Error(data.error || "Could not queue the message.");
+      if (!res.ok) {
+        throw new Error(data.error || "Could not queue the message.");
+      }
+      queued = true;
+      removePending();
       mergeFollowUps(data.followUps);
-      setDraft("");
       setDraftResumeId("");
 
       const sendRes = await fetch("/api/referrals/process-queue", { method: "POST" });
@@ -514,6 +572,12 @@ export function OutreachInbox({
         toast.add({ title: "Message sent", description: thread.personName, type: "success" });
       }
     } catch (err) {
+      if (!queued) {
+        // Nothing was queued (error or network failure): drop the bubble and give the text
+        // back to edit or resend. Once queued, the saved mail stays and shows Retry if it failed.
+        removePending();
+        setDraft(text);
+      }
       toast.add({
         title: "Send failed",
         description: err instanceof Error ? err.message : "Could not send the message.",
@@ -583,7 +647,9 @@ export function OutreachInbox({
                 <CrossIcon className="size-3.5" />
               </span>
             ) : (
-              <span>{statusLabel(msg.status)}</span>
+              <span>
+                {msg.id.startsWith(PENDING_PREFIX) ? "Sending…" : statusLabel(msg.status)}
+              </span>
             )}
             {failed ? (
               <Button
@@ -628,11 +694,17 @@ export function OutreachInbox({
       <div className="flex flex-col gap-2 px-3 py-4 sm:px-6">
         {items.map((item) =>
           item.type === "day" ? (
-            <div key={item.key} className="flex justify-center py-1">
-              <span className="bg-card/90 text-muted-foreground border-border/60 rounded-md border px-2.5 py-0.5 text-[11px] shadow-sm">
+            <Marker
+              key={item.key}
+              variant="separator"
+              role="separator"
+              aria-label={item.label}
+              className="before:bg-border/70 after:bg-border/70 py-1.5 text-[11px]"
+            >
+              <MarkerContent className="bg-card/90 border-border/60 rounded-md border px-2.5 py-0.5 shadow-sm">
                 {item.label}
-              </span>
-            </div>
+              </MarkerContent>
+            </Marker>
           ) : item.type === "out" ? (
             <div key={item.key}>{renderOutgoing(item.msg, item.personLabel)}</div>
           ) : (
@@ -655,12 +727,16 @@ export function OutreachInbox({
       loading={checkingReplies}
       loadingText=""
       disabled={!replyDetectionReady}
-      title={refreshLabel}
       aria-label={refreshLabel}
       onClick={() => void checkReplies()}
     >
       <RetryIcon className="size-3.5" />
     </Button>
+  );
+  const refreshControl = (
+    <Tooltip content={refreshLabel} className="z-70 text-[12px]">
+      {refreshButton}
+    </Tooltip>
   );
 
   const boardHref = variant === "board" ? "/outreach" : "/outreach/board";
@@ -683,65 +759,93 @@ export function OutreachInbox({
     </>
   );
 
-  const toolbar = (
-    <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2">
-      <SearchInput
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search company, person, role…"
-        aria-label="Search conversations"
-        className="w-full sm:max-w-xs"
-      />
-      <Select
-        value={applicationId || "all"}
-        onValueChange={(v) => {
-          const id = !v || v === "all" ? "" : v;
-          setApplicationId(id);
-          setSelectedKey(id ? ALL_FOR_APP_KEY : null);
-        }}
+  const applicationFilter = (
+    <Select
+      value={applicationId || "all"}
+      onValueChange={(v) => {
+        const id = !v || v === "all" ? "" : v;
+        setApplicationId(id);
+        setSelectedKey(id ? ALL_FOR_APP_KEY : null);
+      }}
+    >
+      <SelectTrigger
+        className={cn(
+          "border-border bg-background h-8 rounded-md border px-2.5 text-[12px]",
+          isDesktop ? "w-auto min-w-40 max-w-[16rem]" : "w-full",
+        )}
+        aria-label="Filter by application"
       >
-        <SelectTrigger
-          className="border-border bg-background h-8 w-auto min-w-40 max-w-[16rem] rounded-md border px-2.5 text-[12px]"
-          aria-label="Filter by application"
-        >
-          <SelectValue placeholder="All applications" />
-        </SelectTrigger>
-        <SelectContent className="z-240">
-          <SelectItem value="all" className="text-[12px]">
-            All applications
+        <SelectValue placeholder="All applications" />
+      </SelectTrigger>
+      <SelectContent className="z-240">
+        <SelectItem value="all" className="text-[12px]">
+          All applications
+        </SelectItem>
+        {applications.map((app) => (
+          <SelectItem key={app.id} value={app.id} className="text-[12px]">
+            {app.companyName} · {app.role}
           </SelectItem>
-          {applications.map((app) => (
-            <SelectItem key={app.id} value={app.id} className="text-[12px]">
-              {app.companyName} · {app.role}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <ToggleGroup
-        aria-label="Duration"
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  const durationFilter = (
+    <ToggleGroup
+      aria-label="Duration"
+      variant="outline"
+      size="sm"
+      value={[duration]}
+      onValueChange={(next) => {
+        // Single selection: the chosen duration stays on until another one is picked.
+        const value = next[0] as DurationFilter | undefined;
+        if (value) setDuration(value);
+      }}
+    >
+      <ToggleGroupItem value="all" className="h-7 px-2.5 text-[12px]">
+        All time
+      </ToggleGroupItem>
+      <ToggleGroupItem value="24h" className="h-7 px-2.5 text-[12px]">
+        24h
+      </ToggleGroupItem>
+      <ToggleGroupItem value="7d" className="h-7 px-2.5 text-[12px]">
+        7d
+      </ToggleGroupItem>
+      <ToggleGroupItem value="30d" className="h-7 px-2.5 text-[12px]">
+        30d
+      </ToggleGroupItem>
+    </ToggleGroup>
+  );
+
+  const activeFilterCount = (applicationId ? 1 : 0) + (duration !== "all" ? 1 : 0);
+
+  const filterButton = (
+    <Tooltip
+      content={activeFilterCount ? `Filters (${activeFilterCount} active)` : "Filters"}
+      className="z-70 text-[12px]"
+    >
+      <Button
+        type="button"
         variant="outline"
-        size="sm"
-        value={[duration]}
-        onValueChange={(next) => {
-          // Single selection: the chosen duration stays on until another one is picked.
-          const value = next[0] as DurationFilter | undefined;
-          if (value) setDuration(value);
-        }}
+        size="icon-sm"
+        className="relative"
+        aria-label={activeFilterCount ? `Filters, ${activeFilterCount} active` : "Filters"}
+        onClick={() => setFiltersOpen(true)}
       >
-        <ToggleGroupItem value="all" className="h-7 px-2.5 text-[12px]">
-          All time
-        </ToggleGroupItem>
-        <ToggleGroupItem value="24h" className="h-7 px-2.5 text-[12px]">
-          24h
-        </ToggleGroupItem>
-        <ToggleGroupItem value="7d" className="h-7 px-2.5 text-[12px]">
-          7d
-        </ToggleGroupItem>
-        <ToggleGroupItem value="30d" className="h-7 px-2.5 text-[12px]">
-          30d
-        </ToggleGroupItem>
-      </ToggleGroup>
-      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        <FilterIcon className="size-3.5" />
+        {activeFilterCount ? (
+          <span className="bg-primary text-primary-foreground absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full text-[9px] font-semibold tabular-nums">
+            {activeFilterCount}
+          </span>
+        ) : null}
+      </Button>
+    </Tooltip>
+  );
+
+  const processLabel = "Process due queue: send mail whose send time has passed";
+  const toolbarActions = (
+    <div className="ml-auto flex shrink-0 items-center gap-1.5">
+      {isDesktop ? (
         <Button
           variant="outline"
           size="sm"
@@ -752,9 +856,92 @@ export function OutreachInbox({
         >
           Process due queue
         </Button>
-        {refreshButton}
-        <BoardToggleLink expanded={variant === "board"} href={boardHref} label="outreach inbox" />
+      ) : (
+        // Phones: icon-only so search, actions and filters fit on one row.
+        <Tooltip content={processLabel} className="z-70 text-[12px]">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            onClick={() => void processQueue()}
+            disabled={processing}
+            loading={processing}
+            loadingText=""
+            aria-label={processLabel}
+          >
+            <QueueIcon className="size-3.5" />
+          </Button>
+        </Tooltip>
+      )}
+      {refreshControl}
+      {isDesktop ? null : filterButton}
+      {/* On the full-screen board the collapse control sits in the top bar instead. */}
+      {variant === "page" ? (
+        <BoardToggleLink expanded={false} href={boardHref} label="outreach inbox" showOnMobile />
+      ) : null}
+    </div>
+  );
+
+  const toolbar = isDesktop ? (
+    <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2">
+      <SearchInput
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search company, person, role…"
+        aria-label="Search conversations"
+        className="w-full sm:max-w-xs"
+      />
+      {applicationFilter}
+      {durationFilter}
+      {toolbarActions}
+    </Card>
+  ) : (
+    // Phones: one row — search (stretches), then process queue, refresh, filters, expand icons.
+    // The filters open in a bottom sheet.
+    <Card size="sm" className="gap-2 p-2">
+      <div className="flex items-center gap-1.5">
+        <SearchInput
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search…"
+          aria-label="Search conversations"
+          className="min-w-0 flex-1"
+        />
+        {toolbarActions}
       </div>
+      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SheetContent side="bottom" className="gap-4 rounded-t-xl">
+          <SheetHeader>
+            <SheetTitle>Filters</SheetTitle>
+            <SheetDescription>Narrow the conversation list.</SheetDescription>
+          </SheetHeader>
+          <div className="space-y-1.5">
+            <p className="text-foreground text-[12px] font-medium">Application</p>
+            {applicationFilter}
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-foreground text-[12px] font-medium">Last activity</p>
+            {durationFilter}
+          </div>
+          <SheetFooter className="flex-row justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={activeFilterCount === 0}
+              onClick={() => {
+                setApplicationId("");
+                setDuration("all");
+                setSelectedKey(null);
+              }}
+            >
+              Reset
+            </Button>
+            <Button type="button" onClick={() => setFiltersOpen(false)}>
+              Done
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 
@@ -949,6 +1136,76 @@ export function OutreachInbox({
     </Button>
   );
 
+  const attachedResume = resumeOptions.find((r) => r.id === draftResumeId) ?? null;
+
+  const resumeDialog = (
+    <Dialog open={resumeDialogOpen} onOpenChange={setResumeDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Attach a resume</DialogTitle>
+          <DialogDescription>
+            The PDF is attached to this message when you press Send.
+          </DialogDescription>
+        </DialogHeader>
+        {resumeOptions.length === 0 ? (
+          <p className="text-muted-foreground text-[13px]">
+            No resumes yet. Upload one on the{" "}
+            <Link href="/documents" className="text-primary hover:underline">
+              Documents
+            </Link>{" "}
+            page.
+          </p>
+        ) : (
+          <ScrollArea className="max-h-[50vh]">
+            <RadioGroup
+              aria-label="Resume to attach"
+              value={resumeChoice || "none"}
+              onValueChange={(v) => setResumeChoice(v === "none" ? "" : v)}
+              className="gap-1.5"
+            >
+              {[{ id: "none", displayName: "No resume" }, ...resumeOptions].map((r) => (
+                <label
+                  key={r.id}
+                  htmlFor={`attach-resume-${r.id}`}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2.5 text-[13px] transition-colors",
+                    (resumeChoice || "none") === r.id
+                      ? "border-primary/40 bg-primary/10"
+                      : "border-border/80 hover:bg-accent/40",
+                  )}
+                >
+                  <RadioGroupItem id={`attach-resume-${r.id}`} value={r.id} />
+                  <span
+                    className={cn(
+                      "min-w-0 truncate",
+                      r.id === "none" ? "text-muted-foreground" : "text-foreground",
+                    )}
+                  >
+                    {r.displayName}
+                  </span>
+                </label>
+              ))}
+            </RadioGroup>
+          </ScrollArea>
+        )}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setResumeDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              setDraftResumeId(resumeChoice);
+              setResumeDialogOpen(false);
+            }}
+          >
+            Confirm
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   const blocker = selected && !viewingAllForApp ? composeBlocker(selected) : null;
   const composer =
     selected && !viewingAllForApp ? (
@@ -982,32 +1239,42 @@ export function OutreachInbox({
                 aria-label={`Message to ${selected.personName}`}
                 className="min-h-10 resize-none border-0 bg-transparent px-3 py-2.5 text-[13px] shadow-none outline-none focus:border-0 focus:outline-none focus-visible:border-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
               />
-              <div className="flex items-center gap-1.5 px-2 pb-1.5">
-                <PaperclipIcon className="text-muted-foreground size-3.5 shrink-0" />
-                <Select
-                  value={draftResumeId || "none"}
-                  onValueChange={(v) => setDraftResumeId(!v || v === "none" ? "" : v)}
-                  disabled={sendPhase !== "idle"}
-                >
-                  <SelectTrigger
-                    className="text-muted-foreground h-6 w-auto min-w-48 max-w-[20rem] border-0 bg-transparent px-1 text-[11px] shadow-none"
-                    aria-label="Attach a resume"
-                  >
-                    <SelectValue placeholder="No resume" />
-                  </SelectTrigger>
-                  <SelectContent className="z-240">
-                    <SelectItem value="none" className="text-[12px]">
-                      No resume
-                    </SelectItem>
-                    {resumeOptions.map((r) => (
-                      <SelectItem key={r.id} value={r.id} className="text-[12px]">
-                        {r.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {attachedResume ? (
+                <div className="flex px-2 pb-1.5">
+                  <span className="bg-muted text-foreground inline-flex max-w-full items-center gap-1.5 rounded-md py-0.5 pl-2 pr-0.5 text-[11px]">
+                    <PaperclipIcon className="text-muted-foreground size-3 shrink-0" />
+                    <span className="truncate">{attachedResume.displayName}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="size-5"
+                      aria-label="Remove attached resume"
+                      title="Remove"
+                      disabled={sendPhase !== "idle"}
+                      onClick={() => setDraftResumeId("")}
+                    >
+                      <CrossIcon className="size-3" />
+                    </Button>
+                  </span>
+                </div>
+              ) : null}
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-10 shrink-0 rounded-full"
+              aria-label={attachedResume ? "Change attached resume" : "Attach a resume"}
+              title={attachedResume ? "Change resume" : "Attach a resume"}
+              disabled={sendPhase !== "idle"}
+              onClick={() => {
+                setResumeChoice(draftResumeId);
+                setResumeDialogOpen(true);
+              }}
+            >
+              <PaperclipIcon className="size-4" />
+            </Button>
             <Button
               type="submit"
               size="icon"
@@ -1082,6 +1349,7 @@ export function OutreachInbox({
         </ScrollArea>
       </div>
       {composer}
+      {resumeDialog}
     </>
   );
 
@@ -1106,20 +1374,37 @@ export function OutreachInbox({
       </ResizablePanelGroup>
     </div>
   ) : mobileChatOpen && chatHeader ? (
-    <Card className="flex h-[calc(100dvh-8rem)] min-h-[26rem] min-w-0 flex-col gap-0 overflow-hidden p-0">
+    <Card
+      className={cn(
+        "flex min-w-0 flex-col gap-0 overflow-hidden p-0",
+        variant === "board" ? "min-h-0 flex-1" : "h-[calc(100dvh-8rem)] min-h-[26rem]",
+      )}
+    >
       {mailPane}
     </Card>
   ) : (
-    <Card className="flex max-h-[calc(100dvh-8rem)] min-h-[20rem] w-full flex-col gap-0 overflow-hidden p-0">
+    <Card
+      className={cn(
+        "flex w-full flex-col gap-0 overflow-hidden p-0",
+        variant === "board" ? "min-h-0 flex-1" : "max-h-[calc(100dvh-8rem)] min-h-[20rem]",
+      )}
+    >
       {listPane}
     </Card>
   );
 
   if (variant === "board") {
+    // Full screen, like a messaging app: a slim top bar with the collapse control always at the
+    // top right. On phones an open chat takes the whole screen below it (back returns to the list).
+    const chatFillsScreen = !isDesktop && mobileChatOpen && Boolean(chatHeader);
     return (
       <FullscreenBoard>
+        <header className="flex shrink-0 items-center justify-between gap-2">
+          <p className="aavedak-display text-foreground text-lg">Outreach</p>
+          <BoardToggleLink expanded href={boardHref} label="outreach inbox" showOnMobile />
+        </header>
         {noticesBlock}
-        {toolbar}
+        {chatFillsScreen ? null : toolbar}
         {board}
       </FullscreenBoard>
     );
@@ -1232,6 +1517,33 @@ function PaperclipIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function FilterIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 5h18M6 12h12M10 19h4"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function QueueIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 6h10M4 12h7M4 18h5M15 15l3 3 4-6"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"

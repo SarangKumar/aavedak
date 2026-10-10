@@ -264,6 +264,12 @@
         "components/ui/tooltip/tooltip.css"
       ],
       "installedAt": "2026-10-10"
+    },
+    "marker": {
+      "files": [
+        "components/ui/marker/index.tsx"
+      ],
+      "installedAt": "2026-10-10"
     }
   }
 }

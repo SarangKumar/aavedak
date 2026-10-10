@@ -258,7 +258,7 @@ export function DialogContent({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="z-70 fixed inset-0 flex items-center justify-center p-4">
       <div
         data-dialog-overlay=""
         className="absolute inset-0 bg-black/50"

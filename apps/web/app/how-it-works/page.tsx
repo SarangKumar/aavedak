@@ -345,9 +345,9 @@ export default function HowItWorksPage() {
                 Which companies are scanned ({CAREER_SOURCES.length})
               </SubHeading>
               <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-                These companies&apos; job boards were checked and had current openings in India or
-                open to India when they were added. Each name links to the careers board Aavedak
-                reads. Admins can add more career pages, so the live list can be longer than this.
+                These companies&apos; job boards had current openings in India or open to India when
+                they were checked, or were added by an admin. Each name links to the careers board
+                Aavedak reads. Pages added since the last update may not be listed yet.
               </p>
               <div className="space-y-3">
                 {providerGroups.map((group) => (

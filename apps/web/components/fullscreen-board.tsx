@@ -43,17 +43,21 @@ export function BoardToggleLink({
   expanded,
   href,
   label = "board",
+  showOnMobile = false,
 }: {
   /** True on the full-screen board route (shows Collapse). */
   expanded: boolean;
   href: string;
   label?: string;
+  /** Also show on small screens (the Outreach inbox works full screen on phones too). */
+  showOnMobile?: boolean;
 }) {
   const text = expanded ? `Collapse ${label}` : `Expand ${label} to full screen`;
   return (
-    // Full-screen boards are a desktop affordance; the control is hidden on small screens.
-    // The wrapper (not the link) is hidden so the tooltip's own wrapper leaves no gap.
-    <span className="hidden md:inline-flex">
+    // Full-screen boards are mainly a desktop affordance, so the control is hidden on small
+    // screens unless `showOnMobile`. The wrapper (not the link) is hidden so the tooltip's own
+    // wrapper leaves no gap.
+    <span className={showOnMobile ? "inline-flex" : "hidden md:inline-flex"}>
       <Tooltip
         content={expanded ? "Collapse" : "Expand to full screen"}
         className="z-70 text-[12px]"

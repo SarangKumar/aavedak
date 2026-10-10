@@ -50,6 +50,7 @@ app/discovery/
     ranking.py   per-user recommendations (daily cap, min score); rerank_user() after career changes
     scoring.py   port of web lib/job-scoring.ts (keep in sync)
     expiry.py    expire jobs + auto-reject early applications (once)
+    single.py    read one posting from its link for web "Add job" (no filters, nothing stored)
     registry.py  company_sources: seed/admin import, shards, scan status
     scan.py      fetch in threads → write per company on the main connection
   people/
@@ -126,10 +127,17 @@ base web tables don't exist yet, endpoints return 503 instead of creating partia
 
 ## Seed registry
 
-`scripts/verify_career_sources.py` tries likely board tokens for each candidate on each
+`career_sources.json` is the single repo list of career sources: verified ATS boards plus
+exported admin sources (`"origin": "admin"`, no `verified*` counts).
+
+`scripts/verify_career_sources.py` tries likely board tokens for each candidate (name,
+hyphenated, first word, then name + `careers`/`jobs`/`hq`/`inc`/`india`/`tech`) on each
 public ATS API and keeps boards with at least one current India-eligible posting (Indian
 location or remote open to India). Re-run it to grow or refresh the list; admins can also
-bulk-import career URLs from the Admin page. The web `/how-it-works` page lists the seed
+bulk-import career URLs from the Admin page. `--skip-known` re-checks only candidates not
+yet in the file. Admin imports live in the database only until
+`scripts/export_admin_sources.py` (read-only query; `--dry-run` to preview) copies them
+into the registry. It only adds; existing entries are never changed. The web `/how-it-works` page lists the seed
 companies (imported at build time via `apps/web/lib/career-sources.ts`). The seed only auto-loads into an empty
 `company_sources`; on an existing database, new seed boards arrive via the Admin page's
 seed import (`POST /admin/sources/import` with `seed: true`, which inserts missing rows only).

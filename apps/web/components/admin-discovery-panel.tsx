@@ -611,7 +611,8 @@ function SourcesSheet({
   const [query, setQuery] = useState("");
   const [sources, setSources] = useState<SourceDto[] | null>(null);
   const [importText, setImportText] = useState("");
-  const [importing, setImporting] = useState(false);
+  // Keyed by action so only the pressed button shows its spinner; the other just disables.
+  const [pendingImport, setPendingImport] = useState<"urls" | "seed" | null>(null);
 
   const load = useCallback(async (q: string) => {
     const res = await fetch(`/api/admin/discovery/sources?q=${encodeURIComponent(q)}&limit=200`, {
@@ -643,7 +644,7 @@ function SourcesSheet({
   }
 
   async function importSources(seed: boolean) {
-    setImporting(true);
+    setPendingImport(seed ? "seed" : "urls");
     try {
       const res = seed
         ? await fetch("/api/admin/discovery", {
@@ -678,7 +679,7 @@ function SourcesSheet({
         type: "error",
       });
     } finally {
-      setImporting(false);
+      setPendingImport(null);
     }
   }
 
@@ -709,11 +710,12 @@ function SourcesSheet({
                 }
                 className="py-2 font-mono text-[12px]"
               />
-              <div className="flex flex-wrap gap-1.5">
+              <Separator className="my-3" />
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
-                  loading={importing}
-                  disabled={!importText.trim()}
+                  loading={pendingImport === "urls"}
+                  disabled={!importText.trim() || pendingImport !== null}
                   onClick={() => void importSources(false)}
                 >
                   Import
@@ -721,7 +723,8 @@ function SourcesSheet({
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={importing}
+                  loading={pendingImport === "seed"}
+                  disabled={pendingImport !== null}
                   onClick={() => void importSources(true)}
                 >
                   Re-import verified seed list

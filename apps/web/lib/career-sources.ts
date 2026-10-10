@@ -2,12 +2,13 @@
  * The verified career-source seed, read straight from the discovery registry in the API app
  * (`apps/api/app/discovery/data/career_sources.json`) so public pages list exactly the
  * companies the nightly scan starts from. Bundled at build time; no runtime file reads.
- * Sources admins add later live only in the database and are not listed here.
+ * Sources added on the Admin page appear here once exported to the registry
+ * (`apps/api/scripts/export_admin_sources.py`).
  */
 import seed from "../../api/app/discovery/data/career_sources.json";
 
 export type CareerSourceProvider =
-  "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable";
+  "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable" | "jsonld" | "json_feed";
 
 export type CareerSource = { name: string; provider: string; careersUrl: string };
 
@@ -17,6 +18,9 @@ export const PROVIDER_LABELS: Record<CareerSourceProvider, string> = {
   ashby: "Ashby",
   smartrecruiters: "SmartRecruiters",
   workable: "Workable",
+  // Career sources added on the Admin page and exported to the registry.
+  jsonld: "Company career pages",
+  json_feed: "Job feeds",
 };
 
 function isHttpUrl(value: unknown): value is string {

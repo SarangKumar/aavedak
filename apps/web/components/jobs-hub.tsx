@@ -20,6 +20,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Marker, MarkerContent } from "@/components/ui/marker";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -180,10 +182,14 @@ export function JobsHub({
   const [message, setMessage] = useState<string | null>(null);
   // Which action is running. Only that action's button shows a spinner; the rest just disable.
   const [pendingAction, setPendingAction] = useState<
-    "create" | "paste" | "apply" | "bookmark" | "ignore" | null
+    "create" | "parse" | "paste" | "apply" | "bookmark" | "ignore" | null
   >(null);
   const pending = pendingAction !== null;
   const [addOpen, setAddOpen] = useState(false);
+  // Add job: a link to read the posting from, the result of reading it, and which section is open.
+  const [jobLink, setJobLink] = useState("");
+  const [linkNotice, setLinkNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  const [addSection, setAddSection] = useState<string | undefined>(undefined);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [draft, setDraft] = useState({
@@ -270,6 +276,97 @@ export function JobsHub({
     document.cookie = `${JOBS_LIST_WIDTH_COOKIE}=${clampJobsListWidth(px)}; path=/; max-age=31536000; samesite=lax`;
   }
 
+  const EMPTY_DRAFT = {
+    title: "",
+    company: "",
+    location: "",
+    source: "manual" as JobSource,
+    url: "",
+    salary: "",
+    description: "",
+  };
+
+  function closeAddJob() {
+    setAddOpen(false);
+    setJobLink("");
+    setLinkNotice(null);
+    setAddSection(undefined);
+  }
+
+  /** Job sites we don't read still get the right source and keep their link. */
+  function sourceFromLink(link: string): JobSource {
+    try {
+      const host = new URL(link).hostname.toLowerCase();
+      if (host === "linkedin.com" || host.endsWith(".linkedin.com")) return "linkedin";
+      if (/(^|\.)indeed\.(com|co\.in)$/.test(host)) return "indeed";
+      return "other";
+    } catch {
+      return "manual";
+    }
+  }
+
+  /** Read the posting behind a link (FastAPI) and fill the form for review. Saves nothing. */
+  async function fetchFromLink() {
+    const link = jobLink.trim();
+    if (!link) return;
+    setLinkNotice(null);
+    setPendingAction("parse");
+    try {
+      const res = await fetch("/api/jobs/parse-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: link }),
+      });
+      const data = (await res.json()) as {
+        job?: {
+          title: string;
+          company: string;
+          location: string;
+          url: string;
+          description: string;
+          source: string;
+        };
+        error?: string;
+      };
+      if (!res.ok || !data.job) {
+        // Can't read it: keep the link so the user only has to type the rest.
+        setDraft((d) => ({ ...d, url: link, source: sourceFromLink(link) }));
+        setLinkNotice({ ok: false, text: data.error || "Could not read this job." });
+      } else {
+        const job = data.job;
+        // Only overwrite fields the posting actually gave; nothing is guessed.
+        setDraft((d) => ({
+          ...d,
+          title: job.title || d.title,
+          company: job.company || d.company,
+          location: job.location || d.location,
+          url: job.url || link,
+          description: job.description || d.description,
+          source: (JOB_SOURCES as readonly string[]).includes(job.source)
+            ? (job.source as JobSource)
+            : "careers",
+        }));
+        const missing = [
+          !job.title && "title",
+          !job.company && "company",
+          !job.location && "location",
+          !job.description && "description",
+        ].filter(Boolean);
+        setLinkNotice({
+          ok: true,
+          text: missing.length
+            ? `Details filled in. The posting didn't include: ${missing.join(", ")}. Add them below.`
+            : "Details filled in from the posting. Check them, then Create.",
+        });
+      }
+      setAddSection("manual");
+    } catch {
+      setLinkNotice({ ok: false, text: "Could not reach the server. Try again." });
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
   async function createJob() {
     setError(null);
     setMessage(null);
@@ -295,16 +392,8 @@ export function JobsHub({
         setTab("discover");
         setSelectedId(data.job.id);
       }
-      setDraft({
-        title: "",
-        company: "",
-        location: "",
-        source: "manual",
-        url: "",
-        salary: "",
-        description: "",
-      });
-      setAddOpen(false);
+      setDraft(EMPTY_DRAFT);
+      closeAddJob();
       setMessage("Job added.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed.");
@@ -736,82 +825,152 @@ export function JobsHub({
       <Dialog
         open={addOpen}
         onOpenChange={(next) => {
-          if (!next) (() => setAddOpen(false))();
+          if (!next) closeAddJob();
         }}
       >
-        <DialogContent>
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>Add job</DialogTitle>
+            <DialogDescription>
+              Paste the job&apos;s link and Aavedak fills in the details, or enter them yourself.
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2.5">
-            <Field
-              label="Title *"
-              value={draft.title}
-              onChange={(v) => setDraft((d) => ({ ...d, title: v }))}
-            />
-            <label className="block space-y-1">
-              <span className="text-foreground text-[12px] font-medium">Company *</span>
-              <CompanySelect
-                value={draft.company}
-                onChange={(name) => setDraft((d) => ({ ...d, company: name }))}
-                placeholder="e.g. Stripe"
+          <div className="space-y-2">
+            <Label htmlFor="add-job-link" className="text-[12px]">
+              Add from a job link
+            </Label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="add-job-link"
+                type="url"
+                inputMode="url"
+                value={jobLink}
+                onChange={(e) => setJobLink(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void fetchFromLink();
+                  }
+                }}
+                placeholder="https://job-boards.greenhouse.io/company/jobs/123"
+                className="min-w-0 flex-1"
               />
-            </label>
-            <Field
-              label="Location *"
-              value={draft.location}
-              onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
-            />
-            <label className="block space-y-1">
-              <span className="text-foreground text-[12px] font-medium">Source</span>
-              <Select
-                value={draft.source}
-                onValueChange={(v) =>
-                  setDraft((d) => ({ ...d, source: (v as JobSource) || d.source }))
-                }
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 shrink-0"
+                loading={pendingAction === "parse"}
+                loadingText="Reading…"
+                disabled={!jobLink.trim() || pending}
+                onClick={() => void fetchFromLink()}
               >
-                <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
-                  <SelectValue placeholder="Source" />
-                </SelectTrigger>
-                <SelectContent className="z-240">
-                  {JOB_SOURCES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {SOURCE_LABELS[s]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-            <Field
-              label="URL"
-              value={draft.url}
-              onChange={(v) => setDraft((d) => ({ ...d, url: v }))}
-            />
-            <Field
-              label="Salary / CTC"
-              value={draft.salary}
-              onChange={(v) => setDraft((d) => ({ ...d, salary: v }))}
-            />
-            <label className="block space-y-1">
-              <span className="text-foreground text-[12px] font-medium">Description</span>
-              <Textarea
-                value={draft.description}
-                onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-                rows={5}
-                className="py-2"
-              />
-            </label>
+                Fetch details
+              </Button>
+            </div>
+            <p className="text-muted-foreground text-[11px] leading-relaxed">
+              Works with Greenhouse, Lever, Ashby, Workable and SmartRecruiters links, and company
+              career pages that publish job data. LinkedIn, Naukri and Indeed can&apos;t be read;
+              their link is kept and you fill in the rest.
+            </p>
+            {linkNotice ? (
+              <Alert variant={linkNotice.ok ? "default" : "destructive"}>
+                <AlertDescription className="text-[12px]">{linkNotice.text}</AlertDescription>
+              </Alert>
+            ) : null}
           </div>
+
+          <Marker variant="separator" className="text-[11px] uppercase tracking-wide">
+            <MarkerContent>or</MarkerContent>
+          </Marker>
+
+          <Accordion
+            type="single"
+            collapsible
+            value={addSection}
+            onValueChange={setAddSection}
+            className="border-y-0"
+          >
+            <AccordionItem value="manual" className="border-border rounded-lg border">
+              <AccordionTrigger className="text-foreground px-3 text-[13px] font-semibold hover:no-underline">
+                Add manually
+              </AccordionTrigger>
+              <AccordionContent>
+                {/* Two columns on wider screens; the description spans both. */}
+                <div className="grid grid-cols-1 gap-3 px-3 pb-1 md:grid-cols-2">
+                  <Field
+                    label="Title *"
+                    value={draft.title}
+                    onChange={(v) => setDraft((d) => ({ ...d, title: v }))}
+                  />
+                  <label className="block space-y-1">
+                    <span className="text-foreground text-[12px] font-medium">Company *</span>
+                    <CompanySelect
+                      value={draft.company}
+                      onChange={(name) => setDraft((d) => ({ ...d, company: name }))}
+                      placeholder="e.g. Stripe"
+                    />
+                  </label>
+                  <Field
+                    label="Location *"
+                    value={draft.location}
+                    onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
+                  />
+                  <label className="block space-y-1">
+                    <span className="text-foreground text-[12px] font-medium">Source</span>
+                    <Select
+                      value={draft.source}
+                      onValueChange={(v) =>
+                        setDraft((d) => ({ ...d, source: (v as JobSource) || d.source }))
+                      }
+                    >
+                      <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
+                        <SelectValue placeholder="Source" />
+                      </SelectTrigger>
+                      <SelectContent className="z-240">
+                        {JOB_SOURCES.map((src) => (
+                          <SelectItem key={src} value={src}>
+                            {SOURCE_LABELS[src]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </label>
+                  <Field
+                    label="URL"
+                    value={draft.url}
+                    onChange={(v) => setDraft((d) => ({ ...d, url: v }))}
+                  />
+                  <Field
+                    label="Salary / CTC"
+                    value={draft.salary}
+                    onChange={(v) => setDraft((d) => ({ ...d, salary: v }))}
+                  />
+                  <label className="block space-y-1 md:col-span-2">
+                    <span className="text-foreground text-[12px] font-medium">Description</span>
+                    <Textarea
+                      value={draft.description}
+                      onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+                      rows={8}
+                      className="py-2"
+                    />
+                  </label>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
           <DialogFooter>
-            <Button variant="outline" size="sm" type="button" onClick={() => setAddOpen(false)}>
+            <Button variant="outline" size="sm" type="button" onClick={closeAddJob}>
               Cancel
             </Button>
             <Button
               type="button"
               size="sm"
               loading={pendingAction === "create"}
-              disabled={pending}
+              disabled={
+                pending || !draft.title.trim() || !draft.company.trim() || !draft.location.trim()
+              }
               onClick={() => void createJob()}
             >
               Create
@@ -957,7 +1116,7 @@ function JobDetail({
   /** Full-screen board: fill the panel height and let "About the job" take the spare space. */
   stretch: boolean;
   tab: JobsTab;
-  pendingAction: "create" | "paste" | "apply" | "bookmark" | "ignore" | null;
+  pendingAction: "create" | "parse" | "paste" | "apply" | "bookmark" | "ignore" | null;
   resumes: ResumeLite[];
   onApply: () => void;
   onBookmark: () => void;

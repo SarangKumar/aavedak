@@ -306,6 +306,15 @@
     "verifiedIndiaEngineering": 6
   },
   {
+    "name": "Couchbase",
+    "provider": "greenhouse",
+    "token": "couchbaseinc",
+    "careersUrl": "https://job-boards.greenhouse.io/couchbaseinc",
+    "sector": "software",
+    "verifiedIndiaPostings": 12,
+    "verifiedIndiaEngineering": 0
+  },
+  {
     "name": "Coupa",
     "provider": "lever",
     "token": "coupa",
@@ -394,6 +403,15 @@
     "sector": "software",
     "verifiedIndiaPostings": 3,
     "verifiedIndiaEngineering": 2
+  },
+  {
+    "name": "DoorDash",
+    "provider": "greenhouse",
+    "token": "doordashindia",
+    "careersUrl": "https://job-boards.greenhouse.io/doordashindia",
+    "sector": "software",
+    "verifiedIndiaPostings": 18,
+    "verifiedIndiaEngineering": 5
   },
   {
     "name": "Dozee",
@@ -630,6 +648,15 @@
     "verifiedIndiaEngineering": 1
   },
   {
+    "name": "Harness",
+    "provider": "greenhouse",
+    "token": "harnessinc",
+    "careersUrl": "https://job-boards.greenhouse.io/harnessinc",
+    "sector": "software",
+    "verifiedIndiaPostings": 8,
+    "verifiedIndiaEngineering": 2
+  },
+  {
     "name": "Harvey",
     "provider": "ashby",
     "token": "harvey",
@@ -637,6 +664,15 @@
     "sector": "software",
     "verifiedIndiaPostings": 8,
     "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Headout",
+    "provider": "greenhouse",
+    "token": "headoutcareers",
+    "careersUrl": "https://job-boards.greenhouse.io/headoutcareers",
+    "sector": "software",
+    "verifiedIndiaPostings": 14,
+    "verifiedIndiaEngineering": 2
   },
   {
     "name": "Hevo Data",
@@ -1035,6 +1071,15 @@
     "verifiedIndiaEngineering": 0
   },
   {
+    "name": "Sama",
+    "provider": "greenhouse",
+    "token": "samainc",
+    "careersUrl": "https://job-boards.greenhouse.io/samainc",
+    "sector": "software",
+    "verifiedIndiaPostings": 2,
+    "verifiedIndiaEngineering": 0
+  },
+  {
     "name": "Samsara",
     "provider": "greenhouse",
     "token": "samsara",
@@ -1401,6 +1446,15 @@
     "careersUrl": "https://careers.smartrecruiters.com/wise",
     "sector": "software",
     "verifiedIndiaPostings": 28,
+    "verifiedIndiaEngineering": 0
+  },
+  {
+    "name": "Wiz",
+    "provider": "greenhouse",
+    "token": "wizinc",
+    "careersUrl": "https://job-boards.greenhouse.io/wizinc",
+    "sector": "software",
+    "verifiedIndiaPostings": 10,
     "verifiedIndiaEngineering": 0
   },
   {

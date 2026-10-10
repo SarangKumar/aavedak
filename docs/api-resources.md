@@ -21,6 +21,10 @@ See product review; mutations take JSON bodies (e.g. status change: `POST /v1/ap
 Web (session auth):
 
 - `GET /api/jobs` → `{ discover, applied }`; `POST /api/jobs` creates a manual job.
+- `POST /api/jobs/parse-url` `{ url }` → `{ job: { title, company, location, url, description, postedAt, source, provider } }`
+  read from the posting by FastAPI (`/svc/v1/discovery/admin/parse-job-url`); saves nothing.
+  422 with a user-facing `error` when the link can't be read (job sites without permitted
+  access, board links, closed postings).
 - `POST|DELETE /api/jobs/{id}/ignore`; `GET /api/jobs/{id}/people` (referral contacts).
 - `POST /api/people/{id}/vote` with `{ "vote": 1 | -1 | 0 }`.
 - `PATCH /api/preferences/tracker` accepts `{ "discoveryEnabled": boolean }`.

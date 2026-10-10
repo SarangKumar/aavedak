@@ -411,3 +411,131 @@ def test_seed_file_is_consistent():
         detected = detect_source(row["careersUrl"])
         assert (detected.provider, detected.token.lower()) == (row["provider"], row["token"].lower())
     json.dumps(seed)
+
+
+def test_verifier_token_variants_include_suffixes():
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent / "scripts" / "verify_career_sources.py"
+    spec = importlib.util.spec_from_file_location("verify_career_sources", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    variants = module.token_variants("Headout")
+    assert variants[0] == "headout"
+    assert "headoutcareers" in variants
+    assert module.token_variants("Tata 1mg")[:3] == ["tata1mg", "tata-1mg", "tata"]
+    assert module.token_variants("") == []
+
+
+def test_export_admin_sources_merge_only_adds():
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent / "scripts" / "export_admin_sources.py"
+    spec = importlib.util.spec_from_file_location("export_admin_sources", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    existing = [{"name": "Acme", "provider": "greenhouse", "token": "acme",
+                 "careersUrl": "https://job-boards.greenhouse.io/acme", "sector": "core",
+                 "verifiedIndiaPostings": 3}]
+    rows = [
+        # Same board, different case: skipped, existing entry untouched.
+        {"company_name": "Acme Renamed", "provider": "greenhouse", "token": "ACME",
+         "careers_url": "https://job-boards.greenhouse.io/acme", "sector": None},
+        {"company_name": "Headout", "provider": "greenhouse", "token": "headoutcareers",
+         "careers_url": "https://job-boards.greenhouse.io/headoutcareers", "sector": "software"},
+        # Invalid rows are ignored.
+        {"company_name": "Bad", "provider": "jsonld", "token": "x", "careers_url": "ftp://x",
+         "sector": None},
+    ]
+    merged, added = module.merge_sources(existing, rows)
+    assert [a["token"] for a in added] == ["headoutcareers"]
+    assert added[0]["origin"] == "admin"
+    assert merged[0] == existing[0]
+    assert [m["name"] for m in merged] == ["Acme", "Headout"]
+
+
+# --- single job link (Add job from a link) ------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "provider,url,expected",
+    [
+        ("greenhouse", "https://job-boards.greenhouse.io/acme/jobs/123?gh_jid=123", "123"),
+        ("greenhouse", "https://boards.greenhouse.io/acme?gh_jid=456", "456"),
+        ("greenhouse", "https://job-boards.greenhouse.io/acme", None),
+        ("lever", "https://jobs.lever.co/acme/0b1c-2d3e/apply", "0b1c-2d3e"),
+        ("ashby", "https://jobs.ashbyhq.com/acme/9f8e", "9f8e"),
+        ("workable", "https://apply.workable.com/acme/j/AB12CD/", "AB12CD"),
+        ("smartrecruiters", "https://jobs.smartrecruiters.com/Acme/7445-backend-engineer", "7445"),
+        ("smartrecruiters", "https://careers.smartrecruiters.com/Acme", None),
+    ],
+)
+def test_single_posting_id(provider, url, expected):
+    from app.discovery.jobs import single
+
+    assert single.posting_id(provider, url) == expected
+
+
+def test_single_blocked_sites_are_never_fetched():
+    import httpx
+
+    from app.discovery.jobs import single
+
+    def fail(request):  # any network call would be a bug
+        raise AssertionError(f"fetched {request.url}")
+
+    with httpx.Client(transport=httpx.MockTransport(fail)) as client:
+        for url, source in [
+            ("https://www.linkedin.com/jobs/view/1", "linkedin"),
+            ("https://in.indeed.com/viewjob?jk=1", "indeed"),
+            ("https://www.naukri.com/job-listings-1", "other"),
+        ]:
+            with pytest.raises(single.JobLinkError) as err:
+                single.fetch_job_from_url(client, url)
+            assert err.value.source == source
+        with pytest.raises(single.JobLinkError):
+            single.fetch_job_from_url(client, "not a url")
+        with pytest.raises(single.JobLinkError, match="careers board"):
+            single.fetch_job_from_url(client, "https://job-boards.greenhouse.io/acme")
+
+
+def test_single_greenhouse_and_jsonld_pages():
+    import httpx
+
+    from app.discovery.jobs import single
+
+    page = """<html><head><script type="application/ld+json">
+    {"@type": "JobPosting", "title": "Graduate Engineer Trainee", "datePosted": "2026-10-01",
+     "hiringOrganization": {"name": "Acme Motors"},
+     "jobLocation": {"address": {"addressLocality": "Pune", "addressCountry": "IN"}},
+     "description": "<p>Freshers welcome.</p>", "url": "https://acme.in/careers/get"}
+    </script></head></html>"""
+
+    def handler(request):
+        if request.url.host == "boards-api.greenhouse.io":
+            return httpx.Response(200, json={
+                "id": 123, "title": "Software Engineer", "company_name": "Acme",
+                "absolute_url": "https://job-boards.greenhouse.io/acme/jobs/123",
+                "location": {"name": "Bengaluru"}, "content": "&lt;p&gt;Build things.&lt;/p&gt;",
+                "first_published": "2026-10-05T10:00:00Z",
+            })
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return httpx.Response(200, text=page)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        gh = single.fetch_job_from_url(client, "https://job-boards.greenhouse.io/acme/jobs/123")
+        assert (gh.title, gh.company, gh.location, gh.source) == (
+            "Software Engineer", "Acme", "Bengaluru", "careers")
+        assert "Build things." in gh.description
+        assert gh.postedAt and gh.postedAt.startswith("2026-10-05")
+
+        page_job = single.fetch_job_from_url(client, "https://acme.in/careers/get")
+        assert page_job.title == "Graduate Engineer Trainee"
+        assert page_job.company == "Acme Motors"
+        assert "Pune" in page_job.location
+        assert page_job.description == "Freshers welcome."
