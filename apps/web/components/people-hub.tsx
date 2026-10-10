@@ -433,7 +433,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                   Linked application
                 </span>
                 <select
-                  className="border-input bg-muted text-foreground box-border flex h-9 w-full rounded-md border px-3 text-sm"
+                  className="border-border bg-input text-foreground box-border flex h-9 w-full rounded-md border px-3 text-sm"
                   value={draft.applicationId}
                   onChange={(e) => setDraft((d) => ({ ...d, applicationId: e.target.value }))}
                 >

@@ -610,8 +610,8 @@ export function OutreachInbox({
     const at = messageAt(msg);
     return (
       <div className="flex justify-end pl-8 sm:pl-16">
-        <div className="text-foreground relative max-w-full space-y-1 rounded-xl rounded-tr-sm border border-[color-mix(in_oklch,var(--primary)_35%,transparent)] bg-[color-mix(in_oklch,var(--primary)_22%,var(--card))] px-3 py-2 shadow-sm sm:max-w-[80%]">
-          <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">
+        <div className="bg-primary text-primary-foreground relative max-w-full space-y-1 rounded-xl rounded-tr-sm px-3 py-2 shadow-sm sm:max-w-[80%]">
+          <p className="text-primary-foreground/70 text-[10px] font-medium uppercase tracking-wide">
             {kind === "followup" ? "Follow-up" : "Referral"}
             {personLabel ? ` · ${personLabel}` : ""}
           </p>
@@ -622,9 +622,9 @@ export function OutreachInbox({
             {bodyFromMessage(msg) || "(empty body)"}
           </p>
           {failed && msg.sendError ? (
-            <p className="text-destructive text-[11px] leading-snug">{msg.sendError}</p>
+            <p className="text-[11px] font-medium leading-snug">⚠ {msg.sendError}</p>
           ) : null}
-          <div className="text-muted-foreground flex items-center justify-end gap-1 text-[10px]">
+          <div className="text-primary-foreground/70 flex items-center justify-end gap-1 text-[10px]">
             <time dateTime={at} title={formatDateTimeReadable(at)}>
               {timeIst(at)}
             </time>
@@ -633,7 +633,7 @@ export function OutreachInbox({
                 role="img"
                 aria-label="Sent"
                 title={statusLabel(msg.status)}
-                className="text-primary"
+                className="text-primary-foreground"
               >
                 <TickIcon className="size-3.5" />
               </span>
@@ -674,8 +674,10 @@ export function OutreachInbox({
   function renderIncoming(reply: MailReplyView) {
     return (
       <div className="flex justify-start pr-8 sm:pr-16">
-        <div className="bg-card text-foreground border-border/70 max-w-full space-y-1 rounded-xl rounded-tl-sm border px-3 py-2 shadow-sm sm:max-w-[80%]">
-          <p className="text-primary text-[11px] font-medium">{reply.fromAddress || "Reply"}</p>
+        <div className="bg-muted text-foreground max-w-full space-y-1 rounded-xl rounded-tl-sm px-3 py-2 shadow-sm sm:max-w-[80%]">
+          <p className="text-muted-foreground text-[11px] font-medium">
+            {reply.fromAddress || "Reply"}
+          </p>
           <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed">
             {reply.bodyText || "(reply has no text)"}
           </p>
@@ -770,7 +772,7 @@ export function OutreachInbox({
     >
       <SelectTrigger
         className={cn(
-          "border-border bg-background h-8 rounded-md border px-2.5 text-[12px]",
+          "h-8 rounded-md border px-2.5 text-[12px]",
           isDesktop ? "w-auto min-w-40 max-w-[16rem]" : "w-full",
         )}
         aria-label="Filter by application"
@@ -969,7 +971,7 @@ export function OutreachInbox({
 
   const cardClass = (active: boolean) =>
     cn(
-      "bg-background flex w-full cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-3 text-left shadow-sm transition-colors",
+      "bg-card flex w-full cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-3 text-left shadow-sm transition-colors",
       active
         ? "border-primary/40 bg-primary/10"
         : "border-border/80 hover:border-border hover:bg-accent/40",
@@ -1220,7 +1222,7 @@ export function OutreachInbox({
               startSend(selected);
             }}
           >
-            <div className="bg-background border-border focus-within:border-ring/70 flex min-w-0 flex-1 flex-col rounded-xl border transition-colors">
+            <div className="bg-input border-border focus-within:border-ring/70 flex min-w-0 flex-1 flex-col rounded-xl border transition-colors">
               <Textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -1360,6 +1362,8 @@ export function OutreachInbox({
       <ResizablePanelGroup variant="blocks" orientation="horizontal" className="h-full w-full">
         <ResizablePanel
           id="inbox-list"
+          // Section colour: conversation cards (bg-card) sit on the muted list.
+          className="bg-muted"
           defaultSize={`${LIST_DEFAULT}px`}
           minSize={`${LIST_MIN}px`}
           maxSize={`${LIST_MAX}px`}
@@ -1385,7 +1389,7 @@ export function OutreachInbox({
   ) : (
     <Card
       className={cn(
-        "flex w-full flex-col gap-0 overflow-hidden p-0",
+        "bg-muted flex w-full flex-col gap-0 overflow-hidden p-0",
         variant === "board" ? "min-h-0 flex-1" : "max-h-[calc(100dvh-8rem)] min-h-[20rem]",
       )}
     >

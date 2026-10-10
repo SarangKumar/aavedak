@@ -278,7 +278,7 @@ export function SelectTrigger({
       disabled={disabled}
       data-slot="select-trigger"
       className={cn(
-        "border-input bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background aria-invalid:border-destructive aria-invalid:ring-destructive/20 relative box-border flex h-9 max-h-9 min-h-9 w-full min-w-0 items-center justify-between gap-2 rounded-md border px-3 text-sm leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "border-border bg-input text-foreground focus-visible:ring-ring focus-visible:ring-offset-background aria-invalid:border-destructive aria-invalid:ring-destructive/20 relative box-border flex h-9 max-h-9 min-h-9 w-full min-w-0 items-center justify-between gap-2 rounded-md border px-3 text-sm leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       ref={(node) => {

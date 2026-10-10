@@ -18,6 +18,7 @@ import {
 } from "@/lib/dashboard";
 import type { FollowUpRecord } from "@/lib/follow-ups";
 import { PipelineStatusChart } from "@/components/pipeline-status-chart";
+import { JOB_CARD_BADGE, JobCardContent, jobCardClassName } from "@/components/job-card";
 import { cn } from "@/lib/utils";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -333,7 +334,7 @@ export async function FollowUpsCard({ userId }: { userId: string }) {
 export async function TopMatchesCard({ userId, username }: { userId: string; username: string }) {
   const matches = await getTopMatches(userId);
   return (
-    <Card role="region" aria-labelledby="matches-heading" className="gap-2 lg:col-span-2">
+    <Card role="region" aria-labelledby="matches-heading" className="bg-muted gap-2 lg:col-span-2">
       <CardHeader>
         <CardTitle id="matches-heading" className="text-[13px] tracking-tight">
           Top new matches
@@ -360,48 +361,48 @@ export async function TopMatchesCard({ userId, username }: { userId: string; use
           .
         </p>
       ) : (
-        <ul className="divide-border/60 divide-y">
+        <ul className="space-y-2">
           {matches.items.map((match) => {
             const age = matchAgeLabel(match);
             return (
-              <li key={match.id} className="flex items-center gap-3 py-2.5">
-                <ScoreRing value={match.score} size="xs" />
-                <div className="min-w-0 flex-1">
-                  <Link
-                    href={`/jobs?job=${encodeURIComponent(match.id)}`}
-                    className="text-foreground block truncate text-[13px] font-medium hover:underline"
+              <li key={match.id}>
+                <div className={jobCardClassName()}>
+                  <JobCardContent
+                    company={match.company}
+                    title={
+                      <Link
+                        href={`/jobs?job=${encodeURIComponent(match.id)}`}
+                        className="hover:underline"
+                      >
+                        {match.title}
+                      </Link>
+                    }
+                    subtitle={`${match.company}${match.location ? ` · ${match.location}` : ""}`}
+                    aside={<ScoreRing value={match.score} size="xs" />}
                   >
-                    {match.title}
-                  </Link>
-                  <p className="text-muted-foreground truncate text-[11px]">
-                    {match.company}
-                    {match.location ? ` · ${match.location}` : ""}
-                    {age ? ` · ${age}` : ""}
-                  </p>
-                  {match.matchedSkills.length > 0 ? (
-                    <div className="mt-1 hidden flex-wrap gap-1 sm:flex">
-                      {match.matchedSkills.map((skill) => (
-                        <Badge key={skill} variant="secondary" className="text-[10px]">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : null}
+                    {match.matchedSkills.map((skill) => (
+                      <Badge
+                        key={skill}
+                        variant="secondary"
+                        className={cn(JOB_CARD_BADGE, "hidden sm:inline-flex")}
+                      >
+                        {skill}
+                      </Badge>
+                    ))}
+                    {age ? <span className="text-muted-foreground text-[10px]">{age}</span> : null}
+                    {match.url ? (
+                      <a
+                        href={match.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary text-[10px] font-medium hover:underline"
+                        aria-label={`Original posting for ${match.title} at ${match.company} (opens in a new tab)`}
+                      >
+                        Posting ↗
+                      </a>
+                    ) : null}
+                  </JobCardContent>
                 </div>
-                {match.url ? (
-                  <a
-                    href={match.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(
-                      buttonVariants({ variant: "outline", size: "xs" }),
-                      "shrink-0 text-[11px]",
-                    )}
-                    aria-label={`Original posting for ${match.title} at ${match.company} (opens in a new tab)`}
-                  >
-                    Posting ↗
-                  </a>
-                ) : null}
               </li>
             );
           })}
@@ -414,7 +415,7 @@ export async function TopMatchesCard({ userId, username }: { userId: string; use
 export async function RecentApplicationsCard({ userId }: { userId: string }) {
   const recent = await getRecentApplications(userId);
   return (
-    <Card role="region" aria-labelledby="recent-apps-heading" className="gap-2">
+    <Card role="region" aria-labelledby="recent-apps-heading" className="bg-muted gap-2">
       <CardHeader>
         <CardTitle id="recent-apps-heading" className="text-[13px] tracking-tight">
           Recent applications
@@ -436,28 +437,22 @@ export async function RecentApplicationsCard({ userId }: { userId: string }) {
           .
         </p>
       ) : (
-        <ul className="divide-border/60 divide-y">
+        <ul className="space-y-2">
           {recent.map((app) => (
             <li key={app.id}>
-              <Link
-                href="/job-tracker"
-                className="hover:bg-muted/40 -mx-1 flex items-center justify-between gap-2 rounded-md px-1 py-2.5 transition-colors"
-              >
-                <div className="min-w-0">
-                  <p className="text-foreground truncate text-[13px] font-medium">
-                    {app.companyName}
-                  </p>
-                  <p className="text-muted-foreground truncate text-[11px]">
-                    {app.role}
-                    {app.location ? ` · ${app.location}` : ""}
-                  </p>
-                </div>
-                <Badge
-                  variant={app.status === "offer" ? "engineNative" : "secondary"}
-                  className="shrink-0 text-[10px]"
+              <Link href="/job-tracker" className={jobCardClassName()}>
+                <JobCardContent
+                  company={app.companyName}
+                  title={app.role}
+                  subtitle={`${app.companyName}${app.location ? ` · ${app.location}` : ""}`}
                 >
-                  {STATUS_LABELS[app.status]}
-                </Badge>
+                  <Badge
+                    variant={app.status === "offer" ? "engineNative" : "secondary"}
+                    className={JOB_CARD_BADGE}
+                  >
+                    {STATUS_LABELS[app.status]}
+                  </Badge>
+                </JobCardContent>
               </Link>
             </li>
           ))}

@@ -112,7 +112,7 @@ export function RadioGroupItem({
       />
       <span
         aria-hidden="true"
-        className="border-input bg-background peer-checked:border-primary peer-focus-visible:ring-ring peer-focus-visible:ring-offset-background pointer-events-none absolute inset-0 rounded-full border peer-focus-visible:ring-2 peer-focus-visible:ring-offset-2 peer-disabled:opacity-50"
+        className="border-border bg-input peer-checked:border-primary peer-focus-visible:ring-ring peer-focus-visible:ring-offset-background pointer-events-none absolute inset-0 rounded-full border peer-focus-visible:ring-2 peer-focus-visible:ring-offset-2 peer-disabled:opacity-50"
       />
       <span
         aria-hidden="true"

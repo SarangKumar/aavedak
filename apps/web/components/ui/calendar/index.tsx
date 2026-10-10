@@ -161,7 +161,7 @@ function CalendarDropdown({
     <div
       data-slot={isYear ? "calendar-year-select" : "calendar-month-select"}
       className={cn(
-        "border-input bg-background relative inline-flex h-8 shrink-0 items-center rounded-md border",
+        "border-border bg-input relative inline-flex h-8 shrink-0 items-center rounded-md border",
         className,
         // Force readable widths after any DayPicker-injected className.
         isYear ? "w-[5.5rem]" : "w-[5rem]",

@@ -109,7 +109,7 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
           >
             <SelectTrigger
               id={`${idPrefix}-years-of-experience`}
-              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+              className="h-9 w-full rounded-lg border px-2.5 text-[13px]"
             >
               <SelectValue placeholder="Select experience" />
             </SelectTrigger>
@@ -131,7 +131,7 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
           >
             <SelectTrigger
               id={`${idPrefix}-job-search-status`}
-              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+              className="h-9 w-full rounded-lg border px-2.5 text-[13px]"
             >
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
@@ -182,7 +182,7 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
           >
             <SelectTrigger
               id={`${idPrefix}-currency`}
-              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+              className="h-9 w-full rounded-lg border px-2.5 text-[13px]"
             >
               <SelectValue placeholder="Currency" />
             </SelectTrigger>
@@ -204,7 +204,7 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
           >
             <SelectTrigger
               id={`${idPrefix}-remote-preference`}
-              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+              className="h-9 w-full rounded-lg border px-2.5 text-[13px]"
             >
               <SelectValue placeholder="Remote / hybrid / on-site" />
             </SelectTrigger>
@@ -267,7 +267,7 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
           >
             <SelectTrigger
               id={`${idPrefix}-work-authorization`}
-              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+              className="h-9 w-full rounded-lg border px-2.5 text-[13px]"
             >
               <SelectValue placeholder="Optional" />
             </SelectTrigger>
@@ -289,7 +289,7 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
           >
             <SelectTrigger
               id={`${idPrefix}-company-size-preference`}
-              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+              className="h-9 w-full rounded-lg border px-2.5 text-[13px]"
             >
               <SelectValue placeholder="Optional" />
             </SelectTrigger>

@@ -1231,7 +1231,7 @@ export function DocumentsHub({
                           value={clFooterResumeId || undefined}
                           onValueChange={(v) => setClFooterResumeId(v || "")}
                         >
-                          <SelectTrigger className="border-border bg-background text-foreground h-8 w-full cursor-pointer rounded-lg border px-2 text-[12px]">
+                          <SelectTrigger className="text-foreground h-8 w-full cursor-pointer rounded-lg border px-2 text-[12px]">
                             <SelectValue placeholder="Choose resume" />
                           </SelectTrigger>
                           <SelectContent className="z-240">

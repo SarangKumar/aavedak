@@ -1,5 +1,7 @@
 "use client";
 
+import { JobCardContent, jobCardClassName } from "@/components/job-card";
+import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -646,7 +648,7 @@ export function JobTrackerBoard({
                   return (
                     <section
                       key={status}
-                      className="border-border/60 bg-muted/25 flex h-[min(75vh,46rem)] w-[18rem] shrink-0 flex-col overflow-hidden rounded-lg border"
+                      className="border-border/60 bg-muted flex h-[min(75vh,46rem)] w-[18rem] shrink-0 flex-col overflow-hidden rounded-lg border"
                     >
                       <div className="mb-0 flex shrink-0 items-center justify-between gap-2 px-2.5 pb-2 pt-2.5">
                         <h2 className="text-foreground truncate text-[12px] font-semibold tracking-tight">
@@ -674,7 +676,9 @@ export function JobTrackerBoard({
                                 <DragDropItem
                                   key={id}
                                   id={id}
-                                  className="border-border/50 bg-muted/40 hover:border-border/80 hover:bg-muted/55 shrink-0 overflow-visible rounded-lg p-0 shadow-none"
+                                  className={jobCardClassName({
+                                    className: "shrink-0 overflow-visible p-0",
+                                  })}
                                 >
                                   <Card
                                     size="sm"
@@ -687,41 +691,38 @@ export function JobTrackerBoard({
                                         openEdit(app);
                                       }
                                     }}
-                                    className="shrink-0 cursor-pointer gap-0 border-0 bg-transparent p-0 shadow-none"
+                                    // Fill the card frame so the drag handle (`aside`) sits at the top
+                                    // right however short the company name is.
+                                    className="min-w-0 flex-1 cursor-pointer gap-0 border-0 bg-transparent p-0 shadow-none"
                                   >
-                                    <div className="flex items-start gap-2 p-3 pb-2">
-                                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1">
-                                        <span className="text-foreground min-w-0 truncate text-[13px] font-semibold leading-snug tracking-tight">
-                                          {app.companyName}
-                                        </span>
-                                        <span
-                                          aria-hidden
-                                          className="text-muted-foreground text-[13px]"
-                                        >
-                                          ⋅
-                                        </span>
-                                        <Badge
-                                          variant="secondary"
-                                          className="max-w-full truncate text-[11px] font-medium"
-                                        >
-                                          {app.role}
-                                        </Badge>
-                                      </div>
-                                      <DragDropHandle
-                                        aria-label={`Move ${app.companyName}`}
-                                        className="text-muted-foreground size-7 shrink-0 cursor-grab"
-                                        onClick={(e) => e.stopPropagation()}
-                                      />
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-3">
-                                      <span className="text-muted-foreground min-w-0 truncate text-[11px] leading-snug">
-                                        {app.location}
-                                        {app.salaryCtc ? ` · ${app.salaryCtc}` : ""}
-                                      </span>
-                                      <ApplicationDate app={app} />
-                                      {app.statusReason === "job_expired" ? (
-                                        <JobExpiredBadge />
-                                      ) : null}
+                                    <div className="flex w-full items-start gap-2.5 p-3">
+                                      <JobCardContent
+                                        company={app.companyName}
+                                        title={app.companyName}
+                                        subtitle={app.role}
+                                        aside={
+                                          <DragDropHandle
+                                            aria-label={`Move ${app.companyName}`}
+                                            className="text-muted-foreground -mr-1 -mt-1 size-7 shrink-0 cursor-grab"
+                                            onClick={(e) => e.stopPropagation()}
+                                          />
+                                        }
+                                      >
+                                        <ApplicationDate app={app} className="text-[10px]" />
+                                        {app.location ? (
+                                          <span className="text-muted-foreground text-[10px]">
+                                            {app.location}
+                                          </span>
+                                        ) : null}
+                                        {app.salaryCtc ? (
+                                          <span className="text-muted-foreground text-[10px]">
+                                            {app.salaryCtc}
+                                          </span>
+                                        ) : null}
+                                        {app.statusReason === "job_expired" ? (
+                                          <JobExpiredBadge />
+                                        ) : null}
+                                      </JobCardContent>
                                     </div>
                                   </Card>
                                 </DragDropItem>
@@ -929,7 +930,7 @@ export function JobTrackerBoard({
                     setDraft((d) => ({ ...d, coverLetterId: v === "__none" ? "" : v || "" }))
                   }
                 >
-                  <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
+                  <SelectTrigger className="text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent className="z-280">
@@ -1281,14 +1282,21 @@ function JobExpiredBadge() {
  * When the user applied (the date they set), or — for bookmarked / preparing items with no
  * applied date yet — when it was added to the tracker.
  */
-function ApplicationDate({ app }: { app: Pick<ApplicationDto, "appliedAt" | "createdAt"> }) {
+function ApplicationDate({
+  app,
+  className = "text-[11px]",
+}: {
+  app: Pick<ApplicationDto, "appliedAt" | "createdAt">;
+  /** Text size; cards use the smaller badge-row size. */
+  className?: string;
+}) {
   return app.appliedAt ? (
-    <span className="text-muted-foreground text-[11px] leading-snug" title="Date applied">
+    <span className={cn("text-muted-foreground leading-snug", className)} title="Date applied">
       Applied {formatDateOnly(app.appliedAt)}
     </span>
   ) : (
     <span
-      className="text-muted-foreground/80 text-[11px] leading-snug"
+      className={cn("text-muted-foreground/80 leading-snug", className)}
       title="Date added to the tracker"
     >
       Added {formatDateOnly(app.createdAt, { zone: "ist" })}

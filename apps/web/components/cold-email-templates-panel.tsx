@@ -217,7 +217,7 @@ export function ColdEmailTemplatesPanel({
   }
 
   const field =
-    "border-border bg-background text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]";
+    "text-foreground h-8 w-full rounded-lg border px-2.5 text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]";
 
   return (
     <div className={cn("space-y-3", className)}>

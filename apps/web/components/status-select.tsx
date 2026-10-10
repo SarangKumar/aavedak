@@ -37,7 +37,7 @@ export function StatusSelect({
       <SelectTrigger
         aria-label={ariaLabel}
         className={cn(
-          "border-border bg-background text-foreground h-7 min-w-[7.5rem] rounded-md border px-2 text-[12px]",
+          "text-foreground h-7 min-w-[7.5rem] rounded-md border px-2 text-[12px]",
           triggerClassName,
         )}
       >

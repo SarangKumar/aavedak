@@ -631,7 +631,7 @@ export function ProfileSettings({
                 setSection(v as SettingsSection);
               }}
             >
-              <SelectTrigger className="border-border bg-background h-9 w-full rounded-md border text-[12px]">
+              <SelectTrigger className="h-9 w-full rounded-md border text-[12px]">
                 <SelectValue placeholder="Section" />
               </SelectTrigger>
               <SelectContent className="z-[240]">

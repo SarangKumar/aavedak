@@ -1253,7 +1253,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   onValueChange={(v) => setFilterResumeId(v || "all")}
                 >
                   <SelectTrigger
-                    className="border-border bg-background text-foreground h-8 w-full min-w-0 rounded-lg border px-2 text-[12px] sm:w-auto sm:min-w-36"
+                    className="text-foreground h-8 w-full min-w-0 rounded-lg border px-2 text-[12px] sm:w-auto sm:min-w-36"
                     aria-label="Filter by resume"
                   >
                     <SelectValue placeholder="All resumes" />
@@ -1274,7 +1274,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   onValueChange={(v) => setFilterEngineId(v || "all")}
                 >
                   <SelectTrigger
-                    className="border-border bg-background text-foreground h-8 w-full min-w-0 rounded-lg border px-2 text-[12px] sm:w-auto sm:min-w-36"
+                    className="text-foreground h-8 w-full min-w-0 rounded-lg border px-2 text-[12px] sm:w-auto sm:min-w-36"
                     aria-label="Filter by engine"
                   >
                     <SelectValue placeholder="All engines" />

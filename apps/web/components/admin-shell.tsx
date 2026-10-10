@@ -239,7 +239,7 @@ export function AdminShell({
               setResumeFilter((v as ResumeFilter) || "all");
             }}
           >
-            <SelectTrigger className="border-border bg-background text-foreground h-8 w-[9rem] rounded-lg border px-2 text-[12px]">
+            <SelectTrigger className="text-foreground h-8 w-[9rem] rounded-lg border px-2 text-[12px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className="z-[240]">

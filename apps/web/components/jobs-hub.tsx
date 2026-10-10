@@ -8,6 +8,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CompanySelect } from "@/components/company-select";
 import { EngineKindBadge } from "@/components/ats-engine-badge";
 import { FinalScoreCell } from "@/components/final-score-cell";
+import {
+  companyInitials,
+  JOB_CARD_BADGE,
+  JobCardContent,
+  jobCardClassName,
+} from "@/components/job-card";
 import { BoardToggleLink, FullscreenBoard } from "@/components/fullscreen-board";
 import { PersonVote, personInitials, type VoteSummaryDto } from "@/components/person-vote";
 import {
@@ -109,13 +115,6 @@ const SOURCE_LABELS: Record<JobSource, string> = {
   indeed: "Indeed",
   other: "Other",
 };
-
-function initials(company: string): string {
-  const parts = company.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
-}
 
 function daysSince(iso: string | null): number | null {
   if (!iso) return null;
@@ -732,7 +731,7 @@ export function JobsHub({
         />
         <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v || "all")}>
           <SelectTrigger
-            className="border-border bg-background h-8 w-56 rounded-md border px-2.5 text-[12px]"
+            className="h-8 w-56 rounded-md border px-2.5 text-[12px]"
             aria-label="Filter by source"
           >
             <SelectValue placeholder="All sources" />
@@ -793,6 +792,8 @@ export function JobsHub({
           >
             <ResizablePanel
               id="jobs-list"
+              // Section colour: job cards (bg-card) sit on the muted list.
+              className="bg-muted"
               panelRef={listPanelRef}
               defaultSize={`${initialListWidth}px`}
               minSize={`${JOBS_LIST_WIDTH_MIN}px`}
@@ -811,7 +812,7 @@ export function JobsHub({
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <Card className="flex max-h-[60vh] w-full flex-col gap-0 overflow-hidden p-0">
+          <Card className="bg-muted flex max-h-[60vh] w-full flex-col gap-0 overflow-hidden p-0">
             {listPane}
           </Card>
           <Card className="bg-muted/20 min-w-0 gap-0 p-3 sm:p-4">{detailPane}</Card>
@@ -924,7 +925,7 @@ export function JobsHub({
                         setDraft((d) => ({ ...d, source: (v as JobSource) || d.source }))
                       }
                     >
-                      <SelectTrigger className="border-border bg-background text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
+                      <SelectTrigger className="text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
                         <SelectValue placeholder="Source" />
                       </SelectTrigger>
                       <SelectContent className="z-240">
@@ -1147,7 +1148,7 @@ function JobDetail({
         <div className="flex items-start gap-3">
           <Avatar className="size-10 rounded-md">
             <AvatarFallback className="rounded-md text-[12px] font-semibold">
-              {initials(job.company)}
+              {companyInitials(job.company)}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
@@ -1775,41 +1776,29 @@ function JobList({
             <button
               type="button"
               onClick={() => onSelect(job.id)}
-              className={cn(
-                "bg-background flex w-full items-start gap-2.5 rounded-lg border px-3 py-3 text-left shadow-sm transition-colors",
-                job.url && "pr-20",
-                selectedId === job.id
-                  ? "border-primary/40 bg-primary/10"
-                  : "border-border/80 hover:border-border hover:bg-accent/40",
-              )}
+              className={jobCardClassName({
+                selected: selectedId === job.id,
+                className: cn("cursor-pointer", job.url && "pr-20"),
+              })}
             >
-              <Avatar className="mt-0.5 size-8 rounded-md">
-                <AvatarFallback className="rounded-md text-[10px] font-semibold">
-                  {initials(job.company)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="text-foreground truncate text-[13px] font-semibold">{job.title}</p>
-                <p className="text-muted-foreground truncate text-[12px]">
-                  {job.company} · {job.location}
-                </p>
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                    {job.sourceLabel}
-                  </Badge>
-                  {tab === "applied" && job.applicationStatus ? (
-                    <Badge className="px-1.5 py-0 text-[10px]">
-                      {statusLabel(job.applicationStatus)}
-                    </Badge>
-                  ) : null}
-                  {job.compatibilityScore != null ? (
-                    <span className="text-foreground/80 text-[10px] font-medium tabular-nums">
-                      Match {job.compatibilityScore}%
-                    </span>
-                  ) : null}
-                  <span className="text-muted-foreground text-[10px]">{ageLabel(job)}</span>
-                </div>
-              </div>
+              <JobCardContent
+                company={job.company}
+                title={job.title}
+                subtitle={`${job.company} · ${job.location}`}
+              >
+                <Badge variant="outline" className={JOB_CARD_BADGE}>
+                  {job.sourceLabel}
+                </Badge>
+                {tab === "applied" && job.applicationStatus ? (
+                  <Badge className={JOB_CARD_BADGE}>{statusLabel(job.applicationStatus)}</Badge>
+                ) : null}
+                {job.compatibilityScore != null ? (
+                  <span className="text-foreground/80 text-[10px] font-medium tabular-nums">
+                    Match {job.compatibilityScore}%
+                  </span>
+                ) : null}
+                <span className="text-muted-foreground text-[10px]">{ageLabel(job)}</span>
+              </JobCardContent>
             </button>
             {job.url ? (
               <a

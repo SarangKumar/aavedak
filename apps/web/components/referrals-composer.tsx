@@ -39,6 +39,7 @@ import type { ApplicationStatus } from "@/lib/application-status";
 import { CompanySelect } from "@/components/company-select";
 import { ColdEmailTemplatesPanel } from "@/components/cold-email-templates-panel";
 import { BoardToggleLink, FullscreenBoard } from "@/components/fullscreen-board";
+import { JOB_CARD_BADGE, JobCardContent, jobCardClassName } from "@/components/job-card";
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
 import { formatDateTimeReadable } from "@/lib/format-datetime";
@@ -148,7 +149,7 @@ const FOLLOWUP_COOLDOWN_MS = 60 * 60 * 1000;
 const COLUMN_META: Record<ColumnId, { title: string; blurb: string }> = {
   applications: {
     title: "Active applications",
-    blurb: "Open applications from your tracker and Jobs · stay listed after you send",
+    blurb: "Open applications from your tracker and Jobs",
   },
   template: { title: "Email", blurb: "Template · From = your Gmail" },
   people: {
@@ -1041,7 +1042,13 @@ export function ReferralsComposer({
     }
 
     return (
-      <Card className="border-border/80 bg-card relative flex h-full min-w-0 flex-col gap-0 rounded-xl border p-0 shadow-sm">
+      <Card
+        className={cn(
+          "border-border/80 relative flex h-full min-w-0 flex-col gap-0 rounded-xl border p-0 shadow-sm",
+          // The applications column holds cards, so it takes the section colour.
+          id === "applications" ? "bg-muted" : "bg-card",
+        )}
+      >
         <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
           <div className="min-w-0">
             <p className="text-foreground text-[13px] font-semibold tracking-tight">{meta.title}</p>
@@ -1087,7 +1094,7 @@ export function ReferralsComposer({
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="needs" className="mt-0 outline-none focus-visible:ring-0">
-                <ul className="space-y-1.5">
+                <ul className="space-y-2">
                   {needsReferralApps.length === 0 ? (
                     <li className="text-muted-foreground text-[12px]">
                       {appliedApplications.length === 0
@@ -1103,20 +1110,15 @@ export function ReferralsComposer({
                           <button
                             type="button"
                             onClick={() => setSelectedAppId(app.id)}
-                            className={cn(
-                              "w-full cursor-pointer rounded-xl border px-2.5 py-2 text-left transition-colors",
-                              selected
-                                ? "border-primary/40 bg-primary/10"
-                                : "border-border/70 bg-muted/30 hover:bg-muted/50",
-                            )}
+                            className={jobCardClassName({ selected, className: "cursor-pointer" })}
                           >
-                            <p className="text-foreground truncate text-[12px] font-medium">
-                              {app.companyName}
-                            </p>
-                            <p className="text-muted-foreground truncate text-[11px]">
-                              {app.role} · {app.location}
-                            </p>
-                            <AppTags app={app} needsReferral={needsBadge} />
+                            <JobCardContent
+                              company={app.companyName}
+                              title={app.role}
+                              subtitle={`${app.companyName} · ${app.location}`}
+                            >
+                              <AppTags app={app} needsReferral={needsBadge} />
+                            </JobCardContent>
                           </button>
                         </li>
                       );
@@ -1125,7 +1127,7 @@ export function ReferralsComposer({
                 </ul>
               </TabsContent>
               <TabsContent value="sent" className="mt-0 outline-none focus-visible:ring-0">
-                <ul className="space-y-1.5">
+                <ul className="space-y-2">
                   {referredApps.length === 0 ? (
                     <li className="text-muted-foreground text-[12px]">
                       No referral emails sent yet for your active applications.
@@ -1138,20 +1140,15 @@ export function ReferralsComposer({
                           <button
                             type="button"
                             onClick={() => setSelectedAppId(app.id)}
-                            className={cn(
-                              "w-full cursor-pointer rounded-xl border px-2.5 py-2 text-left transition-colors",
-                              selected
-                                ? "border-primary/40 bg-primary/10"
-                                : "border-border/70 bg-muted/30 hover:bg-muted/50",
-                            )}
+                            className={jobCardClassName({ selected, className: "cursor-pointer" })}
                           >
-                            <p className="text-foreground truncate text-[12px] font-medium">
-                              {app.companyName}
-                            </p>
-                            <p className="text-muted-foreground truncate text-[11px]">
-                              {app.role} · {app.location}
-                            </p>
-                            <AppTags app={app} />
+                            <JobCardContent
+                              company={app.companyName}
+                              title={app.role}
+                              subtitle={`${app.companyName} · ${app.location}`}
+                            >
+                              <AppTags app={app} />
+                            </JobCardContent>
                           </button>
                         </li>
                       );
@@ -1226,7 +1223,7 @@ export function ReferralsComposer({
                   onValueChange={(v) => setSelectedTemplateId(v || null)}
                   disabled={activeTemplates.length === 0}
                 >
-                  <SelectTrigger className="border-border bg-background text-foreground h-8 w-full cursor-pointer rounded-lg border px-2 text-[12px]">
+                  <SelectTrigger className="text-foreground h-8 w-full cursor-pointer rounded-lg border px-2 text-[12px]">
                     <SelectValue
                       placeholder={
                         activeTemplates.length === 0
@@ -1693,21 +1690,21 @@ function QuestionMarkIcon({ className }: { className?: string }) {
 /** Status + origin chips on an application in the Active applications column. */
 function AppTags({ app, needsReferral = false }: { app: ApplicationDto; needsReferral?: boolean }) {
   return (
-    <span className="mt-1 flex flex-wrap gap-1">
-      <Badge variant="outline" className="h-5 text-[10px]">
+    <>
+      <Badge variant={app.jobOnly ? "outline" : "default"} className={JOB_CARD_BADGE}>
         {app.jobOnly ? "Not applied" : STATUS_LABELS[app.status]}
       </Badge>
       {app.jobId ? (
-        <Badge variant="outline" className="h-5 text-[10px]">
+        <Badge variant="outline" className={JOB_CARD_BADGE}>
           From Jobs
         </Badge>
       ) : null}
       {needsReferral ? (
-        <Badge variant="secondary" className="h-5 text-[10px]">
+        <Badge variant="secondary" className={JOB_CARD_BADGE}>
           Needs referral
         </Badge>
       ) : null}
-    </span>
+    </>
   );
 }
 
