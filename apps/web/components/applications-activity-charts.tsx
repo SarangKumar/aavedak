@@ -9,8 +9,8 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Spinner } from "@/components/ui/spinner";
-import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ActivityDay = { date: string; count: number };
@@ -137,9 +137,7 @@ export function ApplicationsActivityCharts() {
 
   const chartBody =
     loading && !data ? (
-      <div className="text-muted-foreground flex h-[220px] items-center justify-center gap-2 text-[12px] sm:h-[280px]">
-        <Spinner label="" /> Loading chart…
-      </div>
+      <Skeleton className="h-[220px] w-full rounded-md sm:h-[280px]" />
     ) : chartData.length === 0 ? (
       <p className="text-muted-foreground flex h-[220px] items-center justify-center text-[12px]">
         No application activity in this range yet.
@@ -216,25 +214,39 @@ export function ApplicationsActivityCharts() {
   return (
     <Tabs value={months} onValueChange={setMonths} className="h-full gap-0">
       <Card role="region" className="h-full gap-3" aria-labelledby="activity-heading">
-        <CardHeader className="gap-y-1.5">
-          <CardTitle id="activity-heading" className="text-[13px] tracking-tight">
-            Applications per day
-          </CardTitle>
-          <CardDescription className="text-[11px] leading-relaxed">
-            {loading && !data
-              ? "Loading…"
-              : `${totalMine} logged in the last ${rangeLabel}${hasFriends ? " · friends shown as extra lines" : ""}`}
-          </CardDescription>
-          <CardAction className="max-sm:col-start-1 max-sm:row-span-1 max-sm:row-start-3 max-sm:justify-self-start">
-            <TabsList aria-label="Chart time range" className="h-8">
-              {RANGES.map((r) => (
-                <TabsTrigger key={r.value} value={r.value} className="px-2 text-[11px]">
-                  {r.short}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </CardAction>
-        </CardHeader>
+        {/* Flex, not CardHeader's two-column grid: on phones the range switch drops below the
+            title instead of squeezing it into a narrow column. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0 space-y-1">
+            <CardTitle id="activity-heading" className="text-[13px] tracking-tight">
+              Applications per day
+            </CardTitle>
+            <CardDescription className="text-[11px] leading-relaxed">
+              {loading && !data ? (
+                "Loading…"
+              ) : (
+                <>
+                  <span className="whitespace-nowrap">
+                    {totalMine} logged in the last {rangeLabel}
+                  </span>
+                  {hasFriends ? (
+                    <>
+                      <span aria-hidden> · </span>
+                      <span className="whitespace-nowrap">friends shown as extra lines</span>
+                    </>
+                  ) : null}
+                </>
+              )}
+            </CardDescription>
+          </div>
+          <TabsList aria-label="Chart time range" className="h-8 shrink-0 self-start">
+            {RANGES.map((r) => (
+              <TabsTrigger key={r.value} value={r.value} className="px-2.5 text-[11px]">
+                {r.short}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
         {error ? <p className="text-destructive text-[12px]">{error}</p> : null}
 

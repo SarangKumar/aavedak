@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 import {
   APPLICATION_STATUSES,
@@ -105,7 +107,7 @@ const INTERVIEW_STATUSES = new Set<string>(["interview", "offer"]);
  * Funnel from current status plus status history. History matters: an application that was
  * interviewed and then rejected still counts as having reached the interview stage.
  */
-async function getFunnel(userId: string): Promise<DashboardFunnel> {
+export const getFunnel = cache(async (userId: string): Promise<DashboardFunnel> => {
   const rows = (await getSql()`
     SELECT a.status,
       COALESCE(
@@ -136,17 +138,16 @@ async function getFunnel(userId: string): Promise<DashboardFunnel> {
     if (screened || reached.has("rejected")) funnel.heardBack += 1;
   }
   return funnel;
-}
+});
 
 /** An application sitting in one of these statuses this long probably needs its status updated. */
 export const STALE_AFTER_DAYS = 14;
 const WAITING_STATUSES = ["applied", "under_review", "assessment", "interview"];
 
-async function getStaleApplications(
-  userId: string,
-): Promise<{ items: DashboardStaleApplication[]; total: number }> {
-  const cutoff = new Date(Date.now() - STALE_AFTER_DAYS * 86_400_000).toISOString();
-  const rows = (await getSql()`
+export const getStaleApplications = cache(
+  async (userId: string): Promise<{ items: DashboardStaleApplication[]; total: number }> => {
+    const cutoff = new Date(Date.now() - STALE_AFTER_DAYS * 86_400_000).toISOString();
+    const rows = (await getSql()`
     SELECT id, company_name, role, status,
       COALESCE(status_changed_at, applied_at, updated_at) AS since
     FROM applications
@@ -156,64 +157,66 @@ async function getStaleApplications(
     ORDER BY since ASC
   `) as Array<{ id: string; company_name: string; role: string; status: string; since: string }>;
 
-  const now = Date.now();
-  const items = rows.slice(0, 5).map((row) => ({
-    id: row.id,
-    companyName: row.company_name,
-    role: row.role,
-    status: row.status as ApplicationStatus,
-    since: row.since,
-    daysIdle: Math.max(0, Math.floor((now - new Date(row.since).getTime()) / 86_400_000)),
-  }));
-  return { items, total: rows.length };
-}
+    const now = Date.now();
+    const items = rows.slice(0, 5).map((row) => ({
+      id: row.id,
+      companyName: row.company_name,
+      role: row.role,
+      status: row.status as ApplicationStatus,
+      since: row.since,
+      daysIdle: Math.max(0, Math.floor((now - new Date(row.since).getTime()) / 86_400_000)),
+    }));
+    return { items, total: rows.length };
+  },
+);
 
 /** Best open recommendations first; manual jobs have no score and are left out. */
-async function getTopMatches(
-  userId: string,
-): Promise<{ items: DashboardMatch[]; newThisWeek: number }> {
-  const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const recommended = (await listDiscoverJobs(userId)).filter(
-    (job) => job.recommendationScore !== null,
-  );
-  const newThisWeek = recommended.filter(
-    (job) => job.recommendedAt !== null && job.recommendedAt >= weekAgo,
-  ).length;
-  const items = recommended
-    .slice()
-    .sort(
-      (a, b) =>
-        (b.recommendationScore ?? 0) - (a.recommendationScore ?? 0) ||
-        (b.recommendedAt ?? "").localeCompare(a.recommendedAt ?? ""),
-    )
-    .slice(0, 5)
-    .map((job) => ({
-      id: job.id,
-      title: job.title,
-      company: job.company,
-      location: job.location,
-      url: job.url,
-      score: Math.round(job.recommendationScore ?? 0),
-      postedAt: job.postedAt,
-      postedAtEstimated: job.postedAtEstimated,
-      firstSeenAt: job.firstSeenAt,
-      matchedSkills: Array.isArray(job.reasons.skills) ? job.reasons.skills.slice(0, 4) : [],
-    }));
-  return { items, newThisWeek };
-}
+export const getTopMatches = cache(
+  async (userId: string): Promise<{ items: DashboardMatch[]; newThisWeek: number }> => {
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const recommended = (await listDiscoverJobs(userId)).filter(
+      (job) => job.recommendationScore !== null,
+    );
+    const newThisWeek = recommended.filter(
+      (job) => job.recommendedAt !== null && job.recommendedAt >= weekAgo,
+    ).length;
+    const items = recommended
+      .slice()
+      .sort(
+        (a, b) =>
+          (b.recommendationScore ?? 0) - (a.recommendationScore ?? 0) ||
+          (b.recommendedAt ?? "").localeCompare(a.recommendedAt ?? ""),
+      )
+      .slice(0, 5)
+      .map((job) => ({
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        url: job.url,
+        score: Math.round(job.recommendationScore ?? 0),
+        postedAt: job.postedAt,
+        postedAtEstimated: job.postedAtEstimated,
+        firstSeenAt: job.firstSeenAt,
+        matchedSkills: Array.isArray(job.reasons.skills) ? job.reasons.skills.slice(0, 4) : [],
+      }));
+    return { items, newThisWeek };
+  },
+);
 
 /** Same bucketing as the activity chart (lib/application-activity.ts) so the numbers agree. */
-async function getWeeklyAdds(userId: string): Promise<{ thisWeek: number; lastWeek: number }> {
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const dayIso = (offset: number) => {
-    const d = new Date(today);
-    d.setUTCDate(d.getUTCDate() - offset);
-    return d.toISOString().slice(0, 10);
-  };
-  const thisStart = dayIso(6);
-  const lastStart = dayIso(13);
-  const rows = (await getSql()`
+export const getWeeklyAdds = cache(
+  async (userId: string): Promise<{ thisWeek: number; lastWeek: number }> => {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const dayIso = (offset: number) => {
+      const d = new Date(today);
+      d.setUTCDate(d.getUTCDate() - offset);
+      return d.toISOString().slice(0, 10);
+    };
+    const thisStart = dayIso(6);
+    const lastStart = dayIso(13);
+    const rows = (await getSql()`
     SELECT
       COUNT(*) FILTER (WHERE day >= ${thisStart} AND day <= ${dayIso(0)})::int AS this_week,
       COUNT(*) FILTER (WHERE day >= ${lastStart} AND day < ${thisStart})::int AS last_week
@@ -226,11 +229,12 @@ async function getWeeklyAdds(userId: string): Promise<{ thisWeek: number; lastWe
       WHERE user_id = ${userId} AND status != 'archived'
     ) t
   `) as Array<{ this_week: number; last_week: number }>;
-  return {
-    thisWeek: Number(rows[0]?.this_week) || 0,
-    lastWeek: Number(rows[0]?.last_week) || 0,
-  };
-}
+    return {
+      thisWeek: Number(rows[0]?.this_week) || 0,
+      lastWeek: Number(rows[0]?.last_week) || 0,
+    };
+  },
+);
 
 function daysFromNowIso(days: number): string {
   const d = new Date();
@@ -245,11 +249,16 @@ function startOfTodayIso(): string {
   return d.toISOString();
 }
 
-export async function getDashboardSnapshot(userId: string): Promise<DashboardSnapshot> {
-  await ensureAppSchema();
-  const sql = getSql();
+type StatusSummary = {
+  countByStatus: Map<ApplicationStatus, number>;
+  statusCounts: StatusCount[];
+  activeApplicationCount: number;
+};
 
-  const statusRows = (await sql`
+/** Non-archived applications per status. Shared by the KPIs, pipeline chart and focus list. */
+export const getStatusSummary = cache(async (userId: string): Promise<StatusSummary> => {
+  await ensureAppSchema();
+  const statusRows = (await getSql()`
     SELECT status, COUNT(*)::int AS count
     FROM applications
     WHERE user_id = ${userId} AND status != 'archived'
@@ -271,54 +280,83 @@ export async function getDashboardSnapshot(userId: string): Promise<DashboardSna
       count: countByStatus.get(status) ?? 0,
     }),
   );
-
   const activeApplicationCount = statusCounts.reduce((sum, s) => sum + s.count, 0);
+  return { countByStatus, statusCounts, activeApplicationCount };
+});
 
-  const archivedRows = (await sql`
-    SELECT COUNT(*)::int AS count FROM applications
-    WHERE user_id = ${userId} AND status = 'archived'
-  `) as Array<{ count: number }>;
-  const archivedApplicationCount = Number(archivedRows[0]?.count) || 0;
+export type FollowUpSummary = {
+  pendingFollowUpCount: number;
+  dueSoonFollowUpCount: number;
+  overdueFollowUpCount: number;
+  /** Next five pending, earliest due date first (undated last). */
+  upcomingFollowUps: FollowUpRecord[];
+};
 
-  const pendingFollowUps = await listFollowUps(userId, { includeClosed: false });
-  const pendingFollowUpCount = pendingFollowUps.length;
-
+export const getFollowUpSummary = cache(async (userId: string): Promise<FollowUpSummary> => {
+  const pending = await listFollowUps(userId, { includeClosed: false });
   const soon = daysFromNowIso(7);
   const todayStart = startOfTodayIso();
-  const dueSoonFollowUpCount = pendingFollowUps.filter((f) => {
-    if (!f.dueDate) return false;
-    return f.dueDate <= soon;
-  }).length;
-  const overdueFollowUpCount = pendingFollowUps.filter((f) => {
-    if (!f.dueDate) return false;
-    return f.dueDate < todayStart;
-  }).length;
+  return {
+    pendingFollowUpCount: pending.length,
+    dueSoonFollowUpCount: pending.filter((f) => f.dueDate !== null && f.dueDate <= soon).length,
+    overdueFollowUpCount: pending.filter((f) => f.dueDate !== null && f.dueDate < todayStart)
+      .length,
+    upcomingFollowUps: pending
+      .slice()
+      .sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"))
+      .slice(0, 5),
+  };
+});
 
-  const resumeCount = await countUsableResumes(userId);
-  const coverLetterCount = (await listCoverLetters(userId)).length;
-  const peopleCount = (await listPeople()).length;
+export type WorkspaceCounts = {
+  jobCount: number;
+  resumeCount: number;
+  coverLetterCount: number;
+  peopleCount: number;
+  archivedApplicationCount: number;
+};
+
+export const getWorkspaceCounts = cache(async (userId: string): Promise<WorkspaceCounts> => {
+  await ensureAppSchema();
+  const [jobCount, resumeCount, coverLetters, people, archivedRows] = await Promise.all([
+    countJobs(userId),
+    countUsableResumes(userId),
+    listCoverLetters(userId),
+    listPeople(),
+    getSql()`
+      SELECT COUNT(*)::int AS count FROM applications
+      WHERE user_id = ${userId} AND status = 'archived'
+    `,
+  ]);
+  return {
+    jobCount,
+    resumeCount,
+    coverLetterCount: coverLetters.length,
+    peopleCount: people.length,
+    archivedApplicationCount: Number((archivedRows as Array<{ count: number }>)[0]?.count) || 0,
+  };
+});
+
+export const getActiveResumeName = cache(async (userId: string): Promise<string | null> => {
   const resumes = await listResumes(userId);
-  const activeResume = resumes.find((r) => r.status === "active") ?? null;
+  return resumes.find((r) => r.status === "active")?.displayName ?? null;
+});
 
-  const jobCount = await countJobs(userId);
-  const funnel = await getFunnel(userId);
-  const weekly = await getWeeklyAdds(userId);
-  const matches = await getTopMatches(userId);
-  const stale = await getStaleApplications(userId);
-
-  const recentApplications = (await listApplications(userId, "active"))
+export const getRecentApplications = cache(async (userId: string): Promise<ApplicationRecord[]> =>
+  (await listApplications(userId, "active"))
     .slice()
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, 5);
+    .slice(0, 5),
+);
 
-  const upcomingFollowUps = pendingFollowUps
-    .slice()
-    .sort((a, b) => {
-      const ad = a.dueDate ?? "9999";
-      const bd = b.dueDate ?? "9999";
-      return ad.localeCompare(bd);
-    })
-    .slice(0, 5);
+export const getFocusItems = cache(async (userId: string): Promise<DashboardFocusItem[]> => {
+  const [{ countByStatus, activeApplicationCount }, followUps, counts] = await Promise.all([
+    getStatusSummary(userId),
+    getFollowUpSummary(userId),
+    getWorkspaceCounts(userId),
+  ]);
+  const { overdueFollowUpCount, dueSoonFollowUpCount } = followUps;
+  const { jobCount, resumeCount, peopleCount } = counts;
 
   const focusItems: DashboardFocusItem[] = [];
   if (overdueFollowUpCount > 0) {
@@ -397,8 +435,37 @@ export async function getDashboardSnapshot(userId: string): Promise<DashboardSna
     });
   }
 
+  return focusItems.slice(0, 4);
+});
+
+/** Everything at once — used by GET /api/dashboard. The page streams each section instead. */
+export async function getDashboardSnapshot(userId: string): Promise<DashboardSnapshot> {
+  const [
+    status,
+    followUps,
+    counts,
+    activeResumeName,
+    funnel,
+    weekly,
+    matches,
+    stale,
+    recent,
+    focus,
+  ] = await Promise.all([
+    getStatusSummary(userId),
+    getFollowUpSummary(userId),
+    getWorkspaceCounts(userId),
+    getActiveResumeName(userId),
+    getFunnel(userId),
+    getWeeklyAdds(userId),
+    getTopMatches(userId),
+    getStaleApplications(userId),
+    getRecentApplications(userId),
+    getFocusItems(userId),
+  ]);
+
   return {
-    statusCounts,
+    statusCounts: status.statusCounts,
     topMatches: matches.items,
     newMatchesThisWeek: matches.newThisWeek,
     staleApplications: stale.items,
@@ -406,18 +473,11 @@ export async function getDashboardSnapshot(userId: string): Promise<DashboardSna
     funnel,
     addedThisWeek: weekly.thisWeek,
     addedLastWeek: weekly.lastWeek,
-    activeApplicationCount,
-    archivedApplicationCount,
-    pendingFollowUpCount,
-    dueSoonFollowUpCount,
-    overdueFollowUpCount,
-    resumeCount,
-    coverLetterCount,
-    peopleCount,
-    activeResumeName: activeResume?.displayName ?? null,
-    jobCount,
-    recentApplications,
-    upcomingFollowUps,
-    focusItems: focusItems.slice(0, 4),
+    activeApplicationCount: status.activeApplicationCount,
+    ...counts,
+    ...followUps,
+    activeResumeName,
+    recentApplications: recent,
+    focusItems: focus,
   };
 }

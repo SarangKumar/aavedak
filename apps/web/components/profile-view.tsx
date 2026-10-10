@@ -290,6 +290,9 @@ export function ProfileView({
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
+              <span className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                Active
+              </span>
               <a
                 href={`/api/resumes/${activeResumeId}/file`}
                 target="_blank"
@@ -298,9 +301,6 @@ export function ProfileView({
               >
                 View
               </a>
-              <span className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                Active
-              </span>
             </div>
           </div>
         ) : (

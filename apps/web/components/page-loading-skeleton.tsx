@@ -101,23 +101,61 @@ function TableSkeleton({ columns, rows = 5 }: { columns: number; rows?: number }
   );
 }
 
-/**
- * Mirrors app/dashboard/page.tsx: header, then groups — Overview (KPIs + full-width chart),
- * Needs attention (two lists), Jobs and applications (2/3 + 1/3), Pipeline health (two cards),
- * Workspace strip.
- */
-function DashboardSkeleton() {
-  const cardClass = "border-border bg-card rounded-md border p-4";
+/* Dashboard block skeletons — exported so app/dashboard/page.tsx can use each one as the
+ * <Suspense> fallback for its block, and composed below into the full-page loader. */
+const dashCard = "border-border bg-card rounded-md border p-4";
 
-  const groupHeading = (
-    <div className="space-y-1">
-      <Skeleton className="h-3 w-28" />
-      <Skeleton className="h-3 w-64 max-w-full" />
+export function DashboardKpisSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className={cn(dashCard, "space-y-2 p-3 sm:p-4")}>
+          <Skeleton className="h-2.5 w-24" />
+          <Skeleton className="h-8 w-12" />
+          <Skeleton className="h-3 w-full max-w-36" />
+        </div>
+      ))}
     </div>
   );
+}
 
-  const listCard = (key: number, className?: string, withRing = false) => (
-    <div key={key} className={cn(cardClass, "space-y-2.5", className)}>
+export function DashboardChartSkeleton() {
+  return (
+    <div className={cn(dashCard, "space-y-3")}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 w-56 max-w-full" />
+        </div>
+        <Skeleton className="h-8 w-36 rounded-lg" />
+      </div>
+      <Skeleton className="h-[220px] w-full rounded-md sm:h-[280px]" />
+    </div>
+  );
+}
+
+export function DashboardFocusSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className={cn(dashCard, "space-y-2 p-3")}>
+          <Skeleton className="h-3.5 w-28" />
+          <Skeleton className="h-3 w-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function DashboardListCardSkeleton({
+  className,
+  withRing = false,
+}: {
+  className?: string;
+  withRing?: boolean;
+}) {
+  return (
+    <div className={cn(dashCard, "space-y-2.5", className)}>
       <div className="flex items-center justify-between gap-2">
         <Skeleton className="h-4 w-36" />
         <Skeleton className="h-3 w-16" />
@@ -136,6 +174,60 @@ function DashboardSkeleton() {
       </div>
     </div>
   );
+}
+
+export function DashboardPipelineSkeleton() {
+  return (
+    <div className={cn(dashCard, "space-y-3")}>
+      <Skeleton className="h-4 w-36" />
+      {Array.from({ length: 10 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <Skeleton className="h-3 w-20 shrink-0" />
+          <Skeleton className="h-3.5 rounded-sm" style={{ width: `${70 - i * 6}%` }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function DashboardFunnelSkeleton() {
+  return (
+    <div className={cn(dashCard, "space-y-4")}>
+      <div className="space-y-1.5">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3 w-full" />
+      </div>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="space-y-1.5">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-2 w-full rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function DashboardWorkspaceSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className={cn(dashCard, "flex items-center justify-between p-3")}>
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-4 w-6" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Full-page loader (before the session resolves): same groups as app/dashboard/page.tsx. */
+function DashboardSkeleton() {
+  const groupHeading = (
+    <div className="space-y-1">
+      <Skeleton className="h-3 w-28" />
+      <Skeleton className="h-3 w-64 max-w-full" />
+    </div>
+  );
 
   return (
     <SkeletonPage className="space-y-8 py-8 sm:py-10">
@@ -148,79 +240,37 @@ function DashboardSkeleton() {
 
       <section className="space-y-4">
         {groupHeading}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className={cn(cardClass, "space-y-2 p-3 sm:p-4")}>
-              <Skeleton className="h-2.5 w-24" />
-              <Skeleton className="h-8 w-12" />
-              <Skeleton className="h-3 w-full max-w-36" />
-            </div>
-          ))}
-        </div>
-        <div className={cn(cardClass, "space-y-3")}>
-          <div className="flex items-start justify-between gap-2">
-            <div className="space-y-1.5">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-3 w-56 max-w-full" />
-            </div>
-            <Skeleton className="h-8 w-36 rounded-lg" />
-          </div>
-          <Skeleton className="h-[220px] w-full rounded-md sm:h-[280px]" />
-        </div>
+        <DashboardKpisSkeleton />
+        <DashboardChartSkeleton />
       </section>
 
       <section className="space-y-4">
         {groupHeading}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {[0, 1].map((i) => listCard(i))}
+          <DashboardListCardSkeleton />
+          <DashboardListCardSkeleton />
         </div>
       </section>
 
       <section className="space-y-4">
         {groupHeading}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {listCard(0, "lg:col-span-2", true)}
-          {listCard(1)}
+          <DashboardListCardSkeleton className="lg:col-span-2" withRing />
+          <DashboardListCardSkeleton />
         </div>
       </section>
 
       <section className="space-y-4">
         {groupHeading}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className={cn(cardClass, "space-y-3")}>
-            <Skeleton className="h-4 w-36" />
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <Skeleton className="h-3 w-20 shrink-0" />
-                <Skeleton className="h-3.5 rounded-sm" style={{ width: `${70 - i * 6}%` }} />
-              </div>
-            ))}
-          </div>
-          <div className={cn(cardClass, "space-y-4")}>
-            <div className="space-y-1.5">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3 w-full" />
-            </div>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="space-y-1.5">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-2 w-full rounded-full" />
-              </div>
-            ))}
-          </div>
+          <DashboardPipelineSkeleton />
+          <DashboardFunnelSkeleton />
         </div>
       </section>
 
       <section className="space-y-4">
         <Skeleton className="h-3 w-24" />
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className={cn(cardClass, "flex items-center justify-between p-3")}>
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-4 w-6" />
-            </div>
-          ))}
-        </div>
+        <DashboardWorkspaceSkeleton />
       </section>
     </SkeletonPage>
   );
