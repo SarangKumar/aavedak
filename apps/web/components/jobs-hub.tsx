@@ -1559,10 +1559,11 @@ function HowJobsWork() {
               <div className="space-y-1">
                 <p className="text-foreground font-medium">What gets recommended</p>
                 <p>
-                  Only India-based engineering roles that ask for under 3 years of experience are
-                  kept. Each day you get up to 50 new matches, ranked by how well they fit your
-                  skills, preferred roles, locations and resume text. Turn this off in Profile
-                  settings → Job discovery.
+                  Only tech roles (engineering, data, ML/AI, QA, IT, security, design and junior
+                  product) based in India or remote and open to India, asking for under 3 years of
+                  experience, are kept. Each day you get up to 50 new matches, ranked by how well
+                  they fit your skills, preferred roles, locations and resume text. Turn this off in
+                  Profile settings → Job discovery.
                 </p>
               </div>
               <div className="space-y-1">

@@ -6,8 +6,9 @@ for internals). This page covers how it runs, how to configure it, and how to op
 ## What users get
 
 - **Jobs → Discover jobs**: up to `DISCOVERY_DAILY_LIMIT` (50) new recommendations per user
-  per IST day — junior engineering roles in India (stated minimum experience under 3
-  years), ranked against the user's resume text and career preferences. Recommendations
+  per IST day — junior tech roles (engineering, data, ML/AI, QA, IT, security,
+  design, junior product) in India or remote and open to India (stated minimum experience
+  under 3 years), ranked against the user's resume text and career preferences. Recommendations
   accumulate until the user applies, bookmarks, or ignores them.
 - **Jobs → Applied jobs**: jobs with an application (any non-archived status).
 - Jobs older than `JOB_EXPIRY_DAYS` (30) from their **posting date** leave both tabs.

@@ -962,7 +962,7 @@ export function ProfileSettings({
           {section === "discovery" ? (
             <SettingsPanel
               title={sectionTitle}
-              description="Aavedak scans company career pages daily for junior engineering roles in India and recommends up to 50 new matches a day, ranked against your resume and career preferences."
+              description="Aavedak scans company career pages daily for junior tech roles in India (or remote and open to India) and recommends up to 50 new matches a day, ranked against your resume and career preferences."
             >
               <Card size="sm">
                 <CardHeader>

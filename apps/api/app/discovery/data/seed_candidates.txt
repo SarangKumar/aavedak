@@ -1,5 +1,5 @@
 # Candidate companies for scripts/verify_career_sources.py — name|sector (software|core|mixed).
-# Unverified guesses: the script keeps only boards that resolve and list India engineering roles.
+# Unverified guesses: the script keeps only boards that resolve and list India-eligible postings.
 Databricks|software
 Stripe|software
 Airbnb|software
@@ -820,3 +820,553 @@ Ampin|core
 Fourth Partner|core
 SolarSquare|core
 Oorja|core
+# --- 2026-10 expansion: remote-first, data/AI, QA/IT/security, design, more India tech ---
+Automattic|software
+Canonical|software
+Mozilla|software
+DuckDuckGo|software
+Wikimedia Foundation|software
+Sourcegraph|software
+PostHog|software
+Oyster|software
+Oyster HR|software
+Andela|software
+Toggl|software
+Doist|software
+Buffer|software
+Hotjar|software
+Mattermost|software
+Ghost|software
+Discourse|software
+Tailscale|software
+1Password|software
+Bitwarden|software
+Proton|software
+Kong|software
+Postmark|software
+Hasura Inc|software
+Prisma|software
+Temporal|software
+Temporal Technologies|software
+Dagster|software
+Prefect|software
+Astronomer|software
+Airflow|software
+Hex|software
+Mode Analytics|software
+Metabase|software
+Sigma Computing|software
+Amplitude|software
+Mixpanel|software
+Heap|software
+FullStory|software
+Pendo|software
+Segment|software
+RudderStack|software
+mParticle|software
+Braze|software
+Iterable|software
+Optimizely|software
+Contentful|software
+Sanity|software
+Strapi|software
+Storyblok|software
+Algolia|software
+Typesense|software
+Meilisearch|software
+Zilliz|software
+Chroma|software
+Unstructured|software
+Anyscale|software
+Databricks India|software
+Dataiku|software
+DataRobot|software
+H2O.ai|software
+Domino Data Lab|software
+Labelbox|software
+Snorkel AI|software
+Cleanlab|software
+Arize AI|software
+Fiddler AI|software
+Galileo|software
+Patronus AI|software
+Scale|software
+Invisible Technologies|software
+Sama|software
+iMerit|software
+Uber AI|software
+Character AI|software
+Adept|software
+Inflection|software
+Stability AI|software
+Midjourney|software
+Ideogram|software
+Pika|software
+Synthesia|software
+HeyGen|software
+Descript|software
+Otter.ai|software
+Fireflies|software
+Gong|software
+Clari|software
+Outreach|software
+Salesloft|software
+Apollo.io|software
+ZoomInfo|software
+Highspot|software
+Seismic|software
+Freshservice|software
+Atlassian India|software
+Zendesk India|software
+Postman India|software
+Chargebee India|software
+BrowserStack India|software
+Sprinklr India|software
+Whatnot|software
+Faire|software
+Flexport|software
+Samsara India|software
+Motive|software
+Motive Technologies|software
+KeepTruckin|software
+Rivigo|software
+Ninjacart|software
+DeHaat|software
+AgroStar|software
+Bijak|software
+Arya.ag|software
+Jai Kisan|software
+Kalvium|software
+Unacademy Group|software
+Byju's|software
+Great Learning India|software
+Vedantu India|software
+Interview Kickstart|software
+Educative|software
+Coursera|software
+Udemy|software
+Chegg|software
+Quizlet|software
+Brainly|software
+Duolingo India|software
+Headout|software
+Thrillophilia|software
+Tripjack|software
+Zingbus|software
+IntrCity|software
+Chalo|software
+Uber India|software
+Jumpstart|software
+Sharechat|software
+Josh|software
+Moj|software
+Pratilipi|software
+Inshorts|software
+InVideo|software
+Animaker|software
+Kapwing|software
+Canva India|software
+Figma India|software
+Penpot|software
+Pitch|software
+Gamma|software
+Tome|software
+Beautiful.ai|software
+Lottiefiles|software
+Rive|software
+Spline|software
+Framer India|software
+Lummi|software
+Superside|software
+Toptal|software
+Crossover|software
+X-Team|software
+Clevertech|software
+Proxify|software
+Arc.dev|software
+Gun.io|software
+Lemon.io|software
+Uplers|software
+Turing India|software
+Deel India|software
+Multiplier|software
+Skuad|software
+Atlys|software
+Velocity|software
+Jar App|software
+Smallcase Technologies|software
+Groww India|software
+Kite|software
+Sensibull|software
+Streak|software
+Tickertape|software
+Stockal|software
+Vested Finance|software
+Appreciate|software
+Fyers|software
+5paisa|software
+Bajaj Finserv Health|software
+Plum Benefits|software
+Loop Health|software
+Pristyn Care|software
+Even Healthcare|software
+Eka Care|software
+Innovaccer India|software
+Doceree|software
+MediBuddy|software
+Truemeds|software
+Cloudphysician|software
+Dozee|software
+Qure AI|software
+5C Network|software
+Neodocs|software
+Redcliffe Labs|software
+Healthians|software
+Sugar.fit|software
+Wysa|software
+Amaha|software
+Intellect|software
+Fold Health|software
+Suki|software
+Abridge|software
+Commure|software
+Athenahealth|software
+Veeva|software
+Veeva Systems|software
+IQVIA|software
+Cerner|software
+Epic|software
+Optum|software
+Komodo Health|software
+Tempus|software
+Flatiron Health|software
+Benchling|software
+Recursion|software
+Insitro|software
+CyberArk|software
+SentinelOne|software
+Cyble|software
+Lookout|software
+Arctic Wolf|software
+Abnormal Security|software
+Huntress|software
+Vanta|software
+Drata|software
+Secureframe|software
+Chainguard|software
+Socket|software
+Semgrep|software
+Aikido|software
+Cobalt|software
+HackerOne|software
+Bugcrowd|software
+Bugcrowd India|software
+Appknox|software
+Beagle Security|software
+Seqrite|software
+Quick Heal|software
+Instasafe|software
+Safe Security|software
+Sequretek|software
+Lucideus|software
+Kratikal|software
+Tricentis|software
+Katalon|software
+Sauce Labs|software
+mabl|software
+Applitools|software
+QA Wolf|software
+Testim|software
+Qualitest|software
+Cigniti|software
+Testlio|software
+Global App Testing|software
+Rainforest QA|software
+Kobiton|software
+Perfecto|software
+Headspin|software
+Pcloudy|software
+Ness Digital Engineering|software
+Virtusa|software
+Mphasis|software
+Persistent Systems|software
+Coforge|software
+Hexaware|software
+Zensar|software
+Birlasoft|software
+Sonata Software|software
+Mastek|software
+Happiest Minds|software
+Mindtree|software
+LTIMindtree|software
+Infosys|software
+Wipro|software
+HCLTech|software
+Tech Mahindra|software
+Tata Consultancy Services|software
+Accenture|software
+Cognizant|software
+EPAM|software
+EPAM Systems|software
+Globant|software
+GlobalLogic|software
+Endava|software
+Grid Dynamics|software
+SoftServe|software
+Luxoft|software
+Publicis Sapient|software
+Nagarro|software
+Encora|software
+Altimetrik|software
+Synechron|software
+Xoriant|software
+Infogain|software
+Iris Software|software
+Datamatics|software
+Saama|software
+Mu Sigma|software
+Absolutdata|software
+Course5 Intelligence|software
+MathCo|software
+TheMathCompany|software
+Sigmoid Analytics|software
+Lumiq|software
+Polestar Solutions|software
+Kanerika|software
+Merkle|software
+Axtria|software
+ZS Associates|software
+ZS|software
+EXL|software
+WNS|software
+Genpact|software
+Evalueserve|software
+Indegene|software
+Indium Software|software
+Ksolves|software
+GeekyAnts|software
+Simform|software
+Hashedin|software
+HashedIn by Deloitte|software
+Sahaj Software|software
+Equal Experts|software
+Thoughtworks India|software
+CodeNation|software
+Trilogy|software
+DevRev|software
+Hevo|software
+Atlan India|software
+Rocketlane India|software
+Zoho Corporation|software
+Freshworks India|software
+SurveySparrow|software
+Hippo Video|software
+Chatwoot|software
+Frappe|software
+ERPNext|software
+Zerodha Tech|software
+Bharat Electronics|core
+Bharat Dynamics|core
+HAL|core
+BHEL|core
+ISRO|core
+DRDO|core
+Tata Advanced Systems|core
+Mahindra Defence|core
+L&T Defence|core
+Data Patterns|core
+Astra Microwave|core
+Centum Electronics|core
+Syrma SGS|core
+Avalon Technologies|core
+SFO Technologies|core
+VVDN|core
+VVDN Technologies|core
+Lava|core
+Lava International|core
+Micromax|core
+Optiemus|core
+Vivo India|core
+Samsung|core
+Samsung R&D|core
+LG Soft India|core
+Sony India|core
+Panasonic|core
+Toshiba|core
+Hitachi|core
+Mitsubishi Electric|core
+Fujitsu|core
+NEC|core
+Renesas|core
+STMicroelectronics|core
+Microchip|core
+onsemi|core
+Marvell|core
+Broadcom|core
+MediaTek|core
+AMD|core
+Intel|core
+NVIDIA|core
+Cerebras|core
+Groq|core
+SambaNova|core
+Tenstorrent|core
+SiFive|core
+Rambus|core
+Ampere|core
+Astera Labs|core
+Ayar Labs|core
+Lightmatter|core
+Celestial AI|core
+Etched|core
+Graphcore|core
+Kinara|core
+EdgeQ|core
+Blaize|core
+Esper|core
+Rapido Bike|core
+Hero Electric|core
+Okinawa|core
+Ampere Vehicles|core
+Greaves Electric|core
+Tata Autocomp|core
+Lucas TVS|core
+Sundram Fasteners|core
+Endurance Technologies|core
+Varroc|core
+Motherson|core
+Samvardhana Motherson|core
+JK Tyre|core
+Apollo Tyres|core
+MRF|core
+CEAT|core
+Asian Paints|mixed
+Pidilite|mixed
+Hindustan Unilever|mixed
+ITC|mixed
+Nestle India|mixed
+Procter & Gamble|mixed
+Unilever|mixed
+Reckitt|mixed
+Colgate-Palmolive|mixed
+Mondelez|mixed
+PepsiCo|mixed
+Coca-Cola|mixed
+Diageo|mixed
+AB InBev|mixed
+Cargill|mixed
+Bunge|mixed
+Dr. Reddy's|mixed
+Sun Pharma|mixed
+Cipla|mixed
+Lupin|mixed
+Biocon|mixed
+Syngene|mixed
+Glenmark|mixed
+Zydus|mixed
+Novartis|mixed
+Pfizer|mixed
+AstraZeneca|mixed
+GSK|mixed
+Roche|mixed
+Bayer|mixed
+BASF|mixed
+Merck|mixed
+Shell|mixed
+BP|mixed
+ExxonMobil|mixed
+Chevron|mixed
+TotalEnergies|mixed
+Schlumberger|mixed
+SLB|mixed
+Halliburton|mixed
+Baker Hughes|mixed
+Wood|mixed
+Worley|mixed
+Jacobs|mixed
+AECOM|mixed
+Arcadis|mixed
+WSP|mixed
+Stantec|mixed
+Mott MacDonald|mixed
+Atkins|mixed
+AtkinsRealis|mixed
+Bechtel|mixed
+Fluor|mixed
+Technip Energies|mixed
+Linde|mixed
+Air Liquide|mixed
+Saint-Gobain|mixed
+UltraTech|mixed
+Shapoorji Pallonji|mixed
+Afcons|mixed
+Tata Projects|mixed
+GMR|mixed
+Kalpataru|mixed
+KEC International|mixed
+Polycab|mixed
+Havells|mixed
+Crompton|mixed
+Voltas|mixed
+Blue Star|mixed
+Whirlpool|mixed
+Bosch Home|mixed
+Electrolux|mixed
+Dyson|mixed
+Goldman Sachs|mixed
+JPMorgan Chase|mixed
+Morgan Stanley|mixed
+Deutsche Bank|mixed
+Barclays|mixed
+HSBC|mixed
+Standard Chartered|mixed
+Citi|mixed
+Wells Fargo|mixed
+American Express|mixed
+Mastercard|mixed
+Fiserv|mixed
+FIS|mixed
+Global Payments|mixed
+Broadridge|mixed
+State Street|mixed
+Northern Trust|mixed
+BNY|mixed
+BlackRock|mixed
+Fidelity|mixed
+Vanguard|mixed
+Invesco|mixed
+Nomura|mixed
+UBS|mixed
+D. E. Shaw|mixed
+DE Shaw|mixed
+Two Sigma|mixed
+Citadel|mixed
+Jane Street|mixed
+Hudson River Trading|mixed
+Jump Trading|mixed
+IMC Trading|mixed
+DRW|mixed
+Virtu|mixed
+Squarepoint|mixed
+WorldQuant|mixed
+Millennium|mixed
+Akuna Capital|mixed
+Flow Traders|mixed
+Da Vinci|mixed
+Maven Securities|mixed
+iRage|mixed
+Dolat Capital|mixed
+Estee Advisors|mixed
+Edelweiss|mixed
+Motilal Oswal|mixed
+ICICI Securities|mixed
+HDFC Bank|mixed
+Axis Bank|mixed
+Yes Bank|mixed
+IDFC First Bank|mixed
+AU Small Finance Bank|mixed
+Bajaj Finance|mixed
+Tata Capital|mixed
+Aditya Birla Capital|mixed
+Piramal Finance|mixed
+Poonawalla Fincorp|mixed

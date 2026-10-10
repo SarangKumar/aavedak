@@ -7,8 +7,16 @@ forwards admin actions to `/svc/v1/discovery/admin/*` after its own allowlist ch
 
 ## Scope (product decisions)
 
-- India-only, **engineering roles in any discipline**, junior: stated minimum experience
-  `< JUNIOR_MAX_YEARS_EXCLUSIVE` (default 3). Internships excluded unless
+- **India or remote-open-to-India**, **tech roles**, junior: stated minimum experience
+  `< JUNIOR_MAX_YEARS_EXCLUSIVE` (default 3). Location (`filters.is_india_eligible`): an
+  Indian city/state/tech park (common misspellings included), or a remote posting whose
+  region includes India (worldwide / anywhere / global / APAC / Asia; not South-East or
+  other Asian sub-regions). A bare "Remote" or a non-Indian country code is not enough.
+  Roles (`filters.is_engineering_title`): engineering in any discipline plus data &
+  analytics, ML/AI, QA/testing, IT & infrastructure, security, UI/UX/product design, and
+  associate product manager / product analyst. Matching uses explicit phrases, so generic
+  "analyst" / "scientist" / "designer" titles stay out. Skip reasons keep their names
+  (`not_india`, `not_engineering`). Internships excluded unless
   `INCLUDE_INTERNSHIPS=1`. Filters run **before** anything is written, so the database only
   holds relevant jobs; skipped postings are only counted per reason.
 - Sources: public ATS posting APIs (Greenhouse, Lever, Ashby, SmartRecruiters, Workable),
@@ -34,7 +42,7 @@ app/discovery/
   jobs/
     models.py    SourceTarget, RawPosting, NormalizedJob, FetchResult
     providers/   one module per source; pure parse() + fetch(); detect_source(url)
-    filters.py   India / engineering / junior / experience parsing (pure)
+    filters.py   India-or-remote / tech role / junior / experience parsing (pure)
     normalize.py RawPosting → NormalizedJob + content hash + dedupe key
     store.py     per-company incremental upsert, close/reopen
     ranking.py   per-user recommendations (daily cap, min score); rerank_user() after career changes
@@ -116,8 +124,11 @@ base web tables don't exist yet, endpoints return 503 instead of creating partia
 ## Seed registry
 
 `scripts/verify_career_sources.py` tries likely board tokens for each candidate on each
-public ATS API and keeps boards with at least one current India posting. Re-run it to grow
-or refresh the list; admins can also bulk-import career URLs from the Admin page.
+public ATS API and keeps boards with at least one current India-eligible posting (Indian
+location or remote open to India). Re-run it to grow or refresh the list; admins can also
+bulk-import career URLs from the Admin page. The seed only auto-loads into an empty
+`company_sources`; on an existing database, new seed boards arrive via the Admin page's
+seed import (`POST /admin/sources/import` with `seed: true`, which inserts missing rows only).
 
 ## Tests
 

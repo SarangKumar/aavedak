@@ -381,8 +381,8 @@ export function AdminDiscoveryPanel() {
               <CardTitle className="text-[13px]">Career sources</CardTitle>
               <CardDescription className="text-[11px]">
                 Public ATS boards (Greenhouse, Lever, Ashby, SmartRecruiters, Workable) and career
-                pages with JobPosting data. Only India, engineering, &lt;{" "}
-                {overview.settings.juniorMaxYearsExclusive} yrs roles are stored.
+                pages with JobPosting data. Only India or India-open remote tech roles under{" "}
+                {overview.settings.juniorMaxYearsExclusive} yrs are stored.
               </CardDescription>
               <CardAction>
                 <Button size="xs" variant="outline" onClick={() => setSourcesOpen(true)}>
@@ -529,7 +529,8 @@ export function AdminDiscoveryPanel() {
             <AlertDialogTitle>Scan all career sources now?</AlertDialogTitle>
             <AlertDialogDescription>
               Queues every enabled source (outside the nightly schedule). Postings are fetched from
-              public job-board APIs; only India junior engineering roles are stored.
+              public job-board APIs; only junior tech roles in India or remote and open to India are
+              stored.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

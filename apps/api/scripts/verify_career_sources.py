@@ -1,8 +1,8 @@
 """Build / refresh the career-source seed (app/discovery/data/career_sources.json).
 
 For each candidate company name, try likely board tokens on each public ATS API and keep
-boards that currently list at least one India posting (India hiring presence). The count of
-India junior-engineering titles is recorded too; the scan filters roles before storing, so
+boards that currently list at least one India-eligible posting (India location or remote
+open to India). The count of junior titles in discovery's role scope is recorded too; the scan filters roles before storing, so
 boards without matching roles today cost a request, not database rows.
 Only public posting APIs are called; nothing is scraped.
 
@@ -75,7 +75,7 @@ def check(client: httpx.Client, provider: str, token: str, name: str) -> tuple[i
         postings = PARSERS[provider](payload, target)
     except Exception:  # noqa: BLE001 — unexpected payload shape means "not a board"
         return None
-    india = [p for p in postings if filters.is_india(p.locations, p.country_code)]
+    india = [p for p in postings if filters.is_india_eligible(p.locations, p.country_code)]
     engineering = [
         p for p in india if filters.is_engineering_title(p.title) and not filters.is_senior_title(p.title)
     ]
@@ -138,7 +138,7 @@ def main() -> None:
                     print(f"{index}/{len(entries)} checked, {len(by_key)} boards", flush=True)
 
     merged = sorted(by_key.values(), key=lambda r: (r["name"].lower(), r["provider"]))
-    out_path.write_text(json.dumps(merged, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    out_path.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"wrote {len(merged)} boards to {out_path}")
 
 

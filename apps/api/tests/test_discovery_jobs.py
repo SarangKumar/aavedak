@@ -42,10 +42,37 @@ def posting(title: str, locations=("Bengaluru, India",), description: str = "", 
         (["Indianapolis, Indiana"], None, False),
         (["London, UK"], "IN", True),
         (["Anywhere"], "US", False),
+        (["Hinjewadi, Pune"], None, True),
+        (["Manesar, Haryana"], None, True),
+        (["Sri City"], None, True),
+        (["Banglore"], None, True),
+        (["Kota Kinabalu, Malaysia"], None, False),
+        (["Salem, Oregon"], None, False),
+        (["Salem, Tamil Nadu"], None, True),
     ],
 )
 def test_is_india(locations, code, expected):
     assert filters.is_india(locations, code) is expected
+
+
+@pytest.mark.parametrize(
+    "locations,code,expected",
+    [
+        (["Remote - APAC"], None, True),
+        (["Remote (Worldwide)"], None, True),
+        (["Anywhere"], None, True),
+        (["Fully remote, Asia-Pacific"], None, True),
+        (["Remote - India"], None, True),
+        (["Remote"], None, False),
+        (["Remote - EMEA"], None, False),
+        (["Remote - Southeast Asia"], None, False),
+        (["Remote, Global"], "US", False),
+        (["Remote, Global"], "IN", True),
+        (["Singapore"], None, False),
+    ],
+)
+def test_is_india_eligible(locations, code, expected):
+    assert filters.is_india_eligible(locations, code) is expected
 
 
 @pytest.mark.parametrize(
@@ -62,7 +89,24 @@ def test_is_india(locations, code, expected):
         ("Engineering Manager", False),
         ("Account Executive", False),
         ("Recruiter, Engineering", False),
-        ("Product Designer", False),
+        ("Product Designer", True),
+        ("Data Analyst", True),
+        ("Associate Data Scientist", True),
+        ("Machine Learning Engineer", True),
+        ("AI/ML Intern", True),
+        ("QA Analyst", True),
+        ("Manual Tester", True),
+        ("IT Support Executive", True),
+        ("Database Administrator", True),
+        ("SOC Analyst L1", True),
+        ("UI/UX Designer", True),
+        ("Associate Product Manager", True),
+        ("Business Analyst", True),
+        ("AI Writing Evaluator", False),
+        ("Data Entry Operator", False),
+        ("Financial Analyst", False),
+        ("Graphic Designer", False),
+        ("Marketing Data Analyst", False),
     ],
 )
 def test_engineering_titles(title, expected):
@@ -84,6 +128,9 @@ def test_engineering_titles(title, expected):
         ("Engineer - 5G RAN", False),
         ("IN_RBAI_Sr.Engineer/ Asst.Manager_Engineering", True),
         ("IN_ETAS_Cybersecurity Manager_IN", True),
+        ("Associate Product Manager", False),
+        ("APM - Payments", False),
+        ("Product Manager", True),
     ],
 )
 def test_senior_titles(title, expected):
@@ -111,6 +158,8 @@ def test_classify_reasons():
     kw = {"max_years_exclusive": 3, "include_internships": False}
     assert filters.classify(posting("Software Engineer", ["Austin, TX"]), "", **kw).reason == "not_india"
     assert filters.classify(posting("Marketing Manager"), "", **kw).reason == "not_engineering"
+    assert filters.classify(posting("Software Engineer", ["Remote"]), "", **kw).reason == "not_india"
+    assert filters.classify(posting("Data Analyst", ["Remote - APAC"]), "", **kw).keep
     assert filters.classify(posting("Software Engineering Intern"), "", **kw).reason == "internship"
     assert filters.classify(posting("Senior Software Engineer"), "", **kw).reason == "senior_title"
     assert filters.classify(posting("Backend Engineer"), "3+ years of experience", **kw).reason == "experience"

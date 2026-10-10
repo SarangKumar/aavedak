@@ -11,6 +11,7 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Added
 
+- **Jobs — wider job discovery** — Discover jobs now finds more than engineering roles. Junior openings in data and analytics, machine learning and AI, QA and testing, IT support and infrastructure, security, UI/UX and product design, and associate product manager roles are included too. Remote jobs open to India (worldwide, anywhere, APAC or Asia) now count, alongside many more Indian cities, tech parks and industrial hubs. A plain "Remote" with no region is still left out, because it usually means remote within another country. The daily scan now covers 46 more companies' career pages (164 in total), including Supabase, DevRev, Veeva, Atlys, Abnormal Security, Cerebras, IMC Trading, WorldQuant and Coursera. The rules haven't changed otherwise: only roles asking for under 3 years of experience, and every job links to its original posting.
 - **Dashboard — pipeline radar** — Applications by status now show as a radar chart, one spoke per status.
 - **Navbar — account dropdown** — The avatar opens a dropdown menu (Vinyaas dropdown) with your name and email, the page links, and sign out.
 - **Resume preview — laptop actions and A4 size** — On larger screens the resume preview shows Open in new tab and a close button in its header, and the page is sized as an A4 sheet. Phones keep the footer actions.

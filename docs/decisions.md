@@ -7,8 +7,9 @@
 - Multiple apps per company allowed; duplicates warned, not blocked.
 - Pasted JD → user analysis; no auto global Job.
 - Shared (discovered) jobs are stored once globally; recommendations, applications, ignores,
-  and votes are per user. Discovery covers India-only junior engineering roles (stated
-  minimum experience < 3 years) from permitted sources only. Never invent jobs — there are no
+  and votes are per user. Discovery covers junior tech roles (engineering in any
+  discipline plus data, ML/AI, QA, IT, security, design and junior product roles; stated
+  minimum experience < 3 years) in India or remote roles open to India from permitted sources only. Never invent jobs — there are no
   sample or demo jobs, in any environment.
 - A shared job expires 30 days after its posting date (first-seen date if the source gives
   none) and leaves the Discover and Applied tabs; manual/pasted jobs never expire.
