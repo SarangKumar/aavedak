@@ -1286,7 +1286,7 @@ export function ReferralsComposer({
   }
 
   const toolbar = (
-    <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2">
+    <Card size="sm" className="mb-4 flex-row flex-wrap items-center gap-2 p-2">
       <SearchInput
         value={listQuery}
         onChange={(e) => setListQuery(e.target.value)}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { CellStatusLabel, EngineLabel } from "@/components/ats-engine-badge";
+import { FinalScoreCell } from "@/components/final-score-cell";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { AnalysisDetails, modeHint, ScoringGuideContent } from "@/components/ats-analysis-panel";
 import { ShellWidth } from "@/components/shell-width";
@@ -32,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { ResumeListSkeleton } from "@/components/page-loading-skeleton";
 import {
   ATS_ENGINES,
   buildCombinations,
@@ -63,7 +65,8 @@ type ResumeRow = {
 };
 
 type AtsHubProps = {
-  initialResumes: ResumeRow[];
+  /** `null` = not fetched on the server; the hub loads `/api/resumes` on mount. */
+  initialResumes: ResumeRow[] | null;
   defaultRole?: string;
 };
 
@@ -271,10 +274,12 @@ function engineNames(ids: AtsEngineId[]) {
 
 export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: AtsHubProps) {
   // Local copy so resumes uploaded here appear immediately without a full page reload.
-  const [resumes, setResumes] = useState<ResumeRow[]>(initialResumes);
+  const [resumes, setResumes] = useState<ResumeRow[]>(initialResumes ?? []);
+  const [resumesLoaded, setResumesLoaded] = useState(initialResumes !== null);
+  const [resumesLoadError, setResumesLoadError] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedResumeIds, setSelectedResumeIds] = useState<Set<string>>(
-    () => new Set(initialResumes.map((r) => r.id)),
+    () => new Set((initialResumes ?? []).map((r) => r.id)),
   );
   const [selectedEngineIds, setSelectedEngineIds] = useState<Set<AtsEngineId>>(
     () => new Set(["aavedak"]),
@@ -309,18 +314,44 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
 
   // Job details handed over from Jobs → "Detailed scan on ATS page" (read once, then cleared).
   const [prefilledJob, setPrefilledJob] = useState<AtsPrefill["job"] | null>(null);
+  // Prefill resume ids can only be matched once the resume list exists, so they are held
+  // in a ref and applied by the selection effect below.
+  const pendingPrefillRef = useRef<AtsPrefill | null>(null);
   useEffect(() => {
     const prefill = takeAtsPrefill();
     if (!prefill) return;
+    pendingPrefillRef.current = prefill;
     setRole(prefill.role);
     setJdText(prefill.jdText);
-    const known = new Set(initialResumes.map((r) => r.id));
-    const resumeIds = prefill.resumeIds.filter((id) => known.has(id));
-    if (resumeIds.length > 0) setSelectedResumeIds(new Set(resumeIds));
     if (prefill.engineIds.length > 0) setSelectedEngineIds(new Set(prefill.engineIds));
     setOpenSteps((prev) => ({ ...prev, 3: true, 4: true }));
     setPrefilledJob(prefill.job);
-  }, [initialResumes]);
+  }, []);
+
+  // Runs once the resume list is available (server-provided or fetched): selects the
+  // prefilled resumes when they exist, otherwise every resume.
+  const selectionSeededRef = useRef(false);
+  useEffect(() => {
+    if (!resumesLoaded || selectionSeededRef.current) return;
+    selectionSeededRef.current = true;
+    const known = new Set(resumes.map((r) => r.id));
+    const prefillIds = (pendingPrefillRef.current?.resumeIds ?? []).filter((id) => known.has(id));
+    setSelectedResumeIds(new Set(prefillIds.length > 0 ? prefillIds : resumes.map((r) => r.id)));
+  }, [resumesLoaded, resumes]);
+
+  useEffect(() => {
+    if (resumesLoaded) return;
+    fetch("/api/resumes")
+      .then(async (res) => {
+        const data = (await res.json()) as { resumes?: ResumeRow[]; error?: string };
+        if (!res.ok) throw new Error(data.error || "Failed to load resumes.");
+        setResumes(data.resumes ?? []);
+      })
+      .catch((err: unknown) =>
+        setResumesLoadError(err instanceof Error ? err.message : "Failed to load resumes."),
+      )
+      .finally(() => setResumesLoaded(true));
+  }, [resumesLoaded]);
 
   const { ref: jdTextareaRef, resize: resizeJdTextarea } = useAutosizeTextarea(jdText);
 
@@ -781,22 +812,22 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                   <div className="flex items-start gap-2">
                     <label
                       className={cn(
-                        "flex min-w-0 flex-1 cursor-pointer items-start gap-2",
+                        "flex min-w-0 flex-1 cursor-pointer flex-col gap-1",
                         running && "pointer-events-none",
                       )}
                     >
-                      <Checkbox
-                        checked={checked}
-                        onChange={() => toggleEngine(eng.id)}
-                        disabled={running}
-                        className="mt-0.5"
-                        aria-label={`Select ${eng.name}`}
-                      />
-                      <span className="min-w-0 space-y-1">
+                      {/* Checkbox and title share one row so their centres line up. */}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Checkbox
+                          checked={checked}
+                          onChange={() => toggleEngine(eng.id)}
+                          disabled={running}
+                          aria-label={`Select ${eng.name}`}
+                        />
                         <EngineLabel engineId={eng.id} />
-                        <span className="text-muted-foreground block text-[10px] leading-snug">
-                          {eng.shortDescription}
-                        </span>
+                      </span>
+                      <span className="text-muted-foreground block pl-6 text-[10px] leading-snug">
+                        {eng.shortDescription}
                       </span>
                     </label>
                     <HoverCard>
@@ -843,12 +874,18 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
           open={openSteps[2]!}
           onOpenChange={(o) => setStepOpen(2, o)}
           summary={
-            selectedResumes.length === 0
-              ? "Choose resumes to score."
-              : `${selectedResumes.length}/${resumes.length} selected`
+            !resumesLoaded
+              ? "Loading resumes…"
+              : selectedResumes.length === 0
+                ? "Choose resumes to score."
+                : `${selectedResumes.length}/${resumes.length} selected`
           }
         >
-          {resumes.length === 0 ? (
+          {!resumesLoaded ? (
+            <ResumeListSkeleton rows={3} variant="ats" />
+          ) : resumesLoadError ? (
+            <p className="text-destructive text-[12px]">{resumesLoadError}</p>
+          ) : resumes.length === 0 ? (
             <div className="flex flex-col items-start gap-2">
               <p className="text-muted-foreground text-[12px]">No resumes yet.</p>
               <Button
@@ -862,7 +899,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <SearchInput
                   value={resumeQuery}
                   disabled={running}
@@ -1248,10 +1285,11 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                     {tableEngines.map((eng) => (
                       <col key={eng.id} />
                     ))}
+                    <col className="w-40" />
                   </colgroup>
                   <thead>
                     <tr className="border-border/50 border-b">
-                      <th className="text-muted-foreground bg-card after:bg-border/60 sticky left-0 z-10 px-3 py-2.5 text-left align-middle font-medium after:absolute after:inset-y-0 after:right-0 after:w-px">
+                      <th className="text-muted-foreground bg-card after:bg-border/60 sticky left-0 z-10 px-3 py-2.5 text-center align-middle font-medium after:absolute after:inset-y-0 after:right-0 after:w-px">
                         Resume
                       </th>
                       {tableEngines.map((eng) => {
@@ -1272,6 +1310,9 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                           </th>
                         );
                       })}
+                      <th className="text-muted-foreground bg-card before:bg-border/60 sticky right-0 z-10 px-2 py-2.5 text-center align-middle font-medium before:absolute before:inset-y-0 before:left-0 before:w-px">
+                        Final score
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1285,6 +1326,16 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                             {renderCell(resume.id, eng.id)}
                           </td>
                         ))}
+                        <td className="bg-card before:bg-border/60 sticky right-0 z-10 h-12 px-2 align-middle before:absolute before:inset-y-0 before:left-0 before:w-px">
+                          <FinalScoreCell
+                            scores={tableEngines.flatMap((eng) => {
+                              const c = displayMap.get(cellKey(resume.id, eng.id));
+                              return c?.status === "done" && c.overallScore != null
+                                ? [c.overallScore]
+                                : [];
+                            })}
+                          />
+                        </td>
                       </tr>
                     ))}
                   </tbody>

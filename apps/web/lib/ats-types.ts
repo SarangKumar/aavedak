@@ -180,18 +180,24 @@ export function detectAtsMode(role: string, jd: string): AtsMode {
   return "role_match";
 }
 
+/** Verdict word for a 0–100 score, without a mode suffix (safe to use across modes). */
+export function scoreVerdict(score: number): string {
+  if (score >= 90) return "Excellent";
+  if (score >= 80) return "Strong";
+  if (score >= 70) return "Good";
+  if (score >= 60) return "Moderate";
+  return "Weak";
+}
+
 export function scoreBandLabel(score: number, mode: AtsMode): string {
-  const base =
-    score >= 90
-      ? "Excellent"
-      : score >= 80
-        ? "Strong"
-        : score >= 70
-          ? "Good"
-          : score >= 60
-            ? "Moderate"
-            : "Weak";
+  const base = scoreVerdict(score);
   if (mode === "resume_only") return `${base} resume quality`;
   if (mode === "role_match") return `${base} role match`;
   return `${base} job match`;
+}
+
+/** Rounded mean of the given scores, or null when there are none. */
+export function averageScore(scores: number[]): number | null {
+  if (scores.length === 0) return null;
+  return Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length);
 }

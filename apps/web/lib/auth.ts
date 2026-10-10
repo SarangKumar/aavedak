@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { Pool } from "@neondatabase/serverless";
+import { cache } from "react";
 import { headers } from "next/headers";
 
 /**
@@ -56,9 +57,12 @@ export type SessionUser = {
   image?: string | null;
 };
 
-/** Server-side session (RSC / route handlers that use next/headers). */
-export async function getServerSession() {
+/**
+ * Server-side session (RSC / route handlers that use next/headers). Wrapped in React `cache`
+ * so the layout header and the page guard share one session lookup per request.
+ */
+export const getServerSession = cache(async () => {
   return auth.api.getSession({
     headers: await headers(),
   });
-}
+});

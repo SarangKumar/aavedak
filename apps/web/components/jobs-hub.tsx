@@ -6,9 +6,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CompanySelect } from "@/components/company-select";
 import { EngineKindBadge } from "@/components/ats-engine-badge";
+import { FinalScoreCell } from "@/components/final-score-cell";
 import { BoardToggleLink, FullscreenBoard } from "@/components/fullscreen-board";
 import { PersonVote, personInitials, type VoteSummaryDto } from "@/components/person-vote";
-import { ShellWidth } from "@/components/shell-width";
 import {
   Accordion,
   AccordionContent,
@@ -534,9 +534,14 @@ export function JobsHub({
           {filtered.length} of {jobs.length}
         </span>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setPasteOpen(true)}>
+            Paste JD
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+            Add job
+          </Button>
           <Button
             type="button"
-            variant="outline"
             size="sm"
             loading={refreshing}
             loadingText={refreshProgress || "Refreshing…"}
@@ -544,12 +549,6 @@ export function JobsHub({
             title="Scan all company career pages now and reload your matches"
           >
             Refresh jobs
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setPasteOpen(true)}>
-            Paste JD
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-            Add job
           </Button>
           <BoardToggleLink
             expanded={variant === "board"}
@@ -760,23 +759,14 @@ export function JobsHub({
     );
   }
 
+  // Page variant: the heading lives in app/jobs/page.tsx so it renders before this loads.
   return (
-    <ShellWidth className="aavedak-fade-up flex flex-col gap-4 py-6 sm:py-8">
-      <header className="space-y-1">
-        <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
-          आवेदक
-        </p>
-        <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Jobs</h1>
-        <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
-          Junior engineering roles in India, discovered daily from company career pages and ranked
-          against your resume.
-        </p>
-      </header>
+    <>
       {notices}
       {board}
       <HowJobsWork />
       {modals}
-    </ShellWidth>
+    </>
   );
 }
 
@@ -1258,11 +1248,12 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
                 {selectedEngines.map((eng) => (
                   <col key={eng.id} />
                 ))}
+                <col className="w-40" />
               </colgroup>
               <thead>
                 <tr className="border-border/40 border-b">
                   {/* Frozen first column: stays in place while engine columns scroll. */}
-                  <th className="text-muted-foreground bg-card after:bg-border/60 sticky left-0 z-10 h-12 px-3 text-left align-middle font-medium after:absolute after:inset-y-0 after:right-0 after:w-px">
+                  <th className="text-muted-foreground bg-card after:bg-border/60 sticky left-0 z-10 h-12 px-3 text-center align-middle font-medium after:absolute after:inset-y-0 after:right-0 after:w-px">
                     Resume
                   </th>
                   {selectedEngines.map((eng) => (
@@ -1273,6 +1264,9 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
                       {eng.name}
                     </th>
                   ))}
+                  <th className="text-muted-foreground bg-card before:bg-border/60 sticky right-0 z-10 h-12 px-2 text-center align-middle font-medium before:absolute before:inset-y-0 before:left-0 before:w-px">
+                    Final score
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1303,6 +1297,20 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
                         )}
                       </td>
                     ))}
+                    <td className="bg-card before:bg-border/60 sticky right-0 z-10 h-12 px-2 align-middle before:absolute before:inset-y-0 before:left-0 before:w-px">
+                      {resumeIds.has(resume.id) ? (
+                        <FinalScoreCell
+                          scores={selectedEngines.flatMap((eng) => {
+                            const c = cells[atsKey(resume.id, eng.id)];
+                            return typeof c === "object" &&
+                              c.status === "done" &&
+                              c.overallScore != null
+                              ? [c.overallScore]
+                              : [];
+                          })}
+                        />
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>

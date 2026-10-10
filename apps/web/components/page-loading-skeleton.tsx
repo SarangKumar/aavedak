@@ -10,6 +10,7 @@ type Variant =
   | "jobs"
   | "follow-ups"
   | "referrals"
+  | "outreach"
   | "onboarding"
   | "profile"
   | "admin"
@@ -205,8 +206,9 @@ function DocumentsSkeleton() {
       <PageHeaderSkeleton titleWidth="w-36" blurbWidth="w-full max-w-xl" />
 
       <div className="border-border bg-card inline-flex h-8 items-center gap-0.5 rounded-lg border p-0.5">
-        <Skeleton className="h-7 w-16 rounded-md" />
-        <Skeleton className="h-7 w-24 rounded-md" />
+        <Skeleton className="h-7 w-20 rounded-md" />
+        <Skeleton className="h-7 w-28 rounded-md" />
+        <Skeleton className="h-7 w-36 rounded-md" />
         <Skeleton className="h-7 w-36 rounded-md" />
       </div>
 
@@ -255,7 +257,15 @@ function JobTrackerSkeleton() {
         <ShellWidth className="space-y-6 py-8 sm:py-10">
           <PageHeaderSkeleton titleWidth="w-40" blurbWidth="w-full max-w-2xl" withToolbar />
 
-          <Skeleton className="h-9 w-full rounded-xl" />
+          {/* Status filter chips, then search (matches components/job-tracker-board.tsx) */}
+          <Card className="border-border/80 bg-card gap-0 rounded-xl border p-3">
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-7 w-20 rounded-full" />
+              ))}
+            </div>
+          </Card>
+          <Skeleton className="mb-4 h-9 w-full rounded-md" />
 
           <div className="border-border/70 bg-card overflow-hidden rounded-xl border">
             <div className="p-3 sm:p-4">
@@ -308,7 +318,7 @@ function PeopleSkeleton() {
             <Skeleton className="h-9 w-32 rounded-lg" />
           </header>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Skeleton className="h-9 w-full rounded-md sm:max-w-sm" />
             <Skeleton className="h-8 w-32 rounded-md" />
           </div>
@@ -325,7 +335,15 @@ function JobsSkeleton() {
   return (
     <ShellWidth className="flex flex-col gap-4 py-6 sm:py-8">
       <PageHeaderSkeleton titleWidth="w-20" blurbWidth="w-full max-w-2xl" withToolbar />
+      <JobsBoardSkeleton />
+    </ShellWidth>
+  );
+}
 
+/** Board body only (list, detail pane, how-it-works bar), shown under a static Jobs heading. */
+export function JobsBoardSkeleton() {
+  return (
+    <div className="flex flex-col gap-4">
       <div className="md:min-h-128 flex flex-col gap-4 md:h-[calc(100dvh-13.5rem)] md:flex-row">
         <Card className="md:w-90 w-full shrink-0 gap-0 overflow-hidden p-0">
           <div className="border-border/60 space-y-2 border-b p-3">
@@ -393,7 +411,7 @@ function JobsSkeleton() {
           <Skeleton className="size-4 rounded-sm" />
         </div>
       </Card>
-    </ShellWidth>
+    </div>
   );
 }
 
@@ -446,87 +464,93 @@ function ReferralsSkeleton() {
   return (
     <div className="relative overflow-hidden">
       <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-60" aria-hidden />
-      <div className="relative space-y-3 pt-6">
-        <ShellWidth className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <Skeleton className="h-3 w-28" />
-          <Skeleton className="h-3 w-1" />
-          <Skeleton className="h-3 w-28" />
-        </ShellWidth>
-
+      <div className="relative">
+        {/* Matches components/referrals-composer.tsx (page variant): heading, top strip, 1fr 2fr 1fr columns */}
         <ShellWidth className="space-y-6 py-8 sm:py-10">
-          <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-1">
-              <Skeleton className="h-3 w-14" />
-              <Skeleton className="h-8 w-32 sm:h-9" />
-              <Skeleton className="h-4 w-full max-w-2xl" />
-            </div>
+          <header className="space-y-1">
+            <Skeleton className="h-3 w-14" />
+            <Skeleton className="h-8 w-40 sm:h-9" />
+            <Skeleton className="h-4 w-full max-w-2xl" />
+            <Skeleton className="h-4 w-72 max-w-full" />
           </header>
 
           <div className="space-y-2">
-            <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2">
-              <Skeleton className="h-8 w-full rounded-md sm:max-w-xs" />
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-7 w-24 rounded-full" />
-              ))}
-              <Skeleton className="ml-auto h-8 w-36 rounded-md" />
-              <Skeleton className="size-8 rounded-md" />
+            <Card size="sm" className="mb-4 flex-row flex-wrap items-center gap-2 p-2">
+              <Skeleton className="h-8 w-full sm:max-w-xs" />
+              <div className="flex flex-wrap gap-1">
+                <Skeleton className="h-7 w-20 rounded-full" />
+                <Skeleton className="h-7 w-16 rounded-full" />
+                <Skeleton className="h-7 w-24 rounded-full" />
+              </div>
+              <Skeleton className="ml-auto h-8 w-28 rounded-md" />
             </Card>
-            <div className="flex w-full gap-3 overflow-hidden pb-1">
-              {(["Applications", "Template", "People"] as const).map((label, i) => (
-                <section
-                  key={label}
-                  className="border-border/80 bg-card relative flex h-[min(70vh,40rem)] min-w-60 flex-1 flex-col rounded-xl border shadow-sm"
-                  // Same proportions as the real columns: 1fr 2fr 1fr.
-                  style={{ flex: `${i === 1 ? 2 : 1} 1 0%` }}
-                >
-                  <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
-                    <div className="min-w-0 space-y-1.5">
-                      <Skeleton className="h-3.5 w-24" />
-                      <Skeleton className="h-3 w-36 max-w-full" />
-                    </div>
-                    <Skeleton className="size-8 shrink-0 rounded-md" />
-                  </header>
-                  <div className="min-h-0 flex-1 space-y-2 overflow-hidden p-3">
-                    {i === 1 ? (
-                      <>
-                        <Skeleton className="h-3 w-10" />
-                        <Skeleton className="h-8 w-full rounded-lg" />
-                        <Skeleton className="h-3 w-28" />
-                        <Skeleton className="h-8 w-full rounded-lg" />
-                        <Skeleton className="min-h-40 w-full rounded-lg" />
-                      </>
-                    ) : (
-                      Array.from({ length: 5 }).map((_, j) => (
-                        <div
-                          key={j}
-                          className="border-border/70 bg-muted/30 space-y-1.5 rounded-xl border px-2.5 py-2"
-                        >
-                          <Skeleton className="h-3.5 w-28" />
-                          <Skeleton className="h-3 w-36 max-w-full" />
-                          {i === 0 ? <Skeleton className="mt-1 h-5 w-16 rounded-full" /> : null}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </section>
+            <div className="flex min-h-96 gap-3">
+              {[1, 2, 1].map((weight, i) => (
+                <Card key={i} className="min-w-0 gap-2 p-3" style={{ flex: `${weight} 1 0%` }}>
+                  <Skeleton className="h-4 w-28" />
+                  {Array.from({ length: i === 1 ? 5 : 3 }).map((_, j) => (
+                    <Skeleton key={j} className="h-14 w-full rounded-md" />
+                  ))}
+                </Card>
               ))}
             </div>
           </div>
 
-          <section className="border-border/80 bg-card space-y-2 rounded-xl border p-4">
-            <Skeleton className="h-4 w-36" />
-            <div className="divide-border/60 divide-y">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex items-start justify-between gap-2 py-2">
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <Skeleton className="h-3.5 w-48 max-w-full" />
-                    <Skeleton className="h-3 w-28" />
+          <Card className="border-border/80 bg-card gap-0 space-y-2 rounded-xl border p-4">
+            <Skeleton className="h-3.5 w-40" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-4/5" />
+          </Card>
+        </ShellWidth>
+      </div>
+    </div>
+  );
+}
+
+/** Matches components/outreach-inbox.tsx (page variant): heading, search toolbar, list + detail panes. */
+function OutreachSkeleton() {
+  return (
+    <div className="relative overflow-hidden">
+      <div className="aavedak-mesh pointer-events-none absolute inset-0 opacity-50" aria-hidden />
+      <div className="relative">
+        <ShellWidth className="space-y-4 py-6 sm:py-8">
+          <header className="space-y-1">
+            <Skeleton className="h-3 w-14" />
+            <Skeleton className="h-8 w-36 sm:h-9" />
+            <Skeleton className="h-4 w-full max-w-2xl" />
+            <Skeleton className="h-4 w-64 max-w-full" />
+          </header>
+
+          <Card size="sm" className="mb-4 flex-row flex-wrap items-center gap-2 p-2">
+            <Skeleton className="h-8 w-full sm:max-w-xs" />
+            <Skeleton className="h-8 w-40 rounded-md" />
+          </Card>
+
+          <div className="flex flex-col gap-4 md:flex-row md:gap-0">
+            <Card className="w-full gap-0 overflow-hidden p-0 md:w-[340px] md:shrink-0">
+              <div className="space-y-1 p-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex gap-2.5 rounded-md px-2.5 py-2.5">
+                    <Skeleton className="size-8 shrink-0 rounded-full" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 w-36 max-w-full" />
+                      <Skeleton className="h-3 w-28" />
+                    </div>
                   </div>
-                  <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
-                </div>
-              ))}
-            </div>
-          </section>
+                ))}
+              </div>
+            </Card>
+            <div className="hidden w-2 shrink-0 md:block" aria-hidden />
+            <Card className="min-h-96 min-w-0 flex-1 gap-0 overflow-hidden p-0 md:min-h-0">
+              <div className="border-border/60 border-b px-4 py-3">
+                <Skeleton className="h-4 w-48" />
+              </div>
+              <div className="space-y-3 p-4">
+                <Skeleton className="h-28 w-full rounded-lg" />
+                <Skeleton className="h-48 w-full rounded-lg" />
+              </div>
+            </Card>
+          </div>
         </ShellWidth>
       </div>
     </div>
@@ -859,12 +883,63 @@ function FallbackSkeleton() {
 }
 
 /** Route-level placeholder while RSC / navigation loads — mirrors each page layout. */
+/**
+ * Resume list rows while `/api/resumes` loads client-side. The rest of the page renders
+ * immediately, so only this list pulses. `variant` matches each page's list container.
+ */
+export function ResumeListSkeleton({
+  rows = 3,
+  variant = "documents",
+}: {
+  rows?: number;
+  variant?: "documents" | "ats";
+}) {
+  return (
+    <div role="status" aria-live="polite" className="space-y-2">
+      <span className="sr-only">Loading resumes…</span>
+      {variant === "documents" ? (
+        <ul aria-hidden className="space-y-2">
+          {Array.from({ length: rows }).map((_, i) => (
+            <li
+              key={i}
+              className="border-border/80 bg-card flex items-center gap-2 rounded-lg border p-3"
+            >
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-3.5 w-44 max-w-full" />
+                <Skeleton className="h-3 w-64 max-w-full" />
+              </div>
+              <Skeleton className="h-7 w-16 shrink-0 rounded-md" />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div
+          aria-hidden
+          className="divide-border/50 border-border/60 divide-y overflow-hidden rounded-lg border"
+        >
+          {Array.from({ length: rows }).map((_, i) => (
+            <div key={i} className="flex items-start gap-2.5 px-3 py-2">
+              <Skeleton className="mt-0.5 size-4 shrink-0 rounded-sm" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-3.5 w-40 max-w-full" />
+                <Skeleton className="h-3 w-56 max-w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PageLoadingSkeleton({ variant = "fallback" }: { variant?: Variant }) {
   switch (variant) {
     case "dashboard":
       return <DashboardSkeleton />;
     case "documents":
       return <DocumentsSkeleton />;
+    case "outreach":
+      return <OutreachSkeleton />;
     case "job-tracker":
     case "board":
       return <JobTrackerSkeleton />;

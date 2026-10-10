@@ -203,6 +203,12 @@ export async function ensureProfile(user: {
       initialApprovalStatus(user.email) === "approved" && existing.approvalStatus !== "approved"
         ? "approved"
         : existing.approvalStatus;
+    // Most page views change nothing; skipping the write saves a Neon round trip per request.
+    const unchanged =
+      existing.email === user.email &&
+      (imageUrl === null || imageUrl === existing.imageUrl) &&
+      nextApproval === existing.approvalStatus;
+    if (unchanged) return existing;
     await sql`
       UPDATE profiles
       SET email = ${user.email},

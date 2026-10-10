@@ -236,7 +236,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
         </p>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SearchInput
           className="h-9 sm:max-w-sm"
           placeholder="Search name, email, company…"

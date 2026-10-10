@@ -618,7 +618,7 @@ export function JobTrackerBoard({
 
       {error ? <p className="text-destructive text-[13px]">{error}</p> : null}
 
-      <div className="space-y-2">
+      <div className="mb-4 space-y-2">
         <label className="sr-only" htmlFor="tracker-search">
           Search applications
         </label>

@@ -6,7 +6,6 @@ import { getProfile } from "@/lib/profile";
 import { listApplications } from "@/lib/applications";
 import { listCoverLetters } from "@/lib/cover-letters";
 import { listJobsForUser } from "@/lib/jobs";
-import { listResumes } from "@/lib/resumes";
 import {
   ensureDefaultFollowupTemplate,
   ensureDefaultOutreachTemplate,
@@ -21,14 +20,16 @@ export const metadata: Metadata = {
 
 export default async function DocumentsPage() {
   const { user } = await requireOnboarded();
-  const profile = await getProfile(user.id);
-  const resumes = await listResumes(user.id);
-  const coverLetters = await listCoverLetters(user.id);
-  await ensureDefaultOutreachTemplate(user.id);
-  await ensureDefaultFollowupTemplate(user.id);
+  const [profile, coverLetters, applications, jobs] = await Promise.all([
+    getProfile(user.id),
+    listCoverLetters(user.id),
+    listApplications(user.id, "active"),
+    listJobsForUser(user.id),
+    ensureDefaultOutreachTemplate(user.id),
+    ensureDefaultFollowupTemplate(user.id),
+  ]);
+  // Must follow the ensure* calls above so the default templates exist.
   const templates = await listTemplates(user.id);
-  const applications = await listApplications(user.id, "active");
-  const jobs = await listJobsForUser(user.id);
 
   return (
     <DocumentsHub
@@ -50,16 +51,8 @@ export default async function DocumentsPage() {
         role: a.role,
         location: a.location,
       }))}
-      initialResumes={resumes.map((r) => ({
-        id: r.id,
-        displayName: r.displayName,
-        status: r.status,
-        originalFilename: r.originalFilename,
-        byteSize: r.byteSize,
-        atsScore: r.atsScore,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
-      }))}
+      // Resumes load client-side (`/api/resumes`) so the rest of the page is not blocked.
+      initialResumes={null}
       initialCoverLetters={coverLetters.map((c) => ({
         id: c.id,
         title: c.title,

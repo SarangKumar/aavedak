@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { CommandPalette } from "@/components/command-palette";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -12,7 +14,10 @@ type AppShellProps = {
 export function AppShell({ children, className }: AppShellProps) {
   return (
     <div className={cn("flex min-h-screen flex-col", className)}>
-      <SiteHeader />
+      {/* Streamed: the header's session lookup must not hold up the page shell. */}
+      <Suspense fallback={<div className="h-14 shrink-0 border-b" />}>
+        <SiteHeader />
+      </Suspense>
       <main className="flex-1">{children}</main>
       <SiteFooter />
       <CommandPalette />

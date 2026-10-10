@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { ResumeListSkeleton } from "@/components/page-loading-skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   coverFooterRowItems,
@@ -106,7 +107,8 @@ export type ApplicationOptionDto = {
 };
 
 type DocumentsHubProps = {
-  initialResumes: ResumeDto[];
+  /** `null` = not fetched on the server; the hub loads `/api/resumes` on mount. */
+  initialResumes: ResumeDto[] | null;
   initialCoverLetters: CoverLetterDto[];
   initialTemplates: TemplateDto[];
   initialApplications: ApplicationOptionDto[];
@@ -260,7 +262,9 @@ export function DocumentsHub({
   profileLinks,
 }: DocumentsHubProps) {
   const [tab, setTab] = useState<Tab>("resumes");
-  const [resumes, setResumes] = useState(initialResumes);
+  const [resumes, setResumes] = useState<ResumeDto[]>(initialResumes ?? []);
+  const [resumesLoaded, setResumesLoaded] = useState(initialResumes !== null);
+  const [resumesLoadError, setResumesLoadError] = useState<string | null>(null);
   const [coverLetters, setCoverLetters] = useState(initialCoverLetters);
   const [templates, setTemplates] = useState(initialTemplates);
   const [applications] = useState(initialApplications);
@@ -300,10 +304,19 @@ export function DocumentsHub({
     [resumes],
   );
   const [clFooterResumeId, setClFooterResumeId] = useState<string>(() => {
-    const list = initialResumes.filter((r) => r.status === "active" || r.status === "inactive");
+    const list = (initialResumes ?? []).filter(
+      (r) => r.status === "active" || r.status === "inactive",
+    );
     const active = list.find((r) => r.status === "active");
     return active?.id ?? list[0]?.id ?? "";
   });
+  // Lazy-loaded resumes arrive after mount, so the footer default is picked once they do.
+  useEffect(() => {
+    if (!resumesLoaded || clFooterResumeId) return;
+    const list = resumes.filter((r) => r.status === "active" || r.status === "inactive");
+    const active = list.find((r) => r.status === "active");
+    setClFooterResumeId(active?.id ?? list[0]?.id ?? "");
+  }, [resumesLoaded, resumes, clFooterResumeId]);
   const [clOverflowsPage, setClOverflowsPage] = useState(false);
   const onClOverflowChange = useCallback((overflows: boolean) => {
     setClOverflowsPage(overflows);
@@ -584,6 +597,15 @@ export function DocumentsHub({
   }
 
   useEffect(() => {
+    if (resumesLoaded) return;
+    refreshResumes()
+      .catch((err: unknown) =>
+        setResumesLoadError(err instanceof Error ? err.message : "Failed to load resumes."),
+      )
+      .finally(() => setResumesLoaded(true));
+  }, [resumesLoaded, refreshResumes]);
+
+  useEffect(() => {
     if (!editingResumeId) return;
     const el = renameInputRef.current;
     if (!el) return;
@@ -801,7 +823,7 @@ export function DocumentsHub({
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="aavedak-section-title text-foreground">
-                  Your resumes ({resumes.length})
+                  {resumesLoaded ? `Your resumes (${resumes.length})` : "Your resumes"}
                 </h2>
                 <Link
                   href="/ats"
@@ -810,7 +832,13 @@ export function DocumentsHub({
                   ATS scores
                 </Link>
               </div>
-              {resumes.length === 0 ? (
+              {!resumesLoaded ? (
+                <ResumeListSkeleton rows={3} variant="documents" />
+              ) : resumesLoadError ? (
+                <div className="border-destructive/40 text-destructive rounded-lg border px-4 py-4 text-[13px]">
+                  {resumesLoadError}
+                </div>
+              ) : resumes.length === 0 ? (
                 <div className="border-border/70 text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-[13px]">
                   No resumes yet — upload a PDF to get started.
                 </div>
