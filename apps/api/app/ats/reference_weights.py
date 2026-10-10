@@ -2,6 +2,8 @@
 
 # Jobscan tutorial priority: hard skills (much heavier) > education (advanced degree only) > job title
 # > soft skills > other keywords. The numbers are an Aavedak approximation; Jobscan does not publish them.
+# Below this many recognised software skills in the JD, hard skills come from the JD's domain phrases.
+JOBSCAN_MIN_TAXONOMY_SKILLS = 5
 JOBSCAN_WEIGHTS = {"hard": 55, "education": 10, "title": 15, "soft": 12, "other": 8}
 
 # Resume Worded groups its 20+ checks as Impact, Brevity and Style (weights not public).

@@ -120,3 +120,17 @@ def test_native_quality_penalises_hedging_and_pronouns():
         SAMPLE_RESUME + "\nI was responsible for various things. Worked on stuff and helped with tasks. My team player work.\n"
     )["overallScore"]
     assert hedgy < plain
+
+
+def test_jobscan_uses_domain_phrases_when_jd_has_few_software_skills():
+    # Mechanical-engineering JD: the software taxonomy finds nothing, but Jobscan still lists many
+    # hard-skill gaps, so shared domain phrases must count (a software resume used to score ~2).
+    jd = (
+        "Product development, project management, engineering drawings, design standards, testing and "
+        "calibration, data analytics, quality and reliability for diesel fuel injection systems."
+    )
+    resume = "Jane Doe\nSKILLS\nProduct development, project management, data analytics, testing, design"
+    unrelated = "Jane Doe\nSKILLS\nGardening, cooking"
+    close = _score("jobscan_style", resume, jd, role="")
+    far = _score("jobscan_style", unrelated, jd, role="")
+    assert close["overallScore"] > far["overallScore"] + 20

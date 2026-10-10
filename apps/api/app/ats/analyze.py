@@ -282,94 +282,77 @@ def _writing_quality_adjustment(profile) -> tuple[float, list[dict[str, str]]]:
 
 
 def score_resume_quality(profile) -> tuple[int, list[str], list[dict[str, str]]]:
-    score = 18.0
+    """Share-based quality (0–100). Every component is a proportion or a fit curve, never a raw count,
+    so a long resume cannot saturate the score — the approach Rezi, Resume Worded and ATS Resume
+    Checker document (share of quantified / action-led bullets, bullet length, word-count window)."""
+    import re
+
     strengths: list[str] = []
     improvements: list[dict[str, str]] = []
+    bullets = list(profile.bullets)
+    n = max(1, len(bullets))
+    action = [b for b in bullets if bullet_has_action(b)]
+    metric = [b for b in bullets if bullet_has_metric(b)]
+    q = extract_quality_signals(profile.raw)
 
-    action_bullets = [b for b in profile.bullets if bullet_has_action(b)]
-    metric_bullets = [b for b in profile.bullets if bullet_has_metric(b)]
+    action_part = min(1.0, (len(action) / n) / 0.7)
+    metric_part = min(1.0, (len(metric) / n) / 0.5)
+    tech_in_exp = sum(1 for m in profile.skill_mentions.values() if m.section in ("experience", "projects"))
+    total_tech = max(1, len(profile.skill_mentions))
+    evidence_part = min(1.0, (tech_in_exp / total_tech) / 0.6)
+    structure_part = min(1.0, len(profile.sections) / 5)
 
-    if action_bullets:
-        score += min(22.0, len(action_bullets) * 3.2)
-        strengths.append(f"{len(action_bullets)} bullets start with clear actions")
+    # Brevity: bullets of 8–28 words (ATS Resume Checker's ideal), none over 220 characters.
+    long_bullets = [b for b in bullets if len(b) > 220]
+    avg = q.avg_bullet_words
+    brevity_part = 0.0 if not bullets else max(0.0, 1.0 - min(1.0, max(0.0, 8 - avg, avg - 28) / 10) - 0.15 * len(long_bullets))
+
+    # Length: Open ATS rewards 400–800 words and decays toward 100 / 1,500.
+    wc = q.word_count
+    if 400 <= wc <= 800:
+        length_part = 1.0
+    elif wc < 400:
+        length_part = max(0.0, (wc - 100) / 300)
     else:
-        improvements.append(
-            {
-                "priority": "high",
-                "text": "Rewrite bullets to start with strong action verbs.",
-                "reason": "Few action-led bullets were detected.",
-            }
-        )
+        length_part = max(0.0, (1500 - wc) / 700)
 
-    if metric_bullets:
-        score += min(22.0, len(metric_bullets) * 4.5)
-        strengths.append(f"{len(metric_bullets)} bullets include measurable impact")
-    else:
-        improvements.append(
-            {
-                "priority": "high",
-                "text": "Add measurable results to 2–3 experience bullets (latency, users, revenue, time saved).",
-                "reason": "Impact metrics improve resume quality signals.",
-            }
-        )
+    adjust, writing_notes = _writing_quality_adjustment(profile)
+    hygiene_part = max(0.0, 1.0 + adjust / 20.0)
 
-    # Brevity: penalize very long bullets
-    long_bullets = [b for b in profile.bullets if len(b) > 220]
+    score = 100.0 * (
+        0.20 * action_part
+        + 0.25 * metric_part
+        + 0.10 * evidence_part
+        + 0.15 * structure_part
+        + 0.10 * brevity_part
+        + 0.15 * hygiene_part
+        + 0.05 * length_part
+    )
+
+    if action:
+        strengths.append(f"{len(action)} bullets start with clear actions")
+    if action_part < 0.6:
+        improvements.append({"priority": "high", "text": "Rewrite bullets to start with strong action verbs.", "reason": f"Only {len(action)} of {len(bullets)} bullets are action-led."})
+    if metric:
+        strengths.append(f"{len(metric)} bullets include measurable impact")
+    if metric_part < 0.6:
+        improvements.append({"priority": "high", "text": "Add measurable results to more bullets (latency, users, revenue, time saved).", "reason": f"Only {len(metric)} of {len(bullets)} bullets carry a number."})
     if long_bullets:
-        score -= min(10, len(long_bullets) * 2)
-        improvements.append(
-            {
-                "priority": "medium",
-                "text": "Shorten oversized bullets for clarity.",
-                "reason": f"{len(long_bullets)} bullets are very long.",
-            }
-        )
-    else:
-        score += min(6.0, len(profile.bullets) * 0.4)
-
-    score += min(12.0, len(profile.sections) * 3.0)
+        improvements.append({"priority": "medium", "text": "Shorten oversized bullets for clarity.", "reason": f"{len(long_bullets)} bullets are very long."})
     if len(profile.sections) >= 3:
         strengths.append("Clear section organization")
     else:
-        improvements.append(
-            {
-                "priority": "medium",
-                "text": "Organize into Experience, Education, and Skills sections.",
-                "reason": "Parsers and recruiters scan structured sections faster.",
-            }
-        )
-
-    if profile.stuffing_score >= 0.35:
-        score -= 15
-        improvements.append(
-            {
-                "priority": "high",
-                "text": "Remove repeated keyword stuffing; show skills in real experience context.",
-                "reason": "Keyword repetition detected.",
-            }
-        )
-
-    tech_in_exp = sum(
-        1 for m in profile.skill_mentions.values() if m.section in ("experience", "projects")
-    )
-    score += min(12.0, tech_in_exp * 2.5)
+        improvements.append({"priority": "medium", "text": "Organize into Experience, Education, and Skills sections.", "reason": "Parsers and recruiters scan structured sections faster."})
     if tech_in_exp >= 3:
         strengths.append("Technical skills appear in experience context")
-
-    # Vocabulary richness — primary differentiator across resume variants
-    import re
-
-    uniq = len(set(re.findall(r"[a-z][a-z0-9+.#-]{2,}", profile.lower)))
-    score += min(14.0, uniq / 18.0)
-
-    if len(profile.raw) < 800:
-        score -= 6
-
-    adjust, writing_notes = _writing_quality_adjustment(profile)
-    score += adjust
+    if wc < 400:
+        improvements.append({"priority": "medium", "text": "Expand experience with concrete scope and results (400–800 words works best).", "reason": f"~{wc} words."})
+    if profile.stuffing_score >= 0.35:
+        score -= 15
+        improvements.append({"priority": "high", "text": "Remove repeated keyword stuffing; show skills in real experience context.", "reason": "Keyword repetition detected."})
     improvements.extend(writing_notes)
 
-    return _soft_cap(score, 90), strengths[:6], improvements[:8]
+    return _soft_cap(score, 92), strengths[:6], improvements[:8]
 
 
 _FRONTEND_MARKERS = (

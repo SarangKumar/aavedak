@@ -95,6 +95,6 @@ All four upstream repos were re-cloned at the commits above and compared line by
 - **Resume Skills Extractor**: formula and calibration match; TF-IDF now uses sklearn's exact stop list.
 - **Hybrid Resume Analyzer**: rubric, rule validation and TF-IDF defaults match.
 
-## Native engine (`aavedak`, engine 2.1)
+## Native engine (`aavedak`, engine 2.2)
 
-Resume-only quality now also applies capped writing-quality adjustments borrowed from the other engines: hedging phrases (Open ATS / ATS Resume Checker), passive voice (Open ATS), first-person pronouns (Rezi), buzzwords (ATS Resume Checker, Rezi) and resumes over ~1,100 words. Match scoring is unchanged.
+Resume quality is share-based, not count-based: action-led bullets 20%, quantified bullets 25%, skills shown in experience 10%, structure 15%, bullet brevity 10%, writing hygiene 15%, word-count fit 5%. The previous additive counts hit the cap on any decent resume (every real resume scored 91–92); proportions spread the fixtures from 86 to 34. Writing hygiene applies capped adjustments borrowed from the other engines: hedging phrases (Open ATS / ATS Resume Checker), passive voice (Open ATS), first-person pronouns (Rezi), buzzwords (ATS Resume Checker, Rezi) and resumes over ~1,100 words. Match scoring is unchanged.

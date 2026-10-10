@@ -14,11 +14,14 @@ from app.ats.reference_signals import (
     extract_reference_signals,
     frequency_category_points,
     hard_skill_frequencies,
+    jd_keyphrases,
+    keyphrase_coverage,
     pass_rate,
     skillsyncer_degree_points,
     token_coverage,
 )
 from app.ats.reference_weights import (
+    JOBSCAN_MIN_TAXONOMY_SKILLS,
     JOBSCAN_WEIGHTS,
     RESUME_WORDED_WEIGHTS,
     REZI_WEIGHTS,
@@ -108,13 +111,21 @@ def run_jobscan_style(resume_id: str, resume_text: str, role: str, jd_text: str)
     # category -> (0..1 ratio, weight). Categories the job description doesn't ask for are left out
     # and the rest renormalised, like Jobscan recalculating over the remaining skills.
     parts: dict[str, tuple[float, float]] = {}
-    if jd_freq:
+    phrase_missing: list[str] = []
+    if len(jd_freq) >= JOBSCAN_MIN_TAXONOMY_SKILLS:
         total = sum(jd_freq.values())
         parts["hard"] = (sum(n for k, n in jd_freq.items() if k in rset) / total, w["hard"])
+    else:
+        # Few software skills in the JD (e.g. a mechanical-engineering role): its domain phrases are the hard skills.
+        phrases = jd_keyphrases(jd_text)
+        if phrases:
+            ratio, phrase_missing = keyphrase_coverage(resume_text, phrases)
+            parts["hard"] = (ratio, w["hard"])
     if s.degree_jd >= 2:
         parts["education"] = (1.0 if s.degree_resume >= s.degree_jd else 0.0, w["education"])
     if role.strip():
-        parts["title"] = (1.0 if s.title_exact else s.title_hit, w["title"])
+        # Jobscan checks for the exact job title ("not found in your resume") — no partial credit.
+        parts["title"] = (1.0 if s.title_exact else 0.0, w["title"])
     if s.soft_skills_jd:
         parts["soft"] = (coverage(s.soft_skills_resume, s.soft_skills_jd), w["soft"])
     if s.jd_tokens:
@@ -164,6 +175,14 @@ def run_jobscan_style(resume_id: str, resume_text: str, role: str, jd_text: str)
                 "reason": "Hard-skill gap vs JD — Jobscan weighs frequent hard skills most.",
             }
             for m in missing[:5]
+        ]
+        + [
+            {
+                "priority": "medium",
+                "text": f"“{ph}” is a recurring term in the JD but isn't on the resume. Add it only if it truthfully applies.",
+                "reason": "Domain keyword gap vs JD.",
+            }
+            for ph in phrase_missing[:5]
         ],
         ats_issues=(
             [

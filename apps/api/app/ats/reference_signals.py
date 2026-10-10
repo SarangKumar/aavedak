@@ -349,3 +349,64 @@ def hard_skill_frequencies(text: str) -> dict[str, int]:
 
 def pass_rate(checks: list[bool]) -> float:
     return 100.0 * sum(checks) / len(checks) if checks else 0.0
+
+
+# ── Domain keyphrases (non-software JDs) ────────────────────────────────────────────────────────
+# Jobscan reports 15+ missing "hard skills" for a mechanical-engineering JD, so its hard-skill list is
+# not limited to software tools. When our software taxonomy finds too few skills, the JD's own
+# stemmed unigrams/bigrams (frequency-weighted, filler removed) stand in for them.
+
+_JD_FILLER = frozenset(
+    """knowledge ability good work works working ensure ensuring provide participate execute maintain
+    implement related exposure years year aptitude think box creative innovative necessary meeting target
+    targets completed organize notify possible areas improvement information per norms strong excellent
+    skills skill experience required preferred responsibilities requirements qualification qualifications
+    candidate role team teams company looking seeking join help hands proven plus bonus including
+    ability able etc""".split()
+)
+
+
+def _stem(w: str) -> str:
+    for suf in ("ing", "ies", "es", "s", "ed", "al", "ion"):
+        if w.endswith(suf) and len(w) - len(suf) >= 4:
+            return w[: -len(suf)]
+    return w
+
+
+def _content_tokens(text: str) -> list[str]:
+    return re.findall(r"[a-z][a-z0-9+&]{2,}", (text or "").lower())
+
+
+def jd_keyphrases(jd_text: str) -> dict[tuple[str, ...], int]:
+    """Stemmed unigram/bigram → JD frequency, with stop words and generic JD filler removed."""
+    from app.ats.text_similarity import ENGLISH_STOP_WORDS
+
+    toks = _content_tokens(jd_text)
+    out: dict[tuple[str, ...], int] = {}
+    for i, t in enumerate(toks):
+        if t in ENGLISH_STOP_WORDS or t in _JD_FILLER:
+            continue
+        out[(_stem(t),)] = out.get((_stem(t),), 0) + 1
+        if i + 1 < len(toks):
+            n = toks[i + 1]
+            if n not in ENGLISH_STOP_WORDS and n not in _JD_FILLER:
+                key = (_stem(t), _stem(n))
+                out[key] = out.get(key, 0) + 1
+    return out
+
+
+def keyphrase_coverage(resume_text: str, phrases: dict[tuple[str, ...], int]) -> tuple[float, list[str]]:
+    """Frequency-weighted share of JD keyphrases found in the resume, plus the top missing ones."""
+    rs = [_stem(t) for t in _content_tokens(resume_text)]
+    uni = set(rs)
+    bi = {(rs[i], rs[i + 1]) for i in range(len(rs) - 1)}
+    total = hit = 0
+    missing: list[tuple[int, str]] = []
+    for p, f in phrases.items():
+        total += f
+        if (p[0] in uni) if len(p) == 1 else (p in bi):
+            hit += f
+        else:
+            missing.append((f, " ".join(p)))
+    missing.sort(key=lambda m: (-m[0], m[1]))
+    return (hit / total if total else 0.0), [m for _, m in missing[:12]]
