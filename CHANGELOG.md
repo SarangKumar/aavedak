@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Referrals and Outreach — full-screen boards** — Like Jobs, the Referrals columns and the Outreach inbox can expand to a full-screen board and collapse back. Each top strip links to the other page, and in full-screen mode that link opens the other board full-screen too.
+- **Referrals — active applications** — The left column now lists every open application, from your tracker and from jobs you applied to or bookmarked on Jobs, not just ones marked Applied. Each shows its status and a "From Jobs" tag where it applies. The page header is simpler: the Admin badge and Manage people button are gone, and Open outreach inbox moved to the top strip.
 - **Jobs — full-screen board** — A top bar holds search, a source filter, Add job and Paste JD. The expand button opens the jobs board on its own full-screen page, and collapse brings you back to the same job.
 - **Jobs — cleaner layout** — The job list and the job details are now two separate panels. The Discover and Applied tabs, search and source filters sit at the top of the list. Details are split into spaced sections for the job, the description, people at the company and the resume check, and both panels scroll on their own with no empty space below. Each card shows where the job came from (Greenhouse, Lever, Ashby, LinkedIn and so on).
 - **Jobs — simpler job details** — Everything about a job (source, match, experience, salary, posting age, days left) fits in one compact header. The job description has a copy button.
@@ -27,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Outreach inbox layout** — The inbox now matches Jobs: a top strip with search, application filter, time range, Process due queue and expand, then the conversation list and the mail as two separate panels. The time-range buttons no longer stack vertically.
+- **Frozen resume column** — On the ATS page and in the Jobs resume check, the resume column stays put while engine columns scroll, and its divider no longer scrolls away.
 - **Admin — starting a job scan** — Starting the first scan no longer shows a false "service unavailable" error, and clicking it again resumes the scan in progress instead of starting a duplicate. First-time setup of the job sources is much faster.
 - **ATS page loading state** — The loading skeleton now matches the ATS page: the five step cards (engines, resume, job content, review, results) and the scoring guide, instead of a generic placeholder.
 - **Local development: pages losing all styles** — Running a production build while the dev server was up overwrote the files the dev server serves, so pages lost their styles until a restart. Development and production builds now keep their files apart.
@@ -37,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Resizable panels** — The divider between side-by-side panels (Jobs, Outreach) is now a simple three-dot grip in the gap instead of a border line and handle. In the Jobs resume check, the resume column stays in place while you scroll across engines.
+- **Resizable panels** — The divider between side-by-side panels (Jobs, Outreach) is now a simple three-dot grip in a gap half as wide as before, instead of a border line and handle. In the Jobs resume check, the resume column stays in place while you scroll across engines.
 - **Faster ATS scans** — When you score several resumes, they are now scanned at the same time instead of one after another, on both the ATS page and the Jobs page.
 - **Smaller API deployment** — The Python function no longer ships the local development server or test tooling, and tests, scripts and docs are excluded from deployments, roughly halving the API bundle.
 - **Refreshed UI components** — Avatars, cards, badges, file uploads, dividers, side panels and confirmation dialogs now use the official Vinyaas components, with smoother open and close animations.

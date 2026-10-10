@@ -31,6 +31,7 @@ import { BoardToggleLink, FullscreenBoard } from "@/components/fullscreen-board"
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
 import { formatDateTimeReadable } from "@/lib/format-datetime";
+import { STATUS_LABELS } from "@/lib/application-status";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 
@@ -40,8 +41,21 @@ export type ApplicationDto = {
   role: string;
   location: string;
   status: ApplicationStatus;
+  /** Set when the application was created from a job on the Jobs page. */
+  jobId?: string | null;
   updatedAt: string;
 };
+
+/** Statuses where asking for a referral can still help (everything still open). */
+const REFERRAL_ACTIVE_STATUSES: ReadonlySet<ApplicationStatus> = new Set([
+  "bookmarked",
+  "preparing",
+  "applied",
+  "under_review",
+  "assessment",
+  "interview",
+  "ghosted",
+]);
 
 type AppReferralTab = "needs" | "sent";
 
@@ -97,8 +111,8 @@ const FOLLOWUP_COOLDOWN_MS = 60 * 60 * 1000;
 
 const COLUMN_META: Record<ColumnId, { title: string; blurb: string }> = {
   applications: {
-    title: "Applications",
-    blurb: "Applied jobs · Needs referral stays listed after sends",
+    title: "Active applications",
+    blurb: "Open applications from your tracker and Jobs · stay listed after you send",
   },
   template: { title: "Email", blurb: "Template · From = your Gmail" },
   people: {
@@ -148,7 +162,8 @@ type ReferralsComposerProps = {
   variant?: "page" | "board";
   userEmail: string;
   userName: string;
-  isAdmin: boolean;
+  /** Kept for the page contract; no admin-only UI on this page now. */
+  isAdmin?: boolean;
   initialApplications: ApplicationDto[];
   initialPeople: PersonDto[];
   initialTemplates: TemplateDto[];
@@ -182,7 +197,6 @@ export function ReferralsComposer({
   variant = "page",
   userEmail,
   userName,
-  isAdmin,
   initialApplications,
   initialPeople,
   initialTemplates,
@@ -196,7 +210,7 @@ export function ReferralsComposer({
   const [columnOrder, setColumnOrder] = useState<ColumnId[]>(DEFAULT_ORDER);
 
   const [appReferralTab, setAppReferralTab] = useState<AppReferralTab>(() => {
-    const applied = initialApplications.filter((app) => app.status === "applied");
+    const applied = initialApplications.filter((app) => REFERRAL_ACTIVE_STATUSES.has(app.status));
     const needs = applied.some((app) => !hasSuccessfulReferral(app.id, initialFollowUps));
     return needs ? "needs" : "sent";
   });
@@ -297,12 +311,13 @@ export function ReferralsComposer({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- countdown tick only
   }, [countdownVisible, countdown, countdownArmed]);
 
+  /** Every open application (tracker + Jobs page), not just status "applied". */
   const appliedApplications = useMemo(
-    () => applications.filter((app) => app.status === "applied"),
+    () => applications.filter((app) => REFERRAL_ACTIVE_STATUSES.has(app.status)),
     [applications],
   );
 
-  /** Needs tab keeps every applied job even after some referrals were sent. */
+  /** Needs tab keeps every active application even after some referrals were sent. */
   const needsReferralApps = appliedApplications;
 
   const referredApps = useMemo(
@@ -951,7 +966,8 @@ export function ReferralsComposer({
                 <ul className="space-y-1.5">
                   {appliedApplications.length === 0 ? (
                     <li className="text-muted-foreground text-[12px]">
-                      No applied jobs yet. Move an application to Applied on the job tracker.
+                      No active applications yet. Add one on the job tracker, or apply to or
+                      bookmark a job on Jobs.
                     </li>
                   ) : (
                     needsReferralApps.map((app) => {
@@ -975,11 +991,7 @@ export function ReferralsComposer({
                             <p className="text-muted-foreground truncate text-[11px]">
                               {app.role} · {app.location}
                             </p>
-                            {needsBadge ? (
-                              <Badge variant="secondary" className="mt-1 h-5 text-[10px]">
-                                Needs referral
-                              </Badge>
-                            ) : null}
+                            <AppTags app={app} needsReferral={needsBadge} />
                           </button>
                         </li>
                       );
@@ -991,7 +1003,7 @@ export function ReferralsComposer({
                 <ul className="space-y-1.5">
                   {referredApps.length === 0 ? (
                     <li className="text-muted-foreground text-[12px]">
-                      No referral emails sent yet for applied jobs.
+                      No referral emails sent yet for your active applications.
                     </li>
                   ) : (
                     referredApps.map((app) => {
@@ -1014,6 +1026,7 @@ export function ReferralsComposer({
                             <p className="text-muted-foreground truncate text-[11px]">
                               {app.role} · {app.location}
                             </p>
+                            <AppTags app={app} />
                           </button>
                         </li>
                       );
@@ -1176,11 +1189,12 @@ export function ReferralsComposer({
         Pick an application, a template and people, then confirm. Drag a column by its grip to
         reorder.
       </p>
-      {variant === "board" ? (
-        <Link href="/outreach" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-          Outreach inbox
-        </Link>
-      ) : null}
+      <Link
+        href={variant === "board" ? "/outreach/board" : "/outreach"}
+        className={buttonVariants({ variant: "outline", size: "sm" })}
+      >
+        Open outreach inbox
+      </Link>
       <BoardToggleLink
         expanded={variant === "board"}
         href={variant === "board" ? "/referrals" : "/referrals/board"}
@@ -1393,7 +1407,7 @@ export function ReferralsComposer({
 
   return (
     <ShellWidth className="aavedak-fade-up space-y-6 py-8 sm:py-10">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <header>
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
             आवेदक
@@ -1403,19 +1417,6 @@ export function ReferralsComposer({
             Compose cold outreach against an application, pick people at that company, confirm, then
             wait 20 seconds on screen before the batch sends from {userEmail} through Gmail.
           </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {isAdmin ? (
-            <Badge variant="secondary" className="h-7 px-2.5 text-[11px]">
-              Admin
-            </Badge>
-          ) : null}
-          <Link href="/people" className={buttonVariants({ variant: "outline", size: "sm" })}>
-            Manage people
-          </Link>
-          <Link href="/outreach" className={buttonVariants({ size: "sm" })}>
-            Open outreach inbox
-          </Link>
         </div>
       </header>
 
@@ -1485,5 +1486,26 @@ function QuestionMarkIcon({ className }: { className?: string }) {
       />
       <circle cx="8" cy="11.6" r="0.85" fill="currentColor" />
     </svg>
+  );
+}
+
+/** Status + origin chips on an application in the Active applications column. */
+function AppTags({ app, needsReferral = false }: { app: ApplicationDto; needsReferral?: boolean }) {
+  return (
+    <span className="mt-1 flex flex-wrap gap-1">
+      <Badge variant="outline" className="h-5 text-[10px]">
+        {STATUS_LABELS[app.status]}
+      </Badge>
+      {app.jobId ? (
+        <Badge variant="outline" className="h-5 text-[10px]">
+          From Jobs
+        </Badge>
+      ) : null}
+      {needsReferral ? (
+        <Badge variant="secondary" className="h-5 text-[10px]">
+          Needs referral
+        </Badge>
+      ) : null}
+    </span>
   );
 }

@@ -32,6 +32,7 @@ export async function ReferralsBoard({ variant }: { variant: "page" | "board" })
             role: app.role,
             location: app.location,
             status: app.status,
+            jobId: app.jobId,
             updatedAt: app.updatedAt,
           }))}
           initialPeople={people.map((p) => ({

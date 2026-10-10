@@ -7,7 +7,7 @@ import { BoardToggleLink, FullscreenBoard } from "@/components/fullscreen-board"
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ResizeHandle } from "@/components/ui/resize-handle";
 import {
@@ -460,6 +460,12 @@ export function OutreachInbox({ initialFollowUps, people, applications, variant 
         >
           Process due queue
         </Button>
+        <Link
+          href={variant === "board" ? "/referrals/board" : "/referrals"}
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Open referrals
+        </Link>
         <BoardToggleLink expanded={variant === "board"} href={boardHref} label="outreach inbox" />
       </div>
     </Card>
