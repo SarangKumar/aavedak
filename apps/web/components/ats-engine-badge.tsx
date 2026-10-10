@@ -46,11 +46,20 @@ export function EngineLabel({
     <span
       className={cn(
         "inline-flex min-w-0 gap-1",
-        stacked ? "flex-col items-center" : "flex-wrap items-center gap-1.5",
+        stacked ? "w-full flex-col items-center text-center" : "flex-wrap items-center gap-1.5",
         className,
       )}
     >
-      <span className="text-foreground truncate text-[11px] font-medium">{name}</span>
+      {/* Stacked (narrow table header): wrap long names inside the column instead of
+          truncating or overflowing it, which pushed the label off the column's centre line. */}
+      <span
+        className={cn(
+          "text-foreground text-[11px] font-medium",
+          stacked ? "max-w-full break-words leading-tight" : "truncate",
+        )}
+      >
+        {name}
+      </span>
       <EngineKindBadge engineId={engineId} />
     </span>
   );

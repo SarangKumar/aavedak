@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-import { JobsHub, type JobsTab } from "@/components/jobs-hub";
+import { JobsHub, type JobsSort, type JobsTab } from "@/components/jobs-hub";
 import { requireOnboarded } from "@/lib/app-access";
 import { toJobDto } from "@/lib/job-dto";
 import { listJobScores } from "@/lib/job-scoring";
@@ -9,7 +9,11 @@ import { getPreferences } from "@/lib/preferences";
 import { listResumes } from "@/lib/resumes";
 import { JOBS_LIST_WIDTH_COOKIE, parseJobsListWidth } from "@/lib/jobs-list-width";
 
-export type JobsSearchParams = Promise<{ tab?: string | string[]; job?: string | string[] }>;
+export type JobsSearchParams = Promise<{
+  tab?: string | string[];
+  job?: string | string[];
+  sort?: string | string[];
+}>;
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -35,7 +39,9 @@ export async function JobsBoard({
     listResumes(user.id),
   ]);
   const byJob = new Map(scores.map((s) => [s.jobId, s]));
+  // Unknown or missing values fall back to the defaults (Discover, newest first).
   const initialTab: JobsTab = first(params.tab) === "applied" ? "applied" : "discover";
+  const initialSort: JobsSort = first(params.sort) === "oldest" ? "oldest" : "newest";
   const pool = initialTab === "applied" ? applied : discover;
   const requested = first(params.job);
   const initialJobId = requested && pool.some((j) => j.id === requested) ? requested : null;
@@ -45,6 +51,7 @@ export async function JobsBoard({
       variant={variant}
       initialListWidth={listWidth}
       initialTab={initialTab}
+      initialSort={initialSort}
       initialJobId={initialJobId}
       initialDiscover={discover.map((job) => toJobDto(job, byJob.get(job.id)))}
       initialApplied={applied.map((job) => toJobDto(job, byJob.get(job.id)))}

@@ -1,0 +1,22 @@
+# Aavedak
+
+> Aavedak (आवेदक) is a job discovery, application and career platform for junior engineering roles in India. It recommends and prepares; the user decides and sends every application.
+
+Most of the product (jobs, resumes, applications, ATS checks) requires signing in and admin approval, so it is not described here. The public pages are below.
+
+## Public pages
+
+- [Home](https://aavedak.vercel.app/): What Aavedak does and how to get started.
+- [About](https://aavedak.vercel.app/about): Who Aavedak is for and how it works.
+- [Changelog](https://aavedak.vercel.app/changelog): User-facing release notes.
+- [Sign in](https://aavedak.vercel.app/sign-in): Sign in with Google.
+
+## Policies
+
+- [Privacy policy](https://aavedak.vercel.app/privacy): How personal and resume data is handled.
+- [Terms of service](https://aavedak.vercel.app/terms): Terms for using Aavedak.
+
+## Crawling and use
+
+- Public pages may be indexed. Pages behind sign-in (dashboard, jobs, resumes, applications, people, admin) are private and should not be crawled.
+- Sitemap: [sitemap.xml](https://aavedak.vercel.app/sitemap.xml)

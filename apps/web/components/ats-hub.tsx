@@ -1285,7 +1285,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                     {tableEngines.map((eng) => (
                       <col key={eng.id} />
                     ))}
-                    <col className="w-28 sm:w-40" />
+                    <col className="w-32 sm:w-40" />
                   </colgroup>
                   <thead>
                     <tr className="border-border/50 border-b">

@@ -51,6 +51,7 @@ import { SearchInput } from "@/components/search-input";
 export type JobDto = JobDtoBase;
 
 export type JobsTab = "discover" | "applied";
+export type JobsSort = "newest" | "oldest";
 
 type ResumeLite = { id: string; displayName: string; status: string };
 
@@ -60,6 +61,7 @@ type JobsHubProps = {
   /** Saved list-pane width from the cookie (server-read), so the first paint is already final. */
   initialListWidth?: number;
   initialTab?: JobsTab;
+  initialSort?: JobsSort;
   initialJobId?: string | null;
   resumes: ResumeLite[];
   initialDiscover: JobDto[];
@@ -136,6 +138,7 @@ export function JobsHub({
   variant = "page",
   initialListWidth = JOBS_LIST_WIDTH_DEFAULT,
   initialTab = "discover",
+  initialSort = "newest",
   initialJobId = null,
   resumes,
   initialDiscover,
@@ -153,7 +156,7 @@ export function JobsHub({
 
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   // Newest posting first by default; the toggle beside the tabs flips it.
-  const [postedSort, setPostedSort] = useState<"newest" | "oldest">("newest");
+  const [postedSort, setPostedSort] = useState<JobsSort>(initialSort);
   const [query, setQuery] = useState("");
   const [listWidth, setListWidth] = useState(initialListWidth);
   const [error, setError] = useState<string | null>(null);
@@ -216,6 +219,22 @@ export function JobsHub({
   }, [jobs, query, sourceFilter, postedSort]);
 
   const selected = filtered.find((j) => j.id === selectedId) ?? filtered[0] ?? null;
+  const selectedJobId = selected?.id ?? null;
+
+  // Mirror tab, sort and selected job into the URL so a reload or shared link opens the same view.
+  // replaceState (not router.replace) avoids a server round trip and keeps the history stack clean.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      url.searchParams.set("sort", postedSort);
+      if (selectedJobId) url.searchParams.set("job", selectedJobId);
+      else url.searchParams.delete("job");
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      // URL sync is a convenience; the board works without it.
+    }
+  }, [tab, postedSort, selectedJobId]);
 
   function switchTab(next: string) {
     const value: JobsTab = next === "applied" ? "applied" : "discover";
@@ -477,7 +496,7 @@ export function JobsHub({
     }
   }
 
-  const boardQuery = `tab=${tab}${selected ? `&job=${encodeURIComponent(selected.id)}` : ""}`;
+  const boardQuery = `tab=${tab}&sort=${postedSort}${selected ? `&job=${encodeURIComponent(selected.id)}` : ""}`;
 
   const notices = (
     <>
