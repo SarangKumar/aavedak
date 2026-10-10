@@ -146,6 +146,8 @@ export function JobsHub({
   );
 
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  // Newest posting first by default; the toggle beside the tabs flips it.
+  const [postedSort, setPostedSort] = useState<"newest" | "oldest">("newest");
   const [query, setQuery] = useState("");
   const [listWidth, setListWidth] = useState(360);
   const [error, setError] = useState<string | null>(null);
@@ -199,7 +201,7 @@ export function JobsHub({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return jobs.filter((job) => {
+    const matches = jobs.filter((job) => {
       if (sourceFilter !== "all" && job.sourceLabel !== sourceFilter) return false;
       if (!q) return true;
       return (
@@ -209,7 +211,22 @@ export function JobsHub({
         job.description.toLowerCase().includes(q)
       );
     });
-  }, [jobs, query, sourceFilter]);
+    // Sort by posting date, falling back to first-seen when the source gave no date.
+    // Jobs without any date sink to the end whichever way the list is sorted.
+    const time = (job: JobDto) => {
+      const raw = job.postedAt ?? job.firstSeenAt;
+      if (!raw) return null;
+      const t = Date.parse(raw);
+      return Number.isNaN(t) ? null : t;
+    };
+    const direction = postedSort === "newest" ? -1 : 1;
+    return [...matches].sort((a, b) => {
+      const ta = time(a);
+      const tb = time(b);
+      if (ta === null || tb === null) return (ta === null ? 1 : 0) - (tb === null ? 1 : 0);
+      return (ta - tb) * direction;
+    });
+  }, [jobs, query, sourceFilter, postedSort]);
 
   const selected = filtered.find((j) => j.id === selectedId) ?? filtered[0] ?? null;
 
@@ -569,8 +586,8 @@ export function JobsHub({
           className="md:w-(--jobs-list-width) flex max-h-[60vh] w-full shrink-0 flex-col gap-0 overflow-hidden p-0 md:max-h-none md:max-w-[min(100%,560px)]"
           style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}
         >
-          <div className="border-border/60 border-b p-3">
-            <Tabs value={tab} onValueChange={switchTab}>
+          <div className="border-border/60 flex items-center gap-2 border-b p-3">
+            <Tabs value={tab} onValueChange={switchTab} className="min-w-0 flex-1">
               <TabsList className="w-full">
                 <TabsTrigger value="discover" className="flex-1">
                   Discover
@@ -586,6 +603,46 @@ export function JobsHub({
                 </TabsTrigger>
               </TabsList>
             </Tabs>
+            <div
+              role="group"
+              aria-label="Sort by posted date"
+              className="border-border bg-background flex shrink-0 items-center gap-0.5 rounded-md border p-0.5"
+            >
+              {(
+                [
+                  { value: "newest", label: "Newest first", path: "M12 19V5m0 0-6 6m6-6 6 6" },
+                  { value: "oldest", label: "Oldest first", path: "M12 5v14m0 0-6-6m6 6 6-6" },
+                ] as const
+              ).map((opt) => {
+                const pressed = postedSort === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    aria-pressed={pressed}
+                    aria-label={`Sort by posted date: ${opt.label.toLowerCase()}`}
+                    title={opt.label}
+                    onClick={() => setPostedSort(opt.value)}
+                    className={cn(
+                      "focus-visible:ring-ring inline-flex size-7 cursor-pointer items-center justify-center rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-2",
+                      pressed
+                        ? "bg-primary/15 text-primary"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" className="size-3.5" aria-hidden>
+                      <path
+                        d={opt.path}
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <JobList
             jobs={filtered}
@@ -1504,18 +1561,18 @@ function JobList({
     );
   }
   return (
-    <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
+    <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
       {jobs.map((job) => (
         <li key={job.id} className="relative">
           <button
             type="button"
             onClick={() => onSelect(job.id)}
             className={cn(
-              "flex w-full items-start gap-2.5 rounded-md border px-2.5 py-2.5 text-left transition-colors",
+              "bg-card flex w-full items-start gap-2.5 rounded-lg border px-3 py-3 text-left shadow-sm transition-colors",
               job.url && "pr-20",
               selectedId === job.id
                 ? "border-primary/40 bg-primary/10"
-                : "hover:border-border hover:bg-accent/40 border-transparent",
+                : "border-border/80 hover:border-border hover:bg-accent/40",
             )}
           >
             <Avatar className="mt-0.5 size-8 rounded-md">

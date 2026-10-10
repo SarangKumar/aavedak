@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Jobs — partial loading** — The Jobs heading shows straight away and only the job list and details show a skeleton while your matches load.
 - **ATS and Jobs — final score alignment** — Placeholder dashes in the Final score column are centred. Scores are right-aligned so every ring lines up in one column.
 - **Loading skeletons match the pages** — Loading placeholders now follow the current layouts of Referrals, Outreach, Follow-ups, Job tracker, People and Documents, so the page doesn't shift when content arrives.
+- **Jobs — sort by posted date** — A toggle beside the Discover and Applied tabs sorts the list newest first (the default) or oldest first. Jobs without a posting date sort last.
 - **Search icons** — Every search box now shows a magnifying-glass icon before the placeholder.
 - **Referrals and Outreach — full-screen boards** — Like Jobs, the Referrals columns and the Outreach inbox can expand to a full-screen board and collapse back. Each top strip links to the other page, and in full-screen mode that link opens the other board full-screen too.
 - **Referrals — active applications** — The left column now lists every open application, from your tracker and from jobs you applied to or bookmarked on Jobs, not just ones marked Applied. Each shows its status and a "From Jobs" tag where it applies. The page header is simpler: the Admin badge and Manage people button are gone, and Open outreach inbox moved to the top strip.
