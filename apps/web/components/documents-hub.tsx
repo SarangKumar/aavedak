@@ -65,7 +65,8 @@ import { CompanySelect } from "@/components/company-select";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 
-type Tab = "resumes" | "cover_letters" | "referral_email" | "followup_email";
+export type DocumentsTab = "resumes" | "cover_letters" | "referral_email" | "followup_email";
+type Tab = DocumentsTab;
 
 export type ResumeDto = {
   id: string;
@@ -119,6 +120,10 @@ export type ApplicationOptionDto = {
 };
 
 type DocumentsHubProps = {
+  /** Tab opened first; comes from the `tab` search param (default Resumes). */
+  initialTab?: DocumentsTab;
+  /** Job preselected for a new cover letter (`jobId` search param), when it is one of `initialJobs`. */
+  initialJobId?: string | null;
   /** `null` = not fetched on the server; the hub loads `/api/resumes` on mount. */
   initialResumes: ResumeDto[] | null;
   initialCoverLetters: CoverLetterDto[];
@@ -263,6 +268,8 @@ function buildFooterFromProfile(
 }
 
 export function DocumentsHub({
+  initialTab = "resumes",
+  initialJobId = null,
   initialResumes,
   initialCoverLetters,
   initialTemplates,
@@ -273,7 +280,18 @@ export function DocumentsHub({
   profileEmail,
   profileLinks,
 }: DocumentsHubProps) {
-  const [tab, setTab] = useState<Tab>("resumes");
+  const [tab, setTab] = useState<Tab>(initialTab);
+
+  // Keep the active tab in the URL so reloads and shared links open the same tab.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      // URL sync is a convenience; the page works without it.
+    }
+  }, [tab]);
   const [resumes, setResumes] = useState<ResumeDto[]>(initialResumes ?? []);
   const [resumesLoaded, setResumesLoaded] = useState(initialResumes !== null);
   const [resumesLoadError, setResumesLoadError] = useState<string | null>(null);
@@ -301,8 +319,12 @@ export function DocumentsHub({
   const [jobs] = useState(initialJobs);
   const [clTitle, setClTitle] = useState(DEFAULT_COVER_TITLE);
   const [clBody, setClBody] = useState(DEFAULT_COVER_BODY);
-  const [clMode, setClMode] = useState<"job" | "custom">(initialJobs[0] ? "job" : "custom");
-  const [clJobId, setClJobId] = useState<string>(initialJobs[0]?.id ?? "");
+  const [clMode, setClMode] = useState<"job" | "custom">(initialJobs.length > 0 ? "job" : "custom");
+  const [clJobId, setClJobId] = useState<string>(
+    initialJobs.some((j) => j.id === initialJobId)
+      ? (initialJobId as string)
+      : (initialJobs[0]?.id ?? ""),
+  );
   const [clCustomCompany, setClCustomCompany] = useState("");
   const [clCustomRole, setClCustomRole] = useState("");
   const [clApplicationId, setClApplicationId] = useState<string>("");

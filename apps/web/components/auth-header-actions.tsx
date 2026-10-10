@@ -1,14 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { AdminNotificationsMenu } from "@/components/admin-notifications-menu";
-import { HeaderMenu } from "@/components/header-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { signOutAndRedirect } from "@/lib/auth-client";
-import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export type HeaderUser = {
   name: string;
@@ -28,6 +35,7 @@ function AdminStar({ className }: { className?: string }) {
 }
 
 export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
+  const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(user?.pendingApprovals ?? 0);
@@ -69,10 +77,9 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
   const initial = (user.name || user.email || "?").slice(0, 1).toUpperCase();
   const profileHref = `/${user.username}`;
 
-  async function signOut(close: () => void) {
+  async function signOut() {
     setPending(true);
     setError(null);
-    close();
     try {
       await signOutAndRedirect("/sign-in");
     } catch (err) {
@@ -81,114 +88,76 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
     }
   }
 
+  const menuItems: Array<{ href: string; label: string; badge?: number }> = [
+    { href: profileHref, label: "Profile" },
+    { href: `${profileHref}/settings`, label: "Settings" },
+    ...(user.isAdmin ? [{ href: "/admin", label: "Admin", badge: pendingCount }] : []),
+    { href: "/people", label: "People" },
+    { href: "/outreach", label: "Outreach" },
+    { href: "/ats", label: "ATS" },
+  ];
+
   return (
     <div className="flex items-center gap-1.5">
       {user.isAdmin ? (
         <AdminNotificationsMenu pendingCount={pendingCount} onCountChange={setPendingCount} />
       ) : null}
 
-      <HeaderMenu
-        label="Account menu"
-        menuClassName="w-44"
-        triggerClassName={(open) =>
-          cn(
-            "relative flex size-8 items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-            open && "ring-primary/50 ring-2",
-          )
-        }
-        trigger={
-          <span className="relative inline-flex size-8">
-            <Avatar className="size-8">
-              {user.image ? (
-                <AvatarImage src={user.image} alt="" referrerPolicy="no-referrer" />
-              ) : null}
-              <AvatarFallback>{initial}</AvatarFallback>
-            </Avatar>
-            {user.isAdmin ? (
-              <span
-                className="bg-primary text-primary-foreground ring-background absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full ring-2"
-                title="Admin"
-                aria-label="Admin"
-              >
-                <AdminStar className="size-2.5" />
-              </span>
-            ) : null}
-          </span>
-        }
-      >
-        {({ close }) => (
-          <>
-            <Link
-              href={profileHref}
-              role="menuitem"
-              onClick={close}
-              className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] font-medium transition-colors"
-            >
-              Profile
-            </Link>
-            <Link
-              href={`${profileHref}/settings`}
-              role="menuitem"
-              onClick={close}
-              className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
-            >
-              Settings
-            </Link>
-            {user.isAdmin ? (
-              <Link
-                href="/admin"
-                role="menuitem"
-                onClick={close}
-                className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
-              >
-                Admin
-                {pendingCount > 0 ? (
-                  <span className="text-primary ml-1 text-[11px]">({pendingCount})</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger>
+          <button
+            type="button"
+            aria-label="Account menu"
+            className="focus-visible:ring-primary/50 relative flex size-8 items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-2"
+          >
+            <span className="relative inline-flex size-8">
+              <Avatar className="size-8">
+                {user.image ? (
+                  <AvatarImage src={user.image} alt="" referrerPolicy="no-referrer" />
                 ) : null}
-              </Link>
-            ) : null}
-            <Link
-              href="/people"
-              role="menuitem"
-              onClick={close}
-              className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
-            >
-              People
-            </Link>
-            <Link
-              href="/outreach"
-              role="menuitem"
-              onClick={close}
-              className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
-            >
-              Outreach
-            </Link>
-            <Link
-              href="/ats"
-              role="menuitem"
-              onClick={close}
-              className="hover:text-foreground text-muted-foreground block px-3 py-2 text-[13px] transition-colors"
-            >
-              ATS
-            </Link>
-            <Separator />
-            {error ? (
-              <p className="text-destructive px-3 py-1.5 text-[11px]" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => void signOut(close)}
-              disabled={pending}
-              className="hover:text-foreground text-muted-foreground w-full cursor-pointer px-3 py-2 text-left text-[13px] transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {pending ? "Signing out…" : "Sign out"}
-            </button>
-          </>
-        )}
-      </HeaderMenu>
+                <AvatarFallback>{initial}</AvatarFallback>
+              </Avatar>
+              {user.isAdmin ? (
+                <span
+                  className="bg-primary text-primary-foreground ring-background absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full ring-2"
+                  title="Admin"
+                  aria-label="Admin"
+                >
+                  <AdminStar className="size-2.5" />
+                </span>
+              ) : null}
+            </span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuLabel className="flex flex-col gap-0.5">
+            <span className="text-foreground truncate text-[13px] font-medium">{user.name}</span>
+            <span className="text-muted-foreground truncate text-[11px] font-normal">
+              {user.email}
+            </span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            {menuItems.map((item) => (
+              <DropdownMenuItem key={item.href} onClick={() => router.push(item.href)}>
+                {item.label}
+                {item.badge ? (
+                  <span className="text-primary ml-1 text-[11px]">({item.badge})</span>
+                ) : null}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          {error ? (
+            <p className="text-destructive px-2 py-1.5 text-[11px]" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <DropdownMenuItem variant="destructive" disabled={pending} onClick={() => void signOut()}>
+            {pending ? "Signing out…" : "Sign out"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

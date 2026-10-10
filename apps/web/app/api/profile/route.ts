@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
+import { DiscoveryApiError, discoveryAdmin } from "@/lib/discovery-api";
 import type { CareerProfilePatch } from "@/lib/career-profile";
 import {
   getProfile,
@@ -96,11 +97,28 @@ export async function PATCH(request: Request) {
       });
     }
 
+    let rerank: { rescored: number; dropped: number; added: number } | { error: string } | null =
+      null;
     if (body.career !== undefined) {
       profile = await updateCareerProfile(user.id, body.career);
+      // Career preferences drive the Discover ranking, so re-rank this user now. The save itself
+      // has already succeeded, so a ranking failure is reported without failing the request.
+      try {
+        rerank = await discoveryAdmin<{ rescored: number; dropped: number; added: number }>(
+          "/rerank-user",
+          { method: "POST", body: { userId: user.id }, timeoutMs: 60_000 },
+        );
+      } catch (err) {
+        rerank = {
+          error:
+            err instanceof DiscoveryApiError
+              ? err.message
+              : "Could not re-rank your jobs. Try again from Jobs → Refresh.",
+        };
+      }
     }
 
-    return NextResponse.json({ profile: serialize(profile) });
+    return NextResponse.json({ profile: serialize(profile), rerank });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed.";
     const status = message === "Profile not found." ? 404 : 400;

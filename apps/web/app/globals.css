@@ -132,7 +132,9 @@
     overflow-x: clip;
   }
 
-  :focus-visible {
+  /* Text fields draw their own focus ring (Input, Textarea, InputGroup, Command), so the global
+     ring skips them; otherwise the inner <input> adds a second ring inside the component's. */
+  :focus-visible:not(input):not(textarea) {
     @apply ring-ring/60 ring-offset-background outline-none ring-2 ring-offset-2;
   }
 

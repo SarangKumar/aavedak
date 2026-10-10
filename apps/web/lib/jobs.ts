@@ -251,7 +251,8 @@ export async function listDiscoverJobs(userId: string): Promise<DiscoverJob[]> {
           AND j.expired_at IS NULL AND j.closed_at IS NULL)
         OR j.user_id = ${userId}
       )
-    ORDER BY COALESCE(s.recommended_at, j.created_at) DESC, s.score DESC NULLS LAST
+    -- Best match first; the newest recommendation breaks ties (and orders un-scored jobs).
+    ORDER BY s.score DESC NULLS LAST, COALESCE(s.recommended_at, j.created_at) DESC
   `) as Array<
     Row & {
       recommended_at: string | null;

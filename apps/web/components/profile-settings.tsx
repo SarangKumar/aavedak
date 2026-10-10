@@ -22,6 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PROFILE_BIO_MAX } from "@/lib/profile-limits";
 import {
   InputGroup,
   InputGroupAddon,
@@ -421,9 +422,15 @@ export function ProfileSettings({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ career: formStateToCareerPatch(career) }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        rerank?: { rescored: number; dropped: number; added: number } | { error: string } | null;
+      };
       if (!res.ok) throw new Error(data.error || "Could not save career preferences.");
       setCareerSaved(true);
+      if (data.rerank && "error" in data.rerank) {
+        setError(`Career preferences saved, but jobs were not re-ranked: ${data.rerank.error}`);
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save career preferences.");
@@ -654,9 +661,12 @@ export function ProfileSettings({
                 <Textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  maxLength={600}
+                  maxLength={PROFILE_BIO_MAX}
+                  showCount
+                  maxRows={12}
+                  rows={3}
                   placeholder="A short intro for your shareable profile"
-                  className="h-24 resize-y py-2"
+                  className="py-2"
                 />
               </SettingsBlock>
               <div className="pt-1">
@@ -807,17 +817,44 @@ export function ProfileSettings({
                           key={project.id}
                           className="border-border/70 space-y-3 rounded-md border p-3"
                         >
-                          <label className="block space-y-1">
-                            <span className="text-muted-foreground text-[11px] font-medium">
-                              Title
-                            </span>
-                            <Input
-                              value={project.title}
-                              onChange={(e) => setProject(index, { title: e.target.value })}
-                              placeholder="Project name"
-                              maxLength={120}
-                            />
-                          </label>
+                          {/* Remove sits on the title row, lined up with the title field. */}
+                          <div className="flex items-end gap-2">
+                            <label className="block min-w-0 flex-1 space-y-1">
+                              <span className="text-muted-foreground text-[11px] font-medium">
+                                Title
+                              </span>
+                              <Input
+                                value={project.title}
+                                onChange={(e) => setProject(index, { title: e.target.value })}
+                                placeholder="Project name"
+                                maxLength={120}
+                              />
+                            </label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => removeProject(index)}
+                              aria-label={`Remove ${project.title.trim() || "project"}`}
+                              title="Remove project"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="size-4"
+                                aria-hidden
+                              >
+                                <path d="M3 6h18" />
+                                <path d="M8 6V4h8v2" />
+                                <path d="M6 6l1 14h10l1-14" />
+                              </svg>
+                            </Button>
+                          </div>
 
                           <label className="block space-y-1">
                             <span className="text-muted-foreground text-[11px] font-medium">
@@ -871,17 +908,6 @@ export function ProfileSettings({
                               {project.description.length}/{MAX_PROJECT_DESCRIPTION}
                             </span>
                           </label>
-
-                          <div className="flex justify-end">
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => removeProject(index)}
-                            >
-                              Remove
-                            </Button>
-                          </div>
                         </li>
                       ))}
                     </ul>

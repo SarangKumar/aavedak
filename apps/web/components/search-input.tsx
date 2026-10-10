@@ -26,6 +26,9 @@ export function SearchInput({ className, inputClassName, ...props }: SearchInput
         type="search"
         className={cn(
           "h-full text-[13px] [&::-webkit-search-cancel-button]:hidden",
+          // The global :focus-visible ring would stack a second ring on the inner input; the
+          // InputGroup's focus-within ring is the only focus indicator.
+          "focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
           inputClassName,
         )}
         {...props}

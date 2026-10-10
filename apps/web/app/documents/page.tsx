@@ -18,8 +18,25 @@ export const metadata: Metadata = {
   description: "Resumes, cover letters, referral email, and follow-up email templates.",
 };
 
-export default async function DocumentsPage() {
+const TABS = ["resumes", "cover_letters", "referral_email", "followup_email"] as const;
+
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function DocumentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string | string[]; jobId?: string | string[] }>;
+}) {
   const { user } = await requireOnboarded();
+  const params = await searchParams;
+  // Unknown or missing values fall back to the default tab, Resumes.
+  const requestedTab = first(params.tab);
+  const initialTab = (TABS as readonly string[]).includes(requestedTab ?? "")
+    ? (requestedTab as (typeof TABS)[number])
+    : "resumes";
+  const initialJobId = first(params.jobId) ?? null;
   const [profile, coverLetters, applications, jobs] = await Promise.all([
     getProfile(user.id),
     listCoverLetters(user.id),
@@ -33,6 +50,8 @@ export default async function DocumentsPage() {
 
   return (
     <DocumentsHub
+      initialTab={initialTab}
+      initialJobId={initialJobId}
       userEmail={user.email}
       userName={user.name}
       profileEmail={profile?.email ?? user.email ?? null}

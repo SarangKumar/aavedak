@@ -37,7 +37,7 @@ app/discovery/
     filters.py   India / engineering / junior / experience parsing (pure)
     normalize.py RawPosting → NormalizedJob + content hash + dedupe key
     store.py     per-company incremental upsert, close/reopen
-    ranking.py   per-user recommendations (daily cap, min score)
+    ranking.py   per-user recommendations (daily cap, min score); rerank_user() after career changes
     scoring.py   port of web lib/job-scoring.ts (keep in sync)
     expiry.py    expire jobs + auto-reject early applications (once)
     registry.py  company_sources: seed/admin import, shards, scan status
@@ -127,3 +127,7 @@ cd apps/api
 # SQL paths need a disposable Postgres (superuser URL; a temp database is created per module):
 TEST_DATABASE_URL=postgresql://... .venv/bin/python -m pytest tests/test_discovery_db.py -q
 ```
+
+## Career change re-rank
+
+Saving Career preferences (web `PATCH /api/profile`) calls `POST /svc/v1/discovery/admin/rerank-user`, which runs `ranking.rerank_user`: re-score open recommendations, drop those below `discovery_min_match_score` (`recommended_at` set to NULL; the row stays so the pool never re-offers it), then fill remaining daily budget. Discover orders by score first. Not covered by the test suite: needs a Postgres test run (`TEST_DATABASE_URL`).

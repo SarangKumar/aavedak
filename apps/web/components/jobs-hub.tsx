@@ -1616,7 +1616,7 @@ function JobList({
               type="button"
               onClick={() => onSelect(job.id)}
               className={cn(
-                "bg-card flex w-full items-start gap-2.5 rounded-lg border px-3 py-3 text-left shadow-sm transition-colors",
+                "bg-background flex w-full items-start gap-2.5 rounded-lg border px-3 py-3 text-left shadow-sm transition-colors",
                 job.url && "pr-20",
                 selectedId === job.id
                   ? "border-primary/40 bg-primary/10"

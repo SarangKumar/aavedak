@@ -11,7 +11,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandShortcut,
 } from "@/components/ui/command";
 import {
   Dialog,
@@ -79,12 +78,12 @@ export function CommandPalette() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="gap-0 overflow-hidden p-0">
+      <DialogContent className="gap-0 p-0">
         <DialogHeader className="sr-only">
           <DialogTitle>Command palette</DialogTitle>
           <DialogDescription>Search pages and actions.</DialogDescription>
         </DialogHeader>
-        <Command className="rounded-none border-0 bg-transparent shadow-none">
+        <Command>
           <CommandInput placeholder="Search commands…" className="text-[14px]" />
           <CommandList className="max-h-80">
             <CommandEmpty>No results.</CommandEmpty>
@@ -92,7 +91,6 @@ export function CommandPalette() {
               <CommandGroup heading="Navigate">
                 <CommandItem value="dashboard" onClick={() => go("/dashboard")}>
                   Dashboard
-                  <CommandShortcut>⌘K</CommandShortcut>
                 </CommandItem>
                 <CommandItem value="jobs" onClick={() => go("/jobs")}>
                   Jobs

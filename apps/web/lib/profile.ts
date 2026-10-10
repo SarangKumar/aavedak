@@ -1,5 +1,6 @@
 import "server-only";
 
+import { PROFILE_BIO_MAX } from "@/lib/profile-limits";
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 import {
   emptyCareerProfile,
@@ -369,7 +370,8 @@ export async function updateProfilePublic(
 
   const nextName =
     patch.name !== undefined ? normalizeOptionalText(patch.name, 120) : existing.name;
-  const nextBio = patch.bio !== undefined ? normalizeOptionalText(patch.bio, 600) : existing.bio;
+  const nextBio =
+    patch.bio !== undefined ? normalizeOptionalText(patch.bio, PROFILE_BIO_MAX) : existing.bio;
 
   let nextLinks = { ...existing.links };
   if (patch.links !== undefined) {

@@ -237,6 +237,17 @@ def admin_expire(conn: psycopg.Connection = Conn) -> dict[str, Any]:
     return expiry.run_expiry(conn, get_settings())
 
 
+class RerankUserBody(BaseModel):
+    userId: str = Field(min_length=1, max_length=200)
+
+
+@router.post("/admin/rerank-user", dependencies=[Auth])
+def admin_rerank_user(body: RerankUserBody, conn: psycopg.Connection = Conn) -> dict[str, Any]:
+    """Re-rank one user's Discover list after a career preference change (server-to-server from
+    the web profile route, which only passes the signed-in user's id)."""
+    return ranking.rerank_user(conn, get_settings(), body.userId)
+
+
 @router.post("/admin/rank", dependencies=[Auth])
 def admin_rank(conn: psycopg.Connection = Conn) -> dict[str, Any]:
     people_store.backfill_people_keys(conn)

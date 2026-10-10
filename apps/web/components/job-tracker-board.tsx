@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Toggle } from "@/components/ui/toggle";
 import { Card } from "@/components/ui/card";
 import {
   DragDrop,
@@ -485,7 +484,20 @@ export function JobTrackerBoard({
             not applied yet.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
+      </header>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="sr-only" htmlFor="tracker-search">
+          Search applications
+        </label>
+        <SearchInput
+          id="tracker-search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search company, role, location…"
+          className="h-9 min-w-0 flex-1 sm:max-w-sm"
+        />
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
           <ToggleGroup
             aria-label="Board view"
             variant="outline"
@@ -581,25 +593,40 @@ export function JobTrackerBoard({
             <span className="hidden sm:inline">New Application</span>
           </Button>
         </div>
-      </header>
+      </div>
 
       {columnsOpen && prefs.trackerView === "kanban" ? (
         <Card className="border-border/80 bg-card gap-0 rounded-xl border p-3">
           <p className="text-foreground mb-2 text-[12px] font-medium">Show / hide Kanban columns</p>
-          <div className="flex flex-wrap gap-1.5">
+          <ToggleGroup
+            aria-label="Visible Kanban columns"
+            multiple
+            variant="outline"
+            size="sm"
+            spacing={1}
+            className="flex-wrap"
+            value={DEFAULT_KANBAN_STATUSES.filter((st) => !prefs.hiddenColumns.includes(st))}
+            onValueChange={(next) => {
+              // One click changes exactly one column; find which.
+              const visible = DEFAULT_KANBAN_STATUSES.filter(
+                (st) => !prefs.hiddenColumns.includes(st),
+              );
+              const changed = DEFAULT_KANBAN_STATUSES.find(
+                (st) => visible.includes(st) !== next.includes(st),
+              );
+              if (changed) void toggleColumn(changed);
+            }}
+          >
             {DEFAULT_KANBAN_STATUSES.map((status) => (
-              <Toggle
+              <ToggleGroupItem
                 key={status}
-                variant="outline"
-                size="sm"
-                pressed={!prefs.hiddenColumns.includes(status)}
-                onPressedChange={() => void toggleColumn(status)}
+                value={status}
                 className="h-7 rounded-full px-2.5 text-[11px]"
               >
                 {STATUS_LABELS[status]}
-              </Toggle>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
         </Card>
       ) : null}
 
@@ -608,19 +635,6 @@ export function JobTrackerBoard({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-
-      <div className="mb-4 space-y-2">
-        <label className="sr-only" htmlFor="tracker-search">
-          Search applications
-        </label>
-        <SearchInput
-          id="tracker-search"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search company, role, location…"
-          className="h-9 w-full"
-        />
-      </div>
 
       {prefs.trackerView === "kanban" ? (
         <Card className="border-border/70 bg-card gap-0 overflow-hidden rounded-xl border p-0">

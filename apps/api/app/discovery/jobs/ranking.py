@@ -106,17 +106,21 @@ def recommend(
     settings: DiscoverySettings,
     job_ids: list[str] | None = None,
     contexts: dict[str, UserContext] | None = None,
+    user_ids: list[str] | None = None,
 ) -> dict[str, int]:
-    """Create missing recommendations. `job_ids=None` ranks the whole active pool.
-    Returns {user_id: recommendations created}."""
+    """Create missing recommendations. `job_ids=None` ranks the whole active pool; `user_ids`
+    limits the run to those users. Returns {user_id: recommendations created}."""
     if not settings.discovery_enabled or (job_ids is not None and not job_ids):
         return {}
     contexts = contexts if contexts is not None else {}
     created: dict[str, int] = {}
     day_start = ist_day_start_iso()
     cutoff = expiry_cutoff_iso(settings.job_expiry_days)
+    wanted = set(user_ids) if user_ids is not None else None
 
     for user_id in eligible_users(conn):
+        if wanted is not None and user_id not in wanted:
+            continue
         today = conn.execute(
             "SELECT COUNT(*) AS n FROM user_job_state WHERE user_id = %s AND recommended_at >= %s",
             (user_id, day_start),
@@ -186,3 +190,80 @@ def recommend(
             )
         created[user_id] = len(picked)
     return created
+
+
+def rerank_user(conn: psycopg.Connection, settings: DiscoverySettings, user_id: str) -> dict[str, int]:
+    """Re-run ranking for one user after their career preferences change.
+
+    1. Re-score the recommendations still open for them (not applied, not ignored) against the
+       current career profile, and refresh `job_scores`.
+    2. Drop open recommendations that no longer meet the match threshold. Setting
+       `recommended_at` to NULL hides them from Discover; the row stays, so the pool query never
+       offers them again.
+    3. Fill from the pool with whatever daily budget is left, exactly like the normal run.
+
+    Returns counts: {"rescored", "dropped", "added"}. A user who isn't eligible (not approved, or
+    discovery paused) gets zeros; their list is left as it was.
+    """
+    if user_id not in eligible_users(conn):
+        return {"rescored": 0, "dropped": 0, "added": 0}
+    ctx = load_user_context(conn, user_id)
+    rows = conn.execute(
+        """SELECT j.id, j.title, j.company, j.location, j.description, j.salary, j.url,
+                  j.min_years, COALESCE(j.posted_at, j.first_seen_at) AS posted,
+                  s.recommended_at
+           FROM user_job_state s
+           JOIN jobs j ON j.id = s.job_id
+           WHERE s.user_id = %s AND s.ignored = 0 AND s.application_id IS NULL
+             AND s.recommended_at IS NOT NULL
+             AND j.status = 'active' AND j.expired_at IS NULL AND j.closed_at IS NULL""",
+        (user_id,),
+    ).fetchall()
+
+    now = now_iso()
+    keep: list[tuple[Any, ...]] = []
+    scores: list[tuple[Any, ...]] = []
+    drop: list[tuple[Any, ...]] = []
+    for row in rows:
+        compat, compat_details = compatibility_score(row, ctx.career, ctx.resume_text)
+        if ctx.career.has_signals and compat < settings.discovery_min_match_score:
+            drop.append((user_id, row["id"]))
+            continue
+        ats, _ = ats_score(row)
+        keep.append(
+            (
+                compat,
+                json.dumps(
+                    {
+                        "skills": compat_details["skillHits"][:8],
+                        "roles": compat_details["roleHits"][:4],
+                        "locations": compat_details["locationHits"][:4],
+                        "minYears": row["min_years"],
+                    }
+                ),
+                now,
+                user_id,
+                row["id"],
+            )
+        )
+        scores.append((compat, ats, now, user_id, row["id"]))
+
+    with conn.transaction(), conn.cursor() as cur:
+        cur.executemany(
+            "UPDATE user_job_state SET score = %s, reasons_json = %s, updated_at = %s "
+            "WHERE user_id = %s AND job_id = %s",
+            keep,
+        )
+        cur.executemany(
+            "UPDATE job_scores SET compatibility_score = %s, ats_score = %s, updated_at = %s "
+            "WHERE user_id = %s AND job_id = %s",
+            scores,
+        )
+        cur.executemany(
+            "UPDATE user_job_state SET recommended_at = NULL, score = NULL, reasons_json = NULL, "
+            "updated_at = %s WHERE user_id = %s AND job_id = %s",
+            [(now, uid, jid) for uid, jid in drop],
+        )
+
+    added = recommend(conn, settings, job_ids=None, contexts={user_id: ctx}, user_ids=[user_id])
+    return {"rescored": len(keep), "dropped": len(drop), "added": added.get(user_id, 0)}
