@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 
-import { HeaderMenu } from "@/components/header-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { parseThemeMode, themeCookieString, THEME_KEY, type ThemeMode } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -126,51 +132,36 @@ export function ThemeToggle({ className }: { className?: string }) {
     return () => mq.removeEventListener("change", onChange);
   }, [ready, mode]);
 
-  function select(next: ThemeMode, close: () => void) {
+  function select(next: ThemeMode) {
     setMode(next);
     setIconKey((k) => k + 1);
     applyTheme(next);
-    close();
   }
 
   return (
     <div className={cn("relative", className)}>
-      <HeaderMenu
-        label={`Theme: ${mode}. Change theme`}
-        menuClassName="w-36"
-        triggerClassName={(open) =>
-          cn(
-            "border-border/80 bg-card/60 text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-lg border transition-colors",
-            open && "border-primary/40 text-foreground",
-          )
-        }
-        trigger={
-          <span key={iconKey} className="aavedak-theme-icon inline-flex">
-            <ModeIcon mode={ready ? mode : "system"} className="size-3.5" />
-          </span>
-        }
-      >
-        {({ close }) => (
-          <>
-            {options.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                role="menuitemradio"
-                aria-checked={mode === opt.value}
-                onClick={() => select(opt.value, close)}
-                className={cn(
-                  "hover:text-foreground flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors",
-                  mode === opt.value ? "text-primary font-medium" : "text-muted-foreground",
-                )}
-              >
-                <ModeIcon mode={opt.value} className="size-3.5 shrink-0" />
-                {opt.label}
-              </button>
-            ))}
-          </>
-        )}
-      </HeaderMenu>
+      <DropdownMenu>
+        <DropdownMenuTrigger>
+          <button
+            type="button"
+            aria-label={`Theme: ${mode}. Change theme`}
+            className="border-border/80 bg-card/60 text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex size-8 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2"
+          >
+            <span key={iconKey} className="aavedak-theme-icon inline-flex">
+              <ModeIcon mode={ready ? mode : "system"} className="size-3.5" />
+            </span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {options.map((opt) => (
+            <DropdownMenuItem key={opt.value} onClick={() => select(opt.value)}>
+              <ModeIcon mode={opt.value} className="size-3.5 shrink-0" />
+              {opt.label}
+              {mode === opt.value ? <DropdownMenuShortcut>✓</DropdownMenuShortcut> : null}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

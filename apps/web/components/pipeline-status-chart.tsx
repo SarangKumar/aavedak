@@ -32,14 +32,14 @@ export function PipelineStatusChart({ data }: Props) {
 
   if (total === 0) {
     return (
-      <p className="text-muted-foreground flex h-[220px] items-center justify-center text-[12px]">
+      <p className="text-muted-foreground flex h-[170px] items-center justify-center text-[12px]">
         No applications in the pipeline yet.
       </p>
     );
   }
 
   return (
-    <ChartContainer config={chartConfig} className="mx-auto aspect-square w-full max-w-[340px]">
+    <ChartContainer config={chartConfig} className="mx-auto aspect-square w-full max-w-[170px]">
       <RadarChart data={data} outerRadius="72%">
         <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel={false} />} />
         <PolarGrid className="stroke-border/70" />

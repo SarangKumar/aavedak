@@ -18,9 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PROFILE_BIO_MAX } from "@/lib/profile-limits";
 import {
@@ -694,10 +696,8 @@ export function ProfileSettings({
                     const baseUrl = meta.baseUrl;
                     if (baseUrl) {
                       return (
-                        <label key={key} className="space-y-1">
-                          <span className="text-muted-foreground text-[11px] font-medium">
-                            {meta.label}
-                          </span>
+                        <div key={key} className="space-y-1.5">
+                          <Label htmlFor={`link-${key}`}>{meta.label}</Label>
                           <InputGroup className="h-8 min-h-8 gap-0 overflow-hidden px-0">
                             <InputGroupText
                               className="bg-muted/60 border-border flex h-full max-w-[55%] items-center truncate border-r px-2 text-[10px] leading-none sm:max-w-none sm:text-[11px]"
@@ -706,6 +706,7 @@ export function ProfileSettings({
                               {baseUrl}
                             </InputGroupText>
                             <InputGroupInput
+                              id={`link-${key}`}
                               value={usernameDrafts[key] ?? ""}
                               onChange={(e) => setUsernameDraft(key, e.target.value)}
                               className="h-full px-2 text-[12px]"
@@ -714,22 +715,21 @@ export function ProfileSettings({
                               spellCheck={false}
                             />
                           </InputGroup>
-                        </label>
+                        </div>
                       );
                     }
                     return (
-                      <label key={key} className="space-y-1">
-                        <span className="text-muted-foreground text-[11px] font-medium">
-                          {meta.label}
-                        </span>
+                      <div key={key} className="space-y-1.5">
+                        <Label htmlFor={`link-${key}`}>{meta.label}</Label>
                         <Input
+                          id={`link-${key}`}
                           value={links[key] ?? ""}
                           onChange={(e) => setLink(key, e.target.value)}
                           placeholder={meta.placeholder}
                           inputMode="url"
                           autoComplete="url"
                         />
-                      </label>
+                      </div>
                     );
                   })}
                 </div>
@@ -819,17 +819,16 @@ export function ProfileSettings({
                         >
                           {/* Remove sits on the title row, lined up with the title field. */}
                           <div className="flex items-end gap-2">
-                            <label className="block min-w-0 flex-1 space-y-1">
-                              <span className="text-muted-foreground text-[11px] font-medium">
-                                Title
-                              </span>
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <Label htmlFor={`project-title-${project.id}`}>Title</Label>
                               <Input
+                                id={`project-title-${project.id}`}
                                 value={project.title}
                                 onChange={(e) => setProject(index, { title: e.target.value })}
                                 placeholder="Project name"
                                 maxLength={120}
                               />
-                            </label>
+                            </div>
                             <Button
                               type="button"
                               variant="outline"
@@ -856,10 +855,10 @@ export function ProfileSettings({
                             </Button>
                           </div>
 
-                          <label className="block space-y-1">
-                            <span className="text-muted-foreground text-[11px] font-medium">
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`project-url-${project.id}`}>
                               Website <span className="font-normal opacity-70">(optional)</span>
-                            </span>
+                            </Label>
                             <InputGroup className="h-8 min-h-8 gap-0 overflow-hidden px-0">
                               <InputGroupAddon className="bg-muted/60 border-border flex h-full w-9 justify-center border-r">
                                 {previewPending === project.id ? (
@@ -879,6 +878,7 @@ export function ProfileSettings({
                                 )}
                               </InputGroupAddon>
                               <InputGroupInput
+                                id={`project-url-${project.id}`}
                                 value={project.url}
                                 onChange={(e) => setProjectUrl(index, project.id, e.target.value)}
                                 className="h-full px-2.5 text-[12px]"
@@ -887,13 +887,12 @@ export function ProfileSettings({
                                 autoComplete="url"
                               />
                             </InputGroup>
-                          </label>
+                          </div>
 
-                          <label className="block space-y-1">
-                            <span className="text-muted-foreground text-[11px] font-medium">
-                              Description
-                            </span>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`project-desc-${project.id}`}>Description</Label>
                             <Textarea
+                              id={`project-desc-${project.id}`}
                               value={project.description}
                               onChange={(e) =>
                                 setProject(index, {
@@ -907,7 +906,7 @@ export function ProfileSettings({
                             <span className="text-muted-foreground block text-right text-[10px] tabular-nums">
                               {project.description.length}/{MAX_PROJECT_DESCRIPTION}
                             </span>
-                          </label>
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -1015,15 +1014,30 @@ export function ProfileSettings({
                   No resumes yet — upload a PDF from Documents.
                 </div>
               ) : (
-                <ul className="space-y-2">
+                // Radio group: exactly one resume is the showcase at any time. Radios cannot be
+                // cleared, and choosing one activates it (the server demotes the previous one).
+                <RadioGroup
+                  aria-label="Showcase resume"
+                  value={showcaseId ?? undefined}
+                  disabled={resumePending !== null}
+                  onValueChange={(id) => {
+                    if (id && id !== showcaseId) void setResumeStatus(id, "active");
+                  }}
+                  className="gap-2"
+                >
                   {resumes.map((resume) => {
                     const isShowcase = resume.id === showcaseId;
                     return (
-                      <li
+                      <label
                         key={resume.id}
-                        className="border-border/70 bg-background/50 flex flex-col gap-2 rounded-md border p-2.5 sm:flex-row sm:items-center sm:justify-between"
+                        htmlFor={`showcase-${resume.id}`}
+                        className={cn(
+                          "border-border/70 bg-background/50 flex cursor-pointer items-center gap-3 rounded-md border p-2.5",
+                          isShowcase && "border-primary/40 bg-primary/5",
+                        )}
                       >
-                        <div className="min-w-0">
+                        <RadioGroupItem id={`showcase-${resume.id}`} value={resume.id} />
+                        <div className="min-w-0 flex-1">
                           <p className="text-foreground truncate text-[12px] font-medium">
                             {resume.displayName}
                             {isShowcase ? (
@@ -1036,46 +1050,25 @@ export function ProfileSettings({
                             {resume.originalFilename} · {formatBytes(resume.byteSize)}
                           </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {resumePending === resume.id ? (
-                            <Spinner
-                              className="text-muted-foreground size-3.5"
-                              label="Updating resume"
-                            />
-                          ) : null}
-                          <a
-                            href={`/api/resumes/${resume.id}/file`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="border-border text-muted-foreground hover:text-foreground inline-flex h-7 items-center rounded-md border px-2 text-[11px]"
-                          >
-                            Open
-                          </a>
-                          <Select
-                            value={resume.status === "active" ? "active" : "inactive"}
-                            onValueChange={(v) => {
-                              if (!v || v === resume.status) return;
-                              void setResumeStatus(resume.id, v as "active" | "inactive");
-                            }}
-                            disabled={resumePending === resume.id}
-                          >
-                            <SelectTrigger className="border-border bg-background text-foreground h-7 w-[7.5rem] rounded-md border px-2 text-[11px]">
-                              <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent className="z-[240]">
-                              <SelectItem value="active" className="text-[12px]">
-                                Active (showcase)
-                              </SelectItem>
-                              <SelectItem value="inactive" className="text-[12px]">
-                                Inactive
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </li>
+                        {resumePending === resume.id ? (
+                          <Spinner
+                            className="text-muted-foreground size-3.5"
+                            label="Updating resume"
+                          />
+                        ) : null}
+                        <a
+                          href={`/api/resumes/${resume.id}/file`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="border-border text-muted-foreground hover:text-foreground inline-flex h-7 shrink-0 items-center rounded-md border px-2 text-[11px]"
+                        >
+                          Open
+                        </a>
+                      </label>
                     );
                   })}
-                </ul>
+                </RadioGroup>
               )}
             </SettingsPanel>
           ) : null}

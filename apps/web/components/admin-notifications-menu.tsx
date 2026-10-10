@@ -4,12 +4,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { HeaderMenu } from "@/components/header-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTimeFixed } from "@/lib/format-datetime";
 import type { PendingUserRow } from "@/lib/user-approval-shared";
-import { cn } from "@/lib/utils";
 
 function NotificationsLoading({ rows = 3 }: { rows?: number }) {
   return (
@@ -103,7 +106,8 @@ function NotificationsPanel({ close, pendingCount, onCountChange }: PanelProps) 
   }
 
   return (
-    <div>
+    // The panel sets its own width; the dropdown keeps its default Vinyaas styling.
+    <div className="w-[19rem] sm:w-[21rem]">
       <div className="border-border/70 flex items-center justify-between gap-2 border-b px-3 py-2">
         <p className="text-foreground text-[12px] font-semibold tracking-tight">Notifications</p>
         {pendingCount > 0 ? (
@@ -202,39 +206,37 @@ type Props = {
 };
 
 export function AdminNotificationsMenu({ pendingCount, onCountChange }: Props) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <HeaderMenu
-      label={
-        pendingCount > 0
-          ? `${pendingCount} pending registration${pendingCount === 1 ? "" : "s"}`
-          : "Admin notifications"
-      }
-      menuClassName="w-[20rem] sm:w-[22rem]"
-      triggerClassName={(open) =>
-        cn(
-          "relative inline-flex size-8 cursor-pointer items-center justify-center rounded-full",
-          "text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors",
-          open && "bg-muted/50 text-foreground",
-        )
-      }
-      trigger={
-        <span className="relative inline-flex size-8 items-center justify-center">
-          <BellIcon className="size-4" />
-          {pendingCount > 0 ? (
-            <span className="bg-primary text-primary-foreground absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
-              {pendingCount > 9 ? "9+" : pendingCount}
-            </span>
-          ) : null}
-        </span>
-      }
-    >
-      {({ close }) => (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger>
+        <button
+          type="button"
+          aria-label={
+            pendingCount > 0
+              ? `${pendingCount} pending registration${pendingCount === 1 ? "" : "s"}`
+              : "Admin notifications"
+          }
+          className="text-muted-foreground hover:text-foreground hover:bg-muted/50 focus-visible:ring-ring relative inline-flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2"
+        >
+          <span className="relative inline-flex size-8 items-center justify-center">
+            <BellIcon className="size-4" />
+            {pendingCount > 0 ? (
+              <span className="bg-primary text-primary-foreground absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
+                {pendingCount > 9 ? "9+" : pendingCount}
+              </span>
+            ) : null}
+          </span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
         <NotificationsPanel
-          close={close}
+          close={() => setOpen(false)}
           pendingCount={pendingCount}
           onCountChange={onCountChange}
         />
-      )}
-    </HeaderMenu>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -146,7 +146,7 @@ export function DialogTrigger({ children }: { children: React.ReactElement<Trigg
   });
 }
 
-export type DialogSize = "sm" | "default" | "lg" | "xl" | "full";
+export type DialogSize = "sm" | "default" | "lg" | "xl" | "a4" | "full";
 
 // Width and max height per size. "default" keeps the original 32rem / max-w-lg box.
 const dialogSizeClasses: Record<DialogSize, string> = {
@@ -154,6 +154,9 @@ const dialogSizeClasses: Record<DialogSize, string> = {
   default: "max-h-[min(32rem,calc(100dvh-2rem))] sm:max-w-lg",
   lg: "max-h-[min(40rem,calc(100dvh-2rem))] sm:max-w-3xl",
   xl: "max-h-[min(48rem,calc(100dvh-2rem))] sm:max-w-5xl",
+  // A4 sheet (210:297). Width follows the height that is left under a 13rem header/padding
+  // budget, so a page preview is never cropped sideways. Phones use the full width instead.
+  a4: "max-h-[calc(100dvh-2rem)] sm:max-w-[min(56rem,calc((100dvh-13rem)*0.7071+3rem))]",
   // Leaves a 4rem band on every side (2rem on phones) so a site header stays visible.
   full: "h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] sm:h-[calc(100dvh-8rem)] sm:max-h-[calc(100dvh-8rem)] sm:max-w-[min(80rem,calc(100%-8rem))]",
 };

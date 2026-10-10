@@ -1438,14 +1438,41 @@ export function DocumentsHub({
           if (!next) (() => setPreviewResume(null))();
         }}
       >
-        <DialogContent size="xl">
-          <DialogHeader>
-            <DialogTitle>{previewResume?.displayName ?? "Resume preview"}</DialogTitle>
-            <DialogDescription>
-              {previewResume
-                ? `${previewResume.originalFilename} · ${formatBytes(previewResume.byteSize)}`
-                : undefined}
-            </DialogDescription>
+        <DialogContent size="a4" className="gap-3">
+          <DialogHeader className="flex-row items-start justify-between gap-3 text-left">
+            <div className="min-w-0 space-y-1">
+              <DialogTitle className="truncate">
+                {previewResume?.displayName ?? "Resume preview"}
+              </DialogTitle>
+              <DialogDescription>
+                {previewResume
+                  ? `${previewResume.originalFilename} · ${formatBytes(previewResume.byteSize)}`
+                  : undefined}
+              </DialogDescription>
+            </div>
+            {/* Laptop: actions sit top-right, like the other dialogs. Phones use the footer below. */}
+            {previewResume ? (
+              <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
+                <a
+                  href={`/api/resumes/${previewResume.id}/file`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  <ExternalLinkIcon className="size-3.5" />
+                  Open in new tab
+                </a>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  type="button"
+                  aria-label="Close preview"
+                  onClick={() => setPreviewResume(null)}
+                >
+                  <CloseIcon className="size-4" />
+                </Button>
+              </div>
+            ) : null}
           </DialogHeader>
 
           {previewResume ? (
@@ -1453,11 +1480,11 @@ export function DocumentsHub({
               key={previewResume.id}
               src={`/api/resumes/${previewResume.id}/file`}
               title={`Preview of ${previewResume.displayName}`}
-              className="bg-background h-[min(72vh,46rem)] w-full rounded-md border-0"
+              className="bg-background mx-auto block aspect-[210/297] h-[calc(100dvh-16rem)] max-h-full w-auto max-w-full rounded-md border-0 sm:h-[calc(100dvh-13rem)]"
             />
           ) : null}
 
-          <DialogFooter>
+          <DialogFooter className="sm:hidden">
             {previewResume ? (
               <>
                 <a
@@ -1519,5 +1546,40 @@ export function DocumentsHub({
         </AlertDialogContent>
       </AlertDialog>
     </ShellWidth>
+  );
+}
+
+function ExternalLinkIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    </svg>
+  );
+}
+
+function CloseIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
   );
 }

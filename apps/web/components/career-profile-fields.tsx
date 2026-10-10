@@ -10,6 +10,7 @@ import {
   type CareerProfile,
 } from "@/lib/career-profile";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -88,7 +89,6 @@ type Props = {
   idPrefix?: string;
 };
 
-const labelClass = "text-muted-foreground text-[11px] font-medium";
 const hintClass = "text-muted-foreground text-[11px] leading-relaxed";
 
 export function CareerProfileFields({ value, onChange, compact, idPrefix = "career" }: Props) {
@@ -101,13 +101,16 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
   return (
     <div className={cn("space-y-3", compact ? "" : "space-y-3.5")}>
       <div className={grid}>
-        <label className="space-y-1">
-          <span className={labelClass}>Years of experience *</span>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-years-of-experience`}>Years of experience *</Label>
           <Select
             value={value.experienceLevel || undefined}
             onValueChange={(v) => set("experienceLevel", v ?? "")}
           >
-            <SelectTrigger className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]">
+            <SelectTrigger
+              id={`${idPrefix}-years-of-experience`}
+              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+            >
               <SelectValue placeholder="Select experience" />
             </SelectTrigger>
             <SelectContent className="z-[240]">
@@ -118,15 +121,18 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
               ))}
             </SelectContent>
           </Select>
-        </label>
+        </div>
 
-        <label className="space-y-1">
-          <span className={labelClass}>Job search status *</span>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-job-search-status`}>Job search status *</Label>
           <Select
             value={value.jobSearchStatus || undefined}
             onValueChange={(v) => set("jobSearchStatus", v ?? "")}
           >
-            <SelectTrigger className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]">
+            <SelectTrigger
+              id={`${idPrefix}-job-search-status`}
+              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+            >
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent className="z-[240]">
@@ -137,11 +143,11 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
               ))}
             </SelectContent>
           </Select>
-        </label>
+        </div>
       </div>
 
-      <label className="block space-y-1">
-        <span className={labelClass}>Preferred roles / titles *</span>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-roles`}>Preferred roles / titles *</Label>
         <Input
           id={`${idPrefix}-roles`}
           value={value.preferredRoles}
@@ -150,10 +156,10 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
           className="h-9 rounded-lg text-[13px]"
         />
         <p className={hintClass}>Comma-separated. Used for job matching next.</p>
-      </label>
+      </div>
 
-      <label className="block space-y-1">
-        <span className={labelClass}>Skills / tech stack *</span>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-skills`}>Skills / tech stack *</Label>
         <Input
           id={`${idPrefix}-skills`}
           value={value.skills}
@@ -165,16 +171,19 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
           Enter skills as a comma-separated list (e.g. TypeScript, React, PostgreSQL). Used for job
           matching.
         </p>
-      </label>
+      </div>
 
       <div className={grid}>
-        <label className="space-y-1">
-          <span className={labelClass}>Currency *</span>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-currency`}>Currency *</Label>
           <Select
             value={value.salaryCurrency || "INR"}
             onValueChange={(v) => set("salaryCurrency", v ?? "INR")}
           >
-            <SelectTrigger className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]">
+            <SelectTrigger
+              id={`${idPrefix}-currency`}
+              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+            >
               <SelectValue placeholder="Currency" />
             </SelectTrigger>
             <SelectContent className="z-[240]">
@@ -185,15 +194,18 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
               ))}
             </SelectContent>
           </Select>
-        </label>
+        </div>
 
-        <label className="space-y-1">
-          <span className={labelClass}>Remote preference *</span>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-remote-preference`}>Remote preference *</Label>
           <Select
             value={value.remotePreference || undefined}
             onValueChange={(v) => set("remotePreference", v ?? "")}
           >
-            <SelectTrigger className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]">
+            <SelectTrigger
+              id={`${idPrefix}-remote-preference`}
+              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+            >
               <SelectValue placeholder="Remote / hybrid / on-site" />
             </SelectTrigger>
             <SelectContent className="z-[240]">
@@ -204,12 +216,12 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
               ))}
             </SelectContent>
           </Select>
-        </label>
+        </div>
       </div>
 
       <div className={grid}>
-        <label className="space-y-1">
-          <span className={labelClass}>Expected package min *</span>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-sal-min`}>Expected package min *</Label>
           <Input
             id={`${idPrefix}-sal-min`}
             inputMode="numeric"
@@ -218,9 +230,9 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
             placeholder={value.salaryCurrency === "USD" ? "120000" : "1800000"}
             className="h-9 rounded-lg text-[13px]"
           />
-        </label>
-        <label className="space-y-1">
-          <span className={labelClass}>Expected package max</span>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-sal-max`}>Expected package max</Label>
           <Input
             id={`${idPrefix}-sal-max`}
             inputMode="numeric"
@@ -229,14 +241,14 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
             placeholder={value.salaryCurrency === "USD" ? "180000" : "2500000"}
             className="h-9 rounded-lg text-[13px]"
           />
-        </label>
+        </div>
       </div>
       <p className={hintClass}>
         Enter at least a minimum (CTC / year). Defaults to INR for India-friendly matching.
       </p>
 
-      <label className="block space-y-1">
-        <span className={labelClass}>Preferred locations</span>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-locations`}>Preferred locations</Label>
         <Input
           id={`${idPrefix}-locations`}
           value={value.preferredLocations}
@@ -244,16 +256,19 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
           placeholder="Bengaluru, Remote, Hyderabad"
           className="h-9 rounded-lg text-[13px]"
         />
-      </label>
+      </div>
 
       <div className={grid}>
-        <label className="space-y-1">
-          <span className={labelClass}>Work authorization</span>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-work-authorization`}>Work authorization</Label>
           <Select
             value={value.workAuthorization || undefined}
             onValueChange={(v) => set("workAuthorization", v ?? "")}
           >
-            <SelectTrigger className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]">
+            <SelectTrigger
+              id={`${idPrefix}-work-authorization`}
+              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+            >
               <SelectValue placeholder="Optional" />
             </SelectTrigger>
             <SelectContent className="z-[240]">
@@ -264,15 +279,18 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
               ))}
             </SelectContent>
           </Select>
-        </label>
+        </div>
 
-        <label className="space-y-1">
-          <span className={labelClass}>Company size preference</span>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-company-size-preference`}>Company size preference</Label>
           <Select
             value={value.companySizePreference || undefined}
             onValueChange={(v) => set("companySizePreference", v ?? "")}
           >
-            <SelectTrigger className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]">
+            <SelectTrigger
+              id={`${idPrefix}-company-size-preference`}
+              className="border-border bg-background h-9 w-full rounded-lg border px-2.5 text-[13px]"
+            >
               <SelectValue placeholder="Optional" />
             </SelectTrigger>
             <SelectContent className="z-[240]">
@@ -283,11 +301,11 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
               ))}
             </SelectContent>
           </Select>
-        </label>
+        </div>
       </div>
 
-      <label className="block space-y-1">
-        <span className={labelClass}>Industry preference</span>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-industry`}>Industry preference</Label>
         <Input
           id={`${idPrefix}-industry`}
           value={value.industryPreference}
@@ -296,7 +314,7 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
           className="h-9 rounded-lg text-[13px]"
           maxLength={120}
         />
-      </label>
+      </div>
     </div>
   );
 }

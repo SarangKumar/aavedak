@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { AdminNotificationsMenu } from "@/components/admin-notifications-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { signOutAndRedirect } from "@/lib/auth-client";
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -88,73 +90,66 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
     }
   }
 
-  const menuItems: Array<{ href: string; label: string; badge?: number }> = [
-    { href: profileHref, label: "Profile" },
-    { href: `${profileHref}/settings`, label: "Settings" },
-    ...(user.isAdmin ? [{ href: "/admin", label: "Admin", badge: pendingCount }] : []),
-    { href: "/people", label: "People" },
-    { href: "/outreach", label: "Outreach" },
-    { href: "/ats", label: "ATS" },
-  ];
-
   return (
     <div className="flex items-center gap-1.5">
       {user.isAdmin ? (
         <AdminNotificationsMenu pendingCount={pendingCount} onCountChange={setPendingCount} />
       ) : null}
 
+      {/* Vinyaas dropdown with its own styling, laid out like its "Account menu" example. */}
       <DropdownMenu>
         <DropdownMenuTrigger>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label="Account menu"
-            className="focus-visible:ring-primary/50 relative flex size-8 items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-2"
+            className="relative rounded-full p-0"
           >
-            <span className="relative inline-flex size-8">
-              <Avatar className="size-8">
-                {user.image ? (
-                  <AvatarImage src={user.image} alt="" referrerPolicy="no-referrer" />
-                ) : null}
-                <AvatarFallback>{initial}</AvatarFallback>
-              </Avatar>
-              {user.isAdmin ? (
-                <span
-                  className="bg-primary text-primary-foreground ring-background absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full ring-2"
-                  title="Admin"
-                  aria-label="Admin"
-                >
-                  <AdminStar className="size-2.5" />
-                </span>
+            <Avatar className="size-8">
+              {user.image ? (
+                <AvatarImage src={user.image} alt="" referrerPolicy="no-referrer" />
               ) : null}
-            </span>
-          </button>
+              <AvatarFallback>{initial}</AvatarFallback>
+            </Avatar>
+            {user.isAdmin ? (
+              <span
+                className="bg-primary text-primary-foreground ring-background absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full ring-2"
+                title="Admin"
+                aria-label="Admin"
+              >
+                <AdminStar className="size-2.5" />
+              </span>
+            ) : null}
+          </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
-          <DropdownMenuLabel className="flex flex-col gap-0.5">
-            <span className="text-foreground truncate text-[13px] font-medium">{user.name}</span>
-            <span className="text-muted-foreground truncate text-[11px] font-normal">
-              {user.email}
-            </span>
-          </DropdownMenuLabel>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>{user.name || user.email}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            {menuItems.map((item) => (
-              <DropdownMenuItem key={item.href} onClick={() => router.push(item.href)}>
-                {item.label}
-                {item.badge ? (
-                  <span className="text-primary ml-1 text-[11px]">({item.badge})</span>
-                ) : null}
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuItem onClick={() => router.push(profileHref)}>Profile</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push(`${profileHref}/settings`)}>
+              Settings
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          {error ? (
-            <p className="text-destructive px-2 py-1.5 text-[11px]" role="alert">
-              {error}
-            </p>
-          ) : null}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => router.push("/people")}>People</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/outreach")}>Outreach</DropdownMenuItem>
+            {user.isAdmin ? (
+              <DropdownMenuItem onClick={() => router.push("/admin")}>
+                Admin
+                {pendingCount > 0 ? (
+                  <DropdownMenuShortcut>{pendingCount} pending</DropdownMenuShortcut>
+                ) : null}
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          {error ? <DropdownMenuLabel role="alert">{error}</DropdownMenuLabel> : null}
           <DropdownMenuItem variant="destructive" disabled={pending} onClick={() => void signOut()}>
-            {pending ? "Signing out…" : "Sign out"}
+            {pending ? "Logging out…" : "Log out"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

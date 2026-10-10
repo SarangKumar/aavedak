@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1005,8 +1006,8 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
           summary={`Shared with selected engines. Preview mode: ${modeHint(previewMode)}.`}
         >
           <div className="space-y-3">
-            <label className="block space-y-1 text-[12px]">
-              <span className="text-foreground font-medium">Target role / title</span>
+            <div className="space-y-1.5 text-[12px]">
+              <Label htmlFor="ats-target-role">Target role / title</Label>
               <span className="text-muted-foreground block text-pretty text-[11px]">
                 {selectedEngineList.length === 0
                   ? "Select an engine first."
@@ -1021,15 +1022,16 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                       : "Not used by the selected engines."}
               </span>
               <Input
+                id="ats-target-role"
                 type="text"
                 value={role}
                 disabled={running}
                 onChange={(e) => setRole(e.target.value)}
                 placeholder="e.g. Software Engineer, Cloud Engineer"
               />
-            </label>
-            <label className="block space-y-1 text-[12px]">
-              <span className="text-foreground font-medium">Job description</span>
+            </div>
+            <div className="space-y-1.5 text-[12px]">
+              <Label htmlFor="ats-job-description">Job description</Label>
               <span className="text-muted-foreground block text-pretty text-[11px]">
                 {selectedEngineList.length === 0
                   ? "Select an engine first."
@@ -1044,6 +1046,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                       : "Not used by the selected engines."}
               </span>
               <Textarea
+                id="ats-job-description"
                 value={jdText}
                 disabled={running}
                 onChange={(e) => setJdText(e.target.value)}
@@ -1052,7 +1055,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 placeholder="Paste the full job description here…"
                 className="min-h-36 font-sans text-[13px] leading-relaxed"
               />
-            </label>
+            </div>
           </div>
         </StepBlock>
 
@@ -1514,9 +1517,10 @@ function UploadResumeModal({
         </DialogHeader>
 
         <div className="space-y-3">
-          <label className="block space-y-1 text-[12px]">
-            <span className="text-foreground font-medium">Name</span>
+          <div className="space-y-1.5 text-[12px]">
+            <Label htmlFor="ats-upload-name">Name</Label>
             <Input
+              id="ats-upload-name"
               type="text"
               value={displayName}
               disabled={pending}
@@ -1529,7 +1533,7 @@ function UploadResumeModal({
             <span className="text-muted-foreground block text-[11px]">
               Defaults to the file name. Must be unique.
             </span>
-          </label>
+          </div>
           <FileUpload
             accept="application/pdf,.pdf"
             multiple={false}

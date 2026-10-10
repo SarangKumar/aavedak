@@ -245,6 +245,18 @@
         "components/ui/resizable/index.tsx"
       ],
       "installedAt": "2026-10-10"
+    },
+    "radio-group": {
+      "files": [
+        "components/ui/radio-group/index.tsx"
+      ],
+      "installedAt": "2026-10-10"
+    },
+    "label": {
+      "files": [
+        "components/ui/label/index.tsx"
+      ],
+      "installedAt": "2026-10-10"
     }
   }
 }

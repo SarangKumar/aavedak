@@ -11,6 +11,9 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Added
 
+- **Dashboard — pipeline radar** — Applications by status now show as a radar chart, one spoke per status.
+- **Navbar — account dropdown** — The avatar opens a dropdown menu (Vinyaas dropdown) with your name and email, the page links, and sign out.
+- **Resume preview — laptop actions and A4 size** — On larger screens the resume preview shows Open in new tab and a close button in its header, and the page is sized as an A4 sheet. Phones keep the footer actions.
 - **Jobs re-rank on career changes** — Saving Career preferences in Profile settings now re-ranks your Discover jobs straight away. Open recommendations are re-scored against the new preferences, ones that no longer reach the match threshold leave Discover, and new matches fill any remaining daily slots. Discover is ordered by match score, best first. The Documents page opens the tab in its link (`?tab=`, default Resumes), and a cover letter started from a job's Cover letter button preselects that job.
 - **Profile — bio and projects** — The bio accepts up to 1,600 characters with a counter and grows as you type. Each project's Remove button sits on its title row.
 - **Tracker — toolbar** — Search sits on the left of one toolbar with the view switch and actions on the right; the Kanban column choices open below it.
@@ -70,6 +73,9 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Changed
 
+- **Forms — field labels** — Settings, career preferences and the ATS page use proper form labels above each field, linked to the field so clicking a label focuses it. The account, theme and notification menus use the standard Vinyaas dropdown styling.
+- **Header dropdowns — Vinyaas menus** — The account, theme and admin notification menus all use the Vinyaas dropdown menu now; the hand-built header menu is removed.
+- **Settings — showcase resume choice** — Showcase resume is a radio list, so exactly one resume is active at a time: picking another one makes it the showcase and the previous one steps down. The ATS link is gone from the account menu.
 - **ATS — engines re-checked against their sources** — The four open-source engines were compared line by line with their original projects. Scores now match them more closely: similarity scoring uses the exact word list of the original library, and ATS Resume Checker rounds scores the way the original does.
 - **ATS — Jobscan-, Resume Worded- and Rezi-style engines follow what the products publish** — Jobscan-style now weighs hard skills most (and frequent ones more), then education (only when the job asks for an advanced degree), job title, soft skills and other keywords. Resume Worded-style scores Impact, Brevity and Style checks. Rezi-style passes or fails its published checks (bullets per role, word count, full-month dates, pronouns, buzzwords, passive voice, grouped skills). Their exact weights are not public, so they remain approximations.
 - **ATS — many more skills recognised** — Skill detection grew from about 55 to 126 skills, adding machine learning, GenAI (LLMs, RAG, prompt engineering, embeddings), data (feature engineering, data preprocessing, scikit-learn, pandas), testing, tooling and mobile skills. Job descriptions in these fields were previously under-counted, which made match scores too generous. The Jobscan-style title match is now all-or-nothing, like Jobscan's "title not found" check.
