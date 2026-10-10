@@ -8,6 +8,7 @@ projects running inside Aavedak.
 
 from __future__ import annotations
 
+import math
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -65,6 +66,12 @@ def _clamp(n: float, lo: float = 0.0, hi: float = 100.0) -> float:
 
 def _r(n: float) -> int:
     return int(round(_clamp(n)))
+
+
+def _js_round(n: float) -> int:
+    """JavaScript `Math.round` (half rounds up). Python's `round` is half-to-even, so 62.5 → 62
+    there but 63 in the ATS Resume Checker reference, which is JS."""
+    return math.floor(n + 0.5)
 
 
 def _skill_rows(canonicals: list[str], status: str, evidence: str = "") -> list[dict[str, Any]]:
@@ -581,7 +588,7 @@ def run_ats_resume_checker(inp: EngineInput, emit: Emit) -> dict[str, Any]:
         )
     core_n = sum(found[s] for s in _AC_CORE)
     bonus = [s for s in _AC_SECTIONS if s not in _AC_CORE]
-    structure = _clamp(round(core_n / len(_AC_CORE) * 85 + sum(found[s] for s in bonus) / len(bonus) * 15))
+    structure = _clamp(_js_round(core_n / len(_AC_CORE) * 85 + sum(found[s] for s in bonus) / len(bonus) * 15))
     for s in _AC_CORE:
         if not found[s]:
             issue("structure", "critical" if s in ("contact", "experience") else "high", f"Missing “{s}” section",
@@ -663,9 +670,10 @@ def run_ats_resume_checker(inp: EngineInput, emit: Emit) -> dict[str, Any]:
         issue("achievements", "high", "No clear bullet points", "No achievement statements were detected.",
               "Use 3–6 bullets per role, each starting with an action verb.")
     else:
-        quant_pct = round(100 * sum(1 for b in ac_bullets if re.search(r"\d", b)) / len(ac_bullets))
-        verb_pct = round(100 * sum(1 for b in ac_bullets if (b.split() or [""])[0].lower().strip(",.;:") in _AC_STRONG) / len(ac_bullets))
-        achievements = _clamp(round(quant_pct * 0.5 + verb_pct * 0.5))
+        quant_pct = _js_round(100 * sum(1 for b in ac_bullets if re.search(r"\d", b)) / len(ac_bullets))
+        # The reference strips every non-letter from the first word before the lookup.
+        verb_pct = _js_round(100 * sum(1 for b in ac_bullets if re.sub(r"[^a-z]", "", (b.split() or [""])[0].lower()) in _AC_STRONG) / len(ac_bullets))
+        achievements = _clamp(_js_round(quant_pct * 0.5 + verb_pct * 0.5))
         if quant_pct < 40:
             issue("achievements", "critical", "Most bullets lack measurable impact",
                   f"Only {quant_pct}% of bullets include a number or metric.",
@@ -724,14 +732,14 @@ def run_ats_resume_checker(inp: EngineInput, emit: Emit) -> dict[str, Any]:
         raw_scores["keywordMatch"] = keyword_score
 
     def strict(v: float) -> float:
-        return _clamp(round(v - (100 - v) * (ATS_CHECKER_STRICTNESS - 1)))
+        return _clamp(_js_round(v - (100 - v) * (ATS_CHECKER_STRICTNESS - 1)))
 
     cat_scores = {k: strict(v) for k, v in raw_scores.items()}
     weights = {k: w for k, w in ATS_CHECKER_WEIGHTS.items() if k in cat_scores}
     total_w = sum(weights.values())
     # Renormalize when keywordMatch is absent (resume-only) so the score stays on 0–100.
     norm = {k: w / total_w for k, w in weights.items()}
-    overall = sum(cat_scores[k] * norm[k] for k in norm)
+    overall = _clamp(_js_round(sum(cat_scores[k] * norm[k] for k in norm)))
     q_keys = [k for k in norm if k != "keywordMatch"]
     q_total = sum(ATS_CHECKER_WEIGHTS[k] for k in q_keys)
     quality_only = sum(cat_scores[k] * ATS_CHECKER_WEIGHTS[k] / q_total for k in q_keys)

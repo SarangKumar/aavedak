@@ -263,3 +263,89 @@ def skillsyncer_degree_points(resume: int, jd: int) -> int:
     if resume >= jd:
         return 10
     return 5
+
+
+# ── Documented-check signals (Rezi / Resume Worded / Jobscan docs) ──────────────────────────────
+
+_BUZZ_FILLER = (
+    "responsible for", "team player", "hard working", "hard-working", "detail oriented", "detail-oriented",
+    "results-driven", "go-getter", "self-starter", "synergy", "dynamic", "passionate", "motivated",
+    "worked on", "helped with", "various", "etc",
+)
+_PASSIVE_RE = re.compile(r"\b(?:is|are|was|were|been|being)\s+\w+ed\b", re.I)
+_PRONOUN_RE = re.compile(r"\b(?:I|me|my)\b")
+_FULL_MONTH_DATE = re.compile(
+    r"\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+(?:19|20)\d{2}\b"
+)
+_ANY_MONTH_DATE = re.compile(r"\b(?:[A-Z][a-z]{2,8}\.?|\d{1,2}[/-])\s*(?:19|20)\d{2}\b")
+_DATE_RANGE = re.compile(
+    r"(?:[A-Za-z]{3,9}\.?\s+)?(?:19|20)\d{2}\s*(?:-|–|—|to)\s*(?:(?:[A-Za-z]{3,9}\.?\s+)?(?:19|20)\d{2}|present|current|now)",
+    re.I,
+)
+_BULLET_MARKER = re.compile(r"^\s*[•\-*▪◦‣]\s+(.*\S)")
+_LEADERSHIP_RE = re.compile(
+    r"\b(?:led|lead|mentored|managed|grew|scaled|launched|owned|founded|promoted|spearheaded|coached)\b", re.I
+)
+_CATEGORY_LINE = re.compile(r"^\s*[A-Za-z][A-Za-z /&+.-]{2,28}:\s*\S")
+
+
+@dataclass
+class QualitySignals:
+    """Counts behind the checks that Rezi and Resume Worded publicly describe."""
+
+    word_count: int
+    bullets: list[str]
+    roles: int  # date ranges ≈ roles
+    bullets_per_role: float
+    avg_bullet_words: float
+    pronoun_lines: int
+    buzz_hits: int
+    passive_hits: int
+    leadership_bullets: int
+    full_month_dates: int
+    other_dates: int
+    category_skill_lines: int
+
+
+def extract_quality_signals(text: str) -> QualitySignals:
+    lines = [l for l in (text or "").split("\n") if l.strip()]
+    bullets = [m.group(1) for l in lines if (m := _BULLET_MARKER.match(l))]
+    if not bullets:
+        # PDF text often loses bullet glyphs: fall back to sentence-like lines (6+ words, not a header/contact line).
+        bullets = [
+            l.strip() for l in lines
+            if len(l.split()) >= 6 and not l.strip().endswith(":") and "@" not in l and not _DATE_RANGE.search(l)
+        ]
+    roles = len(_DATE_RANGE.findall(text or ""))
+    lower = (text or "").lower()
+    full = len(_FULL_MONTH_DATE.findall(text or ""))
+    other = max(0, len(_ANY_MONTH_DATE.findall(text or "")) - full)
+    return QualitySignals(
+        word_count=len((text or "").split()),
+        bullets=bullets,
+        roles=roles,
+        bullets_per_role=(len(bullets) / roles) if roles else float(len(bullets)),
+        avg_bullet_words=(sum(len(b.split()) for b in bullets) / len(bullets)) if bullets else 0.0,
+        pronoun_lines=sum(1 for l in lines if _PRONOUN_RE.search(l)),
+        buzz_hits=sum(1 for p in _BUZZ_FILLER if count_phrase(lower, p) > 0),
+        passive_hits=len(_PASSIVE_RE.findall(text or "")),
+        leadership_bullets=sum(1 for b in bullets if _LEADERSHIP_RE.search(b)),
+        full_month_dates=full,
+        other_dates=other,
+        category_skill_lines=sum(1 for l in lines if _CATEGORY_LINE.match(l) and "," in l),
+    )
+
+
+def hard_skill_frequencies(text: str) -> dict[str, int]:
+    """Canonical hard skill → mention count in `text` (Jobscan: frequent hard skills weigh more)."""
+    lower = (text or "").lower()
+    out: dict[str, int] = {}
+    for canonical, aliases in HARD_SKILL_ALIASES.items():
+        n = sum(count_phrase(lower, a) for a in aliases)
+        if n:
+            out[canonical] = n
+    return out
+
+
+def pass_rate(checks: list[bool]) -> float:
+    return 100.0 * sum(checks) / len(checks) if checks else 0.0

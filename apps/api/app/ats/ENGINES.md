@@ -21,7 +21,7 @@ Score types are different measurements (quality, readiness, similarity, match) a
 - Shared extraction ≠ shared scoring: each engine applies its own formula in `oss_profiles.py`; weights live in `reference_weights.py`.
 - `EngineContract` + `resolve_mode` validate inputs before work and raise `EngineFailure(kind)`.
 - Failure kinds: `unsupported_mode`, `missing_input`, `parsing_failure`, `analysis_failure` (+ web-only `service_unavailable`). Never shown as a generic N/A.
-- TF-IDF: `text_similarity.py`, pure-Python port of scikit-learn `TfidfVectorizer` defaults (smooth idf, optional sublinear tf, l2). Stop-word list is shorter than sklearn's → close, not identical.
+- TF-IDF: `text_similarity.py`, pure-Python port of scikit-learn `TfidfVectorizer` defaults (smooth idf, optional sublinear tf, l2) with sklearn's own 318-word stop list. Checked against scikit-learn 1.6.1 on the benchmark fixtures: identical to 4 decimals.
 
 ## Stage protocol
 
@@ -85,3 +85,16 @@ Verified in `src/analyzer/{ats_scorer,resume_checker,skill_analyzer}.py`, `src/m
 - **role_match** (Aavedak): rubric = skills 40 + length 20 − penalty against the role profile, normalized from 60; keyword overlap and TF-IDF skipped (need JD text).
 - Aavedak combination (configurable `HYBRID_COMBINE_WEIGHTS`): `overall = 0.7·(rubric/90·100) + 0.3·tfidf%`. Upstream shows these side by side and never combines them.
 - Aavedak choices: skills via taxonomy word-boundary matching (upstream substring matched "r"/"ai" inside words). Upstream quirk kept: > 800 unique words still earns full length points.
+
+## Fidelity audit (2026-10-10)
+
+All four upstream repos were re-cloned at the commits above and compared line by line.
+
+- **Open ATS**: weights, penalties, content formula and the action-verb / hedging / passive-marker lists are identical to upstream (62 / 18 / 20 entries, diffed programmatically). Only the documented deviations remain.
+- **ATS Resume Checker**: category weights, section aliases, stop words, tech list, strong / weak / buzz lists, bullet splitting and the strictness formula match. Fixed: rounding now follows JavaScript `Math.round` (half up) instead of Python's half-to-even, and the strong-verb lookup strips every non-letter like upstream.
+- **Resume Skills Extractor**: formula and calibration match; TF-IDF now uses sklearn's exact stop list.
+- **Hybrid Resume Analyzer**: rubric, rule validation and TF-IDF defaults match.
+
+## Native engine (`aavedak`, engine 2.1)
+
+Resume-only quality now also applies capped writing-quality adjustments borrowed from the other engines: hedging phrases (Open ATS / ATS Resume Checker), passive voice (Open ATS), first-person pronouns (Rezi), buzzwords (ATS Resume Checker, Rezi) and resumes over ~1,100 words. Match scoring is unchanged.

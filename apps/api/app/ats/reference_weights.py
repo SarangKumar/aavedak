@@ -1,8 +1,11 @@
 """Configurable reference profile weights (Aavedak approximations — not vendor values)."""
 
-JOBSCAN_WEIGHTS = {"hard": 45, "soft": 15, "other": 25, "title": 15}
+# Jobscan tutorial priority: hard skills (much heavier) > education (advanced degree only) > job title
+# > soft skills > other keywords. The numbers are an Aavedak approximation; Jobscan does not publish them.
+JOBSCAN_WEIGHTS = {"hard": 55, "education": 10, "title": 15, "soft": 12, "other": 8}
 
-RESUME_WORDED_WEIGHTS = {"impact": 0.3, "skills": 0.25, "wording": 0.25, "presentation": 0.2}
+# Resume Worded groups its 20+ checks as Impact, Brevity and Style (weights not public).
+RESUME_WORDED_WEIGHTS = {"impact": 0.4, "brevity": 0.3, "style": 0.3}
 
 TEAL_JOB_MATCH_WEIGHTS = {"hard": 55, "keywords": 30, "title": 15}
 

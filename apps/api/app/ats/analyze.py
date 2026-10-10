@@ -11,6 +11,7 @@ from app.ats.evidence import (
     title_similarity,
 )
 from app.ats.jd_profile import parse_jd
+from app.ats.reference_signals import count_phrase, extract_quality_signals
 from app.ats.resume_profile import parse_resume, bullet_has_action, bullet_has_metric
 from app.ats.skill_taxonomy import display_name, infer_role_key
 from app.ats.version import ENGINE_VERSION
@@ -247,6 +248,39 @@ def score_ats_compatibility(profile) -> tuple[int, list[str], list[dict[str, str
     return _soft_cap(score, 88), signals[:8], issues[:10]
 
 
+# Writing-quality phrases that several engines penalise (Open ATS hedging list, ATS Resume Checker weak
+# phrases); matched on word boundaries so "did" can't hit "candidate".
+_HEDGING_PHRASES = (
+    "helped to", "tried to", "worked on", "worked with", "was involved in", "participated in", "familiar with",
+    "exposed to", "some experience with", "basic understanding of", "responsible for", "helped with",
+    "assisted with", "duties included",
+)
+
+
+def _writing_quality_adjustment(profile) -> tuple[float, list[dict[str, str]]]:
+    """Capped penalties for hedging, passive voice, first-person pronouns, buzzwords and bloat."""
+    q = extract_quality_signals(profile.raw)
+    notes: list[dict[str, str]] = []
+    adjust = 0.0
+    hedges = sum(1 for p in _HEDGING_PHRASES if count_phrase(profile.lower, p) > 0)
+    if hedges >= 2:
+        adjust -= min(8.0, hedges * 2.0)
+        notes.append({"priority": "medium", "text": "Replace hedging phrases (“worked on”, “responsible for”) with what you did and the result.", "reason": f"{hedges} hedging phrases found."})
+    if q.passive_hits > 2:
+        adjust -= min(6.0, q.passive_hits * 1.5)
+        notes.append({"priority": "low", "text": "Prefer active voice over “was implemented”-style phrasing.", "reason": f"{q.passive_hits} passive constructions."})
+    if q.pronoun_lines:
+        adjust -= min(4.0, q.pronoun_lines * 1.0)
+        notes.append({"priority": "low", "text": "Drop first-person pronouns (I, me, my) from bullets.", "reason": f"{q.pronoun_lines} lines use them."})
+    if q.buzz_hits - hedges > 1:
+        adjust -= min(4.0, (q.buzz_hits - hedges) * 1.0)
+        notes.append({"priority": "low", "text": "Swap buzzwords (“team player”, “dynamic”) for specific accomplishments.", "reason": "Vague filler found."})
+    if q.word_count > 1100:
+        adjust -= 4.0
+        notes.append({"priority": "low", "text": "Trim to the most relevant 10–15 years; very long resumes dilute impact.", "reason": f"~{q.word_count} words."})
+    return adjust, notes
+
+
 def score_resume_quality(profile) -> tuple[int, list[str], list[dict[str, str]]]:
     score = 18.0
     strengths: list[str] = []
@@ -330,6 +364,10 @@ def score_resume_quality(profile) -> tuple[int, list[str], list[dict[str, str]]]
 
     if len(profile.raw) < 800:
         score -= 6
+
+    adjust, writing_notes = _writing_quality_adjustment(profile)
+    score += adjust
+    improvements.extend(writing_notes)
 
     return _soft_cap(score, 90), strengths[:6], improvements[:8]
 

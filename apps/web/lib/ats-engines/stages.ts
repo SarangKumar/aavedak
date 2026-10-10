@@ -1,16 +1,16 @@
 import type { AtsBatchResultCell, AtsFailureKind, AtsStage } from "./types";
 
-/** Concise labels for backend-reported stages. Shown only when the backend reports them. */
+/** One-word labels for backend-reported stages (they sit in narrow table cells). Shown only when the backend reports them. */
 export const STAGE_LABELS: Record<AtsStage, string> = {
   queued: "Queued",
-  validating_input: "Validating Input",
-  parsing_resume: "Parsing Resume",
-  parsing_job_description: "Parsing Job Description",
-  extracting_skills: "Extracting Skills",
-  analyzing_content: "Analyzing Content",
-  matching_keywords: "Matching Keywords",
-  calculating_score: "Calculating Score",
-  generating_report: "Generating Report",
+  validating_input: "Validating",
+  parsing_resume: "Parsing",
+  parsing_job_description: "Reading",
+  extracting_skills: "Extracting",
+  analyzing_content: "Analyzing",
+  matching_keywords: "Matching",
+  calculating_score: "Scoring",
+  generating_report: "Reporting",
   completed: "Completed",
   completed_with_warnings: "Completed · warnings",
   failed: "Failed",

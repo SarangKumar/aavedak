@@ -369,3 +369,15 @@ def test_tfidf_known_values():
     idf = math.log(1.5) + 1
     assert math.isclose(tfidf_cosine("apple banana", "apple cherry"), 1 / (1 + idf * idf), rel_tol=1e-9)
     assert tfidf_cosine("", "apple") == 0.0
+
+
+def test_tfidf_stop_words_are_scikit_learn_list():
+    from app.ats.text_similarity import ENGLISH_STOP_WORDS
+
+    assert len(ENGLISH_STOP_WORDS) == 318  # sklearn 1.6.1 ENGLISH_STOP_WORDS
+
+
+def test_js_round_half_up_for_ats_checker():
+    from app.ats.oss_profiles import _js_round
+
+    assert [_js_round(x) for x in (62.5, 63.5, 0.5, 2.4)] == [63, 64, 1, 2]

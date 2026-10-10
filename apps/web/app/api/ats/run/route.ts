@@ -209,7 +209,7 @@ function streamRun(request: Request, userId: string, body: Record<string, unknow
       const send = (ev: AtsRunEvent) =>
         controller.enqueue(encoder.encode(`${JSON.stringify(ev)}\n`));
       const stage = (s: AtsStage, message?: string, at = new Date().toISOString()) => {
-        if (s === lastStage) return; // e.g. text extraction then FastAPI text parsing → one "Parsing Resume"
+        if (s === lastStage) return; // e.g. text extraction then FastAPI text parsing → one "Parsing"
         lastStage = s;
         send({ type: "stage", resumeId, engineId, runId, seq: ++seq, stage: s, message, at });
       };

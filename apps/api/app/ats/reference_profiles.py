@@ -10,8 +10,11 @@ from app.ats.reference_signals import (
     ReferenceSignals,
     clamp,
     coverage,
+    extract_quality_signals,
     extract_reference_signals,
     frequency_category_points,
+    hard_skill_frequencies,
+    pass_rate,
     skillsyncer_degree_points,
     token_coverage,
 )
@@ -23,7 +26,7 @@ from app.ats.reference_weights import (
     TEAL_JOB_MATCH_WEIGHTS,
 )
 
-PROFILE_VERSION = "1.1"
+PROFILE_VERSION = "1.2"
 
 
 def _skill_hits(resume: list[str], jd: list[str]) -> tuple[list[dict], list[dict]]:
@@ -85,14 +88,43 @@ def _pack(
     }
 
 
+def _failed_improvements(
+    failed: list[str], reason: str, advice: dict[str, str] | None = None, limit: int = 5
+) -> list[dict[str, str]]:
+    return [
+        {"priority": "medium", "text": (advice or {}).get(label, f"Address: {label}."), "reason": reason}
+        for label in failed[:limit]
+    ]
+
+
 def run_jobscan_style(resume_id: str, resume_text: str, role: str, jd_text: str) -> dict[str, Any]:
+    """Jobscan's tutorial: match rate = hard skills ≫ education (only for advanced degrees) > job title
+    > soft skills > other keywords; frequent hard skills weigh more; word count, measurable results and
+    formatting are not part of it. Exact weights are not public (see JOBSCAN_WEIGHTS)."""
     s = extract_reference_signals(resume_text, jd_text, role)
     w = JOBSCAN_WEIGHTS
-    hard = coverage(s.hard_skills_resume, s.hard_skills_jd) if s.hard_skills_jd else 1.0
-    soft_target = s.soft_skills_jd or []
-    soft = coverage(s.soft_skills_resume, soft_target) if soft_target else 1.0
-    other = token_coverage(s.resume_tokens, s.jd_tokens) if s.jd_tokens else 1.0
-    title = 1.0 if s.title_exact else s.title_hit
+    jd_freq = hard_skill_frequencies(f"{role}\n{jd_text}")
+    rset = set(s.hard_skills_resume)
+    # category -> (0..1 ratio, weight). Categories the job description doesn't ask for are left out
+    # and the rest renormalised, like Jobscan recalculating over the remaining skills.
+    parts: dict[str, tuple[float, float]] = {}
+    if jd_freq:
+        total = sum(jd_freq.values())
+        parts["hard"] = (sum(n for k, n in jd_freq.items() if k in rset) / total, w["hard"])
+    if s.degree_jd >= 2:
+        parts["education"] = (1.0 if s.degree_resume >= s.degree_jd else 0.0, w["education"])
+    if role.strip():
+        parts["title"] = (1.0 if s.title_exact else s.title_hit, w["title"])
+    if s.soft_skills_jd:
+        parts["soft"] = (coverage(s.soft_skills_resume, s.soft_skills_jd), w["soft"])
+    if s.jd_tokens:
+        parts["other"] = (token_coverage(s.resume_tokens, s.jd_tokens), w["other"])
+    total_w = sum(wt for _, wt in parts.values())
+    match = clamp(100 * sum(r * wt for r, wt in parts.values()) / total_w) if total_w else 0
+
+    def pct(key: str) -> int | None:
+        return clamp(parts[key][0] * 100) if key in parts else None
+
     readability = clamp(
         (20 if s.has_email else 0)
         + (15 if s.has_phone else 0)
@@ -100,8 +132,11 @@ def run_jobscan_style(resume_id: str, resume_text: str, role: str, jd_text: str)
         + min(25, s.text_len / 80)
         - s.stuffing * 8
     )
-    match = clamp(hard * w["hard"] + soft * w["soft"] + other * w["other"] + title * w["title"])
-    matched, missing = _skill_hits(s.hard_skills_resume, s.hard_skills_jd)
+    matched, missing = _skill_hits(s.hard_skills_resume, list(jd_freq))
+    missing.sort(key=lambda m: -jd_freq.get(m["skill"], 0))  # most frequent gaps first
+    hard = parts["hard"][0] if "hard" in parts else 0.0
+    title = parts["title"][0] if "title" in parts else 0.0
+    used = " + ".join(f"{k}×{wt:g}" for k, (_, wt) in parts.items())
     return _pack(
         resume_id=resume_id,
         mode="job_match",
@@ -110,23 +145,23 @@ def run_jobscan_style(resume_id: str, resume_text: str, role: str, jd_text: str)
         engine_id="jobscan_style",
         scoring_profile_id="jobscan-reference",
         scores={
-            "requiredSkills": clamp(hard * 100),
-            "preferredSkills": clamp(soft * 100),
-            "keywordCoverage": clamp(other * 100),
-            "jobTitleMatch": clamp(title * 100),
+            "requiredSkills": pct("hard"),
+            "preferredSkills": pct("soft"),
+            "keywordCoverage": pct("other"),
+            "jobTitleMatch": pct("title"),
             "atsCompatibility": readability,
             "structureFormatting": readability,
         },
         strengths=[
-            *( [f"Hard-skill coverage {int(hard * 100)}%"] if hard > 0.5 else [] ),
-            *( ["Title alignment signals present"] if title > 0.4 else [] ),
-            *( ["Solid plain-text parseability (advisory)"] if readability >= 70 else [] ),
+            *([f"Hard-skill coverage {int(hard * 100)}%"] if hard > 0.5 else []),
+            *(["Job title appears on the resume"] if title >= 1 else []),
+            *(["Solid plain-text parseability (advisory)"] if readability >= 70 else []),
         ],
         improvements=[
             {
                 "priority": "high",
-                "text": f"{m['skill']} appears in the JD but not clearly on the resume. Add only if you have genuine experience.",
-                "reason": "Hard-skill gap vs JD (Jobscan reference approximation).",
+                "text": f"{m['skill']} appears in the JD ({jd_freq.get(m['skill'], 1)}×) but not clearly on the resume. Add only if you have genuine experience.",
+                "reason": "Hard-skill gap vs JD — Jobscan weighs frequent hard skills most.",
             }
             for m in missing[:5]
         ],
@@ -144,41 +179,57 @@ def run_jobscan_style(resume_id: str, resume_text: str, role: str, jd_text: str)
         matched_skills=matched,
         missing_skills=missing,
         notes=[
-            f"Match formula: hard×{w['hard']} + soft×{w['soft']} + other×{w['other']} + title×{w['title']}.",
-            "Readability is advisory and excluded from the match total.",
+            f"Match = ({used}) renormalised over the categories the JD asks for.",
+            "Priority per Jobscan's tutorial: hard skills > education (advanced degree only) > title > soft skills > other keywords; hard skills are frequency-weighted.",
+            "Word count, measurable results and formatting are not in the match rate (readability is advisory).",
+            "Exact Jobscan weights are not public; the numbers are an Aavedak approximation.",
         ],
         resume_text=resume_text,
-        blurb="Jobscan-style reference: JD keyword & title match (not Jobscan’s proprietary engine).",
+        blurb="Jobscan-style reference: documented priority order, frequency-weighted hard skills (not Jobscan’s proprietary engine).",
     )
 
 
 def run_resume_worded_style(
     resume_id: str, resume_text: str, role: str, jd_text: str, mode: str | None = None
 ) -> dict[str, Any]:
+    """Resume Worded: 20+ checks grouped as Impact, Brevity and Style, weighted by importance (weights
+    not public); 85+ is 'good', 90+ passes every check. Checks below are the ones its pages describe."""
     s = extract_reference_signals(resume_text, jd_text, role)
+    q = extract_quality_signals(resume_text)
     if mode in ("job_match", "resume_only", "role_match"):
         resolved = "resume_only" if mode == "role_match" else mode
     else:
         resolved = "job_match" if jd_text.strip() else "resume_only"
     w = RESUME_WORDED_WEIGHTS
-    impact = clamp(18 + s.metric_bullets * 12 + s.action_bullets * 4)
-    skills = clamp(20 + len(s.hard_skills_resume) * 5 + (-15 if s.stuffing else 5))
-    wording = clamp(25 + min(30, s.action_bullets * 5) - min(20, s.stuffing * 10))
-    presentation = clamp(
-        (15 if s.has_email else 0)
-        + (10 if s.has_phone else 0)
-        + len(s.sections) * 12
-        + min(20, s.text_len / 100)
-    )
-    quality = clamp(
-        impact * w["impact"] + skills * w["skills"] + wording * w["wording"] + presentation * w["presentation"]
-    )
+    n_b = max(1, len(q.bullets))
+    impact_checks = {
+        "Quantified results in at least a third of bullets": s.metric_bullets / n_b >= 1 / 3,
+        "Most bullets lead with a strong action verb": s.action_bullets / n_b >= 0.5,
+        "Growth or leadership signals (led, mentored, grew…)": q.leadership_bullets >= 1,
+        "At least three measurable bullets": s.metric_bullets >= 3,
+    }
+    brevity_checks = {
+        "Bullets are 8–28 words": 8 <= q.avg_bullet_words <= 28,
+        "Resume is focused (≤ 800 words)": q.word_count <= 800,
+        "No more than 6 bullets per role": q.bullets_per_role <= 6,
+        "No filler or vague phrases": q.buzz_hits == 0,
+    }
+    style_checks = {
+        "Contact details parse (email and phone)": s.has_email and s.has_phone,
+        "Standard sections present": len(s.sections) >= 3,
+        "Consistent date format": not (q.full_month_dates and q.other_dates),
+        "Active voice": q.passive_hits <= 2,
+        "No keyword stuffing": s.stuffing == 0,
+    }
+    impact, brevity, style = (pass_rate(list(c.values())) for c in (impact_checks, brevity_checks, style_checks))
+    quality = clamp(impact * w["impact"] + brevity * w["brevity"] + style * w["style"])
     target = (
         coverage(s.hard_skills_resume, s.hard_skills_jd)
         if resolved == "job_match" and s.hard_skills_jd
         else None
     )
     overall = clamp(quality * 0.7 + target * 100 * 0.3) if target is not None else quality
+    failed = [label for c in (impact_checks, brevity_checks, style_checks) for label, ok in c.items() if not ok]
     return _pack(
         resume_id=resume_id,
         mode="job_match" if resolved == "job_match" else "resume_only",
@@ -188,29 +239,28 @@ def run_resume_worded_style(
         scoring_profile_id="resume-worded-reference",
         scores={
             "resumeQuality": quality,
-            "evidenceQuality": impact,
-            "technicalSkills": skills,
-            "structureFormatting": presentation,
+            "evidenceQuality": clamp(impact),
+            "experienceQuality": clamp(brevity),
+            "structureFormatting": clamp(style),
             "requiredSkills": clamp(target * 100) if target is not None else None,
         },
         strengths=[
-            *( [f"{s.metric_bullets} measurable impact bullets"] if s.metric_bullets >= 2 else [] ),
-            *( [f"{s.action_bullets} action-led bullets"] if s.action_bullets >= 3 else [] ),
+            *([f"{s.metric_bullets} measurable impact bullets"] if s.metric_bullets >= 2 else []),
+            *([f"{s.action_bullets} action-led bullets"] if s.action_bullets >= 3 else []),
+            *(["Passes every Impact check"] if impact >= 100 else []),
         ],
-        improvements=(
-            [
-                {
-                    "priority": "high",
-                    "text": "Add measurable results to 2–3 bullets where truthful (latency, users, time saved).",
-                    "reason": "Impact check (Resume Worded reference approximation).",
-                }
-            ]
-            if s.metric_bullets < 2
-            else []
+        improvements=_failed_improvements(
+            failed,
+            "Resume Worded-style check (Impact / Brevity / Style)",
+            {"Quantified results in at least a third of bullets": "Add measurable results where truthful (latency, users, time saved)."},
         ),
         ats_issues=[],
+        notes=[
+            f"Quality = Impact×{w['impact']} + Brevity×{w['brevity']} + Style×{w['style']}; each is the share of its checks passed.",
+            "Resume Worded does not publish its 20+ checks or weights; these are the checks its pages describe.",
+        ],
         resume_text=resume_text,
-        blurb="Resume Worded-style reference: weighted resume quality checks.",
+        blurb="Resume Worded-style reference: Impact, Brevity and Style checks (85+ is good).",
     )
 
 
@@ -297,48 +347,67 @@ def run_teal_style(
 def run_rezi_style(
     resume_id: str, resume_text: str, role: str, jd_text: str, mode: str | None = None
 ) -> dict[str, Any]:
+    """Rezi Score: 1–100 from five categories (Content, Format, Optimization, Best Practices,
+    Application Ready) built from 23 audits. Rezi publishes the categories and several audit
+    thresholds (below) but not the audit list or weights; Application Ready 'depends largely on the
+    other four'."""
     s = extract_reference_signals(resume_text, jd_text, role)
+    q = extract_quality_signals(resume_text)
     resolved = (
         "job_match"
         if mode == "job_match" or (not mode and jd_text.strip())
         else "resume_only"
     )
     w = REZI_WEIGHTS
-    content = clamp(20 + s.action_bullets * 6 + s.metric_bullets * 8 + len(s.hard_skills_resume) * 2)
-    fmt = clamp(
-        (20 if s.has_email else 0)
-        + (15 if s.has_phone else 0)
-        + len(s.sections) * 12
-        + (15 if s.text_len > 600 else 5)
-    )
-    optimization = clamp(
-        30
-        + (
-            coverage(s.hard_skills_resume, s.hard_skills_jd) * 40
-            if resolved == "job_match" and s.hard_skills_jd
-            else 20
-        )
-        + (-20 if s.stuffing else 10)
-    )
-    best = clamp(
-        (25 if s.action_bullets >= 3 else 10)
-        + (25 if s.metric_bullets >= 1 else 5)
-        + (25 if not s.stuffing else 0)
-        + (25 if "experience" in s.sections else 10)
-    )
-    readiness = clamp(
-        (30 if s.has_email else 0)
-        + (20 if s.has_phone else 0)
-        + (30 if len(s.sections) >= 3 else 10)
-        + (20 if s.text_len > 400 else 5)
-    )
-    overall = clamp(
-        content * w["content"]
-        + fmt * w["format"]
-        + optimization * w["optimization"]
-        + best * w["best_practices"]
-        + readiness * w["application_readiness"]
-    )
+    n_b = max(1, len(q.bullets))
+    content_checks = {
+        "3–6 bullets per experience entry": 3 <= q.bullets_per_role <= 6,
+        "Measurable outcomes (numbers, %, scale)": s.metric_bullets / n_b >= 1 / 3,
+        "Enough context per bullet (12+ words)": q.avg_bullet_words >= 12,
+        "No personal pronouns (I, me, my)": q.pronoun_lines == 0,
+    }
+    format_checks = {
+        "One to two pages (about 1,000 words or fewer)": q.word_count <= 1000,
+        "At least 3 bullets per experience entry": q.bullets_per_role >= 3,
+        "Contact details present (email and phone)": s.has_email and s.has_phone,
+        "Standard sections present": len(s.sections) >= 3,
+    }
+    if resolved == "job_match" and s.hard_skills_jd:
+        optimization_checks = {
+            "Job-description hard skills covered (60%+)": coverage(s.hard_skills_resume, s.hard_skills_jd) >= 0.6,
+            "Job-description keywords covered (40%+)": token_coverage(s.resume_tokens, s.jd_tokens) >= 0.4,
+            "Target job title appears": bool(role.strip()) and s.title_hit >= 0.5,
+            "No keyword stuffing": s.stuffing == 0,
+        }
+    else:
+        # No JD to tailor to: Rezi's Optimization needs one, so judge only keyword hygiene.
+        optimization_checks = {
+            "Skills listed (5+ recognised)": len(s.hard_skills_resume) >= 5,
+            "No keyword stuffing": s.stuffing == 0,
+        }
+    best_checks = {
+        "400–1,600 words": 400 <= q.word_count <= 1600,
+        "Dates as full month and year (January 2025)": q.full_month_dates > 0 and q.other_dates == 0,
+        "No buzzwords or filler": q.buzz_hits == 0,
+        "Active voice": q.passive_hits <= 2,
+        "Skills grouped into categories": q.category_skill_lines >= 2,
+    }
+    cats = {
+        "content": pass_rate(list(content_checks.values())),
+        "format": pass_rate(list(format_checks.values())),
+        "optimization": pass_rate(list(optimization_checks.values())),
+        "best_practices": pass_rate(list(best_checks.values())),
+    }
+    details = pass_rate([s.has_email, s.has_phone, "experience" in s.sections, "education" in s.sections])
+    # Application Ready: complete details, plus overall standing in the other four categories.
+    cats["application_readiness"] = 0.5 * details + 0.5 * (sum(cats.values()) / 4)
+    overall = clamp(sum(cats[k] * w[k] for k in w))
+    failed = [
+        label
+        for checks in (content_checks, format_checks, optimization_checks, best_checks)
+        for label, ok in checks.items()
+        if not ok
+    ]
     return _pack(
         resume_id=resume_id,
         mode=resolved,
@@ -347,35 +416,35 @@ def run_rezi_style(
         engine_id="rezi_style",
         scoring_profile_id="rezi-reference",
         scores={
-            "resumeQuality": content,
-            "structureFormatting": fmt,
+            "resumeQuality": clamp(cats["content"]),
+            "structureFormatting": clamp(cats["format"]),
             "keywordCoverage": (
                 clamp(coverage(s.hard_skills_resume, s.hard_skills_jd) * 100)
                 if resolved == "job_match" and s.hard_skills_jd
                 else None
             ),
-            "atsCompatibility": fmt,
-            "evidenceQuality": best,
-            "experienceQuality": readiness,
+            "atsCompatibility": clamp(cats["format"]),
+            "evidenceQuality": clamp(cats["best_practices"]),
+            "experienceQuality": clamp(cats["application_readiness"]),
         },
         strengths=[
-            *( ["Format/contact structure looks parser-friendly"] if fmt >= 70 else [] ),
-            *( ["Content density with actions/metrics"] if content >= 70 else [] ),
+            *(["Format/contact structure looks parser-friendly"] if cats["format"] >= 75 else []),
+            *(["Content passes most audits"] if cats["content"] >= 75 else []),
+            *(["Best-practice audits mostly passed"] if cats["best_practices"] >= 80 else []),
         ],
-        improvements=(
-            [
-                {
-                    "priority": "high",
-                    "text": "Align experience bullets to JD tools you actually used — do not paste JD keywords without evidence.",
-                    "reason": "Rezi optimization category (reference approximation).",
-                }
-            ]
-            if optimization < 60 and resolved == "job_match"
-            else []
+        improvements=_failed_improvements(
+            failed,
+            "Rezi-style audit",
+            {"Job-description hard skills covered (60%+)": "Evidence the JD tools you actually used in experience bullets — do not paste keywords without evidence."},
         ),
         ats_issues=[],
+        notes=[
+            "Each category is the share of its audits passed: " + ", ".join(f"{k} {int(v)}" for k, v in cats.items()) + ".",
+            "Rezi bands: 90+ ready to apply, 50–89 solid foundation, below 50 needs updates.",
+            "Rezi publishes categories and some thresholds, not its 23 audits or weights.",
+        ],
         resume_text=resume_text,
-        blurb="Rezi-style readiness categories (reference approximation).",
+        blurb="Rezi-style readiness: pass/fail audits across Content, Format, Optimization, Best Practices, Application Ready.",
     )
 
 

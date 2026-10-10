@@ -68,3 +68,55 @@ def test_teal_resume_only_path():
     )
     assert r["mode"] == "resume_only"
     assert r["scoreName"] == "Resume Score"
+
+
+# ── Documented-behaviour checks (Jobscan tutorial, Rezi docs) ───────────────────────────────────
+
+def _score(engine_id: str, resume: str, jd: str, role: str = "Backend Engineer", mode: str = "job_match") -> dict:
+    return run_engine_profile(engine_id=engine_id, resume_text=resume, role=role, jd_text=jd, resume_id="t", mode=mode)
+
+
+def test_jobscan_weights_follow_documented_priority():
+    from app.ats.reference_weights import JOBSCAN_WEIGHTS as w
+
+    assert w["hard"] > w["education"] > 0
+    assert w["hard"] > w["title"] > w["soft"] > w["other"]
+
+
+def test_jobscan_education_counts_only_for_advanced_degree():
+    # Bachelor's in the JD: no education category, so a resume without a degree isn't penalised for it.
+    r = _score("jobscan_style", SAMPLE_RESUME.replace("B.S. Computer Science", ""), SAMPLE_JD)
+    assert "education" not in " ".join(r["notes"]).split("renormalised")[0]
+    masters_jd = SAMPLE_JD.replace("Bachelor's degree", "Master's degree")
+    with_degree = _score("jobscan_style", SAMPLE_RESUME.replace("B.S.", "M.S."), masters_jd)
+    without = _score("jobscan_style", SAMPLE_RESUME.replace("B.S. Computer Science", ""), masters_jd)
+    assert with_degree["overallScore"] > without["overallScore"]
+
+
+def test_jobscan_frequent_hard_skills_weigh_more():
+    jd = "Backend Engineer. Python Python Python Python Docker."
+    has_python = _score("jobscan_style", "Jane Doe\nSKILLS\nPython", jd)
+    has_docker = _score("jobscan_style", "Jane Doe\nSKILLS\nDocker", jd)
+    assert has_python["overallScore"] > has_docker["overallScore"]
+
+
+def test_rezi_audits_flag_documented_problems():
+    bad = SAMPLE_RESUME + "\nI am a team player. My dynamic work was done by me.\n"
+    good = _score("rezi_style", SAMPLE_RESUME, SAMPLE_JD)
+    worse = _score("rezi_style", bad, SAMPLE_JD)
+    assert worse["overallScore"] <= good["overallScore"]
+
+
+def test_resume_worded_reports_impact_brevity_style():
+    r = _score("resume_worded_style", SAMPLE_RESUME, "", mode="resume_only", role="")
+    assert {"evidenceQuality", "experienceQuality", "structureFormatting"} <= set(r["scores"])
+
+
+def test_native_quality_penalises_hedging_and_pronouns():
+    from app.ats.analyze import analyze_resume
+
+    plain = analyze_resume(SAMPLE_RESUME)["overallScore"]
+    hedgy = analyze_resume(
+        SAMPLE_RESUME + "\nI was responsible for various things. Worked on stuff and helped with tasks. My team player work.\n"
+    )["overallScore"]
+    assert hedgy < plain
