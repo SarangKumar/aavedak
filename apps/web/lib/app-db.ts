@@ -191,6 +191,9 @@ async function runSchema() {
     )
   `;
   await db`CREATE INDEX IF NOT EXISTS mail_replies_follow_up_idx ON mail_replies (follow_up_id)`;
+  // Sent by a system (bounce, auto-reply, out-of-office), not the person: shown in the inbox but
+  // never counted as a reply. Set from Gmail headers on sync; see the backfill below.
+  await db`ALTER TABLE mail_replies ADD COLUMN IF NOT EXISTS automated INTEGER NOT NULL DEFAULT 0`;
   await db`
     DO $$ BEGIN
       ALTER TABLE follow_up_tasks ADD CONSTRAINT follow_up_tasks_mail_kind_check
@@ -438,6 +441,7 @@ async function runDiscoverySchema(db: NeonQueryFunction<false, false>) {
       PRIMARY KEY (person_id, user_id)
     )`;
   await db`CREATE INDEX IF NOT EXISTS person_reply_credits_person_idx ON person_reply_credits (person_id)`;
+  await cleanUpAutomatedReplies(db);
 
   await purgeDemoJobs(db);
 }
@@ -465,6 +469,41 @@ async function purgeDemoJobs(db: NeonQueryFunction<false, false>) {
   await db`DELETE FROM job_scores WHERE job_id = ANY(${ids})`;
   await db`DELETE FROM job_person_relevance WHERE job_id = ANY(${ids})`;
   await db`DELETE FROM jobs WHERE id = ANY(${ids})`;
+}
+
+/**
+ * Replies stored before `mail_replies.automated` existed: flag system senders and system
+ * subjects (mirrors AUTO_SENDER_RE / AUTO_SUBJECT_RE in lib/mail-reply-parse.ts; the header
+ * checks need Gmail and are re-applied when a thread is next synced). Then drop reply credits
+ * that a bounce or another sender earned, and recompute `replied_at` from real replies only.
+ * Every statement matches nothing once the data is clean, so this is safe on each cold start.
+ */
+async function cleanUpAutomatedReplies(db: NeonQueryFunction<false, false>) {
+  await db`
+    UPDATE mail_replies SET automated = 1
+    WHERE automated = 0
+      AND (
+        from_address ~* '^(mailer-daemon|postmaster|no-?reply|do-?not-?reply)@'
+        OR subject ~* '^[[:space:]]*(automatic reply|auto(matic)?[- ]?reply|auto[- ]?response|out of (the )?office|ooo[[:>:]]|away from (the )?office|undeliverable|delivery status notification|mail delivery (failed|subsystem)|returned mail)'
+      )
+  `;
+  // A credit is only for a human reply from the address the mail went to.
+  await db`
+    DELETE FROM person_reply_credits c
+    USING mail_replies r, people p
+    WHERE r.user_id = c.user_id
+      AND r.gmail_message_id = c.gmail_message_id
+      AND p.id = c.person_id
+      AND (r.automated = 1 OR p.email IS NULL OR r.from_address <> lower(trim(p.email)))
+  `;
+  await db`
+    UPDATE follow_up_tasks f
+    SET replied_at = (
+      SELECT MAX(r.received_at) FROM mail_replies r
+      WHERE r.follow_up_id = f.id AND r.automated = 0
+    )
+    WHERE EXISTS (SELECT 1 FROM mail_replies r WHERE r.follow_up_id = f.id AND r.automated = 1)
+  `;
 }
 
 /** Ensure Postgres app schema exists (idempotent). */

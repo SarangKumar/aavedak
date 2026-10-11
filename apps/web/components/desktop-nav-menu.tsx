@@ -22,7 +22,7 @@ const DOCUMENT_LINKS: MenuLink[] = [
   {
     href: "/documents?tab=resumes",
     label: "Resume",
-    description: "Upload resumes and pick your showcase.",
+    description: "Upload resumes and pick showcase.",
   },
   {
     href: "/documents?tab=cover_letters",

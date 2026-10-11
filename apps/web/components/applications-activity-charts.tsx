@@ -193,12 +193,7 @@ export function ApplicationsActivityCharts() {
                 type="monotone"
                 stroke={stroke}
                 strokeWidth={s.isMe ? 2.5 : 2}
-                dot={{
-                  r: s.isMe ? 3.5 : 2.5,
-                  fill: "var(--color-foreground)",
-                  stroke,
-                  strokeWidth: 2,
-                }}
+                dot={false}
                 activeDot={{
                   r: 5,
                   fill: "var(--color-foreground)",

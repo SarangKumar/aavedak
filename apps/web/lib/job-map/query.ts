@@ -30,7 +30,7 @@ async function loadJobMapSummary(): Promise<JobMapSummary> {
 }
 
 // Discovery scans run every few hours, so an hourly refresh is plenty for the homepage.
-const cachedJobMapSummary = unstable_cache(loadJobMapSummary, ["home-job-map-v3"], {
+const cachedJobMapSummary = unstable_cache(loadJobMapSummary, ["home-job-map-v5"], {
   revalidate: 3600,
 });
 

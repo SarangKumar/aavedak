@@ -16,17 +16,10 @@ import {
   RUN_KINDS,
   RUN_KIND_META,
 } from "@/lib/discovery-crons";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { FuseButton } from "@/components/ui/fuse-button";
 import {
   Card,
   CardAction,
@@ -182,7 +175,9 @@ export function AdminDiscoveryPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const processingRef = useRef(false);
-  const [confirmScan, setConfirmScan] = useState(false);
+  // Run-discovery fuses: lit = undo window open, burnt out = the action runs.
+  const [scanLit, setScanLit] = useState(false);
+  const [peopleLit, setPeopleLit] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [runDetail, setRunDetail] = useState<RunDto | null>(null);
   const [csvFiles, setCsvFiles] = useState<FileUploadFile[]>([]);
@@ -375,7 +370,6 @@ export function AdminDiscoveryPanel() {
   }
 
   async function startScan() {
-    setConfirmScan(false);
     const data = await run("Scan queued", { action: "scan" }, (d) =>
       d.resumed
         ? `A scan is already in progress (${d.sources ?? 0} sources) — resuming it.`
@@ -457,19 +451,37 @@ export function AdminDiscoveryPanel() {
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <Button size="sm" onClick={() => setConfirmScan(true)} disabled={busy !== null}>
+          <FuseButton
+            size="sm"
+            active={scanLit}
+            loading={busy === "Scan queued"}
+            disabled={busy !== null}
+            onActivate={() => setScanLit(true)}
+            onFire={() => {
+              setScanLit(false);
+              void startScan();
+            }}
+            onUndo={() => setScanLit(false)}
+            title="Queues every enabled source (outside the nightly schedule)"
+          >
             Scan all sources now
-          </Button>
-          <Button
+          </FuseButton>
+          <FuseButton
             size="sm"
             variant="outline"
+            active={peopleLit}
             loading={busy === "People discovery queued"}
             disabled={busy !== null}
-            onClick={() => void startPeopleDiscovery()}
+            onActivate={() => setPeopleLit(true)}
+            onFire={() => {
+              setPeopleLit(false);
+              void startPeopleDiscovery();
+            }}
+            onUndo={() => setPeopleLit(false)}
             title="Capture published recruiting inboxes (careers@, jobs@…) from career pages and postings"
           >
             Discover people now
-          </Button>
+          </FuseButton>
           <Button
             size="sm"
             variant="outline"
@@ -753,32 +765,6 @@ export function AdminDiscoveryPanel() {
           </section>
         </>
       ) : null}
-
-      <AlertDialog
-        open={confirmScan}
-        onOpenChange={(next) => {
-          if (!next) setConfirmScan(false);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Scan all career sources now?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Queues every enabled source (outside the nightly schedule). Postings are fetched from
-              public job-board APIs; only junior tech roles in India or remote and open to India are
-              stored.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button size="sm" variant="outline" onClick={() => setConfirmScan(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={() => void startScan()}>
-              Queue scan
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <SourcesSheet
         open={sourcesOpen}

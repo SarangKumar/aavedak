@@ -78,12 +78,16 @@ export function HomeOpeningsSection({ summary }: { summary: JobMapSummary }) {
           ) : null}
         </div>
 
-        <div className="max-w-160 relative mx-auto w-full">
-          <OpeningsGlobe
-            cities={cities}
-            activeId={active?.id ?? null}
-            onActiveChange={setActiveId}
-          />
+        {/* 12px wider than its column (6px into the gutter each side), 42px on laptops:
+            a centred flex item wider than its container overflows both sides evenly. */}
+        <div className="flex min-w-0 justify-center">
+          <div className="relative w-[calc(100%+12px)] max-w-[652px] shrink-0 lg:w-[calc(100%+42px)] lg:max-w-[682px]">
+            <OpeningsGlobe
+              cities={cities}
+              activeId={active?.id ?? null}
+              onActiveChange={setActiveId}
+            />
+          </div>
         </div>
       </div>
     </section>

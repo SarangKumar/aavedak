@@ -30,6 +30,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { FuseButton } from "@/components/ui/fuse-button";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
@@ -94,7 +95,6 @@ type Thread = {
   role: string;
   latestAt: string;
   messages: FollowUpDto[];
-  hasFailed: boolean;
 };
 
 const LIST_MIN = 240;
@@ -115,15 +115,6 @@ function statusLabel(status: FollowUpDto["status"]): string {
   if (status === "dismissed") return "Dismissed";
   if (status === "done") return "Done";
   return status;
-}
-
-function statusVariant(
-  status: FollowUpDto["status"],
-): "default" | "secondary" | "destructive" | "outline" {
-  if (status === "failed") return "destructive";
-  if (status === "queued" || status === "pending") return "secondary";
-  if (status === "sent" || status === "sent_stub") return "default";
-  return "outline";
 }
 
 function withinDuration(iso: string, filter: DurationFilter): boolean {
@@ -236,6 +227,8 @@ type MailReplyView = {
   subject: string | null;
   bodyText: string;
   receivedAt: string;
+  /** Bounce / auto-reply (e.g. mailer-daemon): shown in the chat, not counted as a reply. */
+  automated: boolean;
 };
 
 export function OutreachInbox({
@@ -271,6 +264,9 @@ export function OutreachInbox({
     [],
   );
   const [sendPhase, setSendPhase] = useState<"idle" | "sending">("idle");
+  // A chat message waiting on the send fuse. Holds the text it will send, so the draft can't
+  // change its meaning while the undo window is open.
+  const [pendingSend, setPendingSend] = useState<{ thread: Thread; text: string } | null>(null);
   // Resume picker dialog: the radio choice is only applied on Confirm.
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [resumeChoice, setResumeChoice] = useState("");
@@ -305,11 +301,9 @@ export function OutreachInbox({
           role,
           latestAt: f.updatedAt || f.createdAt,
           messages: [f],
-          hasFailed: f.status === "failed",
         });
       } else {
         existing.messages.push(f);
-        existing.hasFailed = existing.hasFailed || f.status === "failed";
         const at = f.updatedAt || f.createdAt;
         if (new Date(at).getTime() > new Date(existing.latestAt).getTime()) {
           existing.latestAt = at;
@@ -374,6 +368,10 @@ export function OutreachInbox({
   }, [threads, selectedKey, applicationId]);
 
   const selected = threads.find((t) => t.key === selectedKey) ?? null;
+  // Only lit for the conversation it was started in: switching chats quietly drops the fuse
+  // (it resumes if you come back) instead of sending into another thread.
+  const sendLit =
+    pendingSend !== null && selected !== null && pendingSend.thread.key === selected.key;
   const viewingAllForApp = selectedKey === ALL_FOR_APP_KEY && Boolean(applicationId);
 
   async function processQueue() {
@@ -493,11 +491,16 @@ export function OutreachInbox({
     });
   }
 
-  /** A chat message is sent as soon as the user presses Send: that press is the confirmation. */
-  function startSend(thread: Thread) {
+  /**
+   * Pressing Send lights the send fuse; the message goes out when it burns down, and Undo
+   * keeps it in the draft. Pressing Send is the confirmation, so no second step.
+   */
+  function lightSend(thread: Thread) {
     const text = draft.trim();
-    if (!text || sendPhase !== "idle" || !thread.applicationId || !thread.personId) return;
-    void deliver(thread, text);
+    if (!text || pendingSend || sendPhase !== "idle" || !thread.applicationId || !thread.personId) {
+      return;
+    }
+    setPendingSend({ thread, text });
   }
 
   async function deliver(thread: Thread, text: string) {
@@ -675,8 +678,17 @@ export function OutreachInbox({
     return (
       <div className="flex justify-start pr-8 sm:pr-16">
         <div className="bg-muted text-foreground max-w-full space-y-1 rounded-xl rounded-tl-sm px-3 py-2 shadow-sm sm:max-w-[80%]">
-          <p className="text-muted-foreground text-[11px] font-medium">
+          <p className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-[11px] font-medium">
             {reply.fromAddress || "Reply"}
+            {reply.automated ? (
+              <Badge
+                variant="outline"
+                className="px-1.5 py-0 text-[10px]"
+                title="Sent by a mail system (bounce or auto-reply), not by the person. It doesn't count as a reply."
+              >
+                Automated · not a reply
+              </Badge>
+            ) : null}
           </p>
           <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed">
             {reply.bodyText || "(reply has no text)"}
@@ -953,19 +965,28 @@ export function OutreachInbox({
   }
 
   /** Last thing that happened in a thread, for the card preview. */
-  function threadPreview(thread: Thread): { text: string; fromThem: boolean } {
-    let best: { at: number; text: string; fromThem: boolean } | null = null;
+  function threadPreview(thread: Thread): {
+    text: string;
+    fromThem: boolean;
+    automated: boolean;
+  } {
+    let best: { at: number; text: string; fromThem: boolean; automated: boolean } | null = null;
     for (const m of thread.messages) {
       const t = new Date(messageAt(m)).getTime();
-      if (!best || t >= best.at) best = { at: t, text: bodyFromMessage(m), fromThem: false };
+      if (!best || t >= best.at) {
+        best = { at: t, text: bodyFromMessage(m), fromThem: false, automated: false };
+      }
       for (const r of replies[m.id] ?? []) {
         const rt = new Date(r.receivedAt).getTime();
-        if (rt >= best.at) best = { at: rt, text: r.bodyText, fromThem: true };
+        if (rt >= best.at) {
+          best = { at: rt, text: r.bodyText, fromThem: true, automated: r.automated };
+        }
       }
     }
     return {
       text: best?.text.replace(/\s+/g, " ").trim() || "",
       fromThem: best?.fromThem ?? false,
+      automated: best?.automated ?? false,
     };
   }
 
@@ -1023,8 +1044,9 @@ export function OutreachInbox({
             threads.map((thread) => {
               const active = !viewingAllForApp && thread.key === selectedKey;
               const last = thread.messages[thread.messages.length - 1];
+              // Bounces and auto-replies stay in the chat but don't make a thread "Replied".
               const replyCount = thread.messages.reduce(
-                (n, m) => n + (replies[m.id]?.length ?? 0),
+                (n, m) => n + (replies[m.id]?.filter((r) => !r.automated).length ?? 0),
                 0,
               );
               const preview = threadPreview(thread);
@@ -1055,38 +1077,29 @@ export function OutreachInbox({
                         {thread.company}
                         {thread.role ? ` · ${thread.role}` : ""}
                       </p>
-                      {preview.text ? (
-                        <p className="text-muted-foreground mt-1 line-clamp-1 text-[12px]">
-                          <span className="text-foreground/70">
-                            {preview.fromThem ? `${thread.personName.split(" ")[0]}: ` : "You: "}
-                          </span>
-                          {preview.text}
+                      {/* Newest event last, as in the chat: your mail's status (tick, cross or
+                          queue) or the person's name, then the text; replies tag on the right. */}
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <p className="text-muted-foreground flex min-w-0 flex-1 items-center gap-1 text-[12px]">
+                          {preview.fromThem ? (
+                            <span className="text-foreground/70 shrink-0">
+                              {preview.automated
+                                ? "Automated:"
+                                : `${thread.personName.split(" ")[0]}:`}
+                            </span>
+                          ) : last ? (
+                            <OutgoingStatusIcon msg={last} />
+                          ) : null}
+                          <span className="truncate">{preview.text || "No message text"}</span>
                         </p>
-                      ) : null}
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        {thread.hasFailed ? (
-                          <Badge variant="destructive" className="px-1.5 py-0 text-[10px]">
-                            Failed
-                          </Badge>
-                        ) : last ? (
-                          <Badge
-                            variant={statusVariant(last.status)}
-                            className="px-1.5 py-0 text-[10px]"
-                          >
-                            {statusLabel(last.status)}
-                          </Badge>
-                        ) : null}
                         {replyCount > 0 ? (
-                          <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                            Replied
+                          <Badge
+                            variant="outline"
+                            className="border-primary/40 text-primary shrink-0 px-1.5 py-0 text-[10px] tabular-nums"
+                          >
+                            Replied{replyCount > 1 ? ` · ${replyCount}` : ""}
                           </Badge>
                         ) : null}
-                        <span className="text-muted-foreground text-[10px]">
-                          {thread.messages.length} sent
-                          {replyCount
-                            ? ` · ${replyCount} repl${replyCount === 1 ? "y" : "ies"}`
-                            : ""}
-                        </span>
                       </div>
                     </div>
                   </button>
@@ -1219,7 +1232,7 @@ export function OutreachInbox({
             className="flex items-end gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              startSend(selected);
+              lightSend(selected);
             }}
           >
             <div className="bg-input border-border focus-within:border-ring/70 flex min-w-0 flex-1 flex-col rounded-xl border transition-colors">
@@ -1230,13 +1243,14 @@ export function OutreachInbox({
                   // Email bodies are multi-line, so Enter adds a line; ⌘/Ctrl+Enter sends.
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                     e.preventDefault();
-                    startSend(selected);
+                    lightSend(selected);
                   }
                 }}
                 rows={1}
                 maxRows={6}
                 maxLength={5000}
                 disabled={sendPhase !== "idle"}
+                readOnly={sendLit}
                 placeholder={`Message ${selected.personName.split(" ")[0]}…`}
                 aria-label={`Message to ${selected.personName}`}
                 className="min-h-10 resize-none border-0 bg-transparent px-3 py-2.5 text-[13px] shadow-none outline-none focus:border-0 focus:outline-none focus-visible:border-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -1277,18 +1291,28 @@ export function OutreachInbox({
             >
               <PaperclipIcon className="size-4" />
             </Button>
-            <Button
-              type="submit"
+            <FuseButton
               size="icon"
-              className="size-10 shrink-0 rounded-full"
+              shape="circle"
+              duration={5000}
+              active={sendLit}
+              className="size-10 shrink-0"
               disabled={!draft.trim() || sendPhase !== "idle"}
               loading={sendPhase === "sending"}
               loadingText=""
               aria-label="Send message"
-              title="Send now"
+              undoLabel="Undo send"
+              title={sendLit ? "Undo send" : "Send now"}
+              onActivate={() => lightSend(selected)}
+              onUndo={() => setPendingSend(null)}
+              onFire={() => {
+                const next = pendingSend;
+                setPendingSend(null);
+                if (next) void deliver(next.thread, next.text);
+              }}
             >
               <SendIcon className="size-4" />
-            </Button>
+            </FuseButton>
           </form>
         )}
       </div>
@@ -1451,6 +1475,48 @@ function RetryIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+/** Card status for your newest mail: tick when sent, cross when it failed, queue while pending. */
+function OutgoingStatusIcon({ msg }: { msg: FollowUpDto }) {
+  if (msg.status === "sent" || msg.status === "sent_stub") {
+    return (
+      <span role="img" aria-label="Sent" title="Sent" className="text-primary shrink-0">
+        <TickIcon className="size-3.5" />
+      </span>
+    );
+  }
+  if (msg.status === "failed") {
+    return (
+      <span
+        role="img"
+        aria-label="Failed"
+        title={msg.sendError || "Failed"}
+        className="text-destructive shrink-0"
+      >
+        <CrossIcon className="size-3.5" />
+      </span>
+    );
+  }
+  return (
+    <span
+      role="img"
+      aria-label={statusLabel(msg.status)}
+      title={statusLabel(msg.status)}
+      className="text-muted-foreground shrink-0"
+    >
+      <ClockIcon className="size-3.5" />
+    </span>
+  );
+}
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 7.5V12l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }

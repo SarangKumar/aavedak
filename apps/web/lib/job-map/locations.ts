@@ -20,7 +20,7 @@ export type GlobeCity = {
   lng: number;
   /** Open roles listing this city (a multi-city role counts once in each city). */
   count: number;
-  /** Where the on-globe label sits, or null when the city is a dot only (too crowded). */
+  /** Where the on-globe label sits, or null for a dot only (LABEL_MIN_COUNT roles or fewer). */
   label: LabelSide | null;
   /** Distinct companies hiring here. */
   companyCount: number;
@@ -239,11 +239,15 @@ function arcDegrees(a: { lat: number; lng: number }, b: { lat: number; lng: numb
   return Math.acos(Math.min(1, Math.max(-1, cos))) / rad;
 }
 
+// Cities with more than this many open roles get a label; the rest are a primary-colour dot
+// (hovering the dot shows the same name + count pill).
+export const LABEL_MIN_COUNT = 1;
+
 // Each label sits above or below its dot. Pick the side away from bigger nearby cities so
-// close pairs (Bengaluru / Coimbatore) can both be labelled; cities with neither side free
-// are dots only. The globe also hides labels that still overlap on screen at runtime.
+// close pairs (Bengaluru / Coimbatore) can both be labelled. A busy city is always labelled:
+// with neither side free it takes the side with fewer clashes. The globe still hides a label
+// that overlaps a bigger city's label on screen at runtime (its dot stays).
 const LABEL_SEPARATION_DEG = 5;
-const MAX_LABELS = 8;
 
 function labelConflicts(
   city: GlobeCity,
@@ -261,11 +265,10 @@ function labelConflicts(
 function assignLabels(cities: GlobeCity[]): void {
   const labeled: Array<GlobeCity & { label: LabelSide }> = [];
   for (const city of cities) {
-    if (labeled.length >= MAX_LABELS) break;
-    const side = (["top", "bottom"] as const).find(
-      (s) => !labeled.some((other) => labelConflicts(city, s, other)),
-    );
-    if (!side) continue;
+    if (city.count <= LABEL_MIN_COUNT) continue;
+    const clashes = (side: LabelSide) =>
+      labeled.filter((other) => labelConflicts(city, side, other)).length;
+    const side: LabelSide = clashes("top") <= clashes("bottom") ? "top" : "bottom";
     city.label = side;
     labeled.push(city as GlobeCity & { label: LabelSide });
   }

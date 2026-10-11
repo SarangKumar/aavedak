@@ -60,13 +60,12 @@ function testSummary() {
   assert.equal(byId.delhi.count, 1);
   assert.equal(summary.cities[0].id, "bengaluru"); // sorted by count
 
-  // Coimbatore is ~2° from Bengaluru: its label flips below. Mysuru sits between them,
-  // so it stays a dot only.
+  // More than 1 role → label. Coimbatore is ~2° from Bengaluru: its label flips below.
   assert.equal(byId.bengaluru.label, "top");
   assert.equal(byId.coimbatore.label, "bottom");
+  // A single role → dot only, however far from other cities.
   assert.equal(byId.mysuru.label, null);
-  // Far-away cities keep the default side.
-  assert.equal(byId.delhi.label, "top");
+  assert.equal(byId.delhi.label, null);
 
   const empty = summarizeJobLocations([]);
   assert.deepEqual(empty, {
@@ -76,6 +75,22 @@ function testSummary() {
     elsewhereCount: 0,
     companyCount: 0,
   });
+}
+
+function testLabelThreshold() {
+  const summary = summarizeJobLocations([
+    { location: "Bengaluru", count: 30 },
+    { location: "Coimbatore", count: 12 },
+    { location: "Mysuru", count: 2 }, // between the two, both sides taken: still labelled
+    { location: "Pune", count: 1 }, // exactly 1: dot only
+    { location: "Mumbai", count: 2 },
+  ]);
+  const byId = Object.fromEntries(summary.cities.map((c) => [c.id, c]));
+  assert.notEqual(byId.mysuru.label, null);
+  assert.equal(byId.pune.label, null);
+  assert.equal(byId.mumbai.label, "top");
+  // Every city is still returned (and drawn as a dot), labelled or not.
+  assert.equal(summary.cities.length, 5);
 }
 
 function testCompanyCounts() {
@@ -111,5 +126,6 @@ testMatchCities();
 testLocationFilter();
 testRemote();
 testSummary();
+testLabelThreshold();
 testCompanyCounts();
 console.log("job-map tests passed");

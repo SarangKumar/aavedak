@@ -92,25 +92,21 @@ export async function syncRepliesForUser(userId: string): Promise<ReplySyncResul
     try {
       const replies = await fetchThreadReplies(token, thread.gmail_thread_id, userEmail);
       for (const reply of replies) {
-        const inserted = (await sql`
+        // A bounce or auto-reply is stored (it shows in the inbox) but never counts as a reply.
+        // On conflict the flag is refreshed, so rows stored before it existed get corrected.
+        const [row] = (await sql`
           INSERT INTO mail_replies
             (id, user_id, follow_up_id, gmail_message_id, gmail_thread_id, from_address,
-             subject, body_text, received_at, created_at)
+             subject, body_text, received_at, created_at, automated)
           VALUES
             (${newId()}, ${userId}, ${thread.id}, ${reply.messageId}, ${reply.threadId},
-             ${reply.fromAddress}, ${reply.subject}, ${reply.bodyText}, ${reply.receivedAt}, ${now})
-          ON CONFLICT (user_id, gmail_message_id) DO NOTHING
-          RETURNING id
-        `) as Array<{ id: string }>;
-        if (inserted.length > 0) {
-          newReplies += 1;
-          await sql`
-            UPDATE follow_up_tasks
-            SET replied_at = ${reply.receivedAt}, updated_at = ${now}
-            WHERE id = ${thread.id} AND user_id = ${userId}
-              AND (replied_at IS NULL OR replied_at < ${reply.receivedAt})
-          `;
-        }
+             ${reply.fromAddress}, ${reply.subject}, ${reply.bodyText}, ${reply.receivedAt}, ${now},
+             ${reply.automated ? 1 : 0})
+          ON CONFLICT (user_id, gmail_message_id)
+            DO UPDATE SET automated = EXCLUDED.automated
+          RETURNING (xmax = 0) AS inserted
+        `) as Array<{ inserted: boolean }>;
+        if (row?.inserted && !reply.automated) newReplies += 1;
         // Checked for every reply, not only new ones, so replies stored before credits
         // existed are credited when their thread is revisited. Idempotent per (person, user).
         if (earnsReplyCredit(thread.person_email, reply)) {
@@ -126,8 +122,15 @@ export async function syncRepliesForUser(userId: string): Promise<ReplySyncResul
       // Keep going: one bad thread should not hide replies in the others.
       firstError ??= err instanceof Error ? err.message : "Thread read failed.";
     }
+    // "Replied" reflects human replies only: the newest one stored for this mail, or none.
     await sql`
-      UPDATE follow_up_tasks SET reply_checked_at = ${now} WHERE id = ${thread.id} AND user_id = ${userId}
+      UPDATE follow_up_tasks
+      SET reply_checked_at = ${now},
+          replied_at = (
+            SELECT MAX(received_at) FROM mail_replies
+            WHERE follow_up_id = ${thread.id} AND user_id = ${userId} AND automated = 0
+          )
+      WHERE id = ${thread.id} AND user_id = ${userId}
     `;
     checked += 1;
   }
@@ -170,12 +173,14 @@ export type MailReplyDto = {
   subject: string | null;
   bodyText: string;
   receivedAt: string;
+  /** Bounce / auto-reply: shown in the chat, not counted as a reply. */
+  automated: boolean;
 };
 
 /** The user's stored replies, grouped by the sent mail they answer, newest first. */
 export async function listRepliesForUser(userId: string): Promise<Record<string, MailReplyDto[]>> {
   const rows = (await getSql()`
-    SELECT id, follow_up_id, from_address, subject, body_text, received_at
+    SELECT id, follow_up_id, from_address, subject, body_text, received_at, automated
     FROM mail_replies
     WHERE user_id = ${userId}
     ORDER BY received_at DESC
@@ -187,6 +192,7 @@ export async function listRepliesForUser(userId: string): Promise<Record<string,
     subject: string | null;
     body_text: string;
     received_at: string;
+    automated: number;
   }>;
   const grouped: Record<string, MailReplyDto[]> = {};
   for (const row of rows) {
@@ -197,6 +203,7 @@ export async function listRepliesForUser(userId: string): Promise<Record<string,
       subject: row.subject,
       bodyText: row.body_text,
       receivedAt: row.received_at,
+      automated: Boolean(row.automated),
     });
   }
   return grouped;

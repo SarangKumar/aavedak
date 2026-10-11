@@ -277,6 +277,19 @@
         "components/ui/navigation-menu/navigation-menu.css"
       ],
       "installedAt": "2026-10-11"
+    },
+    "drawer": {
+      "files": [
+        "components/ui/drawer/drawer.css",
+        "components/ui/drawer/index.tsx"
+      ],
+      "installedAt": "2026-10-11"
+    },
+    "sidebar": {
+      "files": [
+        "components/ui/sidebar/index.tsx"
+      ],
+      "installedAt": "2026-10-11"
     }
   }
 }

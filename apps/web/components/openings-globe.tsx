@@ -74,14 +74,26 @@ function cullOverlappingLabels(container: HTMLElement): void {
     el.tabIndex = show ? 0 : -1;
     if (show) taken.push(rect);
   }
+  // Dot hover targets: only on the facing side, and not where the city's label is showing.
+  for (const el of container.querySelectorAll<HTMLElement>("[data-globe-dot]")) {
+    const id = el.dataset.globeDot;
+    const facing = rootStyle.getPropertyValue(`--cobe-visible-${id}`) !== "";
+    const label = container.querySelector(`[data-globe-label="${id}"]`);
+    const labelShown = label !== null && !label.hasAttribute("data-culled");
+    el.toggleAttribute("data-hidden", !facing || labelShown);
+  }
 }
 
 function isDarkTheme(): boolean {
   return document.documentElement.classList.contains("dark");
 }
 
-function markerSize(count: number, max: number): number {
-  return 0.012 + 0.022 * Math.sqrt(count / Math.max(1, max));
+/**
+ * Dot size follows the city's open roles (not companies): sqrt-scaled against the busiest city,
+ * so area tracks openings, from 0.01 for the smallest to 0.02 for the busiest.
+ */
+function markerSize(openings: number, maxOpenings: number): number {
+  return 0.01 + 0.01 * Math.sqrt(openings / Math.max(1, maxOpenings));
 }
 
 export function OpeningsGlobe({
@@ -235,6 +247,26 @@ export function OpeningsGlobe({
           className="size-full cursor-grab touch-pan-y [contain:layout_paint_size]"
         />
       </div>
+      {cities.map((city) => (
+        // Hover target over the canvas dot: shows the same name + count pill as a label.
+        // Out of the tab order; the city stays reachable through Jobs search.
+        <Link
+          key={`dot-${city.id}`}
+          href={jobsSearchHref(city.name)}
+          tabIndex={-1}
+          aria-label={`${city.name}: ${city.count} open ${city.count === 1 ? "role" : "roles"}`}
+          onMouseEnter={() => onActiveChange?.(city.id)}
+          data-globe-dot={city.id}
+          data-hidden=""
+          className="aavedak-globe-dot"
+          style={{ "--globe-anchor": `--cobe-${city.id}` } as CSSProperties}
+        >
+          <span className="aavedak-globe-dot-tip" aria-hidden>
+            {city.name}
+            <span className="text-primary tabular-nums">{city.count}</span>
+          </span>
+        </Link>
+      ))}
       {cities.map((city) =>
         city.label ? (
           // Opens Jobs searched by this city. Starts out of the tab order; the cull pass

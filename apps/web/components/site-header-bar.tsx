@@ -5,19 +5,31 @@ import Link from "next/link";
 import { AuthHeaderActions, type HeaderUser } from "@/components/auth-header-actions";
 import { BrandMark } from "@/components/brand-mark";
 import { DesktopNavMenu } from "@/components/desktop-nav-menu";
-import { MobileNav } from "@/components/mobile-nav";
+import { MobileNav, type NavGroup } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SHELL_X } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
-const mobileNav = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/jobs", label: "Jobs" },
-  { href: "/job-tracker", label: "Tracker" },
-  { href: "/documents", label: "Documents" },
-  { href: "/referrals", label: "Referrals" },
-  { href: "/ats", label: "ATS" },
-] as const;
+const mobileNav: readonly NavGroup[] = [
+  {
+    label: "Workspace",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+      { href: "/jobs", label: "Jobs", icon: "jobs" },
+      { href: "/job-tracker", label: "Tracker", icon: "tracker" },
+      { href: "/ats", label: "ATS", icon: "ats" },
+    ],
+  },
+  {
+    label: "Apply & reach out",
+    items: [
+      { href: "/documents", label: "Documents", icon: "documents" },
+      { href: "/referrals", label: "Referrals", icon: "referrals" },
+      { href: "/outreach", label: "Outreach", icon: "outreach" },
+      { href: "/people", label: "People", icon: "people" },
+    ],
+  },
+];
 
 type SiteHeaderBarProps = {
   user: HeaderUser | null;
@@ -31,7 +43,7 @@ export function SiteHeaderBar({ user }: SiteHeaderBarProps) {
         SHELL_X,
       )}
     >
-      <MobileNav items={[...mobileNav]} />
+      <MobileNav groups={mobileNav} user={user} />
 
       <Link
         href="/"

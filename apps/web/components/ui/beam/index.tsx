@@ -45,7 +45,7 @@ export type BeamProps = Omit<React.ComponentProps<"svg">, "ref"> & {
   width?: number;
   /** Track style. Defaults to dotted. */
   track?: BeamTrack;
-  /** Arrowhead at the end of the track. Defaults to true. */
+  /** Arrowhead at the end of the track. Off unless set. */
   arrow?: boolean;
   /** Gap in px between each node's edge and the beam end. Defaults to 6. */
   gap?: number;
@@ -159,7 +159,7 @@ function beamPath(
 }
 
 /**
- * An animated connector between two elements: a dotted track ending in an arrowhead, with
+ * An animated connector between two elements: a dotted track (with an arrowhead when `arrow`), with
  * a glowing pulse that travels along it. Variants: `shape` (`arc` | `curve`) and `pulse`
  * (`ray` | `dot`). Place it inside a `position: relative` container
  * next to the nodes, and pass refs to the container and both nodes; ends stop just outside
@@ -179,7 +179,7 @@ export function Beam({
   pulseColor = "var(--primary)",
   width = 1,
   track = "dotted",
-  arrow = true,
+  arrow = false,
   gap = 6,
   shape = "arc",
   pulse = "ray",
