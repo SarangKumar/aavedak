@@ -10,7 +10,8 @@ export function middleware(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);
   if (!sessionCookie) {
     const signIn = new URL("/sign-in", request.url);
-    signIn.searchParams.set("next", request.nextUrl.pathname);
+    // Keep the query so deep links (e.g. /jobs?location=pune from the homepage globe) survive sign-in.
+    signIn.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(signIn);
   }
   const res = NextResponse.next();

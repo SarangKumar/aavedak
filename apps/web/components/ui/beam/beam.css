@@ -1,0 +1,36 @@
+/* The pulse is a dash pattern (set inline, sized in px for the measured path) moved along
+   the path with stroke-dashoffset, from just before its start (--beam-from) to just past
+   its end (--beam-to). Works for both pulse variants: a ray, or a single dot (a
+   zero-length dash with a round cap). */
+@keyframes vinyaas-beam-travel {
+  from {
+    stroke-dashoffset: var(--beam-from, 0);
+  }
+  to {
+    stroke-dashoffset: var(--beam-to, 0);
+  }
+}
+
+.vinyaas-beam-pulse {
+  stroke-dashoffset: var(--beam-from, 0);
+  animation: vinyaas-beam-travel var(--beam-duration, 3s) cubic-bezier(0.45, 0, 0.3, 1)
+    var(--beam-delay, 0s) infinite;
+}
+
+.vinyaas-beam-pulse[data-reverse="true"] {
+  animation-direction: reverse;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No travelling pulse: a ray shows as a faint full-length line, a dot is hidden. */
+  .vinyaas-beam-pulse {
+    animation: none;
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0;
+    opacity: 0.35;
+  }
+
+  .vinyaas-beam-pulse[data-pulse="dot"] {
+    display: none;
+  }
+}

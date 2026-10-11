@@ -288,6 +288,75 @@
     animation-delay: 240ms;
   }
 
+  /* Homepage openings globe: city pills pinned to cobe markers via CSS anchor positioning
+     (cobe creates the --cobe-<id> anchors). Browsers without anchor support show only the
+     dots; the city list beside the globe carries the same numbers. */
+  .aavedak-globe-label {
+    @apply border-border/80 bg-card/85 text-foreground absolute inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-full border px-1.5 py-px text-[10px] font-medium shadow-sm backdrop-blur-sm sm:text-[11px];
+    position-anchor: var(--globe-anchor);
+    left: anchor(center);
+    translate: -50% 0;
+    transition:
+      opacity 400ms ease,
+      border-color 150ms ease,
+      color 150ms ease;
+  }
+
+  .aavedak-globe-label:hover,
+  .aavedak-globe-label:focus-visible,
+  .aavedak-globe-label[data-active] {
+    @apply border-primary/50 text-primary z-20;
+  }
+
+  /* Quick-look card inside a globe label: opens away from the dot, on hover / focus. */
+  .aavedak-globe-card {
+    @apply border-border bg-popover text-popover-foreground pointer-events-none absolute left-1/2 z-30 block w-48 -translate-x-1/2 rounded-lg border p-2.5 text-left shadow-lg;
+    opacity: 0;
+    scale: 0.96;
+    transition:
+      opacity 150ms ease,
+      scale 150ms ease;
+  }
+
+  .aavedak-globe-label[data-side="top"] .aavedak-globe-card {
+    bottom: calc(100% + 6px);
+  }
+
+  .aavedak-globe-label[data-side="bottom"] .aavedak-globe-card {
+    top: calc(100% + 6px);
+  }
+
+  .aavedak-globe-label:hover .aavedak-globe-card,
+  .aavedak-globe-label:focus-visible .aavedak-globe-card {
+    opacity: 1;
+    scale: 1;
+  }
+
+  .aavedak-globe-label[data-side="top"] {
+    bottom: calc(anchor(top) + 8px);
+  }
+
+  .aavedak-globe-label[data-side="bottom"] {
+    top: calc(anchor(bottom) + 8px);
+  }
+
+  /* Overlaps a bigger city's label right now (see cullOverlappingLabels). */
+  .aavedak-globe-label[data-culled] {
+    opacity: 0 !important;
+    pointer-events: none;
+  }
+
+  @supports not (anchor-name: --a) {
+    .aavedak-globe-label {
+      display: none;
+    }
+  }
+
+  /* Homepage: one gap between every section below the hero, growing with the screen. */
+  .aavedak-home-section {
+    @apply mt-16 sm:mt-20 lg:mt-24;
+  }
+
   .aavedak-card-lift {
     transition:
       transform 200ms ease,

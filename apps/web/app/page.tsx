@@ -2,9 +2,13 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { BrandMark } from "@/components/brand-mark";
+import { HomeFaq } from "@/components/home-faq";
+import { HomeFlow } from "@/components/home-flow";
+import { HomeOpeningsSection } from "@/components/home-openings-section";
+import { HomePromises } from "@/components/home-promises";
 import { getOptionalAccess } from "@/lib/app-access";
+import { getJobMapSummary } from "@/lib/job-map/query";
 import { hasFullyOnboarded } from "@/lib/onboarding";
-import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   robots: { index: true, follow: true },
@@ -58,26 +62,8 @@ const features = [
   },
 ] as const;
 
-const steps = [
-  {
-    n: "01",
-    title: "Discover",
-    body: "Browse roles, bookmark what fits, and keep signals in one place.",
-  },
-  {
-    n: "02",
-    title: "Prepare",
-    body: "Resumes, company-specific cover letters, and cold templates — ready when you are.",
-  },
-  {
-    n: "03",
-    title: "Act",
-    body: "Track the pipeline, queue outreach, and follow up without losing context.",
-  },
-] as const;
-
 export default async function HomePage() {
-  const access = await getOptionalAccess();
+  const [access, jobMap] = await Promise.all([getOptionalAccess(), getJobMapSummary()]);
   let primaryHref = "/sign-in";
   let primaryLabel = "Get started";
   if (access) {
@@ -169,27 +155,25 @@ export default async function HomePage() {
         </section>
 
         <section
-          className="aavedak-fade-up aavedak-fade-up-delay-2 mt-12 grid gap-2.5 sm:mt-16 sm:grid-cols-3"
-          aria-label="How Aavedak works"
+          className="aavedak-home-section aavedak-fade-up aavedak-fade-up-delay-2"
+          aria-labelledby="flow-heading"
         >
-          {steps.map((step) => (
-            <Card
-              key={step.n}
-              className="border-border/80 bg-card/80 gap-0 rounded-xl border p-4 shadow-sm backdrop-blur-sm"
+          <div className="mb-3.5 flex flex-col gap-1 sm:mb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+            <h2
+              id="flow-heading"
+              className="text-foreground text-[14px] font-semibold tracking-tight"
             >
-              <p className="text-primary font-mono text-[11px] font-semibold tracking-wide">
-                {step.n}
-              </p>
-              <h2 className="aavedak-section-title text-foreground mt-1">{step.title}</h2>
-              <p className="text-muted-foreground mt-1.5 text-[13px] leading-relaxed">
-                {step.body}
-              </p>
-            </Card>
-          ))}
+              How it works
+            </h2>
+            <p className="aavedak-meta text-muted-foreground">
+              Not a straight line — loop back to any step as often as you need
+            </p>
+          </div>
+          <HomeFlow />
         </section>
 
         <section
-          className="aavedak-fade-up aavedak-fade-up-delay-3 mt-12 sm:mt-16"
+          className="aavedak-home-section aavedak-fade-up aavedak-fade-up-delay-3"
           aria-labelledby="workspace-heading"
         >
           <div className="mb-3.5 flex flex-col gap-1 sm:mb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
@@ -223,6 +207,12 @@ export default async function HomePage() {
             ))}
           </div>
         </section>
+
+        {jobMap && jobMap.totalOpenings > 0 ? <HomeOpeningsSection summary={jobMap} /> : null}
+
+        <HomePromises />
+
+        <HomeFaq />
       </div>
     </div>
   );

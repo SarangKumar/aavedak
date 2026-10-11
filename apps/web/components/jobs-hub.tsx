@@ -62,6 +62,7 @@ import type { AtsEngineId } from "@/lib/ats-engines/types";
 import { saveAtsPrefill } from "@/lib/ats-prefill";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
 import type { JobDtoBase } from "@/lib/job-dto";
+import { locationFilterKeys, locationFilterLabel, matchCities } from "@/lib/job-map/locations";
 import { cn } from "@/lib/utils";
 import {
   clampJobsListWidth,
@@ -87,6 +88,10 @@ type JobsHubProps = {
   initialTab?: JobsTab;
   initialSort?: JobsSort;
   initialJobId?: string | null;
+  /** Location filter: a city id from lib/job-map/locations, "remote", or "all". */
+  initialLocation?: string;
+  /** Search box text from `?q=` (e.g. a city name linked from the homepage globe). */
+  initialQuery?: string;
   resumes: ResumeLite[];
   initialDiscover: JobDto[];
   initialApplied: JobDto[];
@@ -157,6 +162,8 @@ export function JobsHub({
   initialTab = "discover",
   initialSort = "newest",
   initialJobId = null,
+  initialLocation = "all",
+  initialQuery = "",
   resumes,
   initialDiscover,
   initialApplied,
@@ -172,9 +179,10 @@ export function JobsHub({
   );
 
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [locationFilter, setLocationFilter] = useState<string>(initialLocation);
   // Newest posting first by default; the toggle beside the tabs flips it.
   const [postedSort, setPostedSort] = useState<JobsSort>(initialSort);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const listPanelRef = useRef<PanelImperativeHandle | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -214,15 +222,40 @@ export function JobsHub({
     [sourceCounts],
   );
 
+  // Location keys per job (known cities + "remote"), shared with the homepage globe's matching.
+  const locationKeysById = useMemo(
+    () => new Map(jobs.map((job) => [job.id, locationFilterKeys(job.location)])),
+    [jobs],
+  );
+  const locationOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const keys of locationKeysById.values()) {
+      for (const key of keys) counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    // A filter opened from a link stays listed even when this tab has no jobs there.
+    if (locationFilter !== "all" && !counts.has(locationFilter)) counts.set(locationFilter, 0);
+    return [...counts.entries()]
+      .map(([key, count]) => ({ key, count, label: locationFilterLabel(key) ?? key }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }, [locationKeysById, locationFilter]);
+
+  // A search naming a known city also matches its other spellings ("Bengaluru" finds
+  // "bangalore, India"), using the same matching as the location menu.
+  const queryCities = useMemo(() => matchCities(query), [query]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const matches = jobs.filter((job) => {
       if (sourceFilter !== "all" && job.sourceLabel !== sourceFilter) return false;
+      if (locationFilter !== "all" && !locationKeysById.get(job.id)?.includes(locationFilter)) {
+        return false;
+      }
       if (!q) return true;
       return (
         job.title.toLowerCase().includes(q) ||
         job.company.toLowerCase().includes(q) ||
         job.location.toLowerCase().includes(q) ||
+        queryCities.some((city) => locationKeysById.get(job.id)?.includes(city)) ||
         job.description.toLowerCase().includes(q)
       );
     });
@@ -241,7 +274,7 @@ export function JobsHub({
       if (ta === null || tb === null) return (ta === null ? 1 : 0) - (tb === null ? 1 : 0);
       return (ta - tb) * direction;
     });
-  }, [jobs, query, sourceFilter, postedSort]);
+  }, [jobs, query, queryCities, sourceFilter, locationFilter, locationKeysById, postedSort]);
 
   const selected = filtered.find((j) => j.id === selectedId) ?? filtered[0] ?? null;
   const selectedJobId = selected?.id ?? null;
@@ -253,13 +286,18 @@ export function JobsHub({
       const url = new URL(window.location.href);
       url.searchParams.set("tab", tab);
       url.searchParams.set("sort", postedSort);
+      const q = query.trim();
+      if (q) url.searchParams.set("q", q);
+      else url.searchParams.delete("q");
+      if (locationFilter !== "all") url.searchParams.set("location", locationFilter);
+      else url.searchParams.delete("location");
       if (selectedJobId) url.searchParams.set("job", selectedJobId);
       else url.searchParams.delete("job");
       window.history.replaceState(window.history.state, "", url);
     } catch {
       // URL sync is a convenience; the board works without it.
     }
-  }, [tab, postedSort, selectedJobId]);
+  }, [tab, postedSort, query, locationFilter, selectedJobId]);
 
   function switchTab(next: string) {
     const value: JobsTab = next === "applied" ? "applied" : "discover";
@@ -593,7 +631,7 @@ export function JobsHub({
     }
   }
 
-  const boardQuery = `tab=${tab}&sort=${postedSort}${selected ? `&job=${encodeURIComponent(selected.id)}` : ""}`;
+  const boardQuery = `tab=${tab}&sort=${postedSort}${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}${locationFilter !== "all" ? `&location=${encodeURIComponent(locationFilter)}` : ""}${selected ? `&job=${encodeURIComponent(selected.id)}` : ""}`;
 
   const listPane = (
     <>
@@ -743,6 +781,24 @@ export function JobsHub({
             {sourceOptions.map((key) => (
               <SelectItem key={key} value={key} className="text-[12px]">
                 {key} ({sourceCounts[key] ?? 0})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={locationFilter} onValueChange={(v) => setLocationFilter(v || "all")}>
+          <SelectTrigger
+            className="h-8 w-44 rounded-md border px-2.5 text-[12px]"
+            aria-label="Filter by location"
+          >
+            <SelectValue placeholder="All locations" />
+          </SelectTrigger>
+          <SelectContent className="z-240">
+            <SelectItem value="all" className="text-[12px]">
+              All locations ({jobs.length})
+            </SelectItem>
+            {locationOptions.map((option) => (
+              <SelectItem key={option.key} value={option.key} className="text-[12px]">
+                {option.label} ({option.count})
               </SelectItem>
             ))}
           </SelectContent>

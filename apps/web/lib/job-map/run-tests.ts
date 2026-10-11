@@ -1,0 +1,115 @@
+/**
+ * Job-map location parsing tests (plain node:assert, no framework).
+ * Run: npx --yes tsx lib/job-map/run-tests.ts   (from apps/web)
+ */
+import assert from "node:assert/strict";
+
+import {
+  isRemoteLocation,
+  jobsSearchHref,
+  locationFilterKeys,
+  locationFilterLabel,
+  matchCities,
+  summarizeJobLocations,
+} from "./locations";
+
+function testMatchCities() {
+  // Real strings seen in the shared feed.
+  assert.deepEqual(matchCities("bangalore, India"), ["bengaluru"]);
+  assert.deepEqual(matchCities("Bengaluru, KA, India"), ["bengaluru"]);
+  assert.deepEqual(matchCities("IN-Pune"), ["pune"]);
+  assert.deepEqual(matchCities("Bengaluru · Bengaluru, Karnataka, India"), ["bengaluru"]);
+  assert.deepEqual(matchCities("Bengaluru · New Delhi · Mumbai"), ["bengaluru", "mumbai", "delhi"]);
+  assert.deepEqual(matchCities("India · Hyderabad, Telangana, India"), ["hyderabad"]);
+  assert.deepEqual(matchCities("Bangalore, India; Remote, Poland · India"), ["bengaluru"]);
+  // "hosur road" is a Bengaluru road, not the town of Hosur.
+  assert.deepEqual(matchCities("hosur road bangalore, India"), ["bengaluru"]);
+  assert.deepEqual(matchCities("Hosur, TN, India"), ["hosur"]);
+  // Unknown towns and bare country names are not guessed.
+  assert.deepEqual(matchCities("Kurli, MH, India"), []);
+  assert.deepEqual(matchCities("India"), []);
+  assert.deepEqual(matchCities(""), []);
+  // Whole words only.
+  assert.deepEqual(matchCities("Punesque Labs, Goalpara"), []);
+}
+
+function testRemote() {
+  assert.ok(isRemoteLocation("Remote, Global"));
+  assert.ok(isRemoteLocation("Remote - India"));
+  assert.ok(!isRemoteLocation("India Locations"));
+}
+
+function testSummary() {
+  const summary = summarizeJobLocations([
+    { location: "bangalore, India", count: 20 },
+    { location: "Bengaluru, KA, India", count: 8 },
+    { location: "coimbatore, India", count: 14 },
+    { location: "Mysuru, KA, India", count: 1 },
+    { location: "Bengaluru · New Delhi · Mumbai", count: 1 },
+    { location: "Remote, APAC", count: 2 },
+    { location: "India", count: 3 },
+    { location: "Kurli, MH, India", count: 1 },
+    { location: "ignored", count: 0 },
+  ]);
+  assert.equal(summary.totalOpenings, 50);
+  assert.equal(summary.remoteCount, 2);
+  assert.equal(summary.elsewhereCount, 4);
+
+  const byId = Object.fromEntries(summary.cities.map((c) => [c.id, c]));
+  assert.equal(byId.bengaluru.count, 29); // multi-city role counts in each city
+  assert.equal(byId.delhi.count, 1);
+  assert.equal(summary.cities[0].id, "bengaluru"); // sorted by count
+
+  // Coimbatore is ~2° from Bengaluru: its label flips below. Mysuru sits between them,
+  // so it stays a dot only.
+  assert.equal(byId.bengaluru.label, "top");
+  assert.equal(byId.coimbatore.label, "bottom");
+  assert.equal(byId.mysuru.label, null);
+  // Far-away cities keep the default side.
+  assert.equal(byId.delhi.label, "top");
+
+  const empty = summarizeJobLocations([]);
+  assert.deepEqual(empty, {
+    cities: [],
+    totalOpenings: 0,
+    remoteCount: 0,
+    elsewhereCount: 0,
+    companyCount: 0,
+  });
+}
+
+function testCompanyCounts() {
+  const summary = summarizeJobLocations([
+    { location: "Bangalore", count: 2, company: "Acme" },
+    { location: "Bengaluru, KA", count: 1, company: "acme " },
+    { location: "Bengaluru", count: 1, company: "Zeta" },
+    { location: "Pune", count: 1, company: "Acme" },
+    { location: "Remote, APAC", count: 1, company: "Orbit" },
+  ]);
+  const blr = summary.cities.find((c) => c.id === "bengaluru")!;
+  assert.equal(blr.count, 4);
+  assert.equal(blr.companyCount, 2); // Acme counted once, whatever the casing
+  assert.equal(summary.cities.find((c) => c.id === "pune")!.companyCount, 1);
+  assert.equal(summary.companyCount, 3); // includes companies hiring remote only
+}
+
+function testLocationFilter() {
+  assert.deepEqual(locationFilterKeys("Bangalore, India; Remote, Poland · India"), [
+    "bengaluru",
+    "remote",
+  ]);
+  assert.deepEqual(locationFilterKeys("Remote, APAC"), ["remote"]);
+  assert.deepEqual(locationFilterKeys("India"), []);
+  assert.equal(locationFilterLabel("bengaluru"), "Bengaluru");
+  assert.equal(locationFilterLabel("remote"), "Remote");
+  assert.equal(locationFilterLabel("atlantis"), null);
+  assert.equal(jobsSearchHref("Bengaluru"), "/jobs?q=Bengaluru");
+  assert.equal(jobsSearchHref("New Delhi"), "/jobs?q=New%20Delhi");
+}
+
+testMatchCities();
+testLocationFilter();
+testRemote();
+testSummary();
+testCompanyCounts();
+console.log("job-map tests passed");

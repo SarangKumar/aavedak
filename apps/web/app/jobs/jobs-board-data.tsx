@@ -5,6 +5,7 @@ import { requireOnboarded } from "@/lib/app-access";
 import { toJobDto } from "@/lib/job-dto";
 import { listJobScores } from "@/lib/job-scoring";
 import { listAppliedJobs, listDiscoverJobs } from "@/lib/jobs";
+import { locationFilterLabel } from "@/lib/job-map/locations";
 import { getPreferences } from "@/lib/preferences";
 import { listResumes } from "@/lib/resumes";
 import { JOBS_LIST_WIDTH_COOKIE, parseJobsListWidth } from "@/lib/jobs-list-width";
@@ -13,6 +14,8 @@ export type JobsSearchParams = Promise<{
   tab?: string | string[];
   job?: string | string[];
   sort?: string | string[];
+  location?: string | string[];
+  q?: string | string[];
 }>;
 
 function first(value: string | string[] | undefined): string | undefined {
@@ -45,6 +48,10 @@ export async function JobsBoard({
   const pool = initialTab === "applied" ? applied : discover;
   const requested = first(params.job);
   const initialJobId = requested && pool.some((j) => j.id === requested) ? requested : null;
+  // Only known city ids / "remote" (as linked from the homepage globe); anything else = all.
+  const requestedLocation = first(params.location)?.toLowerCase();
+  const initialLocation =
+    requestedLocation && locationFilterLabel(requestedLocation) ? requestedLocation : "all";
 
   return (
     <JobsHub
@@ -53,6 +60,8 @@ export async function JobsBoard({
       initialTab={initialTab}
       initialSort={initialSort}
       initialJobId={initialJobId}
+      initialLocation={initialLocation}
+      initialQuery={(first(params.q) ?? "").slice(0, 200)}
       initialDiscover={discover.map((job) => toJobDto(job, byJob.get(job.id)))}
       initialApplied={applied.map((job) => toJobDto(job, byJob.get(job.id)))}
       discoveryEnabled={prefs.discoveryEnabled}
