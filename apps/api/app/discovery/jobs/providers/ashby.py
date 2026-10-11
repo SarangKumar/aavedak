@@ -6,6 +6,7 @@ from typing import Any
 
 import httpx
 
+from app.discovery.jobs import salary
 from app.discovery.jobs.models import FetchResult, RawPosting, SourceTarget
 from app.discovery.jobs.providers.base import ProviderError, as_dict, as_list, get_json, text_or_none
 
@@ -40,6 +41,7 @@ def parse(payload: Any, target: SourceTarget) -> list[RawPosting]:
                 posted_at=job.get("publishedAt"),
                 employment_type=text_or_none(job.get("employmentType")),
                 remote=bool(job.get("isRemote")),
+                salary=salary.from_ashby(job.get("compensation")),
             )
         )
     return out
@@ -49,7 +51,9 @@ class AshbyProvider:
     key = "ashby"
 
     def fetch(self, client: httpx.Client, target: SourceTarget) -> FetchResult:
-        payload = get_json(client, API.format(token=target.token))
+        payload = get_json(
+            client, API.format(token=target.token), params={"includeCompensation": "true"}
+        )
         if not isinstance(payload, dict) or "jobs" not in payload:
             raise ProviderError("Unexpected Ashby payload.")
         return FetchResult(parse(payload, target))

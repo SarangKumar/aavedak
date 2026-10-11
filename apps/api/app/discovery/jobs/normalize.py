@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from app.discovery.jobs import filters
+from app.discovery.jobs import filters, salary
 from app.discovery.jobs.email_extractor import best_application_email
 from app.discovery.jobs.models import NormalizedJob, RawPosting
 from app.discovery.jobs.text import clean_line, content_hash, dedupe_key, html_to_text
@@ -45,6 +45,17 @@ def display_location(locations: list[str]) -> str:
     return " · ".join(seen[:3])[:MAX_LOCATION] or "India"
 
 
+def _stated_salary(posting: RawPosting, description: str) -> str | None:
+    """Pay the company states: the provider's structured figure first, else an explicitly
+    labelled line in the posting text. A foreign-currency band on an India-located job is
+    dropped (see salary.applies_to_location)."""
+    india_located = filters.is_india(posting.locations, posting.country_code)
+    for info in (posting.salary, salary.from_text(description)):
+        if info and salary.applies_to_location(info, india_located=india_located):
+            return info.text
+    return None
+
+
 def normalize_postings(
     postings: list[RawPosting],
     *,
@@ -77,6 +88,7 @@ def normalize_postings(
         company = clean_line(posting.company_name)[:200]
         location = display_location(posting.locations)
         posted_at = clamp_posted_at(posting.posted_at, now)
+        pay = _stated_salary(posting, description)
         hashed = {
             "title": title,
             "company": company,
@@ -84,6 +96,7 @@ def normalize_postings(
             "url": url,
             "posted_at": posted_at,
             "description": description if posting.hash_description else None,
+            "salary": pay,
         }
         result.jobs.append(
             NormalizedJob(
@@ -98,6 +111,7 @@ def normalize_postings(
                 dedupe_key=dedupe_key(company, title, location),
                 content_hash=content_hash(hashed),
                 apply_email=best_application_email(description),
+                salary=pay,
             )
         )
     return result

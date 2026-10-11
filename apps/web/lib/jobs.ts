@@ -127,6 +127,17 @@ export async function getJobById(id: string): Promise<JobRecord | null> {
   return rows[0] ? mapJobRow(rows[0]) : null;
 }
 
+/** Batch lookup by id in one query; missing ids are simply absent from the map. */
+export async function getJobsByIds(ids: string[]): Promise<Map<string, JobRecord>> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  await ensureAppSchema();
+  const rows = (await getSql()`
+    SELECT * FROM jobs WHERE id = ANY(${unique})
+  `) as Row[];
+  return new Map(rows.map((row) => [row.id, mapJobRow(row)]));
+}
+
 export async function getJob(userId: string, id: string): Promise<JobRecord | null> {
   const job = await getJobById(id);
   if (!job) return null;

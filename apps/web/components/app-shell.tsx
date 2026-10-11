@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { CommandPalette } from "@/components/command-palette";
+import { NavigationProgress } from "@/components/navigation-progress";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/ui/toast";
@@ -14,6 +15,10 @@ type AppShellProps = {
 export function AppShell({ children, className }: AppShellProps) {
   return (
     <div className={cn("flex min-h-screen flex-col", className)}>
+      {/* Instant click feedback; Suspense because it reads useSearchParams. */}
+      <Suspense fallback={null}>
+        <NavigationProgress />
+      </Suspense>
       {/* Streamed: the header's session lookup must not hold up the page shell. */}
       <Suspense fallback={<div className="h-14 shrink-0 border-b" />}>
         <SiteHeader />

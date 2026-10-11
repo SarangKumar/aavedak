@@ -138,7 +138,9 @@ class ImportSourcesBody(BaseModel):
 
 
 class SourcePatch(BaseModel):
-    enabled: bool
+    enabled: bool | None = None
+    # The company's own careers page; "" or null clears it. Omit to leave it unchanged.
+    officialCareersUrl: str | None = None
 
 
 class ScanRunBody(BaseModel):
@@ -198,8 +200,19 @@ def admin_import_sources(body: ImportSourcesBody, conn: psycopg.Connection = Con
 
 @router.patch("/admin/sources/{source_id}", dependencies=[Auth])
 def admin_patch_source(source_id: str, body: SourcePatch, conn: psycopg.Connection = Conn) -> dict[str, Any]:
-    if not registry.set_enabled(conn, source_id, body.enabled):
-        raise HTTPException(status_code=404, detail="Source not found.")
+    fields = body.model_fields_set
+    if not fields & {"enabled", "officialCareersUrl"}:
+        raise HTTPException(status_code=400, detail="Nothing to update.")
+    if "enabled" in fields and body.enabled is not None:
+        if not registry.set_enabled(conn, source_id, body.enabled):
+            raise HTTPException(status_code=404, detail="Source not found.")
+    if "officialCareersUrl" in fields:
+        try:
+            found = registry.set_official_url(conn, source_id, body.officialCareersUrl)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if not found:
+            raise HTTPException(status_code=404, detail="Source not found.")
     return {"ok": True}
 
 

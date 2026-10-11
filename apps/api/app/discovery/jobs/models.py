@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from app.discovery.jobs.salary import SalaryInfo
+
 PROVIDERS = ("greenhouse", "lever", "ashby", "workable", "smartrecruiters", "jsonld", "json_feed")
 
 
@@ -17,6 +19,11 @@ class SourceTarget:
     token: str
     careers_url: str
     company_id: str | None = None
+    # The company's own careers page (primary source of truth), when known. Read on each
+    # scan alongside the board when it publishes job data; see scan.py.
+    official_careers_url: str | None = None
+    official_status: str | None = None
+    official_checked_at: str | None = None
 
 
 @dataclass
@@ -39,6 +46,8 @@ class RawPosting:
     # False when the provider only sometimes supplies a description (SmartRecruiters):
     # the content hash then ignores it and an empty description never overwrites a stored one.
     hash_description: bool = True
+    # Pay the provider publishes in structured form (normalize also reads the posting text).
+    salary: SalaryInfo | None = None
 
 
 @dataclass
@@ -57,6 +66,8 @@ class NormalizedJob:
     content_hash: str
     # Application / recruiting email published in the posting text, if any (never guessed).
     apply_email: str | None = None
+    # Salary / stipend the company states, as display text (never estimated).
+    salary: str | None = None
 
 
 @dataclass
@@ -65,3 +76,6 @@ class FetchResult:
     # False when the provider list was truncated (paging cap); then missing postings
     # must not be treated as closed.
     complete: bool = True
+    # Where the board's postings actually live when that is the company's own site (e.g.
+    # Greenhouse `absolute_url` on careers.airbnb.com): a hint for the official careers page.
+    official_url_hint: str | None = None

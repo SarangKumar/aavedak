@@ -51,6 +51,8 @@ export type DashboardMatch = {
   postedAtEstimated: boolean;
   firstSeenAt: string | null;
   matchedSkills: string[];
+  /** Salary / stipend the company states in the posting, if any (never estimated). */
+  salary: string | null;
 };
 
 export type DashboardStaleApplication = {
@@ -199,6 +201,7 @@ export const getTopMatches = cache(
         postedAtEstimated: job.postedAtEstimated,
         firstSeenAt: job.firstSeenAt,
         matchedSkills: Array.isArray(job.reasons.skills) ? job.reasons.skills.slice(0, 4) : [],
+        salary: job.salary,
       }));
     return { items, newThisWeek };
   },

@@ -26,9 +26,22 @@ forwards admin actions to `/svc/v1/discovery/admin/*` after its own allowlist ch
   crawling), and optional permitted JSON feeds. LinkedIn, Indeed, Glassdoor, Naukri,
   Foundit, Instahyre, Cutshort, and Wellfound have no permitted read access and are **not**
   scraped. NCS has no public listings API.
+- **The company's own careers page is the primary source of truth.** Each source tracks
+  its official careers page (`company_sources.official_careers_url`, see "Official careers
+  pages" below); discovery reads it on every scan and a job links to it whenever it lists
+  the job. Hiring-platform APIs stay the reliable reader underneath.
 - Every stored job keeps its **original posting URL** (`jobs.url`, plus each source's link in
   `job_sources.url`); postings without a valid http(s) link are skipped (`missing_url`), never
   stored. The UI shows the link on every job card.
+- **Salary / stipend is shown only when the company states it** (`jobs.salary`, display
+  text; `jobs/salary.py`): structured pay a provider publishes (Greenhouse
+  `pay_input_ranges` via `pay_transparency=true`, Lever `salaryRange`, Ashby compensation via
+  `includeCompensation=true`, schema.org `baseSalary`), else an explicitly labelled figure in
+  the posting text ("Stipend: ₹25,000/month", "CTC 6-8 LPA"). Wording without a figure
+  ("competitive salary") yields nothing. A non-INR band on an India-located job is dropped
+  unless labelled for India (boards often publish another country's band). Salary is part of
+  the content hash; an update without pay never erases a stated one, and a duplicate from
+  another source only fills pay when none is known.
 - Never invent jobs, emails, or verification. Imported emails are `unverified`; phone
   numbers are never imported. Emails are only ever _extracted_ from text that is actually
   published (a posting's description, a CSV, manual entry) — they are never _inferred_ or
@@ -49,6 +62,7 @@ app/discovery/
     models.py    SourceTarget, RawPosting, NormalizedJob, FetchResult
     providers/   one module per source; pure parse() + fetch(); detect_source(url)
     filters.py   India-or-remote / tech role / junior / experience parsing (pure)
+    salary.py    stated salary / stipend from provider pay data or labelled text (pure)
     email_extractor.py  pull published emails from posting text; pick one application inbox (pure)
     normalize.py RawPosting → NormalizedJob + content hash + dedupe key + apply_email
     store.py     per-company incremental upsert, close/reopen
@@ -85,10 +99,15 @@ Per company source (one run item):
    overwrites); unchanged → bump `last_seen_at`; missing from a **complete** fetch →
    `closed_at` (unless another source listed it in the last 36h); reappears → reopened.
    Postings already older than the expiry window are never stored.
-4. `ranking.recommend(job_ids=new)` → `user_job_state` rows (`recommended_at`, score,
+4. **Official careers page** (when set and due — see below): read its schema.org
+   `JobPosting` data with the `jsonld` provider as source `official-{token}` of the same
+   company source, using the board's company name so roles merge, and ingest it after the
+   board (`complete=False`: a page read never closes jobs).
+5. `ranking.recommend(job_ids=new)` → `user_job_state` rows (`recommended_at`, score,
    reasons) + `job_scores`, respecting each user's daily cap and Profile setting.
-5. `people.store.link_jobs_to_company_people` refreshes `job_person_relevance`.
-6. `registry.record_scan` stores counts / last error on the source.
+6. `people.store.link_jobs_to_company_people` refreshes `job_person_relevance`.
+7. `registry.record_official` stores the page read status (and a detected page URL);
+   `registry.record_scan` stores counts (incl. `officialPage`) / last error on the source.
 
 ## Runs, ticks, crons (Vercel Hobby)
 
@@ -106,6 +125,32 @@ Per company source (one run item):
 - Sources split into shards by `shard_seed % DISCOVERY_SHARDS`. Sources with
   `DISCOVERY_MAX_FAILURES` consecutive failures are retried weekly only.
 - The admin page drives ticks while open (`POST /admin/tick`); closing it is safe.
+
+## Official careers pages
+
+`company_sources.official_careers_url` (+ `official_careers_origin`: `seed` | `admin` |
+`detected`, `official_status`: `ok` | `no_job_data` | `blocked` | `error`,
+`official_checked_at`). Where the URL comes from:
+
+- **seed** — `officialCareersUrl` in `career_sources.json` (fills an empty column on seed
+  import; `scripts/export_admin_sources.py` carries it for admin sources);
+- **admin** — set or cleared per source in the Admin page's Sources sheet (`PATCH
+/admin/sources/{id}` with `officialCareersUrl`);
+- **detected** — when ≥ 80 % of a Greenhouse board's postings link to one non-Greenhouse
+  host (e.g. `careers.airbnb.com`), that site's root is recorded. Never overwrites a known
+  page.
+
+Reading: one page, no crawling, robots.txt respected (`jsonld.robots_allows`). A page with
+no `JobPosting` data (usually rendered with JavaScript) or blocked by robots.txt is re-read
+weekly instead of every scan (`registry.official_page_due`); a failing page never fails the
+board scan. Sources whose provider already is `jsonld` are career pages themselves.
+
+Preference rules in `store.ingest_company`: a page posting links to an existing job by dedupe
+key **or exact URL** (catches spelling differences such as Bangalore / Bengaluru when the
+board already points at the company's site); when a `jsonld` source lists a job, the job's
+`url` becomes that page link, and later board updates never replace it. A board's complete
+scan only closes jobs through its **own** provider's refs, so it never closes a role that
+only the careers page lists (those still expire normally).
 
 ## Expiry
 
@@ -178,7 +223,7 @@ seed import (`POST /admin/sources/import` with `seed: true`, which inserts missi
 
 ```bash
 cd apps/api
-.venv/bin/python -m pytest tests/test_discovery_jobs.py tests/test_discovery_people.py -q
+.venv/bin/python -m pytest tests/test_discovery_jobs.py tests/test_discovery_people.py tests/test_discovery_salary_official.py -q
 # SQL paths need a disposable Postgres (superuser URL; a temp database is created per module):
 TEST_DATABASE_URL=postgresql://... .venv/bin/python -m pytest tests/test_discovery_db.py -q
 ```

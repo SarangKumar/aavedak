@@ -13,8 +13,10 @@ export const metadata: Metadata = {
 
 export default async function PeoplePage() {
   const { user } = await requireOnboarded();
-  const people = await listPeople({ includeArchived: true });
-  const applications = await listApplications(user.id, "active");
+  const [people, applications] = await Promise.all([
+    listPeople({ includeArchived: true }),
+    listApplications(user.id, "active"),
+  ]);
   const votes = await getVoteSummaries(
     user.id,
     people.map((p) => p.id),

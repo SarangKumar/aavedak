@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -21,10 +20,11 @@ import {
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
 import { authClient, signOutAndRedirect } from "@/lib/auth-client";
+import { useAppNavigate } from "@/lib/navigation-progress";
 import { themeCookieString, THEME_KEY, type ThemeMode } from "@/lib/theme";
 
 export function CommandPalette() {
-  const router = useRouter();
+  const { navigate, prefetch } = useAppNavigate();
   const { data: session } = authClient.useSession();
   const signedIn = Boolean(session?.user);
   const [open, setOpen] = useState(false);
@@ -40,12 +40,27 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  // Warm the workspace routes (and their loading skeletons) as soon as the palette opens.
+  useEffect(() => {
+    if (!open || !signedIn) return;
+    prefetch(
+      "/dashboard",
+      "/jobs",
+      "/job-tracker",
+      "/documents",
+      "/referrals",
+      "/ats",
+      "/people",
+      "/outreach",
+    );
+  }, [open, signedIn, prefetch]);
+
   const go = useCallback(
     (href: string) => {
       setOpen(false);
-      router.push(href);
+      navigate(href);
     },
-    [router],
+    [navigate],
   );
 
   function setTheme(mode: ThemeMode) {

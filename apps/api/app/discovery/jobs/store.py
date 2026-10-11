@@ -9,6 +9,9 @@ transaction per company:
   unchanged          → bump last_seen_at only
   missing from a complete fetch → closed_at set (reopened if it reappears)
 
+The company's own careers page is the primary source of truth: when a career-page source
+(`jsonld`) lists a job, the job links there, and board updates never replace that link.
+
 Expiry itself is handled by jobs/expiry.py.
 """
 
@@ -37,6 +40,8 @@ class IngestStats:
     unchanged: int = 0
     closed: int = 0
     reopened: int = 0
+    # Jobs whose link now points at the company's own careers page.
+    official_links: int = 0
     skipped: Counter = field(default_factory=Counter)
     new_job_ids: list[str] = field(default_factory=list)
 
@@ -48,6 +53,7 @@ class IngestStats:
             "unchanged": self.unchanged,
             "closed": self.closed,
             "reopened": self.reopened,
+            "officialLinks": self.official_links,
             "skipped": dict(self.skipped),
         }
 
@@ -134,13 +140,28 @@ def ingest_company(
                     (keys,),
                 ).fetchall()
             }
-            job_rows, source_rows, link_dates = [], [], []
+            # A career-page posting with the exact URL of a stored job (e.g. a Greenhouse job
+            # hosted on the company's own site) is the same role, however its title or city
+            # is spelled on the page.
+            by_url: dict[str, str] = {}
+            if provider == "jsonld":
+                by_url = {
+                    r["url"]: r["id"]
+                    for r in conn.execute(
+                        """SELECT url, id FROM jobs
+                           WHERE user_id IS NULL AND expired_at IS NULL AND url = ANY(%s)""",
+                        ([j.url for j in new_jobs if j.url],),
+                    ).fetchall()
+                }
+            job_rows, source_rows, link_dates, link_salaries = [], [], [], []
             for job in new_jobs:
-                job_id = canonical.get(job.dedupe_key)
+                job_id = canonical.get(job.dedupe_key) or by_url.get(job.url or "")
                 if job_id:
                     stats.linked += 1
                     if job.posted_at:
                         link_dates.append({"id": job_id, "p": job.posted_at})
+                    if job.salary:
+                        link_salaries.append({"id": job_id, "salary": job.salary})
                 else:
                     job_id = new_id()
                     canonical[job.dedupe_key] = job_id  # later in-batch duplicates link here
@@ -149,7 +170,8 @@ def ingest_company(
                     job_rows.append(
                         (
                             job_id, job.title, job.company_name, company_id_for(job.company_name),
-                            job.location, job.url, job.description, job.external_id, provider,
+                            job.location, job.url, job.description, job.salary, job.external_id,
+                            provider,
                             now, now, job.posted_at, 0 if job.posted_at else 1, now,
                             job.dedupe_key, job.min_years, job.apply_email,
                         )
@@ -168,7 +190,7 @@ def ingest_company(
                               description, salary, status, external_id, feed_source, created_at,
                               updated_at, posted_at, posted_at_estimated, first_seen_at,
                               dedupe_key, min_years, apply_email)
-                           VALUES (%s, NULL, %s, %s, %s, %s, 'careers', %s, %s, NULL, 'active',
+                           VALUES (%s, NULL, %s, %s, %s, %s, 'careers', %s, %s, %s, 'active',
                                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                            ON CONFLICT DO NOTHING""",
                         job_rows,
@@ -203,6 +225,13 @@ def ingest_company(
                            WHERE id = %(id)s AND (posted_at IS NULL OR %(p)s::text < posted_at)""",
                         link_dates,
                     )
+                if link_salaries:
+                    # The same role on another source: fill pay only if none is known yet.
+                    cur.executemany(
+                        """UPDATE jobs SET salary = %(salary)s
+                           WHERE id = %(id)s AND salary IS NULL""",
+                        link_salaries,
+                    )
 
         # --- changed postings: update in place ---------------------------------------
         if changed:
@@ -210,7 +239,13 @@ def ingest_company(
                 cur.executemany(
                     """UPDATE jobs SET
                          title = %(title)s, company = %(company)s, company_id = %(company_id)s,
-                         location = %(location)s, url = %(url)s,
+                         location = %(location)s,
+                         -- A link to the company's own careers page (jsonld source) wins
+                         -- over board links.
+                         url = CASE WHEN %(provider)s <> 'jsonld' AND EXISTS (
+                                      SELECT 1 FROM job_sources s
+                                      WHERE s.job_id = jobs.id AND s.source_key = 'jsonld')
+                                    THEN url ELSE %(url)s END,
                          description = CASE WHEN %(description)s::text = '' THEN description
                                             ELSE %(description)s::text END,
                          posted_at_estimated = CASE WHEN COALESCE(posted_at, %(p)s::text) IS NULL
@@ -220,6 +255,9 @@ def ingest_company(
                                           THEN %(p)s::text ELSE posted_at END,
                          dedupe_key = %(dedupe_key)s, min_years = %(min_years)s,
                          apply_email = COALESCE(apply_email, %(apply_email)s),
+                         -- Keep a stated salary when an update has none (e.g. the text
+                         -- came without its description) rather than erasing it.
+                         salary = COALESCE(%(salary)s, salary),
                          updated_at = %(now)s
                        WHERE id = %(id)s AND user_id IS NULL""",
                     [
@@ -228,7 +266,8 @@ def ingest_company(
                             "company_id": company_id_for(j.company_name), "location": j.location,
                             "url": j.url, "description": j.description, "p": j.posted_at,
                             "dedupe_key": j.dedupe_key, "min_years": j.min_years,
-                            "apply_email": j.apply_email, "now": now,
+                            "apply_email": j.apply_email, "salary": j.salary,
+                            "provider": provider, "now": now,
                         }
                         for j, job_id in changed
                     ],
@@ -255,13 +294,28 @@ def ingest_company(
             )
             stats.reopened = reopened.rowcount or 0
 
+            if provider == "jsonld":
+                # Listed on the company's own careers page: link the job there.
+                preferred = conn.execute(
+                    """UPDATE jobs j SET url = s.url, updated_at = %s
+                       FROM job_sources s
+                       WHERE s.job_id = j.id AND s.source_key = 'jsonld'
+                         AND s.external_id = ANY(%s) AND s.url IS NOT NULL
+                         AND j.user_id IS NULL AND j.url IS DISTINCT FROM s.url""",
+                    (now, ids),
+                )
+                stats.official_links = preferred.rowcount or 0
+
         # --- close jobs this source no longer lists (only after a complete fetch) -------
         if complete:
             closed = conn.execute(
                 """UPDATE jobs j SET closed_at = %(now)s, updated_at = %(now)s
                    WHERE j.user_id IS NULL AND j.closed_at IS NULL
+                     -- Only this provider's refs: a board scan must not close jobs that
+                     -- the same company's careers page (jsonld) lists.
                      AND j.id IN (SELECT job_id FROM job_sources
-                                  WHERE company_source_id = %(cs)s AND last_seen_at < %(scan)s)
+                                  WHERE company_source_id = %(cs)s AND source_key = %(provider)s
+                                    AND last_seen_at < %(scan)s)
                      AND NOT EXISTS (
                        SELECT 1 FROM job_sources s2
                        WHERE s2.job_id = j.id
@@ -270,6 +324,7 @@ def ingest_company(
                 {
                     "now": now,
                     "cs": target.id,
+                    "provider": provider,
                     "scan": scan_started_at,
                     "recent": iso_minus(OTHER_SOURCE_RECENT_SECONDS),
                 },

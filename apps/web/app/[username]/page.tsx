@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 
 import { ProfileOwner } from "@/components/profile-owner";
 import { ProfileView } from "@/components/profile-view";
 import { getOptionalAccess } from "@/lib/app-access";
 import { getPreferences } from "@/lib/preferences";
-import { getProfileByUsername } from "@/lib/profile";
+import { getProfileByUsername as loadProfileByUsername } from "@/lib/profile";
 import { getActiveResume, listResumes } from "@/lib/resumes";
 
 type Props = { params: Promise<{ username: string }> };
+
+// generateMetadata and the page both need the profile; share one query per request.
+const getProfileByUsername = cache(loadProfileByUsername);
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params;
@@ -26,9 +30,11 @@ export default async function ProfilePage({ params }: Props) {
   const profile = await getProfileByUsername(username);
   if (!profile) notFound();
 
-  const access = await getOptionalAccess();
+  const [access, active] = await Promise.all([
+    getOptionalAccess(),
+    getActiveResume(profile.userId),
+  ]);
   const isOwner = access?.user.id === profile.userId;
-  const active = await getActiveResume(profile.userId);
 
   if (!isOwner) {
     return (
@@ -41,15 +47,17 @@ export default async function ProfilePage({ params }: Props) {
     );
   }
 
-  const resumes = (await listResumes(profile.userId, { includeArchived: false })).map((r) => ({
+  const [resumeRows, preferences] = await Promise.all([
+    listResumes(profile.userId, { includeArchived: false }),
+    getPreferences(profile.userId),
+  ]);
+  const resumes = resumeRows.map((r) => ({
     id: r.id,
     displayName: r.displayName,
     status: r.status,
     originalFilename: r.originalFilename,
     byteSize: r.byteSize,
   }));
-
-  const preferences = await getPreferences(profile.userId);
 
   return (
     <ProfileOwner

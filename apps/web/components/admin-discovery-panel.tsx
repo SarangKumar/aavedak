@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -102,6 +103,18 @@ type SourceDto = {
   lastError: string | null;
   consecutiveFailures: number;
   lastCounts: { fetched?: number; kept?: number; inserted?: number };
+  /** The company's own careers page — the primary source of truth, read on each scan. */
+  officialCareersUrl: string | null;
+  officialCareersOrigin: "seed" | "admin" | "detected" | null;
+  officialStatus: "ok" | "no_job_data" | "blocked" | "error" | null;
+  officialCheckedAt: string | null;
+};
+
+const OFFICIAL_STATUS_LABELS: Record<NonNullable<SourceDto["officialStatus"]>, string> = {
+  ok: "job data read",
+  no_job_data: "no job data on the page (checked weekly)",
+  blocked: "robots.txt blocks reading it (checked weekly)",
+  error: "could not read it last time",
 };
 
 const RUN_LABELS: Record<string, string> = {
@@ -836,6 +849,9 @@ function SourcesSheet({
   const [importText, setImportText] = useState("");
   // Keyed by action so only the pressed button shows its spinner; the other just disables.
   const [pendingImport, setPendingImport] = useState<"urls" | "seed" | null>(null);
+  // Official careers page editor: one source at a time.
+  const [editingOfficial, setEditingOfficial] = useState<{ id: string; url: string } | null>(null);
+  const [savingOfficialId, setSavingOfficialId] = useState<string | null>(null);
 
   const load = useCallback(async (q: string) => {
     const res = await fetch(`/api/admin/discovery/sources?q=${encodeURIComponent(q)}&limit=200`, {
@@ -863,6 +879,27 @@ function SourcesSheet({
       void load(query);
     } else {
       onChanged();
+    }
+  }
+
+  async function saveOfficial(source: SourceDto, url: string) {
+    setSavingOfficialId(source.id);
+    try {
+      const res = await fetch(`/api/admin/discovery/sources/${source.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ officialCareersUrl: url.trim() || null }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.add({ title: data.error || "Could not save the careers page", type: "error" });
+        return;
+      }
+      setEditingOfficial(null);
+      void load(query);
+      onChanged();
+    } finally {
+      setSavingOfficialId(null);
     }
   }
 
@@ -999,6 +1036,82 @@ function SourcesSheet({
                       >
                         {s.careersUrl}
                       </a>
+                      {editingOfficial?.id === s.id ? (
+                        <form
+                          className="mt-1 flex items-center gap-1.5"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            void saveOfficial(s, editingOfficial.url);
+                          }}
+                        >
+                          <Input
+                            value={editingOfficial.url}
+                            onChange={(e) => setEditingOfficial({ id: s.id, url: e.target.value })}
+                            placeholder="https://company.com/careers"
+                            aria-label={`Official careers page for ${s.companyName}`}
+                            className="h-7 text-[11px]"
+                            autoFocus
+                          />
+                          <Button
+                            type="submit"
+                            size="sm"
+                            className="h-7"
+                            loading={savingOfficialId === s.id}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-7"
+                            disabled={savingOfficialId === s.id}
+                            onClick={() => setEditingOfficial(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </form>
+                      ) : (
+                        <p className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-[11px]">
+                          <span className="text-foreground/80 font-medium">Careers page:</span>
+                          {s.officialCareersUrl ? (
+                            <>
+                              <a
+                                href={s.officialCareersUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="max-w-56 truncate hover:underline"
+                              >
+                                {s.officialCareersUrl}
+                              </a>
+                              {s.officialCareersOrigin ? (
+                                <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                                  {s.officialCareersOrigin}
+                                </Badge>
+                              ) : null}
+                              <span>
+                                ·{" "}
+                                {s.officialStatus
+                                  ? OFFICIAL_STATUS_LABELS[s.officialStatus]
+                                  : "not read yet"}
+                              </span>
+                            </>
+                          ) : (
+                            <span>not set</span>
+                          )}
+                          <Button
+                            type="button"
+                            variant="link"
+                            size="sm"
+                            className="h-auto text-[11px]"
+                            onClick={() =>
+                              setEditingOfficial({ id: s.id, url: s.officialCareersUrl ?? "" })
+                            }
+                          >
+                            {s.officialCareersUrl ? "Edit" : "Add"}
+                          </Button>
+                        </p>
+                      )}
                       <p className="text-muted-foreground text-[11px]">
                         {s.lastSuccessAt
                           ? `Last OK ${formatDateTimeFixed(s.lastSuccessAt)}`

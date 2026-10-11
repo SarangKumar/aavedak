@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { AdminNotificationsMenu } from "@/components/admin-notifications-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { signOutAndRedirect } from "@/lib/auth-client";
+import { useAppNavigate } from "@/lib/navigation-progress";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,7 +37,7 @@ function AdminStar({ className }: { className?: string }) {
 }
 
 export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
-  const router = useRouter();
+  const { navigate, prefetch } = useAppNavigate();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(user?.pendingApprovals ?? 0);
@@ -97,7 +97,14 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
       ) : null}
 
       {/* Vinyaas dropdown with its own styling, laid out like its "Account menu" example. */}
-      <DropdownMenu>
+      {/* Prefetch menu destinations on open so a click shows the route's skeleton instantly. */}
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (!open) return;
+          prefetch(profileHref, `${profileHref}/settings`, "/people", "/outreach");
+          if (user.isAdmin) prefetch("/admin");
+        }}
+      >
         <DropdownMenuTrigger>
           <Button
             type="button"
@@ -127,18 +134,18 @@ export function AuthHeaderActions({ user }: { user: HeaderUser | null }) {
           <DropdownMenuLabel>{user.name || user.email}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => router.push(profileHref)}>Profile</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push(`${profileHref}/settings`)}>
+            <DropdownMenuItem onClick={() => navigate(profileHref)}>Profile</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate(`${profileHref}/settings`)}>
               Settings
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuLabel>Workspace</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => router.push("/people")}>People</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push("/outreach")}>Outreach</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/people")}>People</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/outreach")}>Outreach</DropdownMenuItem>
             {user.isAdmin ? (
-              <DropdownMenuItem onClick={() => router.push("/admin")}>
+              <DropdownMenuItem onClick={() => navigate("/admin")}>
                 Admin
                 {pendingCount > 0 ? (
                   <DropdownMenuShortcut>{pendingCount} pending</DropdownMenuShortcut>

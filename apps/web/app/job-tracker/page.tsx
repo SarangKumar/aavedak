@@ -4,7 +4,7 @@ import { JobTrackerBoard } from "@/components/job-tracker-board";
 import { requireOnboarded } from "@/lib/app-access";
 import { listApplications } from "@/lib/applications";
 import { listCoverLetters } from "@/lib/cover-letters";
-import { getJobById } from "@/lib/jobs";
+import { getJobsByIds } from "@/lib/jobs";
 import { getPreferences, updatePreferences } from "@/lib/preferences";
 
 export const metadata: Metadata = {
@@ -16,29 +16,25 @@ export const metadata: Metadata = {
 export default async function JobTrackerPage() {
   const { user } = await requireOnboarded();
 
-  let preferences = await getPreferences(user.id);
-  if (preferences.trackerScope !== "active") {
-    preferences = await updatePreferences(user.id, { trackerScope: "active" });
-  }
-
-  const applications = await listApplications(user.id, "active");
-  const coverLetters = await listCoverLetters(user.id);
+  // Independent reads run in parallel; linked jobs come back in one batched query.
+  const [initialPreferences, applications, coverLetters] = await Promise.all([
+    getPreferences(user.id),
+    listApplications(user.id, "active"),
+    listCoverLetters(user.id),
+  ]);
+  const preferences =
+    initialPreferences.trackerScope === "active"
+      ? initialPreferences
+      : await updatePreferences(user.id, { trackerScope: "active" });
   const coversById = new Map(coverLetters.map((c) => [c.id, c]));
-
-  const jobCache = new Map<string, { title: string; company: string } | null>();
-  async function jobMeta(jobId: string | null) {
-    if (!jobId) return null;
-    if (jobCache.has(jobId)) return jobCache.get(jobId) ?? null;
-    const job = await getJobById(jobId);
-    const meta = job ? { title: job.title, company: job.company } : null;
-    jobCache.set(jobId, meta);
-    return meta;
-  }
+  const jobsById = await getJobsByIds(
+    applications.flatMap((app) => (app.jobId ? [app.jobId] : [])),
+  );
 
   const initialApplications = [];
   for (const app of applications) {
     const cover = app.coverLetterId ? coversById.get(app.coverLetterId) : undefined;
-    const linkedJob = await jobMeta(app.jobId);
+    const linkedJob = app.jobId ? jobsById.get(app.jobId) : undefined;
     initialApplications.push({
       id: app.id,
       companyName: app.companyName,

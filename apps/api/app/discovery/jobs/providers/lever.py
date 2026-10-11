@@ -6,8 +6,10 @@ from typing import Any
 
 import httpx
 
+from app.discovery.jobs import salary
 from app.discovery.jobs.models import FetchResult, RawPosting, SourceTarget
 from app.discovery.jobs.providers.base import ProviderError, as_dict, as_list, get_json, text_or_none
+from app.discovery.jobs.text import html_to_text
 
 API = "https://api.lever.co/v0/postings/{token}"
 
@@ -47,6 +49,10 @@ def parse(payload: Any, target: SourceTarget) -> list[RawPosting]:
                 posted_at=job.get("createdAt"),  # epoch ms
                 employment_type=text_or_none(categories.get("commitment")),
                 remote=str(job.get("workplaceType") or "").lower() == "remote",
+                salary=salary.from_lever(
+                    job.get("salaryRange"),
+                    job.get("salaryDescriptionPlain") or html_to_text(job.get("salaryDescription") or ""),
+                ),
             )
         )
     return out

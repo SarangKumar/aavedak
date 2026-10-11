@@ -50,6 +50,9 @@ def merge_sources(
             "sector": row.get("sector") or "software",
             "origin": "admin",
         }
+        official = str(row.get("official_careers_url") or "").strip()
+        if official.startswith(("http://", "https://")):
+            entry["officialCareersUrl"] = official
         added.append(entry)
     merged = sorted([*existing, *added], key=lambda r: (r["name"].lower(), r["provider"]))
     return merged, added
@@ -65,7 +68,7 @@ def main() -> None:
 
     with connect() as conn:
         rows = conn.execute(
-            """SELECT company_name, provider, token, careers_url, sector
+            """SELECT company_name, provider, token, careers_url, sector, official_careers_url
                FROM company_sources
                WHERE origin = 'admin' AND enabled = 1
                ORDER BY company_name"""

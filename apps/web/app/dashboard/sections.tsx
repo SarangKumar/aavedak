@@ -380,6 +380,15 @@ export async function TopMatchesCard({ userId, username }: { userId: string; use
                     subtitle={`${match.company}${match.location ? ` · ${match.location}` : ""}`}
                     aside={<ScoreRing value={match.score} size="xs" />}
                   >
+                    {match.salary ? (
+                      <Badge
+                        variant="secondary"
+                        className={JOB_CARD_BADGE}
+                        title="Pay stated by the company"
+                      >
+                        {match.salary}
+                      </Badge>
+                    ) : null}
                     {match.matchedSkills.map((skill) => (
                       <Badge
                         key={skill}

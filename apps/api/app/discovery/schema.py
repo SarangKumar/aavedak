@@ -93,6 +93,13 @@ PIPELINE_STATEMENTS: tuple[str, ...] = (
       updated_at TEXT NOT NULL,
       UNIQUE (provider, token)
     )""",
+    # The company's own careers page (primary source of truth) for a board source: its URL,
+    # where it came from ('seed' | 'admin' | 'detected'), and the last read of its job data
+    # ('ok' | 'no_job_data' | 'blocked' | 'error').
+    "ALTER TABLE company_sources ADD COLUMN IF NOT EXISTS official_careers_url TEXT",
+    "ALTER TABLE company_sources ADD COLUMN IF NOT EXISTS official_careers_origin TEXT",
+    "ALTER TABLE company_sources ADD COLUMN IF NOT EXISTS official_status TEXT",
+    "ALTER TABLE company_sources ADD COLUMN IF NOT EXISTS official_checked_at TEXT",
     # Per-source references for a canonical job (one job may be listed by several sources).
     """CREATE TABLE IF NOT EXISTS job_sources (
       id TEXT PRIMARY KEY NOT NULL,

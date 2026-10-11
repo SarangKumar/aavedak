@@ -146,6 +146,75 @@ def test_cross_source_duplicate_links_and_already_expired_is_skipped(conn):
     assert (refs["jobs"], refs["refs"]) == (1, 2)
 
 
+def test_career_page_is_preferred_and_never_closed_by_the_board(conn):
+    board = make_source(conn)
+    page = scan.official_target(
+        SourceTarget(id=board.id, company_name="Acme", provider=board.provider, token=board.token,
+                     careers_url=board.careers_url, official_careers_url="https://acme.example/careers")
+    )
+    store.ingest_company(conn, board, [njob("e:1", title="Platform Engineer")], complete=True,
+                         scan_started_at=iso_minus(5), expiry_days=30)
+
+    # The careers page lists the same role (with pay): linked, and the job now links there.
+    on_page = njob("official:e:1", title="Platform Engineer")
+    on_page.url, on_page.salary = "https://acme.example/careers/platform-engineer", "₹8 L / year"
+    only_on_page = njob("official:e:2", title="Site Reliability Engineer")
+    stats = store.ingest_company(conn, page, [on_page, only_on_page], complete=False,
+                                 scan_started_at=now_iso(), expiry_days=30)
+    assert (stats.linked, stats.inserted) == (1, 1) and stats.official_links >= 1
+    job = conn.execute("""SELECT j.url, j.salary FROM jobs j JOIN job_sources s ON s.job_id = j.id
+                          WHERE s.external_id = 'e:1'""").fetchone()
+    assert (job["url"], job["salary"]) == ("https://acme.example/careers/platform-engineer", "₹8 L / year")
+
+    # A later board change keeps the careers-page link, and a complete board scan never
+    # closes the role that only the careers page lists.
+    changed = njob("e:1", title="Platform Engineer", desc="Updated description")
+    stats = store.ingest_company(conn, board, [changed], complete=True, scan_started_at=now_iso(), expiry_days=30)
+    assert stats.updated == 1 and stats.closed == 0
+    job = conn.execute("""SELECT j.url, j.salary FROM jobs j JOIN job_sources s ON s.job_id = j.id
+                          WHERE s.external_id = 'e:1'""").fetchone()
+    assert job["url"] == "https://acme.example/careers/platform-engineer"
+    assert job["salary"] == "₹8 L / year"  # an update without pay never erases it
+    page_only = conn.execute("""SELECT j.closed_at FROM jobs j JOIN job_sources s ON s.job_id = j.id
+                                WHERE s.external_id = 'official:e:2'""").fetchone()
+    assert page_only["closed_at"] is None
+
+
+def test_career_page_posting_links_to_board_job_by_url(conn):
+    board = make_source(conn)
+    hosted = njob("f:1", title="Backend Engineer", loc="Bangalore")
+    hosted.url = "https://acme.example/jobs/42"
+    store.ingest_company(conn, board, [hosted], complete=True, scan_started_at=iso_minus(5), expiry_days=30)
+    page = scan.official_target(
+        SourceTarget(id=board.id, company_name="Acme", provider=board.provider, token=board.token,
+                     careers_url=board.careers_url, official_careers_url="https://acme.example/jobs")
+    )
+    # Different city spelling, so the dedupe key differs — the identical URL still links it.
+    same = njob("official:f:1", title="Backend Engineer", loc="Bengaluru")
+    same.url = "https://acme.example/jobs/42"
+    stats = store.ingest_company(conn, page, [same], complete=False, scan_started_at=now_iso(), expiry_days=30)
+    assert (stats.linked, stats.inserted) == (1, 0)
+
+
+def test_official_page_tracking(conn):
+    target = make_source(conn)
+    registry.record_official(conn, target.id, status=None, hint="https://careers.acme.example/")
+    row = conn.execute("SELECT * FROM company_sources WHERE id = %s", (target.id,)).fetchone()
+    assert (row["official_careers_url"], row["official_careers_origin"]) == ("https://careers.acme.example/", "detected")
+
+    # An admin URL replaces it; a later hint never overwrites a known page.
+    assert registry.set_official_url(conn, target.id, "https://acme.example/careers")
+    registry.record_official(conn, target.id, status="no_job_data", hint="https://other.example/")
+    row = conn.execute("SELECT * FROM company_sources WHERE id = %s", (target.id,)).fetchone()
+    assert (row["official_careers_url"], row["official_careers_origin"], row["official_status"]) == (
+        "https://acme.example/careers", "admin", "no_job_data")
+    loaded = registry.load_target(conn, target.id)
+    assert not registry.official_page_due(loaded)  # re-checked weekly, not every scan
+
+    assert registry.set_official_url(conn, target.id, None)
+    assert registry.load_target(conn, target.id).official_careers_url is None
+
+
 # --- ranking ---------------------------------------------------------------------------------
 
 

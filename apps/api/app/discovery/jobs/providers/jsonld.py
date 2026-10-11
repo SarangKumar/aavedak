@@ -16,6 +16,7 @@ from urllib.robotparser import RobotFileParser
 import httpx
 
 from app.discovery.config import get_settings
+from app.discovery.jobs import salary
 from app.discovery.jobs.models import FetchResult, RawPosting, SourceTarget
 from app.discovery.jobs.providers.base import ProviderError, as_dict, as_list, get_text, text_or_none
 from app.discovery.jobs.text import content_hash
@@ -96,6 +97,7 @@ def parse_html(html: str, target: SourceTarget, page_url: str) -> list[RawPostin
                     posted_at=job.get("datePosted"),
                     employment_type=text_or_none(job.get("employmentType")),
                     remote=str(job.get("jobLocationType") or "").upper() == "TELECOMMUTE",
+                    salary=salary.from_jsonld(job.get("baseSalary")),
                 )
             )
     return out

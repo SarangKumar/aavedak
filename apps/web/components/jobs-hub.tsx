@@ -1265,7 +1265,7 @@ function JobDetail({
                 : `${job.minYears}+ yrs`}
           </Badge>
           {job.salary ? (
-            <Badge variant="secondary" className="text-[10px]">
+            <Badge variant="secondary" className="text-[10px]" title="Pay stated by the company">
               {job.salary}
             </Badge>
           ) : null}
@@ -1866,6 +1866,16 @@ function JobList({
                 <Badge variant="outline" className={JOB_CARD_BADGE}>
                   {job.sourceLabel}
                 </Badge>
+                {/* Only when the company states pay in the posting — never estimated. */}
+                {job.salary ? (
+                  <Badge
+                    variant="secondary"
+                    className={JOB_CARD_BADGE}
+                    title="Pay stated by the company"
+                  >
+                    {job.salary}
+                  </Badge>
+                ) : null}
                 {tab === "applied" && job.applicationStatus ? (
                   <Badge className={JOB_CARD_BADGE}>{statusLabel(job.applicationStatus)}</Badge>
                 ) : null}
