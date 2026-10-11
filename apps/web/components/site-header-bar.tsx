@@ -1,16 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import { AuthHeaderActions, type HeaderUser } from "@/components/auth-header-actions";
 import { BrandMark } from "@/components/brand-mark";
+import { DesktopNavMenu } from "@/components/desktop-nav-menu";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SHELL_X } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
-const nav = [
+const mobileNav = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/jobs", label: "Jobs" },
   { href: "/job-tracker", label: "Tracker" },
@@ -23,13 +23,7 @@ type SiteHeaderBarProps = {
   user: HeaderUser | null;
 };
 
-function isActivePath(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 export function SiteHeaderBar({ user }: SiteHeaderBarProps) {
-  const pathname = usePathname() || "";
-
   return (
     <div
       className={cn(
@@ -37,7 +31,7 @@ export function SiteHeaderBar({ user }: SiteHeaderBarProps) {
         SHELL_X,
       )}
     >
-      <MobileNav items={[...nav]} />
+      <MobileNav items={[...mobileNav]} />
 
       <Link
         href="/"
@@ -48,26 +42,7 @@ export function SiteHeaderBar({ user }: SiteHeaderBarProps) {
         <span className="aavedak-display text-foreground text-sm">Aavedak</span>
       </Link>
 
-      <nav className="ml-1 hidden items-center gap-0.5 md:flex" aria-label="Main">
-        {nav.map((item) => {
-          const active = isActivePath(pathname, item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "rounded-lg px-2 py-1 text-[13px] font-medium transition-colors",
-                active
-                  ? "text-foreground bg-foreground/5"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+      <DesktopNavMenu />
 
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
         <ThemeToggle />

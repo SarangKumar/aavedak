@@ -270,6 +270,13 @@
         "components/ui/marker/index.tsx"
       ],
       "installedAt": "2026-10-10"
+    },
+    "navigation-menu": {
+      "files": [
+        "components/ui/navigation-menu/index.tsx",
+        "components/ui/navigation-menu/navigation-menu.css"
+      ],
+      "installedAt": "2026-10-11"
     }
   }
 }

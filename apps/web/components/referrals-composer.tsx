@@ -858,7 +858,7 @@ export function ReferralsComposer({
     // Right column: People + Confirm as two stacked cards, one drag unit
     if (id === "people") {
       return (
-        <div className="relative flex h-full min-w-0 flex-col gap-3">
+        <div className="relative flex h-full min-w-0 flex-col gap-2">
           <Card className="border-border/80 bg-card flex min-h-0 flex-1 flex-col gap-0 rounded-xl border p-0 shadow-sm">
             <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
               <div className="min-w-0">
@@ -1361,7 +1361,7 @@ export function ReferralsComposer({
     >
       <DragDropList
         className={cn(
-          "w-full gap-3 overflow-x-auto pb-1",
+          "w-full gap-2 overflow-x-auto pb-1",
           variant === "board" ? "h-full" : "h-[min(70vh,44rem)]",
         )}
       >

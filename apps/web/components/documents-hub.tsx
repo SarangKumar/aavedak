@@ -2,6 +2,7 @@
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -67,6 +68,15 @@ import { Card } from "@/components/ui/card";
 
 export type DocumentsTab = "resumes" | "cover_letters" | "referral_email" | "followup_email";
 type Tab = DocumentsTab;
+
+function isDocumentsTab(value: string | null): value is Tab {
+  return (
+    value === "resumes" ||
+    value === "cover_letters" ||
+    value === "referral_email" ||
+    value === "followup_email"
+  );
+}
 
 export type ResumeDto = {
   id: string;
@@ -281,6 +291,14 @@ export function DocumentsHub({
   profileLinks,
 }: DocumentsHubProps) {
   const [tab, setTab] = useState<Tab>(initialTab);
+
+  // Follow `?tab=` when a link (e.g. the header menu) changes it while this page is open.
+  const searchTab = useSearchParams().get("tab");
+  const [seenSearchTab, setSeenSearchTab] = useState(searchTab);
+  if (searchTab !== seenSearchTab) {
+    setSeenSearchTab(searchTab);
+    if (isDocumentsTab(searchTab) && searchTab !== tab) setTab(searchTab);
+  }
 
   // Keep the active tab in the URL so reloads and shared links open the same tab.
   useEffect(() => {
