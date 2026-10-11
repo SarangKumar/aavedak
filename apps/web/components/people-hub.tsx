@@ -62,6 +62,7 @@ type Draft = {
   email: string;
   company: string;
   roleTitle: string;
+  linkedin: string;
   notes: string;
   applicationId: string;
 };
@@ -71,6 +72,7 @@ const emptyDraft = (): Draft => ({
   email: "",
   company: "",
   roleTitle: "",
+  linkedin: "",
   notes: "",
   applicationId: "",
 });
@@ -119,6 +121,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
       email: person.email ?? "",
       company: person.company ?? "",
       roleTitle: person.roleTitle ?? "",
+      linkedin: person.linkedin ?? "",
       notes: person.notes ?? "",
       applicationId: person.applicationId ?? "",
     });
@@ -138,6 +141,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
       email: draft.email.trim() || null,
       company: draft.company.trim() || null,
       roleTitle: draft.roleTitle.trim() || null,
+      linkedin: draft.linkedin.trim() || null,
       notes: draft.notes.trim() || null,
       applicationId: draft.applicationId || null,
     };
@@ -426,6 +430,18 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                   value={draft.roleTitle}
                   onChange={(e) => setDraft((d) => ({ ...d, roleTitle: e.target.value }))}
                   placeholder="Engineering Manager"
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                  LinkedIn
+                </span>
+                <Input
+                  type="url"
+                  inputMode="url"
+                  value={draft.linkedin}
+                  onChange={(e) => setDraft((d) => ({ ...d, linkedin: e.target.value }))}
+                  placeholder="linkedin.com/in/jane-doe"
                 />
               </label>
               <label className="block space-y-1.5">

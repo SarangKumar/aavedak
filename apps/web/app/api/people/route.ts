@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       email: (body.email as string | null | undefined) ?? null,
       company: (body.company as string | null | undefined) ?? null,
       roleTitle: (body.roleTitle as string | null | undefined) ?? null,
+      linkedin: (body.linkedin as string | null | undefined) ?? null,
       notes: (body.notes as string | null | undefined) ?? null,
       applicationId: (body.applicationId as string | null | undefined) ?? null,
     });

@@ -55,6 +55,8 @@ class NormalizedJob:
     min_years: int | None
     dedupe_key: str
     content_hash: str
+    # Application / recruiting email published in the posting text, if any (never guessed).
+    apply_email: str | None = None
 
 
 @dataclass

@@ -25,6 +25,8 @@ SHARED_STATEMENTS: tuple[str, ...] = (
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS closed_at TEXT",
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS dedupe_key TEXT",
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS min_years INTEGER",
+    # Application / recruiting email published in the posting text (never guessed).
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_email TEXT",
     """CREATE INDEX IF NOT EXISTS jobs_shared_active_idx
        ON jobs (first_seen_at) WHERE user_id IS NULL AND expired_at IS NULL""",
     "CREATE INDEX IF NOT EXISTS jobs_dedupe_key_idx ON jobs (dedupe_key) WHERE user_id IS NULL",

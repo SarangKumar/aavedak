@@ -1,8 +1,30 @@
 "use client";
 
 import { Textarea } from "@/components/ui/textarea";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  paginationPageList,
+} from "@/components/ui/pagination";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { DiscoveryRunsChart } from "@/components/discovery-runs-chart";
+import {
+  formatDuration,
+  istRunTimes,
+  msToNextRun,
+  msToNextRunAcross,
+  RUN_KINDS,
+  RUN_KIND_META,
+} from "@/lib/discovery-crons";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -94,6 +116,7 @@ type SourceDto = {
 const RUN_LABELS: Record<string, string> = {
   jobs_scan: "Job scan",
   people_import: "People import",
+  people_discovery: "People discovery",
 };
 
 async function postAction<T>(body: Record<string, unknown>): Promise<T> {
@@ -112,6 +135,43 @@ function runProgress(run: RunDto): number {
   return Math.round(((run.doneItems + run.failedItems) / run.totalItems) * 100);
 }
 
+/** Hover-card body: when the selected kind's crons run (India time) and the next one. */
+function CronScheduleHover({ kind }: { kind: string }) {
+  const kinds = kind === "all" ? RUN_KINDS : [kind];
+  const scheduled = kinds.filter((k) => (RUN_KIND_META[k]?.scheduleUtcMinutes.length ?? 0) > 0);
+  const nextMs =
+    kind === "all" ? msToNextRunAcross(scheduled) : scheduled[0] ? msToNextRun(scheduled[0]) : null;
+
+  return (
+    <div className="space-y-2 text-[12px]">
+      <p className="text-foreground font-medium">Cron schedule · India time</p>
+      <ul className="space-y-1">
+        {kinds.map((k) => {
+          const times = istRunTimes(k);
+          return (
+            <li key={k} className="flex items-start justify-between gap-3">
+              <span className="text-foreground">{RUN_KIND_META[k]?.label ?? k}</span>
+              <span className="text-muted-foreground text-right">
+                {times.length ? times.join(", ") : "Manual only"}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-muted-foreground border-border/60 border-t pt-2">
+        {nextMs != null ? (
+          <>
+            Next run in{" "}
+            <span className="text-foreground font-medium">{formatDuration(nextMs)}</span>
+          </>
+        ) : (
+          "No scheduled runs — this kind is manual only."
+        )}
+      </p>
+    </div>
+  );
+}
+
 export function AdminDiscoveryPanel() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -122,6 +182,24 @@ export function AdminDiscoveryPanel() {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [runDetail, setRunDetail] = useState<RunDto | null>(null);
   const [csvFiles, setCsvFiles] = useState<FileUploadFile[]>([]);
+  const [runKind, setRunKind] = useState<string>("all");
+  const [runsPage, setRunsPage] = useState(1);
+
+  const RUNS_PAGE_SIZE = 5;
+  const filteredRuns = useMemo(
+    () => (overview?.runs ?? []).filter((r) => runKind === "all" || r.kind === runKind),
+    [overview?.runs, runKind],
+  );
+  const runsPageCount = Math.max(1, Math.ceil(filteredRuns.length / RUNS_PAGE_SIZE) || 1);
+  const runsCurrentPage = Math.min(Math.max(1, runsPage), runsPageCount);
+  const pagedRuns = useMemo(
+    () =>
+      filteredRuns.slice((runsCurrentPage - 1) * RUNS_PAGE_SIZE, runsCurrentPage * RUNS_PAGE_SIZE),
+    [filteredRuns, runsCurrentPage],
+  );
+  useEffect(() => {
+    setRunsPage(1);
+  }, [runKind]);
 
   const refresh = useCallback(async () => {
     try {
@@ -204,6 +282,15 @@ export function AdminDiscoveryPanel() {
     if (data) void processQueue();
   }
 
+  async function startPeopleDiscovery() {
+    const data = await run("People discovery queued", { action: "people_discovery" }, (d) =>
+      d.resumed
+        ? `Discovery already in progress (${d.companies ?? 0} companies) — resuming it.`
+        : `${d.companies ?? 0} companies queued for published-email discovery.`,
+    );
+    if (data) void processQueue();
+  }
+
   async function startPeopleImport() {
     const file = csvFiles.find((f) => !f.error)?.file;
     if (!file) return;
@@ -274,6 +361,16 @@ export function AdminDiscoveryPanel() {
           <Button
             size="sm"
             variant="outline"
+            loading={busy === "People discovery queued"}
+            disabled={busy !== null}
+            onClick={() => void startPeopleDiscovery()}
+            title="Capture published recruiting inboxes (careers@, jobs@…) from career pages and postings"
+          >
+            Discover people now
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             loading={busy === "Expiry"}
             disabled={busy !== null}
             onClick={() =>
@@ -306,216 +403,320 @@ export function AdminDiscoveryPanel() {
       </div>
 
       {loadError ? (
-        <Card size="sm" className="border-destructive/40">
-          <CardHeader>
-            <CardTitle className="text-destructive text-[13px]">Discovery service error</CardTitle>
-            <CardDescription className="text-[12px]">{loadError}</CardDescription>
-          </CardHeader>
-        </Card>
+        <Alert variant="destructive">
+          <AlertTitle>Discovery service error</AlertTitle>
+          <AlertDescription>{loadError}</AlertDescription>
+        </Alert>
       ) : null}
 
       {!overview && !loadError ? <Skeleton className="h-40 w-full" /> : null}
 
       {overview ? (
-        <div className="grid gap-3 lg:grid-cols-2">
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="text-[13px]">Queue & settings</CardTitle>
-              <CardDescription className="text-[11px]">
-                Env-configured in the API. Recommendations: up to {overview.settings.dailyLimit}
-                /user/day.
-              </CardDescription>
-              <CardAction>
-                <Badge variant={overview.settings.enabled ? "default" : "destructive"}>
-                  {overview.settings.enabled ? "Enabled" : "Disabled"}
-                </Badge>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-1.5">
-                <Badge variant="secondary">Expiry {overview.settings.expiryDays}d</Badge>
-                <Badge variant="secondary">
-                  &lt; {overview.settings.juniorMaxYearsExclusive} yrs exp
-                </Badge>
-                <Badge variant="secondary">
-                  Internships {overview.settings.includeInternships ? "included" : "excluded"}
-                </Badge>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[12px]">
-                  <span className="text-foreground font-semibold tabular-nums">
-                    {overview.openItems}
-                  </span>{" "}
-                  <span className="text-muted-foreground">items waiting</span>
-                </p>
+        <>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle className="text-[13px]">Queue & settings</CardTitle>
+                <CardDescription className="text-[11px]">
+                  Env-configured in the API. Recommendations: up to {overview.settings.dailyLimit}
+                  /user/day.
+                </CardDescription>
+                <CardAction>
+                  <Badge variant={overview.settings.enabled ? "default" : "destructive"}>
+                    {overview.settings.enabled ? "Enabled" : "Disabled"}
+                  </Badge>
+                </CardAction>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="secondary">Expiry {overview.settings.expiryDays}d</Badge>
+                  <Badge variant="secondary">
+                    &lt; {overview.settings.juniorMaxYearsExclusive} yrs exp
+                  </Badge>
+                  <Badge variant="secondary">
+                    Internships {overview.settings.includeInternships ? "included" : "excluded"}
+                  </Badge>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[12px]">
+                    <span className="text-foreground font-semibold tabular-nums">
+                      {overview.openItems}
+                    </span>{" "}
+                    <span className="text-muted-foreground">items waiting</span>
+                  </p>
+                  {processing ? (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => (processingRef.current = false)}
+                    >
+                      Pause processing
+                    </Button>
+                  ) : (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      disabled={overview.openItems === 0}
+                      onClick={() => void processQueue()}
+                    >
+                      Process now
+                    </Button>
+                  )}
+                </div>
                 {processing ? (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    onClick={() => (processingRef.current = false)}
-                  >
-                    Pause processing
-                  </Button>
-                ) : (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    disabled={overview.openItems === 0}
-                    onClick={() => void processQueue()}
-                  >
-                    Process now
-                  </Button>
-                )}
-              </div>
-              {processing ? (
-                <p className="text-muted-foreground text-[11px]">
-                  Processing in ~40s ticks while this page is open…
-                </p>
-              ) : null}
-            </CardContent>
-          </Card>
+                  <p className="text-muted-foreground text-[11px]">
+                    Processing in ~40s ticks while this page is open…
+                  </p>
+                ) : null}
+              </CardContent>
+            </Card>
 
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="text-[13px]">Career sources</CardTitle>
-              <CardDescription className="text-[11px]">
-                Public ATS boards (Greenhouse, Lever, Ashby, SmartRecruiters, Workable) and career
-                pages with JobPosting data. Only India or India-open remote tech roles under{" "}
-                {overview.settings.juniorMaxYearsExclusive} yrs are stored.
-              </CardDescription>
-              <CardAction>
-                <Button size="xs" variant="outline" onClick={() => setSourcesOpen(true)}>
-                  Manage
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle className="text-[13px]">Career sources</CardTitle>
+                <CardDescription className="text-[11px]">
+                  Public ATS boards (Greenhouse, Lever, Ashby, SmartRecruiters, Workable) and career
+                  pages with JobPosting data. Only India or India-open remote tech roles under{" "}
+                  {overview.settings.juniorMaxYearsExclusive} yrs are stored.
+                </CardDescription>
+                <CardAction>
+                  <Button size="xs" variant="outline" onClick={() => setSourcesOpen(true)}>
+                    Manage
+                  </Button>
+                </CardAction>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge>{overview.sourceSummary.enabled ?? 0} enabled</Badge>
+                  <Badge variant="secondary">{overview.sourceSummary.total ?? 0} total</Badge>
+                  {overview.sourceSummary.failing ? (
+                    <Badge variant="destructive">{overview.sourceSummary.failing} failing</Badge>
+                  ) : null}
+                  {overview.sourceSummary.unsupported ? (
+                    <Badge variant="outline">
+                      {overview.sourceSummary.unsupported} unsupported pages
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(overview.byProvider).map(([provider, n]) => (
+                    <Badge key={provider} variant="outline" className="text-[10px]">
+                      {provider} · {n}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle className="text-[13px]">Bulk people discovery</CardTitle>
+                <CardDescription className="text-[11px]">
+                  Upload a CSV with a header row: name (required), company, role, email, linkedin,
+                  source_url. Rows are matched by LinkedIn → email → name + company and only fill
+                  empty fields. Emails are stored as unverified; phone numbers are ignored.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FileUpload
+                  accept=".csv,text/csv"
+                  maxSize={4 * 1024 * 1024}
+                  files={csvFiles}
+                  onFilesChange={setCsvFiles}
+                >
+                  <FileUploadDropzone className="min-h-24">
+                    <span className="text-[12px]">
+                      Drop a CSV here or click to choose (max 4 MB)
+                    </span>
+                  </FileUploadDropzone>
+                  <FileUploadList />
+                </FileUpload>
+                <Button
+                  size="sm"
+                  disabled={!csvFiles.some((f) => !f.error) || busy !== null}
+                  loading={busy === "People import queued"}
+                  onClick={() => void startPeopleImport()}
+                >
+                  Start import
                 </Button>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-1.5">
-                <Badge>{overview.sourceSummary.enabled ?? 0} enabled</Badge>
-                <Badge variant="secondary">{overview.sourceSummary.total ?? 0} total</Badge>
-                {overview.sourceSummary.failing ? (
-                  <Badge variant="destructive">{overview.sourceSummary.failing} failing</Badge>
-                ) : null}
-                {overview.sourceSummary.unsupported ? (
-                  <Badge variant="outline">
-                    {overview.sourceSummary.unsupported} unsupported pages
-                  </Badge>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {Object.entries(overview.byProvider).map(([provider, n]) => (
-                  <Badge key={provider} variant="outline" className="text-[10px]">
-                    {provider} · {n}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="text-[13px]">Bulk people discovery</CardTitle>
-              <CardDescription className="text-[11px]">
-                Upload a CSV with a header row: name (required), company, role, email, linkedin,
-                source_url. Rows are matched by LinkedIn → email → name + company and only fill
-                empty fields. Emails are stored as unverified; phone numbers are ignored.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FileUpload
-                accept=".csv,text/csv"
-                maxSize={4 * 1024 * 1024}
-                files={csvFiles}
-                onFilesChange={setCsvFiles}
-              >
-                <FileUploadDropzone className="min-h-24">
-                  <span className="text-[12px]">Drop a CSV here or click to choose (max 4 MB)</span>
-                </FileUploadDropzone>
-                <FileUploadList />
-              </FileUpload>
-              <Button
-                size="sm"
-                disabled={!csvFiles.some((f) => !f.error) || busy !== null}
-                loading={busy === "People import queued"}
-                onClick={() => void startPeopleImport()}
-              >
-                Start import
-              </Button>
-            </CardContent>
-          </Card>
+          <section className="space-y-3" aria-label="Discovery runs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-foreground text-[13px] font-semibold tracking-tight">Runs</h3>
+                <p className="text-muted-foreground text-[11px]">
+                  The filter applies to both the chart and the list below.
+                </p>
+              </div>
+              <HoverCard>
+                <HoverCardTrigger>
+                  <ToggleGroup
+                    aria-label="Filter runs by kind"
+                    variant="outline"
+                    size="sm"
+                    spacing={1}
+                    value={[runKind]}
+                    onValueChange={(next) => setRunKind(next[0] ?? "all")}
+                  >
+                    <ToggleGroupItem value="all" className="h-7 rounded-full px-2.5 text-[11px]">
+                      All
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="jobs_scan"
+                      className="h-7 rounded-full px-2.5 text-[11px]"
+                    >
+                      Jobs
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="people_discovery"
+                      className="h-7 rounded-full px-2.5 text-[11px]"
+                    >
+                      People discovery
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="people_import"
+                      className="h-7 rounded-full px-2.5 text-[11px]"
+                    >
+                      People import
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-72" align="end">
+                  <CronScheduleHover kind={runKind} />
+                </HoverCardContent>
+              </HoverCard>
+            </div>
 
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="text-[13px]">Recent runs</CardTitle>
-              <CardDescription className="text-[11px]">
-                Resumable: failed items retry automatically up to 3 times.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="gap-2">
-              {overview.runs.length === 0 ? (
-                <p className="text-muted-foreground text-[12px]">No runs yet.</p>
-              ) : (
-                overview.runs.map((r, index) => (
-                  <div key={r.id} className="space-y-1.5">
-                    {index > 0 ? <Separator /> : null}
-                    <div className="flex items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        className="min-w-0 text-left"
-                        onClick={() => void openRun(r)}
-                      >
-                        <p className="text-foreground truncate text-[12px] font-medium hover:underline">
-                          {RUN_LABELS[r.kind] ?? r.kind}
-                          {r.runKey ? (
-                            <span className="text-muted-foreground font-normal"> · {r.runKey}</span>
-                          ) : null}
-                        </p>
-                        <p className="text-muted-foreground text-[11px]">
-                          {formatDateTimeFixed(r.createdAt)} · {r.doneItems}/{r.totalItems} done
-                          {r.failedItems ? ` · ${r.failedItems} failed` : ""}
-                          {r.kind === "jobs_scan" && r.totals.inserted !== undefined
-                            ? ` · ${r.totals.inserted} new jobs · ${r.totals.recommended ?? 0} recommended`
-                            : ""}
-                          {r.kind === "people_import" && r.totals.created !== undefined
-                            ? ` · ${r.totals.created} created · ${r.totals.enriched ?? 0} enriched`
-                            : ""}
-                        </p>
-                      </button>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Badge
-                          variant={
-                            r.status === "done"
-                              ? "secondary"
-                              : r.status === "failed"
-                                ? "destructive"
-                                : "default"
-                          }
-                          className="text-[10px]"
+            <DiscoveryRunsChart kind={runKind} />
+
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle className="text-[13px]">Recent runs</CardTitle>
+                <CardDescription className="text-[11px]">
+                  Resumable: failed items retry automatically up to 3 times.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="gap-2">
+                {filteredRuns.length === 0 ? (
+                  <p className="text-muted-foreground text-[12px]">No runs match this filter.</p>
+                ) : (
+                  pagedRuns.map((r, index) => (
+                    <div key={r.id} className="space-y-1.5">
+                      {index > 0 ? <Separator /> : null}
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          className="min-w-0 text-left"
+                          onClick={() => void openRun(r)}
                         >
-                          {r.status}
-                        </Badge>
-                        {r.failedItems > 0 ? (
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            disabled={busy !== null}
-                            onClick={() => void retryRun(r.id)}
+                          <p className="text-foreground truncate text-[12px] font-medium hover:underline">
+                            {RUN_LABELS[r.kind] ?? r.kind}
+                            {r.runKey ? (
+                              <span className="text-muted-foreground font-normal">
+                                {" "}
+                                · {r.runKey}
+                              </span>
+                            ) : null}
+                          </p>
+                          <p className="text-muted-foreground text-[11px]">
+                            {formatDateTimeFixed(r.createdAt)} · {r.doneItems}/{r.totalItems} done
+                            {r.failedItems ? ` · ${r.failedItems} failed` : ""}
+                            {r.kind === "jobs_scan" && r.totals.inserted !== undefined
+                              ? ` · ${r.totals.inserted} new jobs · ${r.totals.recommended ?? 0} recommended`
+                              : ""}
+                            {r.kind === "people_import" && r.totals.created !== undefined
+                              ? ` · ${r.totals.created} created · ${r.totals.enriched ?? 0} enriched`
+                              : ""}
+                          </p>
+                        </button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Badge
+                            variant={
+                              r.status === "done"
+                                ? "secondary"
+                                : r.status === "failed"
+                                  ? "destructive"
+                                  : "default"
+                            }
+                            className="text-[10px]"
                           >
-                            Retry failed
-                          </Button>
-                        ) : null}
+                            {r.status}
+                          </Badge>
+                          {r.failedItems > 0 ? (
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              disabled={busy !== null}
+                              onClick={() => void retryRun(r.id)}
+                            >
+                              Retry failed
+                            </Button>
+                          ) : null}
+                        </div>
                       </div>
+                      {r.status === "running" ? (
+                        <Progress value={runProgress(r)} className="h-1.5" />
+                      ) : null}
                     </div>
-                    {r.status === "running" ? (
-                      <Progress value={runProgress(r)} className="h-1.5" />
-                    ) : null}
+                  ))
+                )}
+                {filteredRuns.length > RUNS_PAGE_SIZE ? (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <p className="text-muted-foreground text-[11px] tabular-nums">
+                      Page {runsCurrentPage} of {runsPageCount}
+                    </p>
+                    <Pagination className="mx-0 w-auto justify-end">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            size="sm"
+                            disabled={runsCurrentPage <= 1}
+                            onClick={() => setRunsPage((p) => Math.max(1, p - 1))}
+                          />
+                        </PaginationItem>
+                        {paginationPageList(runsCurrentPage, runsPageCount).map(
+                          (pageNumber, index, list) => {
+                            const previous = list[index - 1];
+                            const showEllipsis = previous != null && pageNumber - previous > 1;
+                            return (
+                              <span key={pageNumber} className="contents">
+                                {showEllipsis ? (
+                                  <PaginationItem>
+                                    <PaginationEllipsis />
+                                  </PaginationItem>
+                                ) : null}
+                                <PaginationItem>
+                                  <PaginationLink
+                                    size="sm"
+                                    isActive={pageNumber === runsCurrentPage}
+                                    onClick={() => setRunsPage(pageNumber)}
+                                  >
+                                    {pageNumber}
+                                  </PaginationLink>
+                                </PaginationItem>
+                              </span>
+                            );
+                          },
+                        )}
+                        <PaginationItem>
+                          <PaginationNext
+                            size="sm"
+                            disabled={runsCurrentPage >= runsPageCount}
+                            onClick={() => setRunsPage((p) => Math.min(runsPageCount, p + 1))}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          </section>
+        </>
       ) : null}
 
       <AlertDialog

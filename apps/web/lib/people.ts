@@ -81,6 +81,30 @@ function optional(value: unknown): string | null {
   return t || null;
 }
 
+const LINKEDIN_PATH_RE = /^\/in\/([A-Za-z0-9\-_%.]+)\/?/;
+
+/**
+ * `https://in.linkedin.com/in/Jane-Doe/?x=1` → `linkedin.com/in/jane-doe`.
+ * Mirrors the Python `normalize_linkedin` in discovery so web- and system-added
+ * profiles dedupe against each other. Returns null for anything that is not a
+ * LinkedIn member profile URL.
+ */
+export function normalizeLinkedin(value: unknown): string | null {
+  const raw = optional(value);
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw.includes("://") ? raw : `https://${raw}`);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.toLowerCase();
+  if (host !== "linkedin.com" && !host.endsWith(".linkedin.com")) return null;
+  const match = LINKEDIN_PATH_RE.exec(url.pathname);
+  if (!match) return null;
+  return `linkedin.com/in/${match[1].toLowerCase()}`;
+}
+
 /** List the shared people directory (all users). */
 export async function listPeople(opts?: { includeArchived?: boolean }): Promise<PersonRecord[]> {
   await ensureAppSchema();
@@ -104,6 +128,16 @@ export async function getPerson(id: string): Promise<PersonRecord | null> {
   return rows[0] ? mapRow(rows[0]) : null;
 }
 
+/** Reject a LinkedIn URL already attached to a different person (unique index). */
+async function assertLinkedinFree(linkedin: string, exceptPersonId?: string): Promise<void> {
+  const rows = (await getSql()`
+    SELECT id FROM people WHERE linkedin_url_normalized = ${linkedin} LIMIT 1
+  `) as Array<{ id: string }>;
+  if (rows[0] && rows[0].id !== exceptPersonId) {
+    throw new Error("That LinkedIn profile is already linked to another contact.");
+  }
+}
+
 export async function createPerson(
   addedByUserId: string,
   input: {
@@ -111,6 +145,7 @@ export async function createPerson(
     email?: string | null;
     company?: string | null;
     roleTitle?: string | null;
+    linkedin?: string | null;
     notes?: string | null;
     applicationId?: string | null;
   },
@@ -124,15 +159,19 @@ export async function createPerson(
   const roleTitle = optional(input.roleTitle);
   const notes = optional(input.notes);
   const applicationId = optional(input.applicationId);
+  const linkedinRaw = optional(input.linkedin);
+  const linkedin = normalizeLinkedin(linkedinRaw);
+  if (linkedinRaw && !linkedin) throw new Error("Enter a valid LinkedIn profile URL.");
+  if (linkedin) await assertLinkedinFree(linkedin);
   // Link to the shared company so discovery can match this person to jobs there.
   const companyId = company ? (await ensureCompany(company)).id : null;
   await getSql()`
     INSERT INTO people
       (id, user_id, name, email, company, role_title, notes, application_id, status, created_at,
-       updated_at, company_id, origin)
+       updated_at, company_id, origin, linkedin_url_normalized)
     VALUES (
       ${id}, ${addedByUserId}, ${name}, ${email}, ${company}, ${roleTitle}, ${notes}, ${applicationId},
-      'active', ${now}, ${now}, ${companyId}, 'user'
+      'active', ${now}, ${now}, ${companyId}, 'user', ${linkedin}
     )
   `;
   const created = await getPerson(id);
@@ -147,6 +186,7 @@ export async function updatePerson(
     email: string | null;
     company: string | null;
     roleTitle: string | null;
+    linkedin: string | null;
     notes: string | null;
     applicationId: string | null;
     status: PersonStatus;
@@ -166,6 +206,14 @@ export async function updatePerson(
   const status = patch.status ?? existing.status;
   if (status !== "active" && status !== "archived") throw new Error("Invalid status.");
 
+  let linkedin = existing.linkedin;
+  if (patch.linkedin !== undefined) {
+    const raw = optional(patch.linkedin);
+    linkedin = normalizeLinkedin(raw);
+    if (raw && !linkedin) throw new Error("Enter a valid LinkedIn profile URL.");
+    if (linkedin) await assertLinkedinFree(linkedin, id);
+  }
+
   const now = new Date().toISOString();
   const companyId =
     company === existing.company
@@ -177,7 +225,8 @@ export async function updatePerson(
     UPDATE people SET
       name = ${name}, email = ${email}, company = ${company}, role_title = ${roleTitle},
       notes = ${notes}, application_id = ${applicationId}, status = ${status}, updated_at = ${now},
-      company_id = ${companyId}
+      company_id = ${companyId},
+      linkedin_url_normalized = ${linkedin}
     WHERE id = ${id}
   `;
   const updated = await getPerson(id);

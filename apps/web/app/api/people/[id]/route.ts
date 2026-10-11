@@ -44,6 +44,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     if ("email" in body) patch.email = (body.email as string | null) ?? null;
     if ("company" in body) patch.company = (body.company as string | null) ?? null;
     if ("roleTitle" in body) patch.roleTitle = (body.roleTitle as string | null) ?? null;
+    if ("linkedin" in body) patch.linkedin = (body.linkedin as string | null) ?? null;
     if ("notes" in body) patch.notes = (body.notes as string | null) ?? null;
     if ("applicationId" in body) {
       patch.applicationId = (body.applicationId as string | null) ?? null;

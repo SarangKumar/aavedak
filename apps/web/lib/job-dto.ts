@@ -21,6 +21,8 @@ export type JobDtoBase = {
   postedAtEstimated: boolean;
   firstSeenAt: string | null;
   minYears: number | null;
+  /** Published application email from the posting (unverified; discovered jobs only). */
+  applyEmail: string | null;
   createdAt: string;
   updatedAt: string;
   compatibilityScore: number | null;
@@ -77,6 +79,7 @@ export function toJobDto(
     postedAtEstimated: job.postedAtEstimated,
     firstSeenAt: job.firstSeenAt,
     minYears: job.minYears,
+    applyEmail: job.userId === null ? job.applyEmail : null,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     compatibilityScore:

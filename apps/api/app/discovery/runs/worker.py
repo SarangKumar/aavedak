@@ -12,7 +12,7 @@ import psycopg
 
 from app.discovery.config import DiscoverySettings
 from app.discovery.jobs import scan
-from app.discovery.people import importer
+from app.discovery.people import discover, importer
 from app.discovery.runs import store
 from app.discovery.runs.store import ClaimedItem, ItemOutcome
 
@@ -21,6 +21,7 @@ logger = logging.getLogger("aavedak.discovery.worker")
 HANDLERS = {
     scan.ITEM_KIND: lambda conn, settings, items: scan.scan_items(conn, settings, items),
     importer.ITEM_KIND: lambda conn, settings, items: importer.process_items(conn, items),
+    discover.ITEM_KIND: lambda conn, settings, items: discover.process_items(conn, settings, items),
 }
 
 

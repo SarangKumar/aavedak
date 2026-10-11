@@ -20,7 +20,7 @@ from app.discovery.config import get_settings
 from app.discovery.db import DatabaseNotConfigured, connect
 from app.discovery.jobs import expiry, ranking, registry, scan, single
 from app.discovery.jobs.providers.base import make_client
-from app.discovery.people import importer
+from app.discovery.people import discover, importer
 from app.discovery.people import store as people_store
 from app.discovery.runs import store as runs
 from app.discovery.runs.worker import process_tick
@@ -91,6 +91,20 @@ def cron_drain(slot: int, conn: psycopg.Connection = Conn) -> dict[str, Any]:
     """Process leftover/retrying items from any run (scans and people imports). `slot` only
     keeps each scheduled cron path unique in vercel.json."""
     return {"tick": process_tick(conn, get_settings())}
+
+
+@router.get("/cron/people-discovery", dependencies=[Auth])
+def cron_people_discovery(conn: psycopg.Connection = Conn) -> dict[str, Any]:
+    """Daily: capture each company's published recruiting inbox (career page + postings).
+    Idempotent per IST day; the run drains across later ticks like scans do."""
+    settings = get_settings()
+    if not settings.discovery_enabled:
+        return {"skipped": "discovery disabled"}
+    _seed_if_empty(conn)
+    result = discover.create_discovery_run(
+        conn, settings, created_by="cron", run_key=f"people-discovery:{ist_date_key()}"
+    )
+    return {**result, "tick": process_tick(conn, settings)}
 
 
 @router.get("/cron/expire", dependencies=[Auth])
@@ -205,6 +219,29 @@ def admin_scan_run(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[s
     return {"runId": run["id"], "sources": len(ids), "resumed": False}
 
 
+@router.post("/admin/runs/people-discovery", dependencies=[Auth])
+def admin_people_discovery(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[str, Any]:
+    """Manual people discovery over all enabled sources (or the given ones). Returns
+    immediately; the admin page drives `/admin/tick` and drain crons finish the rest.
+    A still-running manual run is resumed, never duplicated."""
+    settings = get_settings()
+    open_run = conn.execute(
+        """SELECT r.id, r.total_items FROM discovery_runs r
+           WHERE r.kind = %s AND r.run_key IS NULL AND r.status = 'running'
+             AND EXISTS (SELECT 1 FROM discovery_run_items i
+                         WHERE i.run_id = r.id AND i.status IN ('pending', 'running'))
+           ORDER BY r.created_at DESC LIMIT 1""",
+        (discover.RUN_KIND,),
+    ).fetchone()
+    if open_run and not body.sourceIds:
+        return {"runId": open_run["id"], "companies": open_run["total_items"], "resumed": True}
+    _seed_if_empty(conn)
+    result = discover.create_discovery_run(
+        conn, settings, created_by=body.createdBy, source_ids=body.sourceIds
+    )
+    return {**result, "resumed": False}
+
+
 @router.post("/admin/runs/people-import", dependencies=[Auth])
 def admin_people_import(body: PeopleImportBody, conn: psycopg.Connection = Conn) -> dict[str, Any]:
     try:
@@ -213,6 +250,14 @@ def admin_people_import(body: PeopleImportBody, conn: psycopg.Connection = Conn)
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/admin/runs/history", dependencies=[Auth])
+def admin_run_history(
+    months: int = Query(3, ge=1, le=24), conn: psycopg.Connection = Conn
+) -> dict[str, Any]:
+    """Daily run counts per kind (India time) for the admin activity chart."""
+    return {"months": months, "points": runs.run_history(conn, months=months)}
 
 
 @router.get("/admin/runs/{run_id}", dependencies=[Auth])

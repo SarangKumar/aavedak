@@ -16,7 +16,7 @@ from typing import Any
 import psycopg
 
 from app.discovery.db import new_id
-from app.discovery.timeutil import iso_plus, now_iso
+from app.discovery.timeutil import iso_minus, iso_plus, now_iso
 
 OPEN_STATUSES = ("pending", "running")
 
@@ -220,6 +220,34 @@ def list_runs(conn: psycopg.Connection, *, limit: int = 20) -> list[dict[str, An
     runs = conn.execute("SELECT * FROM discovery_runs ORDER BY created_at DESC LIMIT %s", (limit,)).fetchall()
     totals = _sum_results(conn, [r["id"] for r in runs])
     return [_run_dto(r, totals.get(r["id"])) for r in runs]
+
+
+def run_history(conn: psycopg.Connection, *, months: int) -> list[dict[str, Any]]:
+    """How many jobs / people were *discovered* per IST day per kind over the last `months`
+    (≈31-day) window, for the admin activity chart — not how many times the cron ran.
+
+    The per-item outcome is in `discovery_run_items.result_json`: a job scan reports
+    `inserted` (new canonical jobs), while people discovery / import report `created` (new
+    people). created_at is ISO-UTC TEXT, bucketed on India-time days."""
+    cutoff = iso_minus(max(1, months) * 31 * 86_400)
+    rows = conn.execute(
+        """SELECT r.kind,
+                  to_char((r.created_at::timestamptz AT TIME ZONE 'Asia/Kolkata')::date,
+                          'YYYY-MM-DD') AS day,
+                  COALESCE(SUM(
+                    CASE r.kind
+                      WHEN 'jobs_scan' THEN (i.result_json::jsonb ->> 'inserted')::int
+                      ELSE (i.result_json::jsonb ->> 'created')::int
+                    END
+                  ), 0)::int AS discovered
+           FROM discovery_runs r
+           JOIN discovery_run_items i ON i.run_id = r.id
+           WHERE r.created_at >= %s AND i.result_json IS NOT NULL
+           GROUP BY r.kind, day
+           ORDER BY day""",
+        (cutoff,),
+    ).fetchall()
+    return [{"kind": r["kind"], "day": r["day"], "count": r["discovered"]} for r in rows]
 
 
 def get_run(conn: psycopg.Connection, run_id: str) -> dict[str, Any] | None:

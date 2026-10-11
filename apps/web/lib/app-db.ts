@@ -361,6 +361,8 @@ async function runDiscoverySchema(db: NeonQueryFunction<false, false>) {
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS closed_at TEXT`;
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS dedupe_key TEXT`;
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS min_years INTEGER`;
+  // Application / recruiting email published in a posting's text (unverified, never guessed).
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_email TEXT`;
   await db`UPDATE jobs SET first_seen_at = created_at WHERE first_seen_at IS NULL`;
   await db`CREATE INDEX IF NOT EXISTS jobs_shared_active_idx
     ON jobs (first_seen_at) WHERE user_id IS NULL AND expired_at IS NULL`;

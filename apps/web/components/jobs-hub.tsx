@@ -1217,6 +1217,18 @@ function JobDetail({
           ) : null}
         </div>
 
+        {job.applyEmail ? (
+          <p className="text-muted-foreground text-[11px]">
+            Apply by email:{" "}
+            <a href={`mailto:${job.applyEmail}`} className="text-primary hover:underline">
+              {job.applyEmail}
+            </a>{" "}
+            <span title="Published in the posting; Aavedak has not verified it">
+              (from the posting · unverified)
+            </span>
+          </p>
+        ) : null}
+
         {reasons.length > 0 ? (
           <p className="text-muted-foreground text-[11px]">
             Matches your profile: <span className="text-foreground/90">{reasons.join(", ")}</span>

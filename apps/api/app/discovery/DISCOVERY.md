@@ -30,7 +30,11 @@ forwards admin actions to `/svc/v1/discovery/admin/*` after its own allowlist ch
   `job_sources.url`); postings without a valid http(s) link are skipped (`missing_url`), never
   stored. The UI shows the link on every job card.
 - Never invent jobs, emails, or verification. Imported emails are `unverified`; phone
-  numbers are never imported.
+  numbers are never imported. Emails are only ever _extracted_ from text that is actually
+  published (a posting's description, a CSV, manual entry) — they are never _inferred_ or
+  guessed from a name + company domain. `jobs/email_extractor.py` extracts published
+  addresses and `best_application_email` picks at most one application/recruiting inbox
+  (e.g. `careers@`), returning None rather than guessing when the choice is ambiguous.
 
 ## Layout
 
@@ -45,7 +49,8 @@ app/discovery/
     models.py    SourceTarget, RawPosting, NormalizedJob, FetchResult
     providers/   one module per source; pure parse() + fetch(); detect_source(url)
     filters.py   India-or-remote / tech role / junior / experience parsing (pure)
-    normalize.py RawPosting → NormalizedJob + content hash + dedupe key
+    email_extractor.py  pull published emails from posting text; pick one application inbox (pure)
+    normalize.py RawPosting → NormalizedJob + content hash + dedupe key + apply_email
     store.py     per-company incremental upsert, close/reopen
     ranking.py   per-user recommendations (daily cap, min score); rerank_user() after career changes
     scoring.py   port of web lib/job-scoring.ts (keep in sync)
@@ -57,6 +62,7 @@ app/discovery/
     normalize.py CSV parsing, LinkedIn/email normalization, job relevance (pure)
     store.py     match → enrich (fill gaps only) or create; contacts; relevance links
     importer.py  CSV → persistent run of fixed-size batches
+    discover.py  per-company run: capture a published recruiting inbox (career page + postings)
   runs/
     store.py     runs + leased items (FOR UPDATE SKIP LOCKED), retries, progress
     worker.py    budgeted tick dispatching items by kind
@@ -71,7 +77,8 @@ Per company source (one run item):
 
 1. Provider fetches postings (network, worker thread). SmartRecruiters fetches details only
    for new postings that already pass title/location rules (parallel, capped, time-boxed).
-2. `normalize_postings` filters and builds `NormalizedJob`s (pure).
+2. `normalize_postings` filters and builds `NormalizedJob`s (pure), including
+   `apply_email` when the description openly publishes an application inbox.
 3. `store.ingest_company` (one transaction): new → insert job + `job_sources` ref, or link
    to a canonical job with the same dedupe key (company + title + first location token);
    changed hash → update in place (posted_at only moves earlier; empty description never
@@ -89,9 +96,11 @@ Per company source (one run item):
   processes them, and repeats until `DISCOVERY_TICK_BUDGET_SECONDS` (default 45) is used.
   Failed items retry up to `DISCOVERY_MAX_ATTEMPTS`; 404 boards / unsupported pages fail
   immediately. A crashed tick's items become claimable when their lease expires.
-- `vercel.json` crons (each once/day, ±59 min on Hobby), all UTC:
-  scan shards `/cron/scan/0..5` at 18:15–23:15 (≈ 23:45–04:45 IST), `/cron/expire` 00:15,
-  `/cron/rank` 01:15, `/cron/drain/0..6` spread through the day. Scan runs are idempotent
+- `vercel.json` crons (each once/day, ±59 min on Hobby), all UTC. The repetitive job scan is
+  **spread evenly across the day**: shards `/cron/scan/0..5` run every 4 h at
+  00:15/04:15/08:15/12:15/16:15/20:15 UTC (so new jobs trickle in all day, not one nightly
+  burst). `/cron/expire` 00:15, `/cron/rank` 01:15, `/cron/people-discovery` 02:15,
+  `/cron/drain/0..6` spread through the day. Scan and people-discovery runs are idempotent
   per IST day (`run_key`), so a retried cron resumes instead of duplicating.
 - Sources split into shards by `shard_seed % DISCOVERY_SHARDS`. Sources with
   `DISCOVERY_MAX_FAILURES` consecutive failures are retried weekly only.
@@ -115,6 +124,19 @@ Enrichment only fills empty fields. Contacts go to `person_contacts` with source
 provenance URL, and `unverified`. Votes (`person_votes`) are written by the web app and are
 a community signal separate from job relevance. The web app also adds a system credit (`person_reply_credits`, +1 per user a person replied to) to
 the displayed score; discovery does not read it.
+
+**Automatic people discovery (`discover.py`, free, published-only).** Besides CSV import and
+manual entry, a daily run (admin button `POST /admin/runs/people-discovery`, cron
+`/cron/people-discovery`) captures each company's **published recruiting inbox**. Per company
+source it gathers candidate emails from (a) `jobs.apply_email` already extracted from that
+company's postings and (b) a single fetch of `company_sources.careers_url` (one page, no
+crawling of other paths). It keeps an address only when the local part marks it an
+application inbox (`careers@`, `jobs@`, `hr@`, …) via `is_application_inbox`, then upserts it
+through `upsert_person` as a clearly-labelled company contact (`"<Company> — Careers"`, role
+`Careers / recruiting inbox`, `unverified`) — never a real named person. No emails are
+guessed/inferred, no LinkedIn or social profiles are scraped, and no paid/third-party API is
+used; richer named-contact data would require a licensed enrichment API, which is not
+integrated.
 
 ## Schema
 

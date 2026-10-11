@@ -151,7 +151,7 @@ def ingest_company(
                             job_id, job.title, job.company_name, company_id_for(job.company_name),
                             job.location, job.url, job.description, job.external_id, provider,
                             now, now, job.posted_at, 0 if job.posted_at else 1, now,
-                            job.dedupe_key, job.min_years,
+                            job.dedupe_key, job.min_years, job.apply_email,
                         )
                     )
                 source_rows.append(
@@ -167,9 +167,9 @@ def ingest_company(
                              (id, user_id, title, company, company_id, location, source, url,
                               description, salary, status, external_id, feed_source, created_at,
                               updated_at, posted_at, posted_at_estimated, first_seen_at,
-                              dedupe_key, min_years)
+                              dedupe_key, min_years, apply_email)
                            VALUES (%s, NULL, %s, %s, %s, %s, 'careers', %s, %s, NULL, 'active',
-                                   %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                            ON CONFLICT DO NOTHING""",
                         job_rows,
                     )
@@ -219,6 +219,7 @@ def ingest_company(
                                            AND (posted_at IS NULL OR %(p)s::text < posted_at)
                                           THEN %(p)s::text ELSE posted_at END,
                          dedupe_key = %(dedupe_key)s, min_years = %(min_years)s,
+                         apply_email = COALESCE(apply_email, %(apply_email)s),
                          updated_at = %(now)s
                        WHERE id = %(id)s AND user_id IS NULL""",
                     [
@@ -226,7 +227,8 @@ def ingest_company(
                             "id": job_id, "title": j.title, "company": j.company_name,
                             "company_id": company_id_for(j.company_name), "location": j.location,
                             "url": j.url, "description": j.description, "p": j.posted_at,
-                            "dedupe_key": j.dedupe_key, "min_years": j.min_years, "now": now,
+                            "dedupe_key": j.dedupe_key, "min_years": j.min_years,
+                            "apply_email": j.apply_email, "now": now,
                         }
                         for j, job_id in changed
                     ],

@@ -46,13 +46,15 @@ async function countTable(
 }
 
 export async function getAdminOverviewCounts(): Promise<AdminOverviewCounts> {
-  return {
-    profiles: await countTable("profiles"),
-    applications: await countTable("applications"),
-    resumes: await countTable("resumes"),
-    people: await countTable("people"),
-    templates: await countTable("templates"),
-  };
+  // One round trip per table, issued concurrently rather than in series.
+  const [profiles, applications, resumes, people, templates] = await Promise.all([
+    countTable("profiles"),
+    countTable("applications"),
+    countTable("resumes"),
+    countTable("people"),
+    countTable("templates"),
+  ]);
+  return { profiles, applications, resumes, people, templates };
 }
 
 export async function listRecentResumesForAdmin(limit = 40): Promise<AdminResumeRow[]> {

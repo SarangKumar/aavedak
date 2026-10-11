@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from app.discovery.jobs import filters
+from app.discovery.jobs.email_extractor import best_application_email
 from app.discovery.jobs.models import NormalizedJob, RawPosting
 from app.discovery.jobs.text import clean_line, content_hash, dedupe_key, html_to_text
 from app.discovery.timeutil import clamp_posted_at
@@ -96,6 +97,7 @@ def normalize_postings(
                 min_years=outcome.min_years,
                 dedupe_key=dedupe_key(company, title, location),
                 content_hash=content_hash(hashed),
+                apply_email=best_application_email(description),
             )
         )
     return result

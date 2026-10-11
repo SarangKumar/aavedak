@@ -32,6 +32,8 @@ export type JobRecord = {
   /** No longer listed by its source(s). */
   closedAt: string | null;
   minYears: number | null;
+  /** Application / recruiting email published in the posting text (unverified; shared jobs only). */
+  applyEmail: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -61,6 +63,7 @@ type Row = {
   expired_at?: string | null;
   closed_at?: string | null;
   min_years?: number | null;
+  apply_email?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -89,6 +92,7 @@ export function mapJobRow(row: Row): JobRecord {
     expiredAt: row.expired_at ?? null,
     closedAt: row.closed_at ?? null,
     minYears: row.min_years == null ? null : Number(row.min_years),
+    applyEmail: row.apply_email ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
