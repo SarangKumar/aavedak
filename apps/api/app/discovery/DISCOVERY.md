@@ -184,8 +184,16 @@ the displayed score; discovery does not read it.
 manual entry, a daily run (admin button `POST /admin/runs/people-discovery`, cron
 `/cron/people-discovery`) captures each company's **published recruiting inbox**. Per company
 source it gathers candidate emails from (a) `jobs.apply_email` already extracted from that
-company's postings and (b) a single fetch of `company_sources.careers_url` (one page, no
-crawling of other paths). It keeps an address only when the local part marks it an
+company's postings, (b) one fetch of `company_sources.careers_url` (the job board page), and
+(c) when neither yields an inbox, the company's **own website**: `official_careers_url` when
+known, else the site found by `company_site_hint` (where most of its postings link, else the
+site its board page links to most via `<a href>`, else the site most linked from its job
+descriptions — never guessed from the name; hiring platforms, social networks and trackers are
+excluded). At most **two pages** are read there — that page, then one same-site careers / jobs
+(else contact) page linked from it (`follow_link`) — with robots.txt respected and an 8 s
+timeout per page. An address found on the site must be on the company's own registrable domain
+(`site_inbox`). Item counts: `jobEmails`, `pageEmail`, `siteEmail`, `sitePages`. Most large
+companies publish no recruiting inbox at all, so expect contacts mainly from smaller companies. It keeps an address only when the local part marks it an
 application inbox (`careers@`, `jobs@`, `hr@`, …) via `is_application_inbox`, then upserts it
 through `upsert_person` as a clearly-labelled company contact (`"<Company> — Careers"`, role
 `Careers / recruiting inbox`, `unverified`) — never a real named person. No emails are

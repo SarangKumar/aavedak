@@ -194,8 +194,6 @@ const EDGES: Array<{
   to: StepId;
   delay: number;
   curvature?: number;
-  /** Loop-back edges (repeat a step) are dashed; forward edges dotted. */
-  loop?: boolean;
 }> = [
   // Onboarding sets up the dashboard, where new matches surface each day.
   { from: "onboarding", to: "dashboard", delay: 0 },
@@ -206,14 +204,14 @@ const EDGES: Array<{
   { from: "openings", to: "referrals", delay: 1.1 },
   // ATS ⇄ refine: a loop, re-check until the score is where you want it.
   { from: "ats", to: "refine", delay: 1.8, curvature: 10 },
-  { from: "refine", to: "ats", delay: 2.8, curvature: 10, loop: true },
+  { from: "refine", to: "ats", delay: 2.8, curvature: 10 },
   { from: "cover", to: "apply", delay: 1.9 },
   { from: "refine", to: "apply", delay: 2.4 },
   { from: "referrals", to: "apply", delay: 2 },
   { from: "apply", to: "track", delay: 2.9 },
   // Track ⇄ follow up: nudges until there is a reply.
   { from: "track", to: "followup", delay: 3.6, curvature: 10 },
-  { from: "followup", to: "track", delay: 4.4, curvature: 10, loop: true },
+  { from: "followup", to: "track", delay: 4.4, curvature: 10 },
 ];
 
 const STAGES = ["Set up", "Discover", "Prepare", "Reach out & apply", "Follow through"];
@@ -275,7 +273,7 @@ export function HomeFlow() {
           toRef={nodeRefs[edge.to]}
           delay={edge.delay}
           curvature={edge.curvature}
-          track={edge.loop ? "dashed" : "dotted"}
+          track="dotted"
           shape="curve"
           pulse="dot"
           duration={2.6}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,16 +32,27 @@ export type FuseButtonProps = Omit<ButtonProps, "onClick"> & {
   shape?: "rect" | "circle";
 };
 
-const STROKE_INSET = 0.75;
+/** Fuse thickness in px: a little heavier than the 1px button border so it reads clearly. */
+const FUSE_WIDTH = 2;
+
+/** Fuse colour follows the button's variant: destructive actions burn red, the rest primary. */
+function fuseColor(variant: FuseButtonProps["variant"]): string {
+  return variant === "destructive" ? "var(--destructive)" : "var(--primary)";
+}
+
 /** Used when the button's corner radius can't be read. Matches `rounded-md`. */
 const FALLBACK_RADIUS = 6;
 
-/** The border as a path that starts at the top middle and runs clockwise. */
-function fuseOutline(width: number, height: number, radius: number): string {
-  const x0 = STROKE_INSET;
-  const y0 = STROKE_INSET;
-  const x1 = width - STROKE_INSET;
-  const y1 = height - STROKE_INSET;
+/**
+ * The border as a path that starts at the top middle and runs clockwise. `width` × `height` is
+ * the button's border box; the stroke's centre line runs `inset` in (half the stroke width), so
+ * the stroke's outer edge lies on the button's outer edge.
+ */
+function fuseOutline(width: number, height: number, radius: number, inset: number): string {
+  const x0 = inset;
+  const y0 = inset;
+  const x1 = width - inset;
+  const y1 = height - inset;
   const r = radius;
   const cx = width / 2;
   return [
@@ -59,18 +70,21 @@ function fuseOutline(width: number, height: number, radius: number): string {
 }
 
 /** A circle centred in the box, starting at the top middle and running clockwise. */
-function fuseCircle(width: number, height: number): string {
-  const r = Math.min(width, height) / 2 - STROKE_INSET;
+function fuseCircle(width: number, height: number, inset: number): string {
+  const r = Math.min(width, height) / 2 - inset;
   const cx = width / 2;
   const cy = height / 2;
   return `M${cx} ${cy - r} A${r} ${r} 0 1 1 ${cx} ${cy + r} A${r} ${r} 0 1 1 ${cx} ${cy - r}`;
 }
 
-/** The button's own corner radius, clamped so a pill (`rounded-full`) gets a true circle. */
-function cornerRadius(element: Element, width: number, height: number): number {
-  const declared = parseFloat(getComputedStyle(element).borderTopLeftRadius);
-  const radius = Number.isFinite(declared) ? declared : FALLBACK_RADIUS;
-  return Math.max(0, Math.min(radius, width / 2 - STROKE_INSET, height / 2 - STROKE_INSET));
+/**
+ * Radius of the border's centre line: the button's outer corner radius less half the border,
+ * clamped so a pill (`rounded-full`) gets a true semicircle.
+ */
+function centreRadius(button: Element, width: number, height: number, inset: number): number {
+  const declared = parseFloat(getComputedStyle(button).borderTopLeftRadius);
+  const outer = Number.isFinite(declared) ? declared : FALLBACK_RADIUS;
+  return Math.max(0, Math.min(outer - inset, width / 2 - inset, height / 2 - inset));
 }
 
 /**
@@ -95,7 +109,11 @@ export function FuseButton({
   children,
   ...props
 }: FuseButtonProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
+  // The idle button's border-box size, held while lit so the Undo label never resizes it.
+  const [idleSize, setIdleSize] = useState<{ width: number; height: number } | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(Math.ceil(duration / 1000));
   const isIcon = typeof size === "string" && size.startsWith("icon");
 
@@ -105,24 +123,52 @@ export function FuseButton({
     onFireRef.current = onFire;
   });
 
+  useLayoutEffect(() => {
+    if (active) return;
+    const button = buttonRef.current;
+    if (!button) return;
+    const measure = () => {
+      const width = button.offsetWidth;
+      const height = button.offsetHeight;
+      setIdleSize((current) =>
+        current && current.width === width && current.height === height
+          ? current
+          : { width, height },
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(button);
+    return () => ro.disconnect();
+  }, [active]);
+
   useEffect(() => {
     if (!active) return;
     const start = performance.now();
     let frame = 0;
     const tick = (now: number) => {
       const path = pathRef.current;
-      const svg = path?.ownerSVGElement;
-      // Each lit cycle mounts a fresh path, so measure the button once per cycle.
-      if (path && svg && !path.getAttribute("d")) {
-        const host = svg.parentElement;
-        const width = svg.clientWidth;
-        const height = svg.clientHeight;
-        if (shape === "circle") {
-          path.setAttribute("d", fuseCircle(width, height));
-        } else {
-          const radius = host ? cornerRadius(host, width, height) : FALLBACK_RADIUS;
-          path.setAttribute("d", fuseOutline(width, height, radius));
-        }
+      const svg = svgRef.current;
+      const button = buttonRef.current;
+      // Each lit cycle mounts a fresh path, so measure the button once per cycle. The SVG covers
+      // the button's border box (absolute children are placed inside the border, so pull it out
+      // by the border width). The stroke's outer edge sits on the button's outer edge, so the
+      // fuse traces the button's own border, FUSE_WIDTH thick.
+      if (path && svg && button && !path.getAttribute("d")) {
+        const width = button.offsetWidth;
+        const height = button.offsetHeight;
+        const border = parseFloat(getComputedStyle(button).borderTopWidth) || 0;
+        const inset = FUSE_WIDTH / 2;
+        svg.style.inset = `${-border}px`;
+        svg.style.width = `${width}px`;
+        svg.style.height = `${height}px`;
+        path.setAttribute("stroke-width", String(FUSE_WIDTH));
+        path.setAttribute(
+          "d",
+          shape === "circle"
+            ? fuseCircle(width, height, inset)
+            : fuseOutline(width, height, centreRadius(button, width, height, inset), inset),
+        );
       }
       const left = Math.max(0, duration - (now - start));
       // pathLength is 1 and starts at the top middle. The burnt part grows clockwise from 0, so
@@ -146,15 +192,21 @@ export function FuseButton({
   return (
     <Button
       {...props}
+      ref={buttonRef}
       size={size}
       variant={active ? "outline" : variant}
       disabled={active ? false : disabled}
       onClick={() => (active ? onUndo() : onActivate())}
       className={cn(
         shape === "circle" && "aspect-square rounded-full",
-        active && "tabular-nums",
+        active && "overflow-hidden tabular-nums",
         className,
       )}
+      style={
+        active && idleSize
+          ? { ...props.style, width: idleSize.width, height: idleSize.height }
+          : props.style
+      }
       aria-label={active && isIcon ? undoLabel : props["aria-label"]}
     >
       {active ? (
@@ -167,18 +219,14 @@ export function FuseButton({
         children
       )}
       {active ? (
-        <svg
-          aria-hidden
-          className="pointer-events-none absolute inset-0 size-full overflow-visible"
-        >
+        <svg aria-hidden ref={svgRef} className="pointer-events-none absolute overflow-visible">
           <path
             ref={pathRef}
             pathLength={1}
             fill="none"
-            strokeWidth={1.5}
             style={{
-              stroke: "var(--primary)",
-              filter: "drop-shadow(0 0 3px var(--primary))",
+              stroke: fuseColor(variant),
+              filter: `drop-shadow(0 0 3px ${fuseColor(variant)})`,
             }}
           />
         </svg>

@@ -116,6 +116,22 @@ const RUN_LABELS: Record<string, string> = {
   people_discovery: "People discovery",
 };
 
+/** What one item of each run kind is, for the Progress column ("32 of 32 boards scanned"). */
+const RUN_UNITS: Record<string, { label: string; help: string }> = {
+  jobs_scan: {
+    label: "boards scanned",
+    help: "Company job boards scanned for new roles, of all boards in this run.",
+  },
+  people_discovery: {
+    label: "companies checked",
+    help: "Companies checked for a published recruiting inbox, of all companies in this run.",
+  },
+  people_import: {
+    label: "batches imported",
+    help: "CSV batches imported, of all batches in this upload.",
+  },
+};
+
 async function postAction<T>(body: Record<string, unknown>): Promise<T> {
   const res = await fetch("/api/admin/discovery", {
     method: "POST",
@@ -215,15 +231,21 @@ export function AdminDiscoveryPanel() {
     {
       id: "progress",
       header: "Progress",
-      width: "9rem",
+      width: "15rem",
       cell: (r) => {
         const pct = runProgress(r);
+        // Same count the percentage uses: finished items, whether they succeeded or failed.
+        const processed = r.doneItems + r.failedItems;
+        const unit = RUN_UNITS[r.kind] ?? {
+          label: "items processed",
+          help: "Items processed, of all items in this run.",
+        };
         return (
-          <div className="space-y-1">
-            <div className="flex items-center justify-between gap-2 text-[11px] tabular-nums">
-              <span className="text-foreground font-medium">{pct}%</span>
-              <span className="text-muted-foreground">
-                {r.doneItems}/{r.totalItems}
+          <div className="min-w-56 space-y-1" title={unit.help}>
+            <div className="flex items-baseline gap-2 whitespace-nowrap text-[11px] tabular-nums">
+              <span className="text-foreground w-9 shrink-0 font-medium">{pct}%</span>
+              <span className="text-muted-foreground truncate">
+                {processed} of {r.totalItems} {unit.label}
               </span>
             </div>
             <Progress value={pct} className="h-1.5" />
@@ -251,8 +273,27 @@ export function AdminDiscoveryPanel() {
               </Badge>
             </>
           ) : null}
-          {(r.kind === "people_discovery" || r.kind === "people_import") &&
-          r.totals.created !== undefined ? (
+          {r.kind === "people_discovery" && r.totals.created !== undefined ? (
+            // Each company that yields an inbox is created, enriched or unchanged exactly once.
+            <>
+              <Badge
+                variant="outline"
+                className="text-[10px] tabular-nums"
+                title="Companies where a published recruiting inbox (careers@, jobs@, …) was found in their postings, job board or own website."
+              >
+                {(r.totals.created ?? 0) + (r.totals.enriched ?? 0) + (r.totals.unchanged ?? 0)}{" "}
+                inboxes found
+              </Badge>
+              <Badge
+                variant="outline"
+                className="text-[10px] tabular-nums"
+                title="New contacts added to People in this run (inboxes already in People aren't counted again)."
+              >
+                {r.totals.created} new contacts
+              </Badge>
+            </>
+          ) : null}
+          {r.kind === "people_import" && r.totals.created !== undefined ? (
             <>
               <Badge variant="outline" className="text-[10px] tabular-nums">
                 {r.totals.created} created

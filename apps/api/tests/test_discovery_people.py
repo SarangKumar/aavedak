@@ -78,3 +78,68 @@ def test_shared_schema_is_mirrored_in_web_app_db():
         name = re.search(r"(?:COLUMN IF NOT EXISTS|TABLE IF NOT EXISTS|INDEX IF NOT EXISTS)\s+(\w+)", stmt)
         assert name, stmt
         assert name.group(1) in web, f"{name.group(1)} missing from app-db.ts"
+
+
+# --- People discovery: company site --------------------------------------------------
+
+from app.discovery.people.discover import (  # noqa: E402
+    company_site_hint,
+    follow_link,
+    registrable_domain,
+    site_inbox,
+)
+
+
+def test_registrable_domain():
+    assert registrable_domain("careers.withwaymo.com") == "withwaymo.com"
+    assert registrable_domain("www.zeta.co.in") == "zeta.co.in"
+    assert registrable_domain("meesho.io") == "meesho.io"
+
+
+def test_company_site_hint_prefers_where_postings_live():
+    urls = ["https://careers.acme.com/jobs/1", "https://careers.acme.com/jobs/2"]
+    assert company_site_hint(board_html=None, job_urls=urls, descriptions=[]) == (
+        "https://careers.acme.com/"
+    )
+
+
+def test_company_site_hint_from_board_skips_platforms_and_trackers():
+    board = (
+        '<a href="https://www.greenhouse.com/privacy">Privacy</a>'
+        '<a href="https://www.linkedin.com/company/acme">in</a>'
+        '<a href="https://acme.com">Acme</a><a href="https://acme.com/about">About</a>'
+    )
+    urls = ["https://job-boards.greenhouse.io/acme/jobs/1"]
+    assert company_site_hint(board_html=board, job_urls=urls, descriptions=[]) == (
+        "https://acme.com/"
+    )
+
+
+def test_company_site_hint_ignores_meta_urls_on_board():
+    board = '<meta property="og:type" content="https://ogp.me/ns#">'
+    assert company_site_hint(board_html=board, job_urls=[], descriptions=[]) is None
+
+
+def test_company_site_hint_is_none_without_evidence():
+    assert company_site_hint(board_html="<p>No links</p>", job_urls=[], descriptions=[]) is None
+
+
+def test_follow_link_prefers_careers_then_contact_on_same_site():
+    html = (
+        '<a href="/contact">Contact us</a>'
+        '<a href="https://other.com/careers">Partner careers</a>'
+        '<a href="/company/join-us">Join us</a>'
+    )
+    assert follow_link(html, "https://acme.com/") == "https://acme.com/company/join-us"
+    assert follow_link('<a href="/contact">Contact</a>', "https://acme.com/") == (
+        "https://acme.com/contact"
+    )
+    assert follow_link('<a href="https://other.com/jobs">x</a>', "https://acme.com/") is None
+
+
+def test_site_inbox_reads_mailto_and_requires_company_domain():
+    html = '<p>Write to us</p><a href="mailto:careers@acme.com?subject=CV">Email</a>'
+    assert site_inbox(html, "https://www.acme.com/careers") == "careers@acme.com"
+    # A personal address is never captured, nor an inbox on someone else's domain.
+    assert site_inbox("<p>priya@acme.com</p>", "https://acme.com/") is None
+    assert site_inbox("<p>jobs@recruitco.com</p>", "https://acme.com/") is None
