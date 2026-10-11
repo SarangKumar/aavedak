@@ -147,7 +147,7 @@ export function DiscoveryRunsChart({ kind }: { kind: string }) {
                 type="monotone"
                 stroke={color}
                 strokeWidth={2}
-                dot={{ r: 2.5, fill: "var(--color-foreground)", stroke: color, strokeWidth: 2 }}
+                dot={false}
                 activeDot={{ r: 5, fill: "var(--color-foreground)", stroke: color, strokeWidth: 2 }}
               />
             );

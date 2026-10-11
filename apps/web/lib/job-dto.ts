@@ -23,6 +23,8 @@ export type JobDtoBase = {
   minYears: number | null;
   /** Published application email from the posting (unverified; discovered jobs only). */
   applyEmail: string | null;
+  /** Discovered job that was filled / pulled from the portal (closed or expired). */
+  removedFromPortal: boolean;
   createdAt: string;
   updatedAt: string;
   compatibilityScore: number | null;
@@ -80,6 +82,7 @@ export function toJobDto(
     firstSeenAt: job.firstSeenAt,
     minYears: job.minYears,
     applyEmail: job.userId === null ? job.applyEmail : null,
+    removedFromPortal: job.userId === null && (job.closedAt != null || job.expiredAt != null),
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     compatibilityScore:

@@ -75,6 +75,10 @@
       "schedule": "15 0 * * *"
     },
     {
+      "path": "/svc/v1/discovery/cron/prune-filled",
+      "schedule": "45 0 * * *"
+    },
+    {
       "path": "/svc/v1/discovery/cron/rank",
       "schedule": "15 1 * * *"
     },

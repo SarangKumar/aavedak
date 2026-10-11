@@ -99,8 +99,9 @@ Per company source (one run item):
 - `vercel.json` crons (each once/day, ±59 min on Hobby), all UTC. The repetitive job scan is
   **spread evenly across the day**: shards `/cron/scan/0..5` run every 4 h at
   00:15/04:15/08:15/12:15/16:15/20:15 UTC (so new jobs trickle in all day, not one nightly
-  burst). `/cron/expire` 00:15, `/cron/rank` 01:15, `/cron/people-discovery` 02:15,
-  `/cron/drain/0..6` spread through the day. Scan and people-discovery runs are idempotent
+  burst). `/cron/expire` 00:15, `/cron/prune-filled` 00:45, `/cron/rank` 01:15,
+  `/cron/people-discovery` 02:15, `/cron/drain/0..6` spread through the day. Scan and
+  people-discovery runs are idempotent
   per IST day (`run_key`), so a retried cron resumes instead of duplicating.
 - Sources split into shards by `shard_seed % DISCOVERY_SHARDS`. Sources with
   `DISCOVERY_MAX_FAILURES` consecutive failures are retried weekly only.
@@ -114,6 +115,15 @@ Per company source (one run item):
 `status_reason = job_expired` and a system `application_events` row. A unique index on
 system (application, reason) makes it happen once — if the user reopens the application it
 is never re-rejected. Manual/pasted jobs and applications without a job never expire.
+
+**Filled / removed from portal.** A posting a company fills or pulls stops being listed, so a
+complete scan sets `jobs.closed_at`. Such jobs are already excluded from Discover (the query
+filters `closed_at IS NULL`). The daily `/cron/prune-filled` (`expiry.prune_filled_jobs`)
+additionally clears their `recommended_at` in `user_job_state` so they can never be
+re-offered. Applications are **kept** (never deleted or auto-rejected for this): the web app
+flags an application whose linked shared job is `closed_at` or `expired_at`
+(`applications.listApplications` → `jobRemovedFromPortal`, and `job-dto` →
+`removedFromPortal`) and badges it "Removed from portal" in the tracker and Jobs.
 
 ## People
 

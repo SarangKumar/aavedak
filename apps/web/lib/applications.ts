@@ -26,6 +26,8 @@ export type ApplicationRecord = {
   status: ApplicationStatus;
   /** Why the status last changed when the system changed it (e.g. `job_expired`). */
   statusReason: string | null;
+  /** The linked shared job was filled / pulled from the portal (closed or expired). */
+  jobRemovedFromPortal: boolean;
   notes: string | null;
   appliedAt: string | null;
   createdAt: string;
@@ -60,6 +62,7 @@ type ApplicationRow = {
   cover_letter_id?: string | null;
   status: string;
   status_reason?: string | null;
+  job_removed_from_portal?: number | null;
   notes: string | null;
   applied_at?: string | null;
   created_at: string;
@@ -83,6 +86,7 @@ function mapRow(row: ApplicationRow): ApplicationRecord {
     coverLetterId: row.cover_letter_id ?? null,
     status: row.status,
     statusReason: row.status_reason ?? null,
+    jobRemovedFromPortal: Boolean(row.job_removed_from_portal),
     notes: row.notes,
     appliedAt: row.applied_at ?? null,
     createdAt: row.created_at,
@@ -110,17 +114,27 @@ export async function listApplications(
 ): Promise<ApplicationRecord[]> {
   await ensureAppSchema();
   const sql = getSql();
+  // Flag applications whose linked shared job was filled / pulled from the portal
+  // (closed by a scan, or expired) so the tracker can badge them — the application stays.
   const rows =
     scope === "archived"
       ? ((await sql`
-          SELECT * FROM applications
-          WHERE user_id = ${userId} AND status = 'archived'
-          ORDER BY updated_at DESC
+          SELECT a.*,
+            CASE WHEN j.user_id IS NULL AND (j.closed_at IS NOT NULL OR j.expired_at IS NOT NULL)
+                 THEN 1 ELSE 0 END AS job_removed_from_portal
+          FROM applications a
+          LEFT JOIN jobs j ON j.id = a.job_id
+          WHERE a.user_id = ${userId} AND a.status = 'archived'
+          ORDER BY a.updated_at DESC
         `) as ApplicationRow[])
       : ((await sql`
-          SELECT * FROM applications
-          WHERE user_id = ${userId} AND status != 'archived'
-          ORDER BY updated_at DESC
+          SELECT a.*,
+            CASE WHEN j.user_id IS NULL AND (j.closed_at IS NOT NULL OR j.expired_at IS NOT NULL)
+                 THEN 1 ELSE 0 END AS job_removed_from_portal
+          FROM applications a
+          LEFT JOIN jobs j ON j.id = a.job_id
+          WHERE a.user_id = ${userId} AND a.status != 'archived'
+          ORDER BY a.updated_at DESC
         `) as ApplicationRow[]);
   return rows.map(mapRow);
 }
@@ -496,6 +510,7 @@ export function applicationToDto(app: ApplicationRecord) {
     coverLetterId: app.coverLetterId,
     status: app.status,
     statusReason: app.statusReason,
+    jobRemovedFromPortal: app.jobRemovedFromPortal,
     notes: app.notes,
     appliedAt: app.appliedAt,
     createdAt: app.createdAt,

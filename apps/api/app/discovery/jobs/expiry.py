@@ -72,5 +72,24 @@ def reject_expired_applications(conn: psycopg.Connection) -> int:
             return total
 
 
+def prune_filled_jobs(conn: psycopg.Connection) -> int:
+    """Drop 'filled' / removed-from-portal shared jobs from every user's Discover pool.
+
+    A posting that a company fills or pulls stops being listed by its source, so a complete
+    scan sets `jobs.closed_at`. This clears those jobs' `recommended_at` in `user_job_state`
+    so they leave Discover and are never re-offered. Applications are left untouched: a user
+    who applied or bookmarked keeps the application (the UI badges it as removed from the
+    portal). Set-based and safe to re-run."""
+    now = now_iso()
+    cur = conn.execute(
+        """UPDATE user_job_state s SET recommended_at = NULL, updated_at = %s
+           FROM jobs j
+           WHERE s.job_id = j.id AND j.user_id IS NULL AND j.closed_at IS NOT NULL
+             AND s.recommended_at IS NOT NULL AND s.application_id IS NULL""",
+        (now, now),
+    )
+    return cur.rowcount or 0
+
+
 def run_expiry(conn: psycopg.Connection, settings: DiscoverySettings) -> dict[str, int]:
     return {"jobsExpired": expire_jobs(conn, settings), "applicationsRejected": reject_expired_applications(conn)}

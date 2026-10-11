@@ -1178,6 +1178,15 @@ function JobDetail({
           {tab === "applied" && job.applicationStatus ? (
             <Badge className="text-[10px]">{statusLabel(job.applicationStatus)}</Badge>
           ) : null}
+          {job.removedFromPortal ? (
+            <Badge
+              variant="outline"
+              className="border-destructive/40 text-destructive text-[10px]"
+              title="This posting was filled or pulled from the source. It's gone from Discover, but your application is kept."
+            >
+              Removed from portal
+            </Badge>
+          ) : null}
           {job.compatibilityScore != null ? (
             <Badge variant="secondary" className="text-[10px] tabular-nums">
               Match {job.compatibilityScore}%

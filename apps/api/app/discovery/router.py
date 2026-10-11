@@ -112,6 +112,16 @@ def cron_expire(conn: psycopg.Connection = Conn) -> dict[str, Any]:
     return expiry.run_expiry(conn, get_settings())
 
 
+@router.get("/cron/prune-filled", dependencies=[Auth])
+def cron_prune_filled(conn: psycopg.Connection = Conn) -> dict[str, Any]:
+    """Daily: drop filled / removed-from-portal jobs (closed by scans) from Discover.
+    Applications stay; the web app badges them as removed from the portal."""
+    settings = get_settings()
+    if not settings.discovery_enabled:
+        return {"skipped": "discovery disabled"}
+    return {"prunedFromDiscover": expiry.prune_filled_jobs(conn)}
+
+
 @router.get("/cron/rank", dependencies=[Auth])
 def cron_rank(conn: psycopg.Connection = Conn) -> dict[str, Any]:
     """Daily top-up over the whole active pool (incremental ranking happens per scan)."""

@@ -99,6 +99,8 @@ export type ApplicationDto = {
   status: ApplicationStatus;
   /** System reason for the last status change (`job_expired` → auto-rejected). */
   statusReason?: string | null;
+  /** The linked shared job was filled / pulled from the portal (closed or expired). */
+  jobRemovedFromPortal?: boolean;
   notes: string | null;
   appliedAt?: string | null;
   createdAt: string;
@@ -721,6 +723,8 @@ export function JobTrackerBoard({
                                         ) : null}
                                         {app.statusReason === "job_expired" ? (
                                           <JobExpiredBadge />
+                                        ) : app.jobRemovedFromPortal ? (
+                                          <RemovedFromPortalBadge />
                                         ) : null}
                                       </JobCardContent>
                                     </div>
@@ -1199,7 +1203,11 @@ function ListView({
               <TableCell className="text-muted-foreground font-normal">
                 <span className="inline-flex items-center gap-1.5">
                   {STATUS_LABELS[app.status]}
-                  {app.statusReason === "job_expired" ? <JobExpiredBadge /> : null}
+                  {app.statusReason === "job_expired" ? (
+                    <JobExpiredBadge />
+                  ) : app.jobRemovedFromPortal ? (
+                    <RemovedFromPortalBadge />
+                  ) : null}
                 </span>
               </TableCell>
               <TableCell className="text-muted-foreground whitespace-nowrap font-normal">
@@ -1274,6 +1282,18 @@ function JobExpiredBadge() {
       title="Automatically marked Rejected: the job posting is older than 30 days. Change the status anytime."
     >
       Job expired
+    </Badge>
+  );
+}
+
+function RemovedFromPortalBadge() {
+  return (
+    <Badge
+      variant="outline"
+      className="border-destructive/40 text-destructive px-1.5 py-0 text-[10px]"
+      title="This posting was filled or pulled from the source. It's gone from Discover, but your application is kept here."
+    >
+      Removed from portal
     </Badge>
   );
 }

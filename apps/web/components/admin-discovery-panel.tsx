@@ -4,16 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  paginationPageList,
-} from "@/components/ui/pagination";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { DiscoveryRunsChart } from "@/components/discovery-runs-chart";
@@ -183,23 +174,121 @@ export function AdminDiscoveryPanel() {
   const [runDetail, setRunDetail] = useState<RunDto | null>(null);
   const [csvFiles, setCsvFiles] = useState<FileUploadFile[]>([]);
   const [runKind, setRunKind] = useState<string>("all");
-  const [runsPage, setRunsPage] = useState(1);
+  const [runsPageSize, setRunsPageSize] = useState(5);
 
-  const RUNS_PAGE_SIZE = 5;
   const filteredRuns = useMemo(
     () => (overview?.runs ?? []).filter((r) => runKind === "all" || r.kind === runKind),
     [overview?.runs, runKind],
   );
-  const runsPageCount = Math.max(1, Math.ceil(filteredRuns.length / RUNS_PAGE_SIZE) || 1);
-  const runsCurrentPage = Math.min(Math.max(1, runsPage), runsPageCount);
-  const pagedRuns = useMemo(
-    () =>
-      filteredRuns.slice((runsCurrentPage - 1) * RUNS_PAGE_SIZE, runsCurrentPage * RUNS_PAGE_SIZE),
-    [filteredRuns, runsCurrentPage],
-  );
-  useEffect(() => {
-    setRunsPage(1);
-  }, [runKind]);
+
+  const runColumns: DataTableColumn<RunDto>[] = [
+    {
+      id: "run",
+      header: "Run",
+      accessorKey: "kind",
+      searchable: true,
+      enableHiding: false,
+      cell: (r) => (
+        <button
+          type="button"
+          className="min-w-0 text-left"
+          onClick={() => void openRun(r)}
+          title="Open run details"
+        >
+          <span className="text-foreground block truncate text-[12px] font-medium hover:underline">
+            {RUN_LABELS[r.kind] ?? r.kind}
+          </span>
+          {r.runKey ? (
+            <span className="text-muted-foreground block truncate text-[11px]">{r.runKey}</span>
+          ) : null}
+        </button>
+      ),
+    },
+    {
+      id: "progress",
+      header: "Progress",
+      width: "9rem",
+      cell: (r) => {
+        const pct = runProgress(r);
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-2 text-[11px] tabular-nums">
+              <span className="text-foreground font-medium">{pct}%</span>
+              <span className="text-muted-foreground">
+                {r.doneItems}/{r.totalItems}
+              </span>
+            </div>
+            <Progress value={pct} className="h-1.5" />
+          </div>
+        );
+      },
+    },
+    {
+      id: "results",
+      header: "Results",
+      cell: (r) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {r.failedItems ? (
+            <Badge variant="destructive" className="text-[10px] tabular-nums">
+              {r.failedItems} failed
+            </Badge>
+          ) : null}
+          {r.kind === "jobs_scan" && r.totals.inserted !== undefined ? (
+            <>
+              <Badge variant="outline" className="text-[10px] tabular-nums">
+                {r.totals.inserted} new jobs
+              </Badge>
+              <Badge variant="outline" className="text-[10px] tabular-nums">
+                {r.totals.recommended ?? 0} recommended
+              </Badge>
+            </>
+          ) : null}
+          {(r.kind === "people_discovery" || r.kind === "people_import") &&
+          r.totals.created !== undefined ? (
+            <>
+              <Badge variant="outline" className="text-[10px] tabular-nums">
+                {r.totals.created} created
+              </Badge>
+              {r.totals.enriched ? (
+                <Badge variant="outline" className="text-[10px] tabular-nums">
+                  {r.totals.enriched} enriched
+                </Badge>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorKey: "status",
+      sortable: true,
+      width: "6.5rem",
+      cell: (r) => (
+        <Badge
+          variant={
+            r.status === "done" ? "secondary" : r.status === "failed" ? "destructive" : "default"
+          }
+          className="text-[10px]"
+        >
+          {r.status}
+        </Badge>
+      ),
+    },
+    {
+      id: "started",
+      header: "Started",
+      accessorKey: "createdAt",
+      sortable: true,
+      width: "11rem",
+      cell: (r) => (
+        <span className="text-muted-foreground text-[11px] tabular-nums">
+          {formatDateTimeFixed(r.createdAt)}
+        </span>
+      ),
+    },
+  ];
 
   const refresh = useCallback(async () => {
     try {
@@ -599,120 +688,53 @@ export function AdminDiscoveryPanel() {
                 <CardDescription className="text-[11px]">
                   Resumable: failed items retry automatically up to 3 times.
                 </CardDescription>
+                <CardAction>
+                  <ToggleGroup
+                    aria-label="Runs per page"
+                    variant="outline"
+                    size="sm"
+                    // spacing={1}
+                    value={[String(runsPageSize)]}
+                    onValueChange={(next) => {
+                      const n = Number(next[0]);
+                      if (n) setRunsPageSize(n);
+                    }}
+                  >
+                    {[5, 10, 20].map((n) => (
+                      <ToggleGroupItem
+                        key={n}
+                        value={String(n)}
+                        className="h-7 rounded-full px-2.5 text-[11px]"
+                      >
+                        {n}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </CardAction>
               </CardHeader>
-              <CardContent className="gap-2">
-                {filteredRuns.length === 0 ? (
-                  <p className="text-muted-foreground text-[12px]">No runs match this filter.</p>
-                ) : (
-                  pagedRuns.map((r, index) => (
-                    <div key={r.id} className="space-y-1.5">
-                      {index > 0 ? <Separator /> : null}
-                      <div className="flex items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          className="min-w-0 text-left"
-                          onClick={() => void openRun(r)}
-                        >
-                          <p className="text-foreground truncate text-[12px] font-medium hover:underline">
-                            {RUN_LABELS[r.kind] ?? r.kind}
-                            {r.runKey ? (
-                              <span className="text-muted-foreground font-normal">
-                                {" "}
-                                · {r.runKey}
-                              </span>
-                            ) : null}
-                          </p>
-                          <p className="text-muted-foreground text-[11px]">
-                            {formatDateTimeFixed(r.createdAt)} · {r.doneItems}/{r.totalItems} done
-                            {r.failedItems ? ` · ${r.failedItems} failed` : ""}
-                            {r.kind === "jobs_scan" && r.totals.inserted !== undefined
-                              ? ` · ${r.totals.inserted} new jobs · ${r.totals.recommended ?? 0} recommended`
-                              : ""}
-                            {r.kind === "people_import" && r.totals.created !== undefined
-                              ? ` · ${r.totals.created} created · ${r.totals.enriched ?? 0} enriched`
-                              : ""}
-                          </p>
-                        </button>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Badge
-                            variant={
-                              r.status === "done"
-                                ? "secondary"
-                                : r.status === "failed"
-                                  ? "destructive"
-                                  : "default"
-                            }
-                            className="text-[10px]"
-                          >
-                            {r.status}
-                          </Badge>
-                          {r.failedItems > 0 ? (
-                            <Button
-                              size="xs"
-                              variant="ghost"
-                              disabled={busy !== null}
-                              onClick={() => void retryRun(r.id)}
-                            >
-                              Retry failed
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                      {r.status === "running" ? (
-                        <Progress value={runProgress(r)} className="h-1.5" />
-                      ) : null}
-                    </div>
-                  ))
-                )}
-                {filteredRuns.length > RUNS_PAGE_SIZE ? (
-                  <div className="flex items-center justify-between gap-2 pt-1">
-                    <p className="text-muted-foreground text-[11px] tabular-nums">
-                      Page {runsCurrentPage} of {runsPageCount}
-                    </p>
-                    <Pagination className="mx-0 w-auto justify-end">
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious
-                            size="sm"
-                            disabled={runsCurrentPage <= 1}
-                            onClick={() => setRunsPage((p) => Math.max(1, p - 1))}
-                          />
-                        </PaginationItem>
-                        {paginationPageList(runsCurrentPage, runsPageCount).map(
-                          (pageNumber, index, list) => {
-                            const previous = list[index - 1];
-                            const showEllipsis = previous != null && pageNumber - previous > 1;
-                            return (
-                              <span key={pageNumber} className="contents">
-                                {showEllipsis ? (
-                                  <PaginationItem>
-                                    <PaginationEllipsis />
-                                  </PaginationItem>
-                                ) : null}
-                                <PaginationItem>
-                                  <PaginationLink
-                                    size="sm"
-                                    isActive={pageNumber === runsCurrentPage}
-                                    onClick={() => setRunsPage(pageNumber)}
-                                  >
-                                    {pageNumber}
-                                  </PaginationLink>
-                                </PaginationItem>
-                              </span>
-                            );
-                          },
-                        )}
-                        <PaginationItem>
-                          <PaginationNext
-                            size="sm"
-                            disabled={runsCurrentPage >= runsPageCount}
-                            onClick={() => setRunsPage((p) => Math.min(runsPageCount, p + 1))}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
-                  </div>
-                ) : null}
+              <CardContent>
+                <DataTable
+                  columns={runColumns}
+                  data={filteredRuns}
+                  getRowId={(r) => r.id}
+                  searchable
+                  searchPlaceholder="Search run kind…"
+                  pagination={runsPageSize}
+                  emptyMessage="No runs match this filter."
+                  renderRowActions={(r) =>
+                    r.failedItems > 0 ? (
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        disabled={busy !== null}
+                        onClick={() => void retryRun(r.id)}
+                      >
+                        Retry
+                      </Button>
+                    ) : null
+                  }
+                  actionsWidth="5rem"
+                />
               </CardContent>
             </Card>
           </section>

@@ -53,6 +53,7 @@ export default async function JobTrackerPage() {
       jobTitle: linkedJob?.title ?? null,
       status: app.status,
       statusReason: app.statusReason,
+      jobRemovedFromPortal: app.jobRemovedFromPortal,
       notes: app.notes,
       appliedAt: app.appliedAt,
       createdAt: app.createdAt,
