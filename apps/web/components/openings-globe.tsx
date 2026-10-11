@@ -263,13 +263,10 @@ export function OpeningsGlobe({
             <span className="text-primary tabular-nums">{city.count}</span>
             {/* Quick look on hover / focus; the label stays the link to the city's jobs. */}
             <span className="aavedak-globe-card" aria-hidden>
-              <span className="text-foreground block text-[12px] font-semibold">{city.name}</span>
-              <span className="text-muted-foreground block text-[11px]">
+              <span className="text-foreground block text-[11px] font-semibold">{city.name}</span>
+              <span className="text-muted-foreground block text-[10px]">
                 {city.count} open {city.count === 1 ? "role" : "roles"} · {city.companyCount}{" "}
                 {city.companyCount === 1 ? "company" : "companies"}
-              </span>
-              <span className="text-primary mt-1.5 block text-[10px] font-medium">
-                Click to see jobs →
               </span>
             </span>
           </Link>
