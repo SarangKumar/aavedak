@@ -859,34 +859,21 @@ export function OutreachInbox({
   const processLabel = "Process due queue: send mail whose send time has passed";
   const toolbarActions = (
     <div className="ml-auto flex shrink-0 items-center gap-1.5">
-      {isDesktop ? (
+      {/* Icon-only on every screen, with the full action in its tooltip. */}
+      <Tooltip content={processLabel} className="z-70 text-[12px]">
         <Button
+          type="button"
           variant="outline"
-          size="sm"
+          size="icon-sm"
           onClick={() => void processQueue()}
           disabled={processing}
           loading={processing}
-          loadingText="Processing…"
+          loadingText=""
+          aria-label={processLabel}
         >
-          Process due queue
+          <QueueIcon className="size-3.5" />
         </Button>
-      ) : (
-        // Phones: icon-only so search, actions and filters fit on one row.
-        <Tooltip content={processLabel} className="z-70 text-[12px]">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            onClick={() => void processQueue()}
-            disabled={processing}
-            loading={processing}
-            loadingText=""
-            aria-label={processLabel}
-          >
-            <QueueIcon className="size-3.5" />
-          </Button>
-        </Tooltip>
-      )}
+      </Tooltip>
       {refreshControl}
       {isDesktop ? null : filterButton}
       {/* On the full-screen board the collapse control sits in the top bar instead. */}
