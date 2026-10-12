@@ -819,10 +819,10 @@ export function DocumentsHub({
             Cover Letter
           </TabsTrigger>
           <TabsTrigger value="referral_email" className="cursor-pointer px-2.5 text-[12px]">
-            Referral Email
+            Referral <span className="hidden md:inline">Email</span>
           </TabsTrigger>
           <TabsTrigger value="followup_email" className="cursor-pointer px-2.5 text-[12px]">
-            Follow-up Email
+            Follow-up
           </TabsTrigger>
         </TabsList>
 
