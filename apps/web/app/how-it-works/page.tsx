@@ -484,8 +484,10 @@ export default function HowItWorksPage() {
                 matched and missing skills, the checks behind the number, and suggested fixes.
               </li>
               <li>
-                The <span className="text-foreground">Final score</span> column is the average of
-                every engine that ran for that resume.
+                The <span className="text-foreground">Final score</span> column is a weighted score
+                of every engine that ran for that resume: Aavedak ATS counts for 50%, the reference
+                engines 35% and the open-source engines 15%, shared out over whichever engines ran.
+                Hover it to see each engine&apos;s weight.
               </li>
               <li>
                 An engine that needs a job description or title you didn&apos;t provide shows{" "}

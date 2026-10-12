@@ -195,9 +195,3 @@ export function scoreBandLabel(score: number, mode: AtsMode): string {
   if (mode === "role_match") return `${base} role match`;
   return `${base} job match`;
 }
-
-/** Rounded mean of the given scores, or null when there are none. */
-export function averageScore(scores: number[]): number | null {
-  if (scores.length === 0) return null;
-  return Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length);
-}

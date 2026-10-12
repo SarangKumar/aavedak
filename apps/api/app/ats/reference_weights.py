@@ -18,6 +18,28 @@ REZI_WEIGHTS = {
 }
 
 # Categories + frequency weighting are documented (skillsyncer.com); the point split is an Aavedak estimate.
+# Teal Resume Analyzer cards: no published weights. Metrics cards and contact are what Teal flags
+# first (free plan shows them), so they count 1.5×; the rest 1×. Aavedak estimate.
+TEAL_CARD_WEIGHTS = {
+    "Time-based metrics": 1.5,
+    "Improvement metric": 1.5,
+    "Contact information": 1.5,
+    "Skills used inside bullets": 1.25,
+}
+
+# Rezi audits inside each category: no published weights. Impact- and targeting-bearing audits
+# count more than housekeeping ones. Aavedak estimate.
+REZI_AUDIT_WEIGHTS = {
+    "Measurable outcomes": 2.0,
+    "3–6 bullets per experience entry": 1.5,
+    "Contact details present": 1.5,
+    "Job-description hard skills covered": 2.0,
+    "Job-description keywords covered": 1.5,
+    "No keyword stuffing": 1.5,
+    "Active voice": 1.25,
+    "No buzzwords or filler": 1.25,
+}
+
 SKILLSYNCER_POINTS = {"hard": 60, "soft": 15, "other": 5, "title": 10, "degree": 10}
 
 # Enhancv's free checker publicly shows four "Content" checks (ATS Parse Rate, Quantifying

@@ -348,7 +348,22 @@ def hard_skill_frequencies(text: str) -> dict[str, int]:
 
 
 def pass_rate(checks: list[bool]) -> float:
+    """Unweighted share of checks passed — only where the vendor documents it (Resume Worded)."""
     return 100.0 * sum(checks) / len(checks) if checks else 0.0
+
+
+def weighted_pass(checks: dict[str, bool], weights: dict[str, float], default: float = 1.0) -> float:
+    """0–100 share of check *weight* passed; checks missing from `weights` get `default`.
+    Keys are matched by prefix so labels can carry dynamic suffixes (e.g. a word-count band)."""
+
+    def w(label: str) -> float:
+        for key, val in weights.items():
+            if label.startswith(key):
+                return val
+        return default
+
+    total = sum(w(k) for k in checks)
+    return 100.0 * sum(w(k) for k, ok in checks.items() if ok) / total if total else 0.0
 
 
 # ── Domain keyphrases (non-software JDs) ────────────────────────────────────────────────────────

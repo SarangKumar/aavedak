@@ -31,6 +31,8 @@ export type ScoreRingProps = Omit<React.ComponentProps<"div">, "children" | "rol
   label?: string;
 };
 
+const PERFECT_COLOR = "#228B22";
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -61,7 +63,11 @@ export function ScoreRing({
   const { box, stroke, text } = sizes[size];
   const radius = 50 - stroke / 2;
   const circumference = 2 * Math.PI * radius;
-  const color = `color-mix(in oklch, ${toColor} ${Math.round(ratio * 100)}%, ${fromColor})`;
+  // A perfect score gets forest green (#228B22) on both the stroke and the number.
+  const perfect = Math.round(score) >= safeMax;
+  const color = perfect
+    ? PERFECT_COLOR
+    : `color-mix(in oklch, ${toColor} ${Math.round(ratio * 100)}%, ${fromColor})`;
 
   return (
     <div
@@ -106,6 +112,7 @@ export function ScoreRing({
             "text-foreground absolute inset-0 flex items-center justify-center font-semibold tabular-nums leading-none",
             text,
           )}
+          style={perfect ? { color: PERFECT_COLOR } : undefined}
         >
           {children ?? Math.round(score)}
         </span>

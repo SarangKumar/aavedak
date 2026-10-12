@@ -21,6 +21,7 @@ from app.ats.reference_signals import (
     jd_keyphrases,
     keyphrase_coverage,
     pass_rate,
+    weighted_pass,
     skillsyncer_degree_points,
     token_coverage,
 )
@@ -28,11 +29,13 @@ from app.ats.reference_weights import (
     ENHANCV_WEIGHTS,
     JOBSCAN_MIN_TAXONOMY_SKILLS,
     JOBSCAN_WEIGHTS,
+    REZI_AUDIT_WEIGHTS,
     REZI_WEIGHTS,
     SKILLSYNCER_POINTS,
+    TEAL_CARD_WEIGHTS,
 )
 
-PROFILE_VERSION = "1.3"
+PROFILE_VERSION = "1.4"
 
 
 def _skill_hits(resume: list[str], jd: list[str]) -> tuple[list[dict], list[dict]]:
@@ -387,7 +390,7 @@ def run_teal_style(
         "3–5 bullets per position": 3 <= q.bullets_per_role <= 5 if q.roles else len(q.bullets) >= 3,
         "Skills used inside bullets": skills_in_bullets >= 2,
     }
-    overall = clamp(pass_rate(list(cards.values())))
+    overall = clamp(weighted_pass(cards, TEAL_CARD_WEIGHTS))
     failed = [k for k, ok in cards.items() if not ok]
     return _pack(
         resume_id=resume_id,
@@ -405,7 +408,10 @@ def run_teal_style(
         strengths=[k for k, ok in cards.items() if ok][:4],
         improvements=_failed_improvements(failed, "Teal Resume Analyzer issue card (reference)"),
         ats_issues=[],
-        notes=[f"Resume Score = share of {len(cards)} documented Resume Analyzer issue cards cleared."],
+        notes=[
+            f"Resume Score = weighted share of {len(cards)} documented Resume Analyzer issue cards cleared "
+            "(metrics and contact 1.5×, skills-in-bullets 1.25×, others 1×; Teal publishes no weights)."
+        ],
         resume_text=resume_text,
         blurb="Teal-style Resume Analyzer: documented issue cards (metrics, contact, summary, title, skills, bullets).",
     )
@@ -460,14 +466,16 @@ def run_rezi_style(
         "Skills grouped into categories": q.category_skill_lines >= 2,
     }
     cats = {
-        "content": pass_rate(list(content_checks.values())),
-        "format": pass_rate(list(format_checks.values())),
-        "optimization": pass_rate(list(optimization_checks.values())),
-        "best_practices": pass_rate(list(best_checks.values())),
+        "content": weighted_pass(content_checks, REZI_AUDIT_WEIGHTS),
+        "format": weighted_pass(format_checks, REZI_AUDIT_WEIGHTS),
+        "optimization": weighted_pass(optimization_checks, REZI_AUDIT_WEIGHTS),
+        "best_practices": weighted_pass(best_checks, REZI_AUDIT_WEIGHTS),
     }
     details = pass_rate([s.has_email, s.has_phone, "experience" in s.sections, "education" in s.sections])
     # Application Ready: complete details, plus overall standing in the other four categories.
-    cats["application_readiness"] = 0.5 * details + 0.5 * (sum(cats.values()) / 4)
+    four = ("content", "format", "optimization", "best_practices")
+    standing = sum(cats[k] * w[k] for k in four) / sum(w[k] for k in four)
+    cats["application_readiness"] = 0.5 * details + 0.5 * standing
     overall = clamp(sum(cats[k] * w[k] for k in w))
     failed = [
         label
@@ -506,7 +514,7 @@ def run_rezi_style(
         ),
         ats_issues=[],
         notes=[
-            "Each category is the share of its audits passed: " + ", ".join(f"{k} {int(v)}" for k, v in cats.items()) + ".",
+            "Each category is the weighted share of its audits passed (impact/targeting audits weigh more): " + ", ".join(f"{k} {int(v)}" for k, v in cats.items()) + ".",
             "Rezi bands: 90+ ready to apply, 50–89 solid foundation, below 50 needs updates.",
             "Rezi publishes categories and some thresholds, not its 23 audits or weights.",
         ],

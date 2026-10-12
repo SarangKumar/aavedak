@@ -1411,7 +1411,9 @@ export function AtsHub({
                 finalScores={(resumeId) =>
                   tableEngines.flatMap((eng) => {
                     const c = displayMap.get(cellKey(resumeId, eng.id));
-                    return c?.status === "done" && c.overallScore != null ? [c.overallScore] : [];
+                    return c?.status === "done" && c.overallScore != null
+                      ? [{ engineId: eng.id, score: c.overallScore }]
+                      : [];
                   })
                 }
                 onPreview={setPreviewResume}

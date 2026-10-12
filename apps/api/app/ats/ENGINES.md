@@ -141,3 +141,18 @@ Requests accept optional `yearsExperience` (0–60). The web app always sends th
 - Native: the band checks are the _Length & seniority fit_ criterion (.12 of quality), and nudge `experienceMatch` by ±8 in role/job match. The stated years replace years parsed from the resume when comparing against a JD's "N+ years".
 - Resume Worded-style: mirrors Resume Worded's career-level calibration — the fixed "≤ 800 words" check becomes the band's maximum, and the leadership check is dropped below mid level.
 - Other engines ignore it. Of the tools we approximate, Resume Worded, Rezi and Enhancv document level-aware checks; Jobscan derives a "job level match" from the resume's own dates (report-only, not in the match rate); Teal and SkillSyncer don't document one.
+
+## Weighting inside each engine (2026-10-12)
+
+No engine score is a plain average of its sub-metrics, except where the vendor documents it:
+
+- **Aavedak** — weighted criteria (`benchmark.QUALITY_WEIGHTS`) and weighted match dimensions.
+- **Jobscan** — 55/10/15/12/8 category weights (estimate), frequency-weighted hard skills.
+- **Resume Worded** — _unweighted_ share of checks passed, because Resume Worded documents exactly that ("your score reflects how many checks you pass").
+- **Teal** — Resume Score: weighted issue cards (`TEAL_CARD_WEIGHTS`: metrics and contact 1.5×, skills in bullets 1.25×). Job Match: share of JD keywords, as Teal documents.
+- **Rezi** — category weights (`REZI_WEIGHTS`) over weighted audits (`REZI_AUDIT_WEIGHTS`: impact/targeting audits 1.5–2×); Application Ready uses the category weights instead of a plain mean.
+- **SkillSyncer** — 100-point category allocation, frequency-weighted terms.
+- **Enhancv** — `ENHANCV_WEIGHTS` over five content checks; JD tailoring .55/.15/.15/.15.
+- **OSS engines** — upstream weights (see each section).
+
+The cross-engine **Final score** in the web app is weighted by engine type — see `apps/web/WEB.md`.

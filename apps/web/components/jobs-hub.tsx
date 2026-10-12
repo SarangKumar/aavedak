@@ -1592,7 +1592,7 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
                 ? selectedEngines.flatMap((eng) => {
                     const c = cells[atsKey(resumeId, eng.id)];
                     return typeof c === "object" && c.status === "done" && c.overallScore != null
-                      ? [c.overallScore]
+                      ? [{ engineId: eng.id, score: c.overallScore }]
                       : [];
                   })
                 : null

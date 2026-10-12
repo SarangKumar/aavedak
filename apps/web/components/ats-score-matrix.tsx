@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { FinalScoreCell } from "@/components/final-score-cell";
+import type { FinalScoreEntry } from "@/lib/ats-engines/aggregate";
 import { ResumePreviewButton } from "@/components/resume-preview";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,7 +29,7 @@ export function AtsScoreMatrix<R extends AtsMatrixResume>({
   /** Cell content for one resume × engine; the caller owns score rings, spinners and details. */
   renderCell: (resumeId: string, engineId: AtsEngineId) => ReactNode;
   /** Scores that feed the Final score cell; `null` leaves it empty. */
-  finalScores: (resumeId: string) => number[] | null;
+  finalScores: (resumeId: string) => FinalScoreEntry[] | null;
   /** Optional control shown before the resume name, such as an include checkbox. */
   renderResumeLeading?: (resume: R) => ReactNode;
   onPreview: (resume: R) => void;
@@ -94,7 +95,7 @@ export function AtsScoreMatrix<R extends AtsMatrixResume>({
                   </td>
                 ))}
                 <td className="bg-card before:bg-border/60 sticky right-0 z-10 h-12 px-2 align-middle before:absolute before:inset-y-0 before:left-0 before:w-px">
-                  {scores ? <FinalScoreCell scores={scores} /> : null}
+                  {scores ? <FinalScoreCell entries={scores} /> : null}
                 </td>
               </tr>
             );
