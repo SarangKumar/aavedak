@@ -129,6 +129,25 @@ export const ATS_ENGINES: EngineCapability[] = [
       "Needs a job title and JD. Score out of 100: hard skills 60 + soft 15 + other keywords 5 + title 10 + degree 10. Keyword frequency matters; empty JD categories get full points. Title is all-or-nothing.",
   },
   {
+    id: "enhancv_style",
+    name: "Enhancv",
+    shortDescription: "Content checks: parse rate, impact, repetition, spelling (reference).",
+    kind: "reference",
+    supportedModes: ["resume_only", "job_match"],
+    title: "optional",
+    jd: "optional",
+    preferredMode: "resume_only",
+    scoreTypes: ["resume_quality", "job_match"],
+    scoringProfileId: "enhancv-reference",
+    profileVersion: "1.2",
+    limitations: [
+      "Reference profile approximating Enhancv's public checker UI — not Enhancv's proprietary scoring or weights.",
+      "Spelling & Grammar is a short common-typo list plus basic punctuation checks, not a real spell-checker.",
+    ],
+    algoBlurb:
+      "Four Content checks shown as issue counts, like Enhancv's free checker: ATS Parse Rate, Quantifying Impact, Repetition, and Spelling & Grammar. With a JD, blended 70/30 with hard-skill coverage.",
+  },
+  {
     id: "open_ats",
     name: "Open ATS",
     shortDescription: "Keyword, formatting & content-quality scan (open source).",

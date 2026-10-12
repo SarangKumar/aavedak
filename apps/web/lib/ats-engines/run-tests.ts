@@ -67,23 +67,23 @@ function testNaRegressionWithFullInputs() {
       jdText: "Requirements: Python FastAPI Docker Kubernetes. Bachelor's preferred.",
     },
   });
-  assert.equal(combos.length, 10);
+  assert.equal(combos.length, 11);
   assert.equal(
     summarizeCombinations(combos).readyCount,
-    10,
-    "All ten engines must be ready when title+JD are supplied",
+    11,
+    "All eleven engines must be ready when title+JD are supplied",
   );
   assert.equal(summarizeCombinations(combos).needsCount, 0);
 }
 
 function testSelectAllEnginesCount() {
-  assert.equal(ATS_ENGINES.length, 10);
+  assert.equal(ATS_ENGINES.length, 11);
   const combos = buildCombinations({
     resumeIds: ["a", "b", "c"],
     engines: ATS_ENGINES.map((e) => ({ engineId: e.id })),
     shared: { role: "Cloud Engineer", jdText: "Must have AWS Docker Kubernetes Python" },
   });
-  assert.equal(combos.length, 30);
+  assert.equal(combos.length, 33);
   const summary = summarizeCombinations(combos);
   assert.ok(summary.readyCount >= 12);
 }

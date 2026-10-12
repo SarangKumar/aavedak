@@ -74,7 +74,7 @@ def _run(engine_id: str, **kw):
 def test_registry_has_four_new_unique_engines():
     assert set(NEW) <= VALID_ENGINES
     assert set(OSS_ENGINES) == set(NEW)
-    assert len(VALID_ENGINES) == 10
+    assert len(VALID_ENGINES) == 11
     assert len({name for name, _c, _f in OSS_ENGINES.values()}) == 4
 
 
@@ -381,3 +381,17 @@ def test_js_round_half_up_for_ats_checker():
     from app.ats.oss_profiles import _js_round
 
     assert [_js_round(x) for x in (62.5, 63.5, 0.5, 2.4)] == [63, 64, 1, 2]
+
+
+def test_ats_checker_contact_found_from_header_without_a_heading():
+    # RESUME has email/phone in the header but no "Contact" heading — that must not be flagged.
+    r, _ = _run("ats_resume_checker")
+    titles = [f["title"] for f in r["findings"]]
+    assert "Missing “contact” section" not in titles
+
+
+def test_ats_checker_repeated_proper_noun_is_not_flagged():
+    resume = RESUME + "\n- Partnered with Initech Initech Corp to launch Initech Corp's new platform.\n"
+    r, _ = _run("ats_resume_checker", resume_text=resume)
+    repeated = [f for f in r["findings"] if f["title"] == "Repeated words"]
+    assert not repeated or "initech" not in repeated[0]["detail"].lower()

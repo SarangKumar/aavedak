@@ -10,6 +10,7 @@ export type AtsEngineId =
   | "teal_style"
   | "rezi_style"
   | "skillsyncer_style"
+  | "enhancv_style"
   | "open_ats"
   | "ats_resume_checker"
   | "resume_skills_extractor"

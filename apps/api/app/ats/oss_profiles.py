@@ -48,7 +48,7 @@ from app.ats.reference_weights import (
 from app.ats.skill_taxonomy import display_name, infer_role_key, role_skill_buckets
 from app.ats.text_similarity import tfidf_cosine
 
-OSS_PROFILE_VERSION = "1.0"
+OSS_PROFILE_VERSION = "1.1"
 
 
 @dataclass(frozen=True)
@@ -586,6 +586,10 @@ def run_ats_resume_checker(inp: EngineInput, emit: Emit) -> dict[str, Any]:
         found[sec] = any(re.match(rf"^\s*({alt})\s*:?\s*$", l, re.I) for l in resume.lines) or bool(
             re.search(rf"\b({alt})\b", resume.raw, re.I)
         )
+    # Most resumes put contact details in the header, not under a "Contact" heading — a
+    # heading-only check would flag nearly every well-formatted resume as missing it.
+    if resume.email or resume.phone:
+        found["contact"] = True
     core_n = sum(found[s] for s in _AC_CORE)
     bonus = [s for s in _AC_SECTIONS if s not in _AC_CORE]
     structure = _clamp(_js_round(core_n / len(_AC_CORE) * 85 + sum(found[s] for s in bonus) / len(bonus) * 15))
@@ -641,8 +645,21 @@ def run_ats_resume_checker(inp: EngineInput, emit: Emit) -> dict[str, Any]:
     if len(passive) > 2:
         writing -= min(12, len(passive) * 2)
         issue("writingQuality", "medium", "Passive voice", f"{len(passive)} passive constructions.", "Use active voice.")
-    freq = Counter(w for w in _ac_words(resume.raw) if len(w) > 4 and w not in _AC_STOP)
-    overused = [(w, c) for w, c in freq.most_common(5) if c >= 6]
+    # Original case is needed here (unlike _ac_words) to tell a normal repeated word from a
+    # proper noun — your own company or college name is expected to repeat and isn't a
+    # writing-quality issue, so words that are capitalized most of the time are excluded.
+    cased_words = re.findall(r"[A-Za-z0-9+.#/]+", resume.raw)
+    freq = Counter(w.lower() for w in cased_words if len(w) > 4 and w.lower() not in _AC_STOP)
+    overused: list[tuple[str, int]] = []
+    for w, c in freq.most_common(10):
+        if c < 6:
+            break
+        occurrences = [tok for tok in cased_words if tok.lower() == w]
+        if occurrences and sum(1 for tok in occurrences if tok[:1].isupper()) / len(occurrences) > 0.6:
+            continue
+        overused.append((w, c))
+        if len(overused) == 5:
+            break
     if overused:
         writing -= 5
         issue("writingQuality", "low", "Repeated words", ", ".join(f"{w} ({c}×)" for w, c in overused),

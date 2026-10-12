@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ResumeListSkeleton } from "@/components/page-loading-skeleton";
 import {
   ATS_ENGINES,
@@ -278,6 +279,21 @@ function engineNames(ids: AtsEngineId[]) {
     .join(", ");
 }
 
+const ENGINE_KINDS = ["native", "reference", "open_source"] as const;
+type EngineKind = (typeof ENGINE_KINDS)[number];
+const KIND_LABELS: Record<EngineKind, string> = {
+  native: "Native",
+  reference: "Reference",
+  open_source: "Open Source",
+};
+const ENGINE_IDS_BY_KIND: Record<EngineKind, AtsEngineId[]> = ENGINE_KINDS.reduce(
+  (acc, kind) => {
+    acc[kind] = ATS_ENGINES.filter((e) => e.kind === kind).map((e) => e.id);
+    return acc;
+  },
+  {} as Record<EngineKind, AtsEngineId[]>,
+);
+
 export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: AtsHubProps) {
   // Local copy so resumes uploaded here appear immediately without a full page reload.
   const [resumes, setResumes] = useState<ResumeRow[]>(initialResumes ?? []);
@@ -288,7 +304,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
     () => new Set((initialResumes ?? []).map((r) => r.id)),
   );
   const [selectedEngineIds, setSelectedEngineIds] = useState<Set<AtsEngineId>>(
-    () => new Set(["aavedak"]),
+    () => new Set(ATS_ENGINES.map((e) => e.id)),
   );
   const [role, setRole] = useState(defaultRole);
   const [jdText, setJdText] = useState("");
@@ -547,6 +563,18 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
     });
   }
 
+  const activeEngineKinds = useMemo(
+    () =>
+      ENGINE_KINDS.filter((k) => ENGINE_IDS_BY_KIND[k].every((id) => selectedEngineIds.has(id))),
+    [selectedEngineIds],
+  );
+
+  function setActiveEngineKinds(kinds: string[]) {
+    if (running) return;
+    setDetailKey(null);
+    setSelectedEngineIds(new Set(kinds.flatMap((k) => ENGINE_IDS_BY_KIND[k as EngineKind] ?? [])));
+  }
+
   async function runCombos(list: AnalysisCombination[], fresh: boolean) {
     const ready = list.filter((c) => c.status === "ready");
     if (!ready.length) return;
@@ -801,6 +829,29 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
               : `${selectedEngineIds.size} selected · ${engineNames([...selectedEngineIds])}`
           }
         >
+          <div className="mb-2.5 flex items-center gap-2">
+            <span className="text-muted-foreground text-[11px] font-medium">Kind</span>
+            <ToggleGroup
+              aria-label="Select engines by kind"
+              variant="outline"
+              size="sm"
+              spacing={1}
+              multiple
+              value={activeEngineKinds}
+              onValueChange={setActiveEngineKinds}
+              disabled={running}
+            >
+              {ENGINE_KINDS.map((kind) => (
+                <ToggleGroupItem
+                  key={kind}
+                  value={kind}
+                  className="h-7 rounded-full px-2.5 text-[11px]"
+                >
+                  {KIND_LABELS[kind]}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
             {ATS_ENGINES.map((eng) => {
               const checked = selectedEngineIds.has(eng.id);

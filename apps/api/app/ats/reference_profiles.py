@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+from collections import Counter
 from typing import Any
 
 from app.ats.analyze import _fingerprint, _label
@@ -21,6 +23,7 @@ from app.ats.reference_signals import (
     token_coverage,
 )
 from app.ats.reference_weights import (
+    ENHANCV_WEIGHTS,
     JOBSCAN_MIN_TAXONOMY_SKILLS,
     JOBSCAN_WEIGHTS,
     RESUME_WORDED_WEIGHTS,
@@ -524,3 +527,247 @@ def run_skillsyncer_style(resume_id: str, resume_text: str, role: str, jd_text: 
         resume_text=resume_text,
         blurb="SkillSyncer-style documented 100-point weighted match (reference).",
     )
+
+
+# ─── Enhancv (reference — public checker UI, not a published formula) ──────────
+
+_ENHANCV_MISSPELLINGS = {
+    "teh": "the", "recieve": "receive", "seperate": "separate", "definately": "definitely",
+    "occured": "occurred", "managment": "management", "enviroment": "environment",
+    "developement": "development", "successfull": "successful", "acheivement": "achievement",
+    "experiance": "experience", "publically": "publicly", "untill": "until", "becuase": "because",
+    "thier": "their", "comitted": "committed", "personel": "personnel", "maintainance": "maintenance",
+    "priviledge": "privilege", "calender": "calendar", "wich": "which", "grammer": "grammar",
+    "independant": "independent", "liasion": "liaison", "acheive": "achieve", "buisness": "business",
+    "collegue": "colleague", "excellant": "excellent", "knowlege": "knowledge",
+    "neccessary": "necessary", "oppurtunity": "opportunity", "recomend": "recommend",
+    "refered": "referred", "relevent": "relevant", "responsibilties": "responsibilities",
+    "sucessful": "successful", "techincal": "technical",
+}
+_ENHANCV_REPEAT_WORD_RE = re.compile(r"\b([A-Za-z]{3,})\s+\1\b", re.I)
+_ENHANCV_MISSING_SPACE_RE = re.compile(r"[a-z]\.[A-Z][a-z]")
+
+
+def _enhancv_issue_label(n: int) -> str:
+    if n == 0:
+        return "No issues"
+    return f"{n} issue" if n == 1 else f"{n} issues"
+
+
+def run_enhancv_style(
+    resume_id: str, resume_text: str, role: str, jd_text: str, mode: str | None = None
+) -> dict[str, Any]:
+    """Enhancv-style reference: approximates the four "Content" checks Enhancv's free resume
+    checker shows as issue counts (ATS Parse Rate, Quantifying Impact, Repetition, Spelling &
+    Grammar). Enhancv does not publish its scoring formula or weights — this is an Aavedak
+    approximation of the public checker UI, not Enhancv's proprietary scoring."""
+    s = extract_reference_signals(resume_text, jd_text, role)
+    q = extract_quality_signals(resume_text)
+    resolved = "job_match" if (mode == "job_match" or (not mode and jd_text.strip())) else "resume_only"
+    w = ENHANCV_WEIGHTS
+
+    findings: list[dict[str, Any]] = []
+    fid = iter(range(1, 1000))
+
+    def flag(category: str, severity: str, title: str, detail: str, recommendation: str = "") -> None:
+        findings.append(
+            {
+                "id": f"{category}.{next(fid)}",
+                "severity": severity,
+                "category": category,
+                "title": title,
+                "detail": detail,
+                **({"recommendation": recommendation} if recommendation else {}),
+            }
+        )
+
+    # ATS Parse Rate
+    parse_issues = 0
+    if not s.has_email:
+        parse_issues += 1
+        flag("parse_rate", "critical", "No email address found",
+             "Recruiters and ATS auto-responders can't reach you.",
+             "Add an email address near the top of the resume.")
+    if not s.has_phone:
+        parse_issues += 1
+        flag("parse_rate", "high", "No phone number found",
+             "A phone number is expected contact information.",
+             "Add a phone number near the top of the resume.")
+    if re.search(r"\|.*\|.*\|", resume_text):
+        parse_issues += 1
+        flag("parse_rate", "medium", "Possible table structure",
+             "Pipe-separated content suggests a table, which some ATS parsers misread.",
+             "Convert tables to plain bullet points.")
+    icons = re.findall(r"[☀-➿\U0001F300-\U0001FAFF]", resume_text)
+    if len(icons) > 3:
+        parse_issues += 1
+        flag("parse_rate", "low", "Icons or emoji detected", f"{len(icons)} icon-like characters found.",
+             "Replace icons with plain-text labels.")
+    parse_score = clamp(100 - parse_issues * 20)
+
+    # Quantifying Impact — accomplishment-length bullets with no number in them
+    meaningful_bullets = [b for b in q.bullets if len(b.split()) >= 6]
+    unquantified = [b for b in meaningful_bullets if not re.search(r"\d", b)]
+    quant_issue_count = len(unquantified)
+    for b in unquantified[:5]:
+        flag("quantifying_impact", "medium", "Bullet lacks a measurable result",
+             f"“{b[:90]}{'…' if len(b) > 90 else ''}” has no number.",
+             "Add a truthful metric (%, time, count, revenue) if one genuinely applies.")
+    quant_score = clamp(100 - min(60, quant_issue_count * 15))
+
+    # Repetition — a repeated word (excluding likely proper nouns) or several bullets opening
+    # with the same word
+    cased_words = re.findall(r"[A-Za-z0-9+.#/]+", resume_text)
+    freq = Counter(w.lower() for w in cased_words if len(w) > 4)
+    repeated_words: list[tuple[str, int]] = []
+    for word, count in freq.most_common(10):
+        if count < 5:
+            break
+        occurrences = [t for t in cased_words if t.lower() == word]
+        if occurrences and sum(1 for t in occurrences if t[:1].isupper()) / len(occurrences) > 0.6:
+            continue  # likely a company / college / product name — repeating it is normal
+        repeated_words.append((word, count))
+        if len(repeated_words) == 5:
+            break
+    starts = Counter(b.split()[0].lower() for b in q.bullets if b.split())
+    repeat_starts = [(w, c) for w, c in starts.most_common(5) if c >= 3]
+    repetition_issue_count = len(repeated_words) + len(repeat_starts)
+    for word, count in repeated_words:
+        flag("repetition", "low", f"“{word}” is repeated {count}×",
+             "Repeating the same word reduces impact and readability.",
+             "Vary the vocabulary where natural.")
+    for word, count in repeat_starts:
+        flag("repetition", "medium", f"{count} bullets start with “{word.title()}”",
+             "Starting several bullets with the same word makes the resume monotonous.",
+             "Lead with a different action verb for each bullet.")
+    repetition_score = clamp(100 - repetition_issue_count * 15)
+
+    # Spelling & Grammar — a small common-typo list plus basic punctuation/doubling checks;
+    # not a real spell-checker, so it will miss most genuine misspellings.
+    lower_text = resume_text.lower()
+    misspellings_found = [
+        (w, fix) for w, fix in _ENHANCV_MISSPELLINGS.items() if re.search(rf"\b{w}\b", lower_text)
+    ]
+    repeat_word_hits = _ENHANCV_REPEAT_WORD_RE.findall(resume_text)
+    missing_space_hits = _ENHANCV_MISSING_SPACE_RE.findall(resume_text)
+    double_space = "  " in resume_text
+    spelling_issue_count = (
+        len(misspellings_found) + len(repeat_word_hits) + len(missing_space_hits) + (1 if double_space else 0)
+    )
+    for word, fix in misspellings_found[:5]:
+        flag("spelling_grammar", "medium", f"Possible misspelling: “{word}”", f"Did you mean “{fix}”?",
+             f"Replace “{word}” with “{fix}”.")
+    if repeat_word_hits:
+        flag("spelling_grammar", "low", "Accidentally doubled word",
+             f"Found {len(repeat_word_hits)} instance(s) like “{repeat_word_hits[0]} {repeat_word_hits[0]}”.",
+             "Remove the duplicate word.")
+    if missing_space_hits:
+        flag("spelling_grammar", "low", "Missing space after a period",
+             f"{len(missing_space_hits)} place(s) where one sentence runs into the next without a space.",
+             "Add a space after the period.")
+    if double_space:
+        flag("spelling_grammar", "info", "Double spaces found", "Extra spaces between words or sentences.",
+             "Use a single space throughout.")
+    spelling_score = clamp(100 - min(70, spelling_issue_count * 12))
+
+    content = clamp(
+        parse_score * w["parse_rate"]
+        + quant_score * w["quantifying_impact"]
+        + repetition_score * w["repetition"]
+        + spelling_score * w["spelling_grammar"]
+    )
+    target = (
+        coverage(s.hard_skills_resume, s.hard_skills_jd)
+        if resolved == "job_match" and s.hard_skills_jd
+        else None
+    )
+    overall = clamp(content * 0.7 + target * 100 * 0.3) if target is not None else content
+    matched, missing = (
+        _skill_hits(s.hard_skills_resume, s.hard_skills_jd) if target is not None else ([], [])
+    )
+
+    strengths = [
+        *(["No ATS parse-rate issues found"] if parse_issues == 0 else []),
+        *(["Most bullets carry a measurable result"] if quant_issue_count == 0 and meaningful_bullets else []),
+        *(["No repeated wording detected"] if repetition_issue_count == 0 else []),
+        *(["No spelling issues detected"] if spelling_issue_count == 0 else []),
+    ]
+    breakdown = [
+        {"key": "parse_rate", "label": "ATS Parse Rate", "score": parse_score,
+         "weight": w["parse_rate"], "contribution": round(parse_score * w["parse_rate"], 1)},
+        {"key": "quantifying_impact", "label": "Quantifying Impact", "score": quant_score,
+         "weight": w["quantifying_impact"], "contribution": round(quant_score * w["quantifying_impact"], 1)},
+        {"key": "repetition", "label": "Repetition", "score": repetition_score,
+         "weight": w["repetition"], "contribution": round(repetition_score * w["repetition"], 1)},
+        {"key": "spelling_grammar", "label": "Spelling & Grammar", "score": spelling_score,
+         "weight": w["spelling_grammar"], "contribution": round(spelling_score * w["spelling_grammar"], 1)},
+    ]
+    metrics = [
+        {"key": "parse_rate", "label": "ATS Parse Rate", "value": _enhancv_issue_label(parse_issues)},
+        {"key": "quantifying_impact", "label": "Quantifying Impact", "value": _enhancv_issue_label(quant_issue_count)},
+        {"key": "repetition", "label": "Repetition", "value": _enhancv_issue_label(repetition_issue_count)},
+        {"key": "spelling_grammar", "label": "Spelling & Grammar", "value": _enhancv_issue_label(spelling_issue_count)},
+    ]
+    notes = [
+        f"Content = Parse Rate×{w['parse_rate']} + Quantifying Impact×{w['quantifying_impact']} "
+        f"+ Repetition×{w['repetition']} + Spelling & Grammar×{w['spelling_grammar']}.",
+        "Enhancv does not publish its checker's weights or full rule set; these are the four "
+        "content checks it surfaces publicly, approximated by Aavedak.",
+        "Spelling is checked against a short list of common English typos plus basic punctuation "
+        "checks, not a full dictionary — it will miss most real misspellings.",
+    ]
+    sev_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+    findings.sort(key=lambda f: sev_order.get(f["severity"], 5))
+
+    return {
+        "resumeId": resume_id,
+        "mode": resolved,
+        "engineId": "enhancv_style",
+        "engineName": "Enhancv",
+        "scoreType": "job_match" if target is not None else "resume_quality",
+        "scoreScale": {"min": 0, "max": 100},
+        "scoreName": "Targeted Content Score" if target is not None else "Content Score",
+        "overallScore": overall,
+        "atsScore": overall,
+        "scoreLabel": _label(overall, resolved),
+        "scores": {
+            "resumeQuality": content,
+            "atsCompatibility": parse_score,
+            "evidenceQuality": quant_score,
+            "experienceQuality": repetition_score,
+            "structureFormatting": spelling_score,
+            "requiredSkills": clamp(target * 100) if target is not None else None,
+        },
+        "breakdown": breakdown,
+        "findings": findings,
+        "metrics": metrics,
+        "skillCategories": [],
+        "limitations": [
+            "Reference approximation of Enhancv's public resume checker — not Enhancv's proprietary scoring.",
+            "Spelling & Grammar is a heuristic (common-typo list + basic punctuation checks), not a real spell-checker.",
+        ],
+        "warnings": [],
+        "methodology": {
+            "id": "enhancv-reference",
+            "version": PROFILE_VERSION,
+            "formula": notes[0],
+            "reference": "Enhancv resume checker (public Content checks only) — Aavedak approximation",
+        },
+        "matchedSkills": matched,
+        "partialSkills": [],
+        "missingSkills": missing,
+        "matchedResponsibilities": [],
+        "partialResponsibilities": [],
+        "missingResponsibilities": [],
+        "strengths": strengths[:8],
+        "improvements": [],
+        "atsIssues": [],
+        "confidence": "high" if len(resume_text) > 900 else "medium" if len(resume_text) > 400 else "low",
+        "notes": notes,
+        "engine": "fastapi",
+        "engineVersion": f"enhancv-reference@{PROFILE_VERSION}",
+        "textChars": len(resume_text.strip()),
+        "textFingerprint": _fingerprint(resume_text),
+        "blurb": "Enhancv-style reference: ATS Parse Rate, Quantifying Impact, Repetition, and "
+        "Spelling & Grammar checks under Content.",
+    }

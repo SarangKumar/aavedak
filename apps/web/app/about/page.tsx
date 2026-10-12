@@ -4,6 +4,11 @@ import Link from "next/link";
 import { CopyTextButton } from "@/components/copy-text-button";
 import { ShellWidth } from "@/components/shell-width";
 import { Card } from "@/components/ui/card";
+import { ATS_ENGINES } from "@/lib/ats-engines/registry";
+
+const ENGINE_TOTAL = ATS_ENGINES.length;
+const ENGINE_REFERENCE_COUNT = ATS_ENGINES.filter((e) => e.kind === "reference").length;
+const ENGINE_OSS_COUNT = ATS_ENGINES.filter((e) => e.kind === "open_source").length;
 
 export const metadata: Metadata = {
   robots: { index: true, follow: true },
@@ -18,17 +23,17 @@ const summaries = [
   {
     id: "one-line",
     title: "One line",
-    text: "Aavedak (आवेदक, “applicant”) is a job-search workspace for junior tech roles in India: it finds fresh openings, checks your resume with 10 ATS engines, tracks every application, and prepares referral emails you send from your own Gmail.",
+    text: `Aavedak (आवेदक, “applicant”) is a job-search workspace for junior tech roles in India: it finds fresh openings, checks your resume with ${ENGINE_TOTAL} ATS engines, tracks every application, and prepares referral emails you send from your own Gmail.`,
   },
   {
     id: "short",
     title: "Short summary",
-    text: "Aavedak (आवेदक, Hindi for “applicant”) is a job-search workspace for early-career tech candidates in India. Every day it reads the public job boards and career pages of more than 150 companies and recommends up to 50 junior roles (under 3 years of experience) in engineering, data, ML/AI, QA, IT, security and design, in India or remote and open to India. Each recommendation is ranked against your resume and links to the original posting. Before applying, you can check your resume with 10 ATS engines. Applications live in a tracker alongside your resumes, cover letters and email templates, and referral requests go out from your own Gmail only after you confirm. Aavedak recommends and prepares. You decide and send.",
+    text: `Aavedak (आवेदक, Hindi for “applicant”) is a job-search workspace for early-career tech candidates in India. Every day it reads the public job boards and career pages of more than 150 companies and recommends up to 50 junior roles (under 3 years of experience) in engineering, data, ML/AI, QA, IT, security and design, in India or remote and open to India. Each recommendation is ranked against your resume and links to the original posting. Before applying, you can check your resume with ${ENGINE_TOTAL} ATS engines. Applications live in a tracker alongside your resumes, cover letters and email templates, and referral requests go out from your own Gmail only after you confirm. Aavedak recommends and prepares. You decide and send.`,
   },
   {
     id: "long",
     title: "Detailed summary",
-    text: "Aavedak (आवेदक, Hindi for “applicant”) is a calm, all-in-one job-search workspace built for early-career tech candidates in India.\n\nDiscover: every night Aavedak reads the official public job-board APIs (Greenhouse, Lever, Ashby, SmartRecruiters, Workable) and career pages of more than 150 companies. It keeps only junior roles that ask for under 3 years of experience, in engineering, data and analytics, ML/AI, QA, IT, security and design, located in India or remote and open to India. It then recommends up to 50 a day, ranked against your resume and career preferences. Every job links to its original posting, and nothing is invented or scraped from sites that don’t allow it.\n\nPrepare: the ATS page scores your resume with 10 engines: Aavedak’s own evidence-based scorer, five reference engines modelled on popular resume checkers, and four open-source analyzers. It works in resume-only, role or job-description mode and shows matched and missing skills with suggested fixes. Resumes, cover letters and email templates live in one Documents space.\n\nApply and follow up: applications move through a Kanban tracker with full status history. The Referrals page fills your email template for the people you choose at a company, attaches a resume if you want, and sends from your own Gmail after you confirm, with a 20-second undo window.\n\nAavedak recommends and prepares. You decide and send.",
+    text: `Aavedak (आवेदक, Hindi for “applicant”) is a calm, all-in-one job-search workspace built for early-career tech candidates in India.\n\nDiscover: every night Aavedak reads the official public job-board APIs (Greenhouse, Lever, Ashby, SmartRecruiters, Workable) and career pages of more than 150 companies. It keeps only junior roles that ask for under 3 years of experience, in engineering, data and analytics, ML/AI, QA, IT, security and design, located in India or remote and open to India. It then recommends up to 50 a day, ranked against your resume and career preferences. Every job links to its original posting, and nothing is invented or scraped from sites that don’t allow it.\n\nPrepare: the ATS page scores your resume with ${ENGINE_TOTAL} engines: Aavedak’s own evidence-based scorer, ${ENGINE_REFERENCE_COUNT} reference engines modelled on popular resume checkers, and ${ENGINE_OSS_COUNT} open-source analyzers. It works in resume-only, role or job-description mode and shows matched and missing skills with suggested fixes. Resumes, cover letters and email templates live in one Documents space.\n\nApply and follow up: applications move through a Kanban tracker with full status history. The Referrals page fills your email template for the people you choose at a company, attaches a resume if you want, and sends from your own Gmail after you confirm, with a 20-second undo window.\n\nAavedak recommends and prepares. You decide and send.`,
   },
 ] as const;
 

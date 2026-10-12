@@ -282,10 +282,9 @@ function DocumentsSkeleton() {
       <PageHeaderSkeleton titleWidth="w-36" blurbWidth="w-full max-w-xl" />
 
       <div className="border-border bg-card inline-flex h-8 items-center gap-0.5 rounded-lg border p-0.5">
-        <Skeleton className="h-7 w-20 rounded-md" />
-        <Skeleton className="h-7 w-28 rounded-md" />
-        <Skeleton className="h-7 w-36 rounded-md" />
-        <Skeleton className="h-7 w-36 rounded-md" />
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-7 w-20 rounded-md" />
+        ))}
       </div>
 
       <section className="space-y-4">
@@ -854,7 +853,7 @@ function AtsSkeleton() {
         <Card className="border-border/80 gap-0 rounded-xl p-0">
           <AtsStepHeader titleWidth="w-28" summaryWidth="w-64" />
           <div className="grid grid-cols-1 gap-2 px-4 pb-4 sm:grid-cols-2 sm:px-5 md:grid-cols-3">
-            {Array.from({ length: 9 }).map((_, i) => (
+            {Array.from({ length: 11 }).map((_, i) => (
               <Card key={i} size="sm" className="border-border/60 flex-row items-start gap-2">
                 <Skeleton className="mt-0.5 size-4 shrink-0 rounded" />
                 <div className="min-w-0 flex-1 space-y-1.5">
@@ -913,13 +912,13 @@ function AtsSkeleton() {
                   <Skeleton key={i} className="h-3 w-20" />
                 ))}
               </div>
-              {Array.from({ length: 2 }).map((_, row) => (
+              {Array.from({ length: 4 }).map((_, row) => (
                 <div
                   key={row}
                   className="border-border/40 flex items-center gap-4 border-b px-3 py-3 last:border-b-0"
                 >
                   <Skeleton className="h-3.5 w-24" />
-                  {Array.from({ length: 3 }).map((_, i) => (
+                  {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="flex w-20 items-center gap-2">
                       <Skeleton className="size-11 shrink-0 rounded-full" />
                     </div>

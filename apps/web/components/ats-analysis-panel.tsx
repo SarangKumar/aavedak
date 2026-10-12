@@ -1,33 +1,17 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import { Progress } from "@/components/ui/progress";
-import type { AtsAnalysis, AtsFinding, AtsIssue, AtsMode, AtsScores } from "@/lib/ats-types";
+import type {
+  AtsAnalysis,
+  AtsBreakdownRow,
+  AtsFindingSeverity,
+  AtsMode,
+  AtsScores,
+} from "@/lib/ats-types";
 import { normalizeAtsIssues } from "@/lib/ats-types";
 import { cn } from "@/lib/utils";
-
-function AtsIssueList({ issues, className }: { issues: AtsIssue[]; className?: string }) {
-  const rows = normalizeAtsIssues(issues);
-  if (!rows.length) return null;
-  return (
-    <ul className={cn("space-y-2", className)}>
-      {rows.map((issue) => (
-        <li key={issue.code + issue.title} className="flex gap-2">
-          <span className="shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
-            ⚠
-          </span>
-          <div className="min-w-0 space-y-0.5">
-            <p className="text-foreground text-[13px] font-medium leading-snug">{issue.title}</p>
-            {issue.detail && issue.detail !== issue.title ? (
-              <p className="text-muted-foreground text-[12px] leading-relaxed">{issue.detail}</p>
-            ) : null}
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 const SCORE_ROWS: Array<{ key: keyof AtsScores; label: string }> = [
   { key: "atsCompatibility", label: "ATS Compatibility" },
@@ -55,182 +39,24 @@ export function modeHint(mode: AtsMode): string {
   return "Job match analysis";
 }
 
-function Chevron({ open, className }: { open: boolean; className?: string }) {
-  return (
-    <svg
-      className={cn(
-        "size-4 shrink-0 transition-transform duration-200",
-        open && "rotate-180",
-        className,
-      )}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-    >
-      <path
-        d="m6 9 6 6 6-6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function ScoreBar({ value }: { value: number }) {
   return <Progress value={Math.max(0, Math.min(100, value))} max={100} className="h-1.5" />;
 }
 
-function DimensionRow({
-  label,
-  value,
-  detail,
-  open,
-  onToggle,
-}: {
-  label: string;
-  value: number;
-  detail?: ReactNode;
-  open: boolean;
-  onToggle: () => void;
-}) {
+/** Thin magnitude bar for a breakdown row (0–100). */
+function MiniBar({ value }: { value: number }) {
   return (
-    <div className="border-border/50 border-b last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="hover:bg-muted/30 flex w-full cursor-pointer items-center gap-3 px-0 py-2 text-left"
-      >
-        <span className="text-foreground min-w-0 flex-1 text-[13px] font-medium">{label}</span>
-        <span className="text-foreground w-8 text-right font-mono text-[13px] tabular-nums">
-          {points(value)}
-        </span>
-        <div className="w-24 shrink-0 sm:w-32">
-          <ScoreBar value={value} />
-        </div>
-        <Chevron open={open} className="text-muted-foreground size-3.5" />
-      </button>
-      {open && detail ? (
-        <div className="text-muted-foreground pb-2.5 pl-0 text-[12px] leading-relaxed">
-          {detail}
-        </div>
-      ) : null}
+    <div className="bg-border/60 h-1.5 w-full overflow-hidden rounded-full">
+      <div
+        className="bg-foreground/60 h-full rounded-full"
+        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+      />
     </div>
   );
 }
 
-function SkillLists({
-  analysis,
-  dimension,
-}: {
-  analysis: AtsAnalysis;
-  dimension: keyof AtsScores;
-}) {
-  if (
-    dimension === "requiredSkills" ||
-    dimension === "preferredSkills" ||
-    dimension === "keywordCoverage"
-  ) {
-    const matched = analysis.matchedSkills ?? [];
-    const partial = analysis.partialSkills ?? [];
-    const missing = analysis.missingSkills ?? [];
-    return (
-      <div className="space-y-2">
-        {matched.length ? (
-          <div>
-            <p className="text-foreground mb-1 text-[11px] font-semibold uppercase tracking-wide">
-              Matched
-            </p>
-            <ul className="space-y-1">
-              {matched.slice(0, 8).map((s) => (
-                <li key={s.skill}>
-                  ✓ {s.skill}
-                  {s.evidence ? (
-                    <span className="text-muted-foreground mt-0.5 block pl-3 italic">
-                      “{s.evidence.slice(0, 120)}
-                      {s.evidence.length > 120 ? "…" : ""}”
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {partial.length ? (
-          <div>
-            <p className="text-foreground mb-1 text-[11px] font-semibold uppercase tracking-wide">
-              Partial
-            </p>
-            <ul className="space-y-0.5">
-              {partial.slice(0, 6).map((s) => (
-                <li key={s.skill}>⚠ {s.skill}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {missing.length ? (
-          <div>
-            <p className="text-foreground mb-1 text-[11px] font-semibold uppercase tracking-wide">
-              Missing
-            </p>
-            <ul className="space-y-0.5">
-              {missing.slice(0, 6).map((s) => (
-                <li key={s.skill}>✗ {s.skill}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  if (dimension === "responsibilityMatch") {
-    const matched = analysis.matchedResponsibilities ?? [];
-    const partial = analysis.partialResponsibilities ?? [];
-    const missing = analysis.missingResponsibilities ?? [];
-    return (
-      <ul className="space-y-1">
-        {matched.map((r) => (
-          <li key={r.text}>✓ {r.text}</li>
-        ))}
-        {partial.map((r) => (
-          <li key={r.text}>⚠ {r.text}</li>
-        ))}
-        {missing.map((r) => (
-          <li key={r.text}>✗ {r.text}</li>
-        ))}
-        {!matched.length && !partial.length && !missing.length ? (
-          <li>No explicit responsibilities extracted from the JD.</li>
-        ) : null}
-      </ul>
-    );
-  }
-
-  if (dimension === "atsCompatibility" || dimension === "structureFormatting") {
-    const issues = analysis.atsIssues ?? [];
-    if (issues.length) {
-      return <AtsIssueList issues={issues} className="text-[13px]" />;
-    }
-    return (
-      <ul className="space-y-0.5">
-        {(analysis.strengths ?? []).slice(0, 4).map((s) => (
-          <li key={s}>✓ {s}</li>
-        ))}
-      </ul>
-    );
-  }
-
-  return (
-    <p>
-      Part of the transparent weighted model for this analysis mode. See strengths and improvements
-      below for actionable detail.
-    </p>
-  );
-}
-
-const SEVERITY_ORDER: AtsFinding["severity"][] = ["critical", "high", "medium", "low", "info"];
-const SEVERITY_BADGE: Record<AtsFinding["severity"], string> = {
+const SEVERITY_ORDER: AtsFindingSeverity[] = ["critical", "high", "medium", "low", "info"];
+const SEVERITY_BADGE: Record<AtsFindingSeverity, string> = {
   critical: "border-destructive/40 bg-destructive/10 text-destructive",
   high: "border-destructive/40 bg-destructive/10 text-destructive",
   medium: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
@@ -265,19 +91,7 @@ function Section({
   );
 }
 
-/** Thin magnitude bar for a breakdown row (0–100). */
-function MiniBar({ value }: { value: number }) {
-  return (
-    <div className="bg-border/60 h-1.5 w-full overflow-hidden rounded-full">
-      <div
-        className="bg-foreground/60 h-full rounded-full"
-        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-      />
-    </div>
-  );
-}
-
-function SeverityPill({ severity }: { severity: AtsFinding["severity"] }) {
+function SeverityPill({ severity }: { severity: AtsFindingSeverity }) {
   return (
     <span
       className={cn(
@@ -290,42 +104,129 @@ function SeverityPill({ severity }: { severity: AtsFinding["severity"] }) {
   );
 }
 
-function Chip({ tone, children }: { tone: "matched" | "missing"; children: ReactNode }) {
+function Chip({
+  tone,
+  children,
+}: {
+  tone: "matched" | "partial" | "missing";
+  children: ReactNode;
+}) {
+  const toneClass =
+    tone === "matched"
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+      : tone === "partial"
+        ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+        : "border-border bg-muted/60 text-muted-foreground";
+  const icon = tone === "matched" ? "✓" : tone === "partial" ? "~" : "✗";
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs",
-        tone === "matched"
-          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-          : "border-border bg-muted/60 text-muted-foreground",
+        toneClass,
       )}
     >
-      {tone === "matched" ? "✓" : "✗"} {children}
+      {icon} {children}
     </span>
   );
 }
 
+/** Strengths read best as a scannable row of pills, not a vertical checklist. */
+function StrengthPills({ strengths }: { strengths: string[] }) {
+  if (!strengths.length) return null;
+  return (
+    <Section title="Strengths">
+      <div className="flex flex-wrap gap-1.5">
+        {strengths.map((s) => (
+          <Chip key={s} tone="matched">
+            {s}
+          </Chip>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+/** Breakdown rows, either the engine's own weighted rows or ones synthesized from `scores`. */
+function buildBreakdown(analysis: AtsAnalysis): AtsBreakdownRow[] {
+  if (analysis.breakdown?.length) return analysis.breakdown;
+  const scores = analysis.scores ?? {};
+  const applicable = SCORE_ROWS.filter((row) => typeof scores[row.key] === "number");
+  const rows =
+    analysis.mode === "resume_only"
+      ? applicable.filter((r) =>
+          [
+            "atsCompatibility",
+            "resumeQuality",
+            "technicalSkills",
+            "experienceQuality",
+            "evidenceQuality",
+            "structureFormatting",
+          ].includes(r.key),
+        )
+      : applicable.filter(
+          (r) => !["technicalSkills", "experienceQuality", "structureFormatting"].includes(r.key),
+        );
+  return rows.map((r) => ({ key: r.key, label: r.label, score: scores[r.key] as number }));
+}
+
+type ReportCard = {
+  id: string;
+  severity: AtsFindingSeverity;
+  title: string;
+  detail: string;
+  fix?: string;
+};
+
+/** Actionable cards, either the engine's own findings+fixes or ones synthesized from
+ * improvements / ATS issues — so every engine shows the same card+pill shape. */
+function buildCards(analysis: AtsAnalysis): ReportCard[] {
+  if (analysis.findings?.length) {
+    const fixFor = (id: string) =>
+      (analysis.improvements ?? []).find((i) => i.findingId === id)?.text;
+    return [...analysis.findings]
+      .sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity))
+      .map((f) => ({
+        id: f.id,
+        severity: f.severity,
+        title: f.title,
+        detail: f.detail,
+        fix: fixFor(f.id) ?? f.recommendation,
+      }));
+  }
+  const out: ReportCard[] = [];
+  (analysis.improvements ?? []).forEach((imp, i) => {
+    out.push({ id: `imp-${i}`, severity: imp.priority, title: imp.text, detail: imp.reason });
+  });
+  normalizeAtsIssues(analysis.atsIssues ?? []).forEach((iss, i) => {
+    out.push({ id: `issue-${i}`, severity: "medium", title: iss.title, detail: iss.detail });
+  });
+  return out.sort(
+    (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
+  );
+}
+
 /**
- * Engine-specific explainability, laid out as full-width rows: breakdown, strengths,
- * skills, findings-with-fixes, metrics, then methodology. Findings carry their own fix,
- * so the generic improvements list is not shown again for these engines.
+ * One report layout for every engine: breakdown, strengths, skills, cards-with-fixes,
+ * responsibilities, metrics, then methodology. Native and reference engines don't carry
+ * their own `breakdown`/`findings` arrays, so those are synthesized from `scores` /
+ * `improvements` / `atsIssues` — the visual shape stays identical either way.
  */
-function EngineReport({ analysis }: { analysis: AtsAnalysis }) {
-  const breakdown = analysis.breakdown ?? [];
+export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
+  const breakdown = buildBreakdown(analysis);
+  const cards = buildCards(analysis);
   const metrics = analysis.metrics ?? [];
   const categories = analysis.skillCategories ?? [];
   const limitations = analysis.limitations ?? [];
   const warnings = analysis.warnings ?? [];
-  const strengths = analysis.strengths ?? [];
+  const notes = analysis.notes ?? [];
   const matched = (analysis.matchedSkills ?? []).map((s) => s.skill).filter(Boolean);
+  const partial = (analysis.partialSkills ?? []).map((s) => s.skill).filter(Boolean);
   const missing = (analysis.missingSkills ?? []).map((s) => s.skill).filter(Boolean);
-  const findings = [...(analysis.findings ?? [])].sort(
-    (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
-  );
-  const fixFor = (id: string) =>
-    (analysis.improvements ?? []).find((i) => i.findingId === id)?.text;
+  const respMatched = analysis.matchedResponsibilities ?? [];
+  const respPartial = analysis.partialResponsibilities ?? [];
+  const respMissing = analysis.missingResponsibilities ?? [];
 
-  const rowSecondary = (row: NonNullable<AtsAnalysis["breakdown"]>[number]) => {
+  const rowSecondary = (row: AtsBreakdownRow) => {
     if (row.maxPoints != null)
       return `${row.points != null ? `${row.points > 0 ? "+" : ""}${row.points}` : "—"} / ${row.maxPoints} pts`;
     if (row.weight != null)
@@ -335,7 +236,26 @@ function EngineReport({ analysis }: { analysis: AtsAnalysis }) {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="border-border/60 mt-3 space-y-4 border-t pt-3 md:space-y-5">
+      <div className="space-y-2">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-foreground text-[13px] font-semibold tracking-tight">
+              {analysis.scoreLabel}
+            </p>
+            <p className="text-muted-foreground mt-0.5 truncate text-[12px]">
+              {analysis.scoreName}
+              {analysis.targetTitle ? ` · ${analysis.targetTitle}` : ""}
+            </p>
+          </div>
+          <p className="text-foreground shrink-0 font-mono text-[16px] font-semibold tabular-nums">
+            {points(analysis.overallScore)}
+            <span className="text-muted-foreground text-[12px] font-medium"> / 100</span>
+          </p>
+        </div>
+        <ScoreBar value={analysis.overallScore} />
+      </div>
+
       {warnings.length ? (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5">
           <ul className="space-y-0.5 text-[12px] text-amber-700 dark:text-amber-300">
@@ -380,42 +300,29 @@ function EngineReport({ analysis }: { analysis: AtsAnalysis }) {
         </Section>
       ) : null}
 
-      {strengths.length ? (
-        <Section title="Strengths">
-          <ul className="space-y-1">
-            {strengths.map((s) => (
-              <li key={s} className="text-muted-foreground flex gap-2 text-[13px]">
-                <span className="text-emerald-600 dark:text-emerald-400" aria-hidden>
-                  ✓
-                </span>
-                <span className="min-w-0">{s}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
+      <StrengthPills strengths={analysis.strengths ?? []} />
 
-      {matched.length || missing.length ? (
-        <Section title="Skills" aside={`${matched.length} matched · ${missing.length} missing`}>
-          <div className="space-y-2">
-            {matched.length ? (
-              <div className="flex flex-wrap gap-1.5">
-                {matched.map((s) => (
-                  <Chip key={`m-${s}`} tone="matched">
-                    {s}
-                  </Chip>
-                ))}
-              </div>
-            ) : null}
-            {missing.length ? (
-              <div className="flex flex-wrap gap-1.5">
-                {missing.map((s) => (
-                  <Chip key={`x-${s}`} tone="missing">
-                    {s}
-                  </Chip>
-                ))}
-              </div>
-            ) : null}
+      {matched.length || partial.length || missing.length ? (
+        <Section
+          title="Skills"
+          aside={`${matched.length} matched · ${partial.length} partial · ${missing.length} missing`}
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {matched.map((s) => (
+              <Chip key={`m-${s}`} tone="matched">
+                {s}
+              </Chip>
+            ))}
+            {partial.map((s) => (
+              <Chip key={`p-${s}`} tone="partial">
+                {s}
+              </Chip>
+            ))}
+            {missing.map((s) => (
+              <Chip key={`x-${s}`} tone="missing">
+                {s}
+              </Chip>
+            ))}
           </div>
         </Section>
       ) : null}
@@ -451,33 +358,63 @@ function EngineReport({ analysis }: { analysis: AtsAnalysis }) {
         </Section>
       ) : null}
 
-      {findings.length ? (
-        <Section title="Findings & fixes" aside={`${findings.length}`}>
+      {respMatched.length || respPartial.length || respMissing.length ? (
+        <Section title="Responsibilities">
+          <ul className="space-y-1 text-[13px]">
+            {respMatched.map((r) => (
+              <li key={`rm-${r.text}`} className="flex gap-2">
+                <span className="text-emerald-600 dark:text-emerald-400" aria-hidden>
+                  ✓
+                </span>
+                <span className="text-muted-foreground min-w-0">{r.text}</span>
+              </li>
+            ))}
+            {respPartial.map((r) => (
+              <li key={`rp-${r.text}`} className="flex gap-2">
+                <span className="text-amber-600 dark:text-amber-400" aria-hidden>
+                  ~
+                </span>
+                <span className="text-muted-foreground min-w-0">{r.text}</span>
+              </li>
+            ))}
+            {respMissing.map((r) => (
+              <li key={`rx-${r.text}`} className="flex gap-2">
+                <span className="text-muted-foreground" aria-hidden>
+                  ✗
+                </span>
+                <span className="text-muted-foreground min-w-0">{r.text}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {cards.length ? (
+        <Section title="Improvements & fixes" aside={`${cards.length}`}>
           <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {findings.map((f) => {
-              const fix = fixFor(f.id) ?? f.recommendation;
-              return (
-                <li key={f.id} className="border-border/50 rounded-lg border p-2.5">
-                  <div className="flex items-start gap-2">
-                    <SeverityPill severity={f.severity} />
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-foreground text-[13px] font-medium leading-snug">
-                        {f.title}
-                      </p>
+            {cards.map((c) => (
+              <li key={c.id} className="border-border/50 rounded-lg border p-2.5">
+                <div className="flex items-start gap-2">
+                  <SeverityPill severity={c.severity} />
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="text-foreground text-[13px] font-medium leading-snug">
+                      {c.title}
+                    </p>
+                    {c.detail ? (
                       <p className="text-muted-foreground text-[12px] leading-relaxed">
-                        {f.detail}
+                        {c.detail}
                       </p>
-                      {fix ? (
-                        <p className="text-[12px] leading-relaxed">
-                          <span className="text-foreground font-medium">Fix: </span>
-                          <span className="text-muted-foreground">{fix}</span>
-                        </p>
-                      ) : null}
-                    </div>
+                    ) : null}
+                    {c.fix ? (
+                      <p className="text-[12px] leading-relaxed">
+                        <span className="text-foreground font-medium">Fix: </span>
+                        <span className="text-muted-foreground">{c.fix}</span>
+                      </p>
+                    ) : null}
                   </div>
-                </li>
-              );
-            })}
+                </div>
+              </li>
+            ))}
           </ul>
         </Section>
       ) : null}
@@ -503,7 +440,7 @@ function EngineReport({ analysis }: { analysis: AtsAnalysis }) {
         </Section>
       ) : null}
 
-      {limitations.length || analysis.methodology ? (
+      {limitations.length || notes.length || analysis.methodology ? (
         <details className="border-border/50 group rounded-lg border px-3 py-2">
           <summary className="text-muted-foreground cursor-pointer list-none text-[11px] font-medium">
             Methodology &amp; limitations
@@ -521,169 +458,15 @@ function EngineReport({ analysis }: { analysis: AtsAnalysis }) {
                 {analysis.methodology.reference ? ` · ${analysis.methodology.reference}` : ""}
               </p>
             ) : null}
+            {notes.map((n) => (
+              <p key={n}>· {n}</p>
+            ))}
             {limitations.map((l) => (
               <p key={l}>· {l}</p>
             ))}
           </div>
         </details>
       ) : null}
-    </div>
-  );
-}
-
-export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
-  const [openDim, setOpenDim] = useState<string | null>(null);
-  const scores = analysis.scores ?? {};
-  const strengths = analysis.strengths ?? [];
-  const missingSkills = analysis.missingSkills ?? [];
-  const partialSkills = analysis.partialSkills ?? [];
-  const improvements = analysis.improvements ?? [];
-  const atsIssues = analysis.atsIssues ?? [];
-  const applicable = SCORE_ROWS.filter((row) => {
-    const v = scores[row.key];
-    return typeof v === "number";
-  });
-
-  // Resume-only: hide job-match rows even if somehow set
-  const rows =
-    analysis.mode === "resume_only"
-      ? applicable.filter((r) =>
-          [
-            "atsCompatibility",
-            "resumeQuality",
-            "technicalSkills",
-            "experienceQuality",
-            "evidenceQuality",
-            "structureFormatting",
-          ].includes(r.key),
-        )
-      : applicable.filter(
-          (r) => !["technicalSkills", "experienceQuality", "structureFormatting"].includes(r.key),
-        );
-
-  return (
-    <div className="border-border/60 mt-3 space-y-4 border-t pt-3 md:space-y-5">
-      <div className="space-y-2">
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-foreground text-[13px] font-semibold tracking-tight">
-              {analysis.scoreLabel}
-            </p>
-            <p className="text-muted-foreground mt-0.5 truncate text-[12px]">
-              {analysis.scoreName}
-              {analysis.targetTitle ? ` · ${analysis.targetTitle}` : ""}
-            </p>
-          </div>
-          <p className="text-foreground shrink-0 font-mono text-[16px] font-semibold tabular-nums">
-            {points(analysis.overallScore)}
-            <span className="text-muted-foreground text-[12px] font-medium"> / 100</span>
-          </p>
-        </div>
-        <ScoreBar value={analysis.overallScore} />
-        {!analysis.breakdown?.length && analysis.notes?.length ? (
-          <p className="text-muted-foreground text-[12px] leading-relaxed">{analysis.notes[0]}</p>
-        ) : null}
-      </div>
-
-      {analysis.breakdown?.length ? (
-        // Open-source engines: one clean, full-width, row-based report.
-        <EngineReport analysis={analysis} />
-      ) : (
-        <div className="space-y-5">
-          <Section title="Breakdown">
-            <div>
-              {rows.map((row) => {
-                const value = scores[row.key] as number;
-                const open = openDim === row.key;
-                return (
-                  <DimensionRow
-                    key={row.key}
-                    label={row.label}
-                    value={value}
-                    open={open}
-                    onToggle={() => setOpenDim(open ? null : row.key)}
-                    detail={open ? <SkillLists analysis={analysis} dimension={row.key} /> : null}
-                  />
-                );
-              })}
-            </div>
-          </Section>
-
-          {strengths.length ? (
-            <Section title="Strengths">
-              <ul className="space-y-1">
-                {strengths.map((s) => (
-                  <li key={s} className="text-muted-foreground flex gap-2 text-[13px]">
-                    <span className="text-emerald-600 dark:text-emerald-400" aria-hidden>
-                      ✓
-                    </span>
-                    <span className="min-w-0">{s}</span>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          ) : null}
-
-          {missingSkills.length || partialSkills.length ? (
-            <Section title="Missing / weak requirements">
-              <dl className="space-y-1.5 text-[13px]">
-                {missingSkills.length ? (
-                  <div className="flex gap-2">
-                    <dt className="text-muted-foreground w-16 shrink-0 pt-0.5 text-[11px] font-semibold uppercase tracking-wide">
-                      Missing
-                    </dt>
-                    <dd className="text-foreground min-w-0 flex-1">
-                      {missingSkills.map((s) => s.skill).join(", ")}
-                    </dd>
-                  </div>
-                ) : null}
-                {partialSkills.length ? (
-                  <div className="flex gap-2">
-                    <dt className="w-16 shrink-0 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-                      Partial
-                    </dt>
-                    <dd className="text-foreground min-w-0 flex-1">
-                      {partialSkills.map((s) => s.skill).join(", ")}
-                    </dd>
-                  </div>
-                ) : null}
-              </dl>
-            </Section>
-          ) : null}
-
-          {improvements.length ? (
-            <Section title="Improvements">
-              <div className="space-y-2.5">
-                {(["high", "medium", "low"] as const).map((priority) => {
-                  const items = improvements.filter((i) => i.priority === priority);
-                  if (!items.length) return null;
-                  return (
-                    <div key={priority}>
-                      <p className="text-muted-foreground mb-1 text-[11px] font-semibold uppercase tracking-wide">
-                        {priority} impact
-                      </p>
-                      <ol className="text-muted-foreground list-decimal space-y-1.5 pl-4 text-[13px]">
-                        {items.map((i) => (
-                          <li key={i.text}>
-                            {i.text}
-                            <span className="mt-0.5 block text-[11px] opacity-80">{i.reason}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  );
-                })}
-              </div>
-            </Section>
-          ) : null}
-
-          {atsIssues.length ? (
-            <Section title="ATS issues">
-              <AtsIssueList issues={atsIssues} />
-            </Section>
-          ) : null}
-        </div>
-      )}
     </div>
   );
 }

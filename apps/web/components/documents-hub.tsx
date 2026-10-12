@@ -245,6 +245,12 @@ function formatBytes(n: number) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function atsScoreTone(score: number) {
+  if (score >= 80) return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
+  if (score >= 60) return "bg-amber-500/15 text-amber-700 dark:text-amber-300";
+  return "bg-muted text-muted-foreground";
+}
+
 function defaultFooterInclude(
   profileEmail: string | null | undefined,
   profileLinks: ProfileLinks | undefined,
@@ -953,16 +959,24 @@ export function DocumentsHub({
                               {resume.status}
                             </span>
                           </div>
-                          <p className="text-muted-foreground flex items-center gap-1.5 truncate text-[11px]">
-                            <span className="truncate">
-                              {resume.originalFilename} · {formatBytes(resume.byteSize)}
+                          <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-[11px]">
+                            <span className="min-w-0 truncate">
+                              <span className="hidden sm:inline">{resume.originalFilename} · </span>
+                              {formatBytes(resume.byteSize)}
                             </span>
                             {atsScoringIds.has(resume.id) ? (
                               <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1">
-                                · <Spinner className="size-3" label="Scoring ATS" /> ATS…
+                                <Spinner className="size-3" label="Scoring ATS" /> ATS…
                               </span>
                             ) : resume.atsScore != null ? (
-                              <span className="shrink-0"> · ATS {resume.atsScore}</span>
+                              <span
+                                className={cn(
+                                  "inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                                  atsScoreTone(resume.atsScore),
+                                )}
+                              >
+                                ATS {resume.atsScore}
+                              </span>
                             ) : null}
                           </p>
                         </div>

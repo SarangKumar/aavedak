@@ -21,6 +21,16 @@ REZI_WEIGHTS = {
 
 SKILLSYNCER_POINTS = {"hard": 60, "soft": 15, "other": 5, "title": 10, "degree": 10}
 
+# Enhancv's free checker publicly shows four "Content" checks (ATS Parse Rate, Quantifying
+# Impact, Repetition, Spelling & Grammar) as issue counts, not a formula — weights are an
+# Aavedak approximation.
+ENHANCV_WEIGHTS = {
+    "parse_rate": 0.25,
+    "quantifying_impact": 0.30,
+    "repetition": 0.20,
+    "spelling_grammar": 0.25,
+}
+
 # ── Open-source reference engines (verified against each repo's source; see app/ats/ENGINES.md) ──
 
 # jlynshue/open-ats `three_category_config()` (what its CLI actually uses — not the PRD's 40/20/20/20).

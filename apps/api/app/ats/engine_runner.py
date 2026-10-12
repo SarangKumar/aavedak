@@ -18,6 +18,7 @@ from app.ats.pipeline import (
     resolve_mode,
 )
 from app.ats.reference_profiles import (
+    run_enhancv_style,
     run_jobscan_style,
     run_rezi_style,
     run_resume_worded_style,
@@ -35,6 +36,7 @@ LEGACY_ENGINES = frozenset(
         "teal_style",
         "rezi_style",
         "skillsyncer_style",
+        "enhancv_style",
     }
 )
 VALID_ENGINES = LEGACY_ENGINES | frozenset(OSS_ENGINES)
@@ -51,6 +53,8 @@ def _run_legacy(engine_id: str, rid: str, resume_text: str, jd_text: str, role: 
         return run_teal_style(rid, resume_text, role, jd_text, mode=mode)
     if engine_id == "rezi_style":
         return run_rezi_style(rid, resume_text, role, jd_text, mode=mode)
+    if engine_id == "enhancv_style":
+        return run_enhancv_style(rid, resume_text, role, jd_text, mode=mode)
     return run_skillsyncer_style(rid, resume_text, role, jd_text)
 
 

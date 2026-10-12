@@ -51,6 +51,7 @@ def test_reference_engines_fastapi():
         "teal_style",
         "rezi_style",
         "skillsyncer_style",
+        "enhancv_style",
     ):
         r = run_engine_profile(engine_id=engine_id, mode="job_match", **base)
         assert r["engine"] == "fastapi", engine_id
@@ -134,3 +135,34 @@ def test_jobscan_uses_domain_phrases_when_jd_has_few_software_skills():
     close = _score("jobscan_style", resume, jd, role="")
     far = _score("jobscan_style", unrelated, jd, role="")
     assert close["overallScore"] > far["overallScore"] + 20
+
+
+# ── Enhancv-style Content checks ────────────────────────────────────────────────────────────
+
+def test_enhancv_reports_issue_counts_per_content_check():
+    r = run_engine_profile(
+        engine_id="enhancv_style", resume_text=SAMPLE_RESUME, role="", jd_text="", resume_id="e1",
+    )
+    labels = {m["label"]: m["value"] for m in r["metrics"]}
+    assert set(labels) == {"ATS Parse Rate", "Quantifying Impact", "Repetition", "Spelling & Grammar"}
+    for value in labels.values():
+        assert value == "No issues" or value.endswith(" issue") or value.endswith(" issues")
+    assert {"atsCompatibility", "evidenceQuality", "experienceQuality", "structureFormatting"} <= set(
+        r["scores"]
+    )
+
+
+def test_enhancv_does_not_flag_a_repeated_proper_noun():
+    # A company name mentioned several times is normal and must not count as "Repetition".
+    resume = """
+Jane Doe
+jane@example.com | +1 555 0100
+EXPERIENCE
+Backend Engineer, Initech Initech Solutions — 2020 – Present
+Built services at Initech Solutions handling requests at Initech Solutions scale with 40% less latency.
+SKILLS
+Python, SQL
+"""
+    r = run_engine_profile(engine_id="enhancv_style", resume_text=resume, role="", jd_text="", resume_id="e2")
+    labels = {m["label"]: m["value"] for m in r["metrics"]}
+    assert labels["Repetition"] == "No issues"

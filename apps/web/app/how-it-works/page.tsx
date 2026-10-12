@@ -14,9 +14,16 @@ import { getSiteUrl, SITE_NAME } from "@/lib/site";
 // Public, static content: no session or database reads. The ATS engines and the company
 // list come from the same registries the app uses, so this page never disagrees with them.
 
+const ENGINE_COUNTS = {
+  total: ATS_ENGINES.length,
+  native: ATS_ENGINES.filter((e) => e.kind === "native").length,
+  reference: ATS_ENGINES.filter((e) => e.kind === "reference").length,
+  open_source: ATS_ENGINES.filter((e) => e.kind === "open_source").length,
+};
+const ENGINE_SPLIT = `${ENGINE_COUNTS.native} native, ${ENGINE_COUNTS.reference} reference and ${ENGINE_COUNTS.open_source} open source`;
+
 const PAGE_TITLE = "How Aavedak works";
-const PAGE_DESCRIPTION =
-  "Where Aavedak's Discover jobs come from (company job boards and career pages), which junior engineering and tech roles are kept, how referral emails are sent from your own Gmail, and the 10 ATS engines: 1 native, 5 reference and 4 open source.";
+const PAGE_DESCRIPTION = `Where Aavedak's Discover jobs come from (company job boards and career pages), which junior engineering and tech roles are kept, how referral emails are sent from your own Gmail, and the ${ENGINE_COUNTS.total} ATS engines: ${ENGINE_SPLIT}.`;
 
 export const metadata: Metadata = {
   robots: { index: true, follow: true },
@@ -50,14 +57,6 @@ export const metadata: Metadata = {
     description: PAGE_DESCRIPTION,
   },
 };
-
-const ENGINE_COUNTS = {
-  total: ATS_ENGINES.length,
-  native: ATS_ENGINES.filter((e) => e.kind === "native").length,
-  reference: ATS_ENGINES.filter((e) => e.kind === "reference").length,
-  open_source: ATS_ENGINES.filter((e) => e.kind === "open_source").length,
-};
-const ENGINE_SPLIT = `${ENGINE_COUNTS.native} native, ${ENGINE_COUNTS.reference} reference and ${ENGINE_COUNTS.open_source} open source`;
 
 const toc: TocItem[] = [
   { id: "flow", label: "The flow" },
