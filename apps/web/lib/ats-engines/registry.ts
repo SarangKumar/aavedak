@@ -25,13 +25,13 @@ export const ATS_ENGINES: EngineCapability[] = [
     preferredMode: "job_match",
     scoreTypes: ["resume_quality", "role_match", "job_match"],
     scoringProfileId: "aavedak-native",
-    profileVersion: "2.0",
+    profileVersion: "3.0",
     limitations: [
       "Transparent local/API model — not a Workday/Greenhouse/Taleo oracle.",
       "Does not invent experience; skills-list-only evidence is partial.",
     ],
     algoBlurb:
-      "Aavedak’s native scorer: evidence-based skills, responsibilities, and resume quality. Optional title and JD sharpen the match.",
+      "Aavedak’s best-of benchmark: 11 resume-quality criteria drawn from every engine (parseability, impact, verbs, bullets, wording, tense, spelling, dates/gaps, length vs years of experience, skills evidence) plus evidence-based skill, responsibility, title, experience and education match when a title or JD is given.",
   },
   {
     id: "jobscan_style",
@@ -63,13 +63,13 @@ export const ATS_ENGINES: EngineCapability[] = [
     preferredMode: "resume_only",
     scoreTypes: ["resume_quality", "job_match"],
     scoringProfileId: "resume-worded-reference",
-    profileVersion: "1.1",
+    profileVersion: "1.3",
     limitations: [
       "Reference profile — not Resume Worded’s proprietary scorer.",
       "Title-only is not offered as a separate mode; use resume-only or JD targeting.",
     ],
     algoBlurb:
-      "Scores resume quality from impact, skills, wording, and presentation (weighted checks). With a JD, targeting is blended in — it is not a pure job-match score.",
+      "Share of Impact, Brevity and Style checks passed (equal weight, as Resume Worded describes), calibrated to your years of experience. With a JD, hard-skill targeting is blended in 30%.",
   },
   {
     id: "teal_style",
@@ -82,13 +82,13 @@ export const ATS_ENGINES: EngineCapability[] = [
     preferredMode: "resume_only",
     scoreTypes: ["resume_quality", "job_match"],
     scoringProfileId: "teal-reference",
-    profileVersion: "1.1",
+    profileVersion: "1.3",
     limitations: [
       "Reference profile — Resume Analyzer and Job Matcher kept distinct by mode.",
       "Not affiliated with Teal HQ.",
     ],
     algoBlurb:
-      "Two separate scores: Resume Score (structure & content) without a JD, or Job Match (skills + keywords + title) when a JD is provided. Never mixes the two into one number.",
+      "Two separate scores: Resume Score (share of Teal's documented Resume Analyzer issue cards cleared) without a JD, or Job Match (share of the JD's hard, soft and other keywords on the resume) with one.",
   },
   {
     id: "rezi_style",
@@ -120,9 +120,9 @@ export const ATS_ENGINES: EngineCapability[] = [
     preferredMode: "job_match",
     scoreTypes: ["weighted_job_match"],
     scoringProfileId: "skillsyncer-reference",
-    profileVersion: "1.1",
+    profileVersion: "1.3",
     limitations: [
-      "Uses documented-style weights (hard 60 / soft 15 / other 5 / title 10 / degree 10).",
+      "Categories and frequency weighting are documented; the 60/15/5/10/10 point split is an Aavedak estimate.",
       "Approximation — not SkillSyncer’s private matching.",
     ],
     algoBlurb:
@@ -139,13 +139,13 @@ export const ATS_ENGINES: EngineCapability[] = [
     preferredMode: "resume_only",
     scoreTypes: ["resume_quality", "job_match"],
     scoringProfileId: "enhancv-reference",
-    profileVersion: "1.2",
+    profileVersion: "1.3",
     limitations: [
       "Reference profile approximating Enhancv's public checker UI — not Enhancv's proprietary scoring or weights.",
       "Spelling & Grammar is a short common-typo list plus basic punctuation checks, not a real spell-checker.",
     ],
     algoBlurb:
-      "Four Content checks shown as issue counts, like Enhancv's free checker: ATS Parse Rate, Quantifying Impact, Repetition, and Spelling & Grammar. With a JD, blended 70/30 with hard-skill coverage.",
+      "Five Content checks from Enhancv's checker: ATS Parse Rate, Quantifying Impact, Repetition, Spelling & Grammar, Bullet length. With a JD, blended 70/30 with job tailoring (hard and soft skills, action verbs, title).",
   },
   {
     id: "open_ats",

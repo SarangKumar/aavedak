@@ -120,9 +120,9 @@ def detect_degree_level(text: str) -> int:
     t = text.lower()
     if re.search(r"\b(ph\.?d|doctorate|doctoral)\b", t):
         return 3
-    if re.search(r"\b(master'?s?|m\.?s\.?|m\.?eng|mba)\b", t):
+    if re.search(r"\b(master'?s?|m\.?s\.?|m\.?eng|mba|m\.?tech|m\.?sc|mca|m\.?e\.)\b", t):
         return 2
-    if re.search(r"\b(bachelor'?s?|b\.?s\.?|b\.?a\.?|b\.?eng|undergraduate)\b", t):
+    if re.search(r"\b(bachelor'?s?|b\.?s\.?|b\.?a\.?|b\.?eng|undergraduate|b\.?tech|b\.?sc|bca|b\.?e\.|b\.?com)\b", t):
         return 1
     if re.search(r"\bdegree\b", t):
         return 1

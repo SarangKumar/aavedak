@@ -6,10 +6,8 @@
 JOBSCAN_MIN_TAXONOMY_SKILLS = 5
 JOBSCAN_WEIGHTS = {"hard": 55, "education": 10, "title": 15, "soft": 12, "other": 8}
 
-# Resume Worded groups its 20+ checks as Impact, Brevity and Style (weights not public).
-RESUME_WORDED_WEIGHTS = {"impact": 0.4, "brevity": 0.3, "style": 0.3}
-
-TEAL_JOB_MATCH_WEIGHTS = {"hard": 55, "keywords": 30, "title": 15}
+# Resume Worded: score reflects how many checks pass (equal weight); Teal Job Match: share of JD
+# keywords found. Neither needs a weight table any more.
 
 REZI_WEIGHTS = {
     "content": 0.25,
@@ -19,6 +17,7 @@ REZI_WEIGHTS = {
     "application_readiness": 0.15,
 }
 
+# Categories + frequency weighting are documented (skillsyncer.com); the point split is an Aavedak estimate.
 SKILLSYNCER_POINTS = {"hard": 60, "soft": 15, "other": 5, "title": 10, "degree": 10}
 
 # Enhancv's free checker publicly shows four "Content" checks (ATS Parse Rate, Quantifying
@@ -26,9 +25,10 @@ SKILLSYNCER_POINTS = {"hard": 60, "soft": 15, "other": 5, "title": 10, "degree":
 # Aavedak approximation.
 ENHANCV_WEIGHTS = {
     "parse_rate": 0.25,
-    "quantifying_impact": 0.30,
-    "repetition": 0.20,
-    "spelling_grammar": 0.25,
+    "quantifying_impact": 0.25,
+    "repetition": 0.15,
+    "spelling_grammar": 0.20,
+    "bullet_length": 0.15,
 }
 
 # ── Open-source reference engines (verified against each repo's source; see app/ats/ENGINES.md) ──

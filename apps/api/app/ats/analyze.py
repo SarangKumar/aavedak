@@ -13,6 +13,12 @@ from app.ats.evidence import (
 from app.ats.jd_profile import parse_jd
 from app.ats.reference_signals import count_phrase, extract_quality_signals
 from app.ats.resume_profile import parse_resume, bullet_has_action, bullet_has_metric
+from app.ats.benchmark import (
+    QUALITY_SHARE_IN_MATCH,
+    education_cert_match,
+    quality_criteria,
+    weighted,
+)
 from app.ats.seniority import seniority_fit
 from app.ats.skill_taxonomy import display_name, infer_role_key
 from app.ats.version import ENGINE_VERSION
@@ -756,6 +762,24 @@ def analyze_resume(
     strengths = list(quality_strengths)
     improvements = list(quality_improvements)
     strengths.extend(ats_signals[:3])
+
+    # Best-of quality criteria (benchmark.py) — the resume-quality half of every native score.
+    criteria = quality_criteria(
+        profile.raw,
+        parse_score=ats_score,
+        skills_in_experience=in_exp_skills,
+        skills_total=len(profile.skill_mentions),
+        years_experience=years_experience,
+        resume_years=profile.years_mentioned,
+    )
+    quality_overall = weighted(criteria)
+    for crit in criteria:
+        if crit.score < 60:
+            improvements.append(
+                {"priority": "medium" if crit.score >= 35 else "high",
+                 "text": f"{crit.label}: {crit.detail}",
+                 "reason": f"Benchmark criterion ({crit.sources})."}
+            )
     if level is not None:
         improvements.extend(level.improvements)
         if level.score >= 100:
@@ -772,17 +796,17 @@ def analyze_resume(
             + (0 if profile.stuffing_score >= 0.35 else 8),
             90,
         )
-        parts = [
+        legacy_parts = [
             ("atsCompatibility", 0.18, float(ats_score)),
             ("resumeQuality", 0.26, float(quality_score)),
             ("technicalSkills", 0.16, float(tech_score)),
             ("experienceQuality", 0.22, float(exp_quality)),
             ("evidenceQuality", 0.12, float(evidence)),
             ("skillBreadth", 0.06, skill_signal),
-            ("seniorityFit", 0.12 if level else 0.0, float(level.score if level else 0)),
         ]
-        overall, weighting = _weighted_mean(parts)
-        overall = _soft_cap(overall, 93)
+        del legacy_parts  # superseded by the benchmark criteria (kept for reference in git history)
+        overall = quality_overall
+        weighting = {c.key: c.weight for c in criteria}
         scores["evidenceQuality"] = evidence
         scores["atsCompatibility"] = ats_score
         scores["resumeQuality"] = quality_score
@@ -811,6 +835,8 @@ def analyze_resume(
             weighting,
             effective_title,
             resume_text=profile.raw,
+            criteria=criteria,
+            share=1.0,
         )
 
     # Role / Job match dimensions
@@ -949,7 +975,18 @@ def analyze_resume(
                 ("atsCompatibility", 0.06, float(ats_score)),
             ]
 
-    overall, weighting = _weighted_mean(parts)
+    edu = education_cert_match(profile.raw, jd_text)
+    scores["educationCerts"] = edu
+    if edu is not None:
+        parts.append(("educationCerts", 0.06, float(edu)))
+    match_overall, weighting = _weighted_mean(parts)
+    overall = round(
+        (1 - QUALITY_SHARE_IN_MATCH) * match_overall + QUALITY_SHARE_IN_MATCH * quality_overall
+    )
+    weighting = {
+        **{k: round(v * (1 - QUALITY_SHARE_IN_MATCH), 4) for k, v in weighting.items()},
+        **{c.key: round(c.weight * QUALITY_SHARE_IN_MATCH, 4) for c in criteria},
+    }
     overall = _apply_critical_protection(float(overall), critical_gap)
     if critical_gap >= 0.35:
         notes.append(
@@ -1037,6 +1074,8 @@ def analyze_resume(
         weighting,
         effective_title,
         resume_text=profile.raw,
+        criteria=criteria,
+        share=QUALITY_SHARE_IN_MATCH,
     )
 
 
@@ -1070,8 +1109,24 @@ def _pack(
     weighting,
     effective_title,
     resume_text: str = "",
+    criteria=None,
+    share: float = 1.0,
 ):
+    breakdown = [
+        {
+            "key": c.key,
+            "label": c.label,
+            "score": c.score,
+            "weight": round(c.weight * share, 4),
+            "contribution": round(c.score * c.weight * share, 1),
+            "parent": "Resume quality",
+            "detail": c.detail,
+            "sources": c.sources,
+        }
+        for c in (criteria or [])
+    ]
     return {
+        "breakdown": breakdown,
         "resumeId": resume_id,
         "mode": mode,
         "scoreName": _score_name(mode),

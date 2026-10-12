@@ -11,6 +11,8 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Added
 
+- **ATS — Aavedak ATS rebuilt as a best-of benchmark** — The native engine now scores 11 resume-quality criteria taken from the strongest checks across every engine: ATS parseability, sections and contact, quantified impact, action verbs (weak openers like "Assisted" or "Helped" count against you), bullet length and count, buzzwords/pronouns/passive voice, verb tense consistency, repetition and spelling, dates and gaps, length for your years of experience, and skills shown in experience. Each criterion appears in the breakdown with what it found and which tools it comes from. With a title or job description, the score is 65% match (skills, responsibilities, experience, title, and now education and certifications) and 35% resume quality.
+
 - **ATS — years of experience** — The ATS page has a Years of experience field, filled in from your profile's experience level and editable. Aavedak ATS and the Resume Worded engine calibrate their checks to it (expected length, number of bullets, share of quantified bullets, and leadership signals from about 3 years), and Aavedak ATS compares it with the years a job description asks for. Leave it empty to score without a level. Other engines ignore it.
 - **ATS — input help behind a ? icon** — The "Required by … · optional for …" lists under Target role and Job description now sit in a tooltip behind a small ? next to each label, so the form takes less space.
 
@@ -169,6 +171,7 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Fixed
 
+- **ATS — reference engines now follow their published criteria** — Resume Worded scores the share of checks passed, as Resume Worded describes, and now also checks weak verb openers, tense, repetition, pronouns, spelling and teamwork signals. Teal's Resume Score is now the share of Teal's documented Resume Analyzer issue cards cleared, and its Job Match is the share of the job's keywords on your resume. Enhancv adds its bullet-length check and uses soft skills, action verbs and title when tailoring to a job. SkillSyncer's point split is now labelled as an estimate. Indian degrees (B.Tech, B.E., BCA, M.Tech, MCA, …) are now recognised for degree matching.
 - **Resumes — card ATS score now matches the ATS page** — The ATS pill on a resume card came from a separate quick checklist (text length, email, phone, section names, word count, links) that almost any real resume maxed out at 100. It now uses the native Aavedak ATS engine with the same inputs the ATS page starts with (your first preferred role, your years of experience, no job description), so both show the same score. Existing cards are rescored automatically the next time you open Documents, and again whenever your preferred role or experience level changes.
 
 - **Undo buttons keep their shape** — While a send or queue button counts down, it stays exactly the size it was, and its burning fuse now runs along the button's own border with the same rounded corners, instead of a second, square line just inside it. The fuse is a little thicker so it's easy to see, and takes the button's colour: the brand yellow, or red on a destructive button.

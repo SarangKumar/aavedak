@@ -7,6 +7,7 @@ from collections import Counter
 from typing import Any
 
 from app.ats.analyze import _fingerprint, _label
+from app.ats.benchmark import COMMON_TYPOS, WEAK_OPENERS
 from app.ats.seniority import level_band
 from app.ats.reference_signals import (
     HARD_SKILL_ALIASES,
@@ -27,13 +28,11 @@ from app.ats.reference_weights import (
     ENHANCV_WEIGHTS,
     JOBSCAN_MIN_TAXONOMY_SKILLS,
     JOBSCAN_WEIGHTS,
-    RESUME_WORDED_WEIGHTS,
     REZI_WEIGHTS,
     SKILLSYNCER_POINTS,
-    TEAL_JOB_MATCH_WEIGHTS,
 )
 
-PROFILE_VERSION = "1.2"
+PROFILE_VERSION = "1.3"
 
 
 def _skill_hits(resume: list[str], jd: list[str]) -> tuple[list[dict], list[dict]]:
@@ -228,7 +227,6 @@ def run_resume_worded_style(
         resolved = "resume_only" if mode == "role_match" else mode
     else:
         resolved = "job_match" if jd_text.strip() else "resume_only"
-    w = RESUME_WORDED_WEIGHTS
     n_b = max(1, len(q.bullets))
     impact_checks = {
         "Quantified results in at least a third of bullets": s.metric_bullets / n_b >= 1 / 3,
@@ -242,6 +240,19 @@ def run_resume_worded_style(
         "No more than 6 bullets per role": q.bullets_per_role <= 6,
         "No filler or vague phrases": q.buzz_hits == 0,
     }
+    starts = [b.split()[0].lower().strip(",.") for b in q.bullets if b.split()]
+    past = sum(1 for x in starts if x.endswith("ed"))
+    present = sum(1 for x in starts if x.endswith("s") and not x.endswith("ss"))
+    impact_checks["No weak verb openers (Assisted, Helped…)"] = not any(x in WEAK_OPENERS for x in starts)
+    impact_checks["Consistent verb tense"] = min(past, present) <= max(1, 0.25 * (past + present))
+    impact_checks["No repeated bullet openers (3+ times)"] = all(starts.count(x) < 3 for x in set(starts))
+    impact_checks["Teamwork / communication / analytical signals"] = bool(
+        re.search(r"\b(?:collaborat|cross-functional|partnered|presented|analy[sz]|stakeholder)", s.resume_lower)
+    )
+    brevity_checks["No personal pronouns"] = q.pronoun_lines == 0
+    brevity_checks["No common spelling mistakes"] = not any(
+        re.search(rf"\b{t}\b", s.resume_lower) for t in COMMON_TYPOS
+    )
     style_checks = {
         "Contact details parse (email and phone)": s.has_email and s.has_phone,
         "Standard sections present": len(s.sections) >= 3,
@@ -261,7 +272,9 @@ def run_resume_worded_style(
             impact_checks.pop("Growth or leadership signals (led, mentored, grew…)")
         level_note.append(f"Checks calibrated for {years_experience:g} years ({band.label}).")
     impact, brevity, style = (pass_rate(list(c.values())) for c in (impact_checks, brevity_checks, style_checks))
-    quality = clamp(impact * w["impact"] + brevity * w["brevity"] + style * w["style"])
+    # "Your score out of 100 reflects how many checks you pass" (resumeworded.com/score): equal weight per check.
+    all_checks = [*impact_checks.values(), *brevity_checks.values(), *style_checks.values()]
+    quality = clamp(pass_rate(all_checks))
     target = (
         coverage(s.hard_skills_resume, s.hard_skills_jd)
         if resolved == "job_match" and s.hard_skills_jd
@@ -295,7 +308,7 @@ def run_resume_worded_style(
         ),
         ats_issues=[],
         notes=[
-            f"Quality = Impact×{w['impact']} + Brevity×{w['brevity']} + Style×{w['style']}; each is the share of its checks passed.",
+            f"Quality = share of all {len(all_checks)} checks passed (Resume Worded: score reflects how many checks you pass); group scores shown for reference.",
             "Resume Worded does not publish its 20+ checks or weights; these are the checks its pages describe.",
             *level_note,
         ],
@@ -310,11 +323,14 @@ def run_teal_style(
     s = extract_reference_signals(resume_text, jd_text, role)
     want_job = mode == "job_match" or (not mode and bool(jd_text.strip()))
     if want_job and jd_text.strip():
-        w = TEAL_JOB_MATCH_WEIGHTS
+        # Teal: "Your match score reflects how many of the job's keywords appear in your resume" —
+        # hard skills, soft skills and other keywords, no published weights → share of all surfaced keywords.
         hard = coverage(s.hard_skills_resume, s.hard_skills_jd) if s.hard_skills_jd else 1.0
-        toks = token_coverage(s.resume_tokens, s.jd_tokens) if s.jd_tokens else 1.0
+        toks = token_coverage(s.resume_tokens, s.jd_tokens[:30]) if s.jd_tokens else 1.0
         title = 1.0 if s.title_exact else s.title_hit
-        overall = clamp(hard * w["hard"] + toks * w["keywords"] + title * w["title"])
+        rset = set(s.hard_skills_resume) | set(s.soft_skills_resume) | set(s.resume_tokens)
+        keywords = list(dict.fromkeys([*s.hard_skills_jd, *s.soft_skills_jd, *s.jd_tokens[:30]]))
+        overall = clamp(100 * sum(1 for k in keywords if k in rset) / len(keywords)) if keywords else 0
         matched, missing = _skill_hits(s.hard_skills_resume, s.hard_skills_jd)
         return _pack(
             resume_id=resume_id,
@@ -341,19 +357,38 @@ def run_teal_style(
             ats_issues=[],
             matched_skills=matched,
             missing_skills=missing,
-            notes=[f"Job Match = hard×{w['hard']} + keywords×{w['keywords']} + title×{w['title']}."],
+            notes=[
+                f"Job Match = share of the JD's {len(keywords)} surfaced keywords (hard + soft + other) found on the resume.",
+                "Teal publishes no weights; it says the score reflects how many of the job's keywords appear.",
+            ],
             resume_text=resume_text,
             blurb="Teal-style Job Matcher path.",
         )
-    overall = clamp(
-        (12 if s.has_email else 0)
-        + (8 if s.has_phone else 0)
-        + len(s.sections) * 10
-        + min(25, s.action_bullets * 5)
-        + min(20, s.metric_bullets * 8)
-        + min(15, len(s.hard_skills_resume) * 2)
-        - s.stuffing * 8
+    # Resume Analyzer issue cards (help.tealhq.com "Using the Resume Analyzer"): time-based metrics
+    # (≥ 2 bullets "in/within <period>"), improvement metrics (≥ 1 bullet with %, range or money),
+    # contact info, professional summary, target title, not too many skills, 3–5 bullets per
+    # position, skills used inside bullets. Score = share of cards cleared.
+    q = extract_quality_signals(resume_text)
+    time_based = sum(
+        1 for b in q.bullets
+        if re.search(r"\b(?:in|within)\s+(?:\d+|one|two|three|four|five|six)\s*(?:days?|weeks?|months?|quarters?|years?)\b|\bin\s+(?:19|20)\d{2}\b", b, re.I)
     )
+    improvement = sum(1 for b in q.bullets if re.search(r"\d+(?:\.\d+)?\s*%|\d+\s*[-–]\s*\d+|[$₹€£]\s?\d", b))
+    skills_in_bullets = sum(
+        1 for b in q.bullets if any(re.search(rf"\b{re.escape(k)}\b", b.lower()) for k in s.hard_skills_resume)
+    )
+    cards = {
+        "Time-based metrics (2+ bullets with “in/within …”)": time_based >= 2,
+        "Improvement metric (1+ bullet with %, range or money)": improvement >= 1,
+        "Contact information": s.has_email and s.has_phone,
+        "Professional summary": "summary" in s.sections or bool(re.search(r"(?:^|\n)\s*(?:profile|about me|objective)\b", s.resume_lower)),
+        "Target title near the top": bool(re.search(r"\b(?:engineer|developer|analyst|designer|manager|scientist|intern)\b", "\n".join(resume_text.splitlines()[:4]).lower())),
+        "Not too many skills listed (≤ 30)": len(s.hard_skills_resume) <= 30,
+        "3–5 bullets per position": 3 <= q.bullets_per_role <= 5 if q.roles else len(q.bullets) >= 3,
+        "Skills used inside bullets": skills_in_bullets >= 2,
+    }
+    overall = clamp(pass_rate(list(cards.values())))
+    failed = [k for k, ok in cards.items() if not ok]
     return _pack(
         resume_id=resume_id,
         mode="resume_only",
@@ -363,24 +398,16 @@ def run_teal_style(
         scoring_profile_id="teal-reference",
         scores={
             "resumeQuality": overall,
-            "atsCompatibility": clamp((40 if s.has_email else 10) + len(s.sections) * 12),
-            "experienceQuality": clamp(30 + s.action_bullets * 8 + s.metric_bullets * 10),
+            "evidenceQuality": clamp(pass_rate([cards[k] for k in list(cards)[:2]])),
+            "structureFormatting": clamp(pass_rate([cards[k] for k in list(cards)[2:5]])),
+            "experienceQuality": clamp(pass_rate([cards[k] for k in list(cards)[5:]])),
         },
-        strengths=( ["Core sections detected"] if len(s.sections) >= 3 else [] ),
-        improvements=(
-            [
-                {
-                    "priority": "high",
-                    "text": "Rewrite bullets to start with clear actions and outcomes.",
-                    "reason": "Teal Resume Analyzer (reference approximation).",
-                }
-            ]
-            if s.action_bullets < 3
-            else []
-        ),
+        strengths=[k for k, ok in cards.items() if ok][:4],
+        improvements=_failed_improvements(failed, "Teal Resume Analyzer issue card (reference)"),
         ats_issues=[],
+        notes=[f"Resume Score = share of {len(cards)} documented Resume Analyzer issue cards cleared."],
         resume_text=resume_text,
-        blurb="Teal-style Resume Analyzer path.",
+        blurb="Teal-style Resume Analyzer: documented issue cards (metrics, contact, summary, title, skills, bullets).",
     )
 
 
@@ -539,8 +566,8 @@ def run_skillsyncer_style(resume_id: str, resume_text: str, role: str, jd_text: 
         matched_skills=matched,
         missing_skills=missing,
         notes=[
-            f"Documented allocation: hard {p['hard']} · soft {p['soft']} · other {p['other']} · title {p['title']} · degree {p['degree']}.",
-            "Empty JD keyword category → full category points.",
+            f"Point allocation (Aavedak estimate — SkillSyncer documents the categories and frequency weighting, not the points): hard {p['hard']} · soft {p['soft']} · other {p['other']} · title {p['title']} · degree {p['degree']}.",
+            "Empty JD keyword category → full category points; frequent JD terms count more.",
         ],
         resume_text=resume_text,
         blurb="SkillSyncer-style documented 100-point weighted match (reference).",
@@ -688,17 +715,32 @@ def run_enhancv_style(
              "Use a single space throughout.")
     spelling_score = clamp(100 - min(70, spelling_issue_count * 12))
 
+    # Bullet length and consistency (listed under Content on enhancv.com/resources/resume-checker)
+    lens = [len(b.split()) for b in q.bullets]
+    off_len = [b for b, n in zip(q.bullets, lens) if n < 6 or n > 35]
+    bullet_score = clamp(100 - min(60, len(off_len) * 12))
+    for b in off_len[:3]:
+        flag("bullet_length", "low", "Bullet length is off",
+             f"“{b[:80]}{'…' if len(b) > 80 else ''}” is {len(b.split())} words (aim for 6–35).",
+             "Keep bullets to one or two lines with a consistent length.")
+
     content = clamp(
         parse_score * w["parse_rate"]
         + quant_score * w["quantifying_impact"]
         + repetition_score * w["repetition"]
         + spelling_score * w["spelling_grammar"]
+        + bullet_score * w["bullet_length"]
     )
-    target = (
-        coverage(s.hard_skills_resume, s.hard_skills_jd)
-        if resolved == "job_match" and s.hard_skills_jd
-        else None
-    )
+    # Job tailoring (documented: hard skills, soft skills, action verbs, tailored job title).
+    target = None
+    if resolved == "job_match" and (s.hard_skills_jd or s.soft_skills_jd):
+        tail = [coverage(s.hard_skills_resume, s.hard_skills_jd) if s.hard_skills_jd else None,
+                coverage(s.soft_skills_resume, s.soft_skills_jd) if s.soft_skills_jd else None,
+                min(1.0, s.action_bullets / max(1, len(q.bullets)) / 0.5),
+                (1.0 if s.title_exact else s.title_hit) if role.strip() else None]
+        tail_w = [0.55, 0.15, 0.15, 0.15]
+        used = [(v, wt) for v, wt in zip(tail, tail_w) if v is not None]
+        target = sum(v * wt for v, wt in used) / sum(wt for _, wt in used)
     overall = clamp(content * 0.7 + target * 100 * 0.3) if target is not None else content
     matched, missing = (
         _skill_hits(s.hard_skills_resume, s.hard_skills_jd) if target is not None else ([], [])
@@ -719,6 +761,8 @@ def run_enhancv_style(
          "weight": w["repetition"], "contribution": round(repetition_score * w["repetition"], 1)},
         {"key": "spelling_grammar", "label": "Spelling & Grammar", "score": spelling_score,
          "weight": w["spelling_grammar"], "contribution": round(spelling_score * w["spelling_grammar"], 1)},
+        {"key": "bullet_length", "label": "Bullet length & consistency", "score": bullet_score,
+         "weight": w["bullet_length"], "contribution": round(bullet_score * w["bullet_length"], 1)},
     ]
     metrics = [
         {"key": "parse_rate", "label": "ATS Parse Rate", "value": _enhancv_issue_label(parse_issues)},
@@ -728,7 +772,9 @@ def run_enhancv_style(
     ]
     notes = [
         f"Content = Parse Rate×{w['parse_rate']} + Quantifying Impact×{w['quantifying_impact']} "
-        f"+ Repetition×{w['repetition']} + Spelling & Grammar×{w['spelling_grammar']}.",
+        f"+ Repetition×{w['repetition']} + Spelling & Grammar×{w['spelling_grammar']} "
+        f"+ Bullet length×{w['bullet_length']}. With a JD: 70% content + 30% job tailoring "
+        "(hard skills .55, soft .15, action verbs .15, title .15).",
         "Enhancv does not publish its checker's weights or full rule set; these are the four "
         "content checks it surfaces publicly, approximated by Aavedak.",
         "Spelling is checked against a short list of common English typos plus basic punctuation "
