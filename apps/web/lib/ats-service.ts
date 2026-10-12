@@ -83,6 +83,7 @@ export async function analyzeEngineViaService(input: {
   jdText?: string;
   role?: string;
   mode?: string;
+  yearsExperience?: number | null;
 }): Promise<AtsAnalysis | null> {
   const remote = await postJson<AtsAnalysis>("/svc/v1/ats/score-engine", {
     engineId: input.engineId,
@@ -91,6 +92,7 @@ export async function analyzeEngineViaService(input: {
     jdText: input.jdText ?? "",
     role: input.role ?? "",
     mode: input.mode,
+    yearsExperience: input.yearsExperience ?? null,
   });
   if (remote && typeof remote.overallScore === "number") {
     return normalizeAnalysis({ ...remote, resumeId: input.resumeId || remote.resumeId }, "fastapi");
@@ -125,6 +127,7 @@ export async function streamEngineViaService(
     jdText?: string;
     role?: string;
     mode?: string;
+    yearsExperience?: number | null;
     signal?: AbortSignal;
   },
   onStage: (event: ServiceStageEvent) => void,
@@ -142,6 +145,7 @@ export async function streamEngineViaService(
         jdText: input.jdText ?? "",
         role: input.role ?? "",
         mode: input.mode,
+        yearsExperience: input.yearsExperience ?? null,
       }),
       cache: "no-store",
       signal: input.signal

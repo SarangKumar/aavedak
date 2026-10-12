@@ -314,6 +314,7 @@ async function runSchema() {
   // Optional resume text cache for matching (paste / future PDF extract)
   await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS extracted_text TEXT`;
   await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS ats_score INTEGER`;
+  await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS ats_inputs TEXT`;
 
   // Friendships (invite link → confirm; accepted pairs for dashboard competition graphs)
   await db`

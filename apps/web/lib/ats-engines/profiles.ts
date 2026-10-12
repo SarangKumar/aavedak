@@ -28,6 +28,7 @@ export async function runEngineProfile(input: {
   role: string;
   jdText: string;
   mode: AtsMode;
+  yearsExperience?: number | null;
 }): Promise<AtsAnalysis> {
   if (!input.resumeText.trim()) throw new Error(EMPTY_TEXT_MESSAGE);
 
@@ -38,6 +39,7 @@ export async function runEngineProfile(input: {
     jdText: input.jdText,
     role: input.role,
     mode: input.mode,
+    yearsExperience: input.yearsExperience,
   });
   if (!remote) throw new AtsServiceUnavailableError();
   return remote;
@@ -61,6 +63,7 @@ export async function runEngineProfileStreamed(
     role: string;
     jdText: string;
     mode: AtsMode;
+    yearsExperience?: number | null;
     runId: string;
     signal?: AbortSignal;
   },

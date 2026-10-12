@@ -75,6 +75,7 @@ The husky pre-commit hook runs lint-staged (ESLint `--fix --max-warnings=0` + Pr
 - Four `open_source` engines (Open ATS, ATS Resume Checker, Resume Skills Extractor, Hybrid Resume Analyzer) live only in Python (`oss_profiles.py` on the shared `pipeline.py`).
 - The ATS page runs one resume × engine per request: `/api/ats/run` with `stream: true` → FastAPI `/score-engine/stream` (NDJSON stage events). Stage/outcome labels are defined centrally in `lib/ats-engines/stages.ts`; the results-table score cell is a circular `ScoreRing` gauge (`components/ui/score-ring.tsx`). Engines are shown by name with a small Native/OSS/Ref tag (`components/ats-engine-badge.tsx`).
 - Full engine methodology, contracts, and the stage protocol are in `apps/api/app/ats/ENGINES.md`. It is auto-loaded for ATS files via `.cursor/rules/ats-engines.mdc` and nested `CLAUDE.md` files; read it before changing any engine.
+- Requests may carry `yearsExperience` (from the profile, editable on `/ats`); only the native and Resume Worded-style engines use it (`seniority.py`). The Documents resume-card score is the native engine with the `/ats` page's default inputs (`cardAtsInputs` in `lib/resumes.ts`), so the two agree; `resumes.ats_inputs` marks stale card scores. Web map: `apps/web/WEB.md` (auto-loaded via `.cursor/rules/web-app.mdc`).
 - Calibration fixtures: `apps/api/app/ats/benchmarks/fixtures.py` (expected ordering: excellent → unrelated for a backend JD).
 
 ### Job & people discovery (FastAPI; web shows results)

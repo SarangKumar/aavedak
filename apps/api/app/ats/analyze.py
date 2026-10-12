@@ -13,6 +13,7 @@ from app.ats.evidence import (
 from app.ats.jd_profile import parse_jd
 from app.ats.reference_signals import count_phrase, extract_quality_signals
 from app.ats.resume_profile import parse_resume, bullet_has_action, bullet_has_metric
+from app.ats.seniority import seniority_fit
 from app.ats.skill_taxonomy import display_name, infer_role_key
 from app.ats.version import ENGINE_VERSION
 
@@ -646,6 +647,7 @@ def analyze_resume(
     jd_text: str = "",
     role: str = "",
     resume_id: str = "",
+    years_experience: float | None = None,
 ) -> dict[str, Any]:
     mode = detect_mode(role, jd_text)
     profile = parse_resume(resume_text)
@@ -696,6 +698,20 @@ def analyze_resume(
     ats_score, ats_signals, ats_issues = score_ats_compatibility(profile)
     quality_score, quality_strengths, quality_improvements = score_resume_quality(profile)
 
+    # Experience-level calibration (only when the user states their years of experience).
+    level = None
+    if years_experience is not None:
+        q = extract_quality_signals(profile.raw)
+        level = seniority_fit(
+            years_experience,
+            word_count=q.word_count,
+            bullets=len(profile.bullets),
+            metric_bullets=sum(1 for b in profile.bullets if bullet_has_metric(b)),
+            leadership_bullets=q.leadership_bullets,
+            resume_years=profile.years_mentioned,
+        )
+        notes.append(f"Calibrated for {years_experience:g} years of experience ({level.band.label}).")
+
     # Technical skills — count + experience context + which skills (set signal)
     in_exp_skills = sum(
         1 for m in profile.skill_mentions.values() if m.section in ("experience", "projects")
@@ -728,6 +744,7 @@ def analyze_resume(
         "technicalSkills": tech_score,
         "experienceQuality": exp_quality,
         "structureFormatting": ats_score,  # closely tied to parse structure
+        "seniorityFit": level.score if level else None,
     }
 
     matched_skills: list[dict] = []
@@ -739,6 +756,10 @@ def analyze_resume(
     strengths = list(quality_strengths)
     improvements = list(quality_improvements)
     strengths.extend(ats_signals[:3])
+    if level is not None:
+        improvements.extend(level.improvements)
+        if level.score >= 100:
+            strengths.append(f"Matches expectations for {level.band.label}")
 
     if mode == "resume_only":
         import re
@@ -758,6 +779,7 @@ def analyze_resume(
             ("experienceQuality", 0.22, float(exp_quality)),
             ("evidenceQuality", 0.12, float(evidence)),
             ("skillBreadth", 0.06, skill_signal),
+            ("seniorityFit", 0.12 if level else 0.0, float(level.score if level else 0)),
         ]
         overall, weighting = _weighted_mean(parts)
         overall = _soft_cap(overall, 93)
@@ -818,8 +840,11 @@ def analyze_resume(
     role_key = infer_role_key(effective_title) if effective_title else None
     flavor = _role_flavor(profile, role_key)
     exp = 28.0 + flavor * 0.35
-    if jd.years_min is not None and profile.years_mentioned:
-        have = max(profile.years_mentioned)
+    stated_years = (
+        [years_experience] if years_experience is not None else profile.years_mentioned
+    )
+    if jd.years_min is not None and stated_years:
+        have = max(stated_years)
         if have >= jd.years_min:
             exp += 18
         elif have >= jd.years_min - 1:
@@ -833,8 +858,11 @@ def analyze_resume(
                     "reason": "Experience-years gap relative to the posting.",
                 }
             )
-    elif profile.years_mentioned or profile.date_ranges:
+    elif stated_years or profile.date_ranges:
         exp += 10
+    if level is not None:
+        # Level fit nudges experience match: ±8 around a 50% pass rate.
+        exp += (level.score - 50) * 0.16
 
     title_hits = 0
     for t in profile.titles:

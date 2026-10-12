@@ -79,6 +79,8 @@ export type ResumeDto = {
   originalFilename: string;
   byteSize: number;
   atsScore: number | null;
+  /** Stored score predates the native engine or the profile's current role / years. */
+  atsStale?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -518,7 +520,9 @@ export function DocumentsHub({
       if (data.resume) {
         setResumes((list) =>
           list.map((r) =>
-            r.id === resumeId ? { ...r, ...data.resume!, atsScore: data.resume!.atsScore } : r,
+            r.id === resumeId
+              ? { ...r, ...data.resume!, atsScore: data.resume!.atsScore, atsStale: false }
+              : r,
           ),
         );
       } else {
@@ -534,6 +538,21 @@ export function DocumentsHub({
       });
     }
   }
+
+  // Rescore stale cards once per mount so they match the ATS page (native engine, same inputs).
+  const scoreOnCardRef = useRef(scoreResumeAtsOnCard);
+  useEffect(() => {
+    scoreOnCardRef.current = scoreResumeAtsOnCard;
+  });
+  const rescoredIdsRef = useRef(new Set<string>());
+  useEffect(() => {
+    if (!resumesLoaded) return;
+    for (const r of resumes) {
+      if (!r.atsStale || rescoredIdsRef.current.has(r.id)) continue;
+      rescoredIdsRef.current.add(r.id);
+      void scoreOnCardRef.current(r.id);
+    }
+  }, [resumes, resumesLoaded]);
 
   async function uploadResume() {
     setError(null);

@@ -37,6 +37,7 @@ def score_engine(body: EngineScoreRequest):
         role=body.role,
         mode=body.mode,
         resume_id=body.resumeId,
+        years_experience=body.yearsExperience,
     )
 
 
@@ -80,6 +81,7 @@ def score_engine_stream(body: EngineScoreRequest):
                 role=body.role,
                 mode=body.mode,
                 resume_id=body.resumeId,
+                years_experience=body.yearsExperience,
                 emit=lambda stage, message=None: push(
                     {"type": "stage", "stage": stage, **({"message": message} if message else {})}
                 ),
@@ -109,6 +111,7 @@ def score_one(body: ScoreRequest):
         body.resumeText,
         jd_text=body.jdText,
         role=body.role,
+        years_experience=body.yearsExperience,
     )
 
 
@@ -125,6 +128,7 @@ def score_batch(body: BatchScoreRequest):
             jd_text=body.jdText,
             role=body.role,
             resume_id=resume.id,
+            years_experience=body.yearsExperience,
         )
         results.append(scored)
     return {"results": results, "engine": "fastapi", "mode": mode}

@@ -273,3 +273,21 @@ export function labelFor<T extends string>(
   if (!value) return null;
   return options.find((o) => o.value === value)?.label ?? value;
 }
+
+/** Representative years for an experience band, used to default the ATS years-of-experience input. */
+export function yearsFromExperienceLevel(level: ExperienceLevel | null): number | null {
+  switch (level) {
+    case "0-1":
+      return 0.5;
+    case "1-3":
+      return 2;
+    case "3-5":
+      return 4;
+    case "5-8":
+      return 6;
+    case "8+":
+      return 10;
+    default:
+      return null;
+  }
+}

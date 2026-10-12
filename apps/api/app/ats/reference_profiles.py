@@ -7,6 +7,7 @@ from collections import Counter
 from typing import Any
 
 from app.ats.analyze import _fingerprint, _label
+from app.ats.seniority import level_band
 from app.ats.reference_signals import (
     HARD_SKILL_ALIASES,
     ReferenceSignals,
@@ -212,7 +213,12 @@ def run_jobscan_style(resume_id: str, resume_text: str, role: str, jd_text: str)
 
 
 def run_resume_worded_style(
-    resume_id: str, resume_text: str, role: str, jd_text: str, mode: str | None = None
+    resume_id: str,
+    resume_text: str,
+    role: str,
+    jd_text: str,
+    mode: str | None = None,
+    years_experience: float | None = None,
 ) -> dict[str, Any]:
     """Resume Worded: 20+ checks grouped as Impact, Brevity and Style, weighted by importance (weights
     not public); 85+ is 'good', 90+ passes every check. Checks below are the ones its pages describe."""
@@ -243,6 +249,17 @@ def run_resume_worded_style(
         "Active voice": q.passive_hits <= 2,
         "No keyword stuffing": s.stuffing == 0,
     }
+    level_note: list[str] = []
+    if years_experience is not None:
+        # Resume Worded asks for career level and adapts its checks to it; mirror that.
+        band = level_band(years_experience)
+        brevity_checks.pop("Resume is focused (≤ 800 words)")
+        brevity_checks[f"Length suits {band.label} (≤ {band.max_words} words)"] = (
+            q.word_count <= band.max_words
+        )
+        if not band.needs_leadership:
+            impact_checks.pop("Growth or leadership signals (led, mentored, grew…)")
+        level_note.append(f"Checks calibrated for {years_experience:g} years ({band.label}).")
     impact, brevity, style = (pass_rate(list(c.values())) for c in (impact_checks, brevity_checks, style_checks))
     quality = clamp(impact * w["impact"] + brevity * w["brevity"] + style * w["style"])
     target = (
@@ -280,6 +297,7 @@ def run_resume_worded_style(
         notes=[
             f"Quality = Impact×{w['impact']} + Brevity×{w['brevity']} + Style×{w['style']}; each is the share of its checks passed.",
             "Resume Worded does not publish its 20+ checks or weights; these are the checks its pages describe.",
+            *level_note,
         ],
         resume_text=resume_text,
         blurb="Resume Worded-style reference: Impact, Brevity and Style checks (85+ is good).",

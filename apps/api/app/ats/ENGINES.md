@@ -95,6 +95,15 @@ All four upstream repos were re-cloned at the commits above and compared line by
 - **Resume Skills Extractor**: formula and calibration match; TF-IDF now uses sklearn's exact stop list.
 - **Hybrid Resume Analyzer**: rubric, rule validation and TF-IDF defaults match.
 
-## Native engine (`aavedak`, engine 2.2)
+## Native engine (`aavedak`, engine 2.3)
 
 Resume quality is share-based, not count-based: action-led bullets 20%, quantified bullets 25%, skills shown in experience 10%, structure 15%, bullet brevity 10%, writing hygiene 15%, word-count fit 5%. The previous additive counts hit the cap on any decent resume (every real resume scored 91–92); proportions spread the fixtures from 86 to 34. Writing hygiene applies capped adjustments borrowed from the other engines: hedging phrases (Open ATS / ATS Resume Checker), passive voice (Open ATS), first-person pronouns (Rezi), buzzwords (ATS Resume Checker, Rezi) and resumes over ~1,100 words. Match scoring is unchanged.
+
+## Years of experience (engine 2.3, `seniority.py`)
+
+Requests accept optional `yearsExperience` (0–60). The web app defaults it from the profile's experience level (`0-1`→0.5, `1-3`→2, `3-5`→4, `5-8`→6, `8+`→10) and the ATS page lets the user edit it. Omitted → scores are unchanged.
+
+- Bands: entry <1, junior 1–3, mid 3–6, senior 6–10, staff 10+. Each sets a word-count window, a minimum bullet count and a minimum share of quantified bullets; leadership/ownership signals are expected from mid level. If the resume itself claims more than stated years + 2, a consistency check fails.
+- Native: `seniorityFit` (share of those checks passed) gets 12% weight in `resume_only`, and nudges `experienceMatch` by ±8 in role/job match. The stated years replace years parsed from the resume when comparing against a JD's "N+ years".
+- Resume Worded-style: mirrors Resume Worded's career-level calibration — the fixed "≤ 800 words" check becomes the band's maximum, and the leadership check is dropped below mid level.
+- Other engines ignore it. Of the tools we approximate, Resume Worded, Rezi and Enhancv document level-aware checks; Jobscan derives a "job level match" from the resume's own dates (report-only, not in the match rate); Teal and SkillSyncer don't document one.

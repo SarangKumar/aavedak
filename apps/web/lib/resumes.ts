@@ -5,7 +5,10 @@ import { randomUUID } from "node:crypto";
 import { RESUME_MAX_BYTES } from "@/lib/resume-upload";
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 import { downloadResumePdf, isGcsConfigured, resumeObjectKey, uploadResumePdf } from "@/lib/gcs";
-import { extractPdfText, scoreResumeAtsReadiness } from "@/lib/match-score";
+import { analyzeEngineViaService, AtsServiceUnavailableError } from "@/lib/ats-service";
+import { yearsFromExperienceLevel } from "@/lib/career-profile";
+import { extractPdfText } from "@/lib/match-score";
+import { getProfile } from "@/lib/profile";
 
 export type ResumeStatus = "active" | "inactive" | "archived";
 
@@ -20,6 +23,8 @@ export type ResumeRecord = {
   byteSize: number;
   textExcerpt: string | null;
   atsScore: number | null;
+  /** `role|years` the stored ATS score was computed with; null = legacy or never scored. */
+  atsInputs: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -34,6 +39,7 @@ type Row = {
   byte_size: number;
   extracted_text?: string | null;
   ats_score?: number | string | null;
+  ats_inputs?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -52,6 +58,7 @@ function mapRow(row: Row): ResumeRecord {
       row.ats_score === null || row.ats_score === undefined || row.ats_score === ""
         ? null
         : Number(row.ats_score),
+    atsInputs: row.ats_inputs ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -326,17 +333,44 @@ export async function ensureResumeText(
   return { text: excerpt, resume: updated };
 }
 
-/** Download PDF from GCS, extract text, persist ATS readiness score. */
+/** Fallback target role when the profile has none; the ATS page uses the same default. */
+export const DEFAULT_ATS_ROLE = "Software Engineer";
+
+/** Inputs the Documents card score uses, so the /ats page can default to exactly the same ones. */
+export async function cardAtsInputs(
+  userId: string,
+): Promise<{ role: string; yearsExperience: number | null; key: string }> {
+  const profile = await getProfile(userId);
+  const role = profile?.career.preferredRoles[0]?.trim() || DEFAULT_ATS_ROLE;
+  const yearsExperience = yearsFromExperienceLevel(profile?.career.experienceLevel ?? null);
+  return { role, yearsExperience, key: `${role}|${yearsExperience ?? ""}` };
+}
+
+/**
+ * Score a resume with the native Aavedak engine (FastAPI) — the same engine and inputs the ATS
+ * page defaults to (profile's first preferred role + years of experience, no JD) — and persist it.
+ */
 export async function scoreResumeAts(userId: string, resumeId: string): Promise<ResumeRecord> {
   const { text: excerpt, extractError } = await ensureResumeText(userId, resumeId);
   if (!excerpt && extractError) throw new Error(extractError);
 
-  const readiness = scoreResumeAtsReadiness(excerpt);
+  const inputs = await cardAtsInputs(userId);
+  const analysis = await analyzeEngineViaService({
+    engineId: "aavedak",
+    resumeId,
+    resumeText: excerpt,
+    role: inputs.role,
+    yearsExperience: inputs.yearsExperience,
+  });
+  if (!analysis) throw new AtsServiceUnavailableError();
+  if (analysis.error) throw new Error(analysis.error);
+  const score = Math.round(analysis.overallScore);
   const now = new Date().toISOString();
   await getSql()`
     UPDATE resumes
        SET extracted_text = ${excerpt || null},
-           ats_score = ${readiness.atsScore},
+           ats_score = ${score},
+           ats_inputs = ${inputs.key},
            updated_at = ${now}
      WHERE id = ${resumeId} AND user_id = ${userId}
   `;

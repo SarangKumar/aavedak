@@ -11,6 +11,9 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Added
 
+- **ATS — years of experience** — The ATS page has a Years of experience field, filled in from your profile's experience level and editable. Aavedak ATS and the Resume Worded engine calibrate their checks to it (expected length, number of bullets, share of quantified bullets, and leadership signals from about 3 years), and Aavedak ATS compares it with the years a job description asks for. Leave it empty to score without a level. Other engines ignore it.
+- **ATS — input help behind a ? icon** — The "Required by … · optional for …" lists under Target role and Job description now sit in a tooltip behind a small ? next to each label, so the form takes less space.
+
 - **ATS — hover to see what each measure means** — Every score row and signal in the ATS detail panel (for example ATS Parse Rate, Required Skills, Job Title Match, TF-IDF similarity or Quantified bullets) now explains itself when you hover over its name, so you can tell what the number is measuring.
 - **Resumes — 2 MB upload limit** — Resume PDFs can now be up to 2 MB, down from 10 MB, on the Documents page, the ATS upload and onboarding. The server enforces the same limit.
 
@@ -165,6 +168,8 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 - **Dashboard** — Live SQLite snapshot: status counts, active apps / follow-ups / resumes / jobs, recent applications (5), upcoming follow-ups (5). Optional `GET /api/dashboard`.
 
 ### Fixed
+
+- **Resumes — card ATS score now matches the ATS page** — The ATS pill on a resume card came from a separate quick checklist (text length, email, phone, section names, word count, links) that almost any real resume maxed out at 100. It now uses the native Aavedak ATS engine with the same inputs the ATS page starts with (your first preferred role, your years of experience, no job description), so both show the same score. Existing cards are rescored automatically the next time you open Documents, and again whenever your preferred role or experience level changes.
 
 - **Undo buttons keep their shape** — While a send or queue button counts down, it stays exactly the size it was, and its burning fuse now runs along the button's own border with the same rounded corners, instead of a second, square line just inside it. The fuse is a little thicker so it's easy to see, and takes the button's colour: the brand yellow, or red on a destructive button.
 - **Outreach — bounces aren't replies** — A "delivery failed" bounce (from `mailer-daemon@googlemail.com` and similar), an auto-reply or an out-of-office notice no longer marks a conversation as Replied, isn't counted in its replies, and never adds to the person's score. A bounce usually means the email address was wrong, so it says nothing good about the person. You still see it in the chat, labelled **Automated · not a reply**, and the conversation card's preview starts with "Automated:". Bounces already stored are corrected, and any points they gave are removed.

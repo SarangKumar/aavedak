@@ -42,13 +42,25 @@ LEGACY_ENGINES = frozenset(
 VALID_ENGINES = LEGACY_ENGINES | frozenset(OSS_ENGINES)
 
 
-def _run_legacy(engine_id: str, rid: str, resume_text: str, jd_text: str, role: str, mode: str | None) -> dict:
+def _run_legacy(
+    engine_id: str,
+    rid: str,
+    resume_text: str,
+    jd_text: str,
+    role: str,
+    mode: str | None,
+    years_experience: float | None = None,
+) -> dict:
     if engine_id == "aavedak":
-        return analyze_resume(resume_text, jd_text=jd_text, role=role, resume_id=rid)
+        return analyze_resume(
+            resume_text, jd_text=jd_text, role=role, resume_id=rid, years_experience=years_experience
+        )
     if engine_id == "jobscan_style":
         return run_jobscan_style(rid, resume_text, role, jd_text)
     if engine_id == "resume_worded_style":
-        return run_resume_worded_style(rid, resume_text, role, jd_text, mode=mode)
+        return run_resume_worded_style(
+            rid, resume_text, role, jd_text, mode=mode, years_experience=years_experience
+        )
     if engine_id == "teal_style":
         return run_teal_style(rid, resume_text, role, jd_text, mode=mode)
     if engine_id == "rezi_style":
@@ -67,6 +79,7 @@ def run_engine_staged(
     mode: str | None = None,
     resume_id: str = "",
     emit: Emit = no_emit,
+    years_experience: float | None = None,
 ) -> dict:
     """Run one engine, reporting stages through `emit`. Raises EngineFailure on input/analysis failure."""
     rid = resume_id or "local"
@@ -74,7 +87,7 @@ def run_engine_staged(
     if engine_id in LEGACY_ENGINES:
         # Legacy engines parse and score in one call — report that honestly as one stage.
         emit(CALCULATING_SCORE, None)
-        return _run_legacy(engine_id, rid, resume_text, jd_text, role, mode)
+        return _run_legacy(engine_id, rid, resume_text, jd_text, role, mode, years_experience)
 
     name, contract, run = OSS_ENGINES[engine_id]
     resolved = resolve_mode(contract, engine_name=name, role=role, jd_text=jd_text, mode=mode)
@@ -95,6 +108,7 @@ def run_engine_profile(
     role: str = "",
     mode: str | None = None,
     resume_id: str = "",
+    years_experience: float | None = None,
 ) -> dict:
     """Synchronous JSON contract used by POST /score-engine."""
     if engine_id not in VALID_ENGINES:
@@ -109,6 +123,7 @@ def run_engine_profile(
             role=role,
             mode=mode,
             resume_id=resume_id,
+            years_experience=years_experience,
         )
     except EngineFailure as failure:
         raise HTTPException(

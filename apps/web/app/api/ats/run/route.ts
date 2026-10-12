@@ -19,6 +19,13 @@ import { ensureResumeText, getResume } from "@/lib/resumes";
 
 const MAX_JD_CHARS = 40_000;
 
+/** Optional stated years of experience (0–60); anything else means "not provided". */
+function parseYears(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 60
+    ? value
+    : null;
+}
+
 type Prepared =
   | { kind: "cell"; cell: AtsBatchResultCell; status?: number }
   | { kind: "ready"; combo: AnalysisCombination; eng: EngineCapability; text: string };
@@ -166,6 +173,7 @@ export async function POST(request: Request) {
       role: combo.role,
       jdText: combo.jdText,
       mode: combo.mode,
+      yearsExperience: parseYears(body.yearsExperience),
     });
     const result: AtsBatchResultCell = {
       resumeId: combo.resumeId,
@@ -237,6 +245,7 @@ function streamRun(request: Request, userId: string, body: Record<string, unknow
             role: combo.role,
             jdText: combo.jdText,
             mode: combo.mode,
+            yearsExperience: parseYears(body.yearsExperience),
             runId,
             signal: request.signal,
           },

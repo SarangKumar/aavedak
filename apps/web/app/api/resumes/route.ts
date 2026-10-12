@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
-import { createResumeFromPdf, listResumes } from "@/lib/resumes";
+import { cardAtsInputs, createResumeFromPdf, listResumes } from "@/lib/resumes";
 
 async function requireUser() {
   const result = await requireApiUser();
@@ -13,7 +13,10 @@ export async function GET() {
   const authResult = await requireUser();
   if ("error" in authResult) return authResult.error;
   const user = authResult.user;
-  const resumes = await listResumes(user.id, { includeArchived: false });
+  const [resumes, inputs] = await Promise.all([
+    listResumes(user.id, { includeArchived: false }),
+    cardAtsInputs(user.id),
+  ]);
   return NextResponse.json({
     resumes: resumes.map((r) => ({
       id: r.id,
@@ -22,6 +25,8 @@ export async function GET() {
       originalFilename: r.originalFilename,
       byteSize: r.byteSize,
       atsScore: r.atsScore,
+      // Scored by the old heuristic or with different profile role/years → rescore on Documents.
+      atsStale: r.atsInputs !== inputs.key,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     })),
