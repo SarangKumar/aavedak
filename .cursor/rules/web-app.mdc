@@ -1,0 +1,7 @@
+---
+description: Next.js web app map — pages, API resources, where ATS scores come from, limits (loads only for apps/web files)
+globs: apps/web/**
+alwaysApply: false
+---
+
+@apps/web/WEB.md

@@ -3,4 +3,12 @@ description: Shared Aavedak project instructions
 alwaysApply: true
 ---
 
-Follow the repository instructions in `AGENTS.md`. Read and apply them before making changes.
+Follow the repository instructions in `AGENTS.md` (the single shared source; Claude reads it via `CLAUDE.md`). Read and apply them before making changes.
+
+Area docs load on demand through glob-scoped rules in this folder:
+
+- `web-app.mdc` → `apps/web/WEB.md` (pages, API resources, ATS score sources, limits)
+- `ats-engines.mdc` → `apps/api/app/ats/ENGINES.md`
+- `discovery.mdc` → `apps/api/app/discovery/DISCOVERY.md`
+
+Keep those docs and `AGENTS.md` accurate when you change an area; don't duplicate their content here.
