@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { RESUME_MAX_BYTES } from "@/lib/resume-upload";
 import { emptyCareerProfile, type CareerProfile } from "@/lib/career-profile";
 import { Card } from "@/components/ui/card";
 
@@ -298,7 +299,7 @@ export function OnboardingForm({
               <FileUpload
                 accept="application/pdf,.pdf"
                 multiple={false}
-                maxSize={10 * 1024 * 1024}
+                maxSize={RESUME_MAX_BYTES}
                 files={uploadFiles}
                 onFilesChange={setUploadFiles}
                 disabled={uploading}

@@ -3,6 +3,8 @@
 import { type ReactNode } from "react";
 
 import { Progress } from "@/components/ui/progress";
+import { Tooltip } from "@/components/ui/tooltip";
+import { metricHelp } from "@/lib/ats-metric-help";
 import type {
   AtsAnalysis,
   AtsBreakdownRow,
@@ -89,6 +91,25 @@ function Section({
       {children}
     </section>
   );
+}
+
+/** Metric label with a hover explanation when the glossary knows it. */
+function MetricLabel({ label, className }: { label: string; className?: string }) {
+  const help = metricHelp(label);
+  const text = (
+    <span
+      className={cn(
+        "min-w-0 truncate",
+        help && "cursor-help underline decoration-dotted underline-offset-4",
+        className,
+      )}
+      tabIndex={help ? 0 : undefined}
+    >
+      {label}
+    </span>
+  );
+  if (!help) return text;
+  return <Tooltip content={help}>{text}</Tooltip>;
 }
 
 function SeverityPill({ severity }: { severity: AtsFindingSeverity }) {
@@ -277,14 +298,13 @@ export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
                   row.parent && "bg-muted/20 pl-6",
                 )}
               >
-                <span
+                <MetricLabel
+                  label={row.label}
                   className={cn(
-                    "min-w-0 flex-1 truncate text-[13px]",
+                    "flex-1 text-[13px]",
                     row.parent ? "text-muted-foreground" : "text-foreground font-medium",
                   )}
-                >
-                  {row.label}
-                </span>
+                />
                 <div className="hidden w-24 shrink-0 sm:block">
                   {row.score != null ? <MiniBar value={row.score} /> : null}
                 </div>
@@ -427,9 +447,7 @@ export function AnalysisDetails({ analysis }: { analysis: AtsAnalysis }) {
                 key={m.key}
                 className="flex items-center justify-between gap-3 px-3 py-1.5 text-[13px]"
               >
-                <span className="text-muted-foreground min-w-0 truncate" title={m.label}>
-                  {m.label}
-                </span>
+                <MetricLabel label={m.label} className="text-muted-foreground" />
                 <span className="text-foreground shrink-0 font-mono tabular-nums">
                   {m.value}
                   {m.unit ?? ""}

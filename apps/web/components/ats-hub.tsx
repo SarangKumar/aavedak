@@ -5,7 +5,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { CellStatusLabel, EngineLabel } from "@/components/ats-engine-badge";
-import { FinalScoreCell } from "@/components/final-score-cell";
+import { AtsScoreMatrix } from "@/components/ats-score-matrix";
+import { ResumePreviewButton, ResumePreviewDialog } from "@/components/resume-preview";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { AnalysisDetails, modeHint, ScoringGuideContent } from "@/components/ats-analysis-panel";
 import { ShellWidth } from "@/components/shell-width";
@@ -53,6 +54,7 @@ import {
   scoreTypeLabel,
   summarizeCombinations,
 } from "@/lib/ats-engines/registry";
+import { RESUME_MAX_BYTES } from "@/lib/resume-upload";
 import { readRunStream } from "@/lib/ats-engines/run-stream";
 import { applyCellUpdate, cellDisplay, FAILURE_LABELS } from "@/lib/ats-engines/stages";
 import type {
@@ -315,6 +317,7 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
   const [progressLabel, setProgressLabel] = useState("");
   const [results, setResults] = useState<AtsBatchResultCell[]>([]);
   const [detailKey, setDetailKey] = useState<string | null>(null);
+  const [previewResume, setPreviewResume] = useState<ResumeRow | null>(null);
   const [filterResumeId, setFilterResumeId] = useState<string>("all");
   const [filterEngineId, setFilterEngineId] = useState<string>("all");
   const [openSteps, setOpenSteps] = useState<Record<number, boolean>>({
@@ -1016,29 +1019,35 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                       const checked = selectedResumeIds.has(r.id);
                       return (
                         <li key={r.id}>
-                          <label
-                            className={cn(
-                              "hover:bg-muted/30 flex cursor-pointer items-start gap-2.5 px-3 py-2",
-                              running && "pointer-events-none opacity-60",
-                            )}
-                          >
-                            <Checkbox
-                              checked={checked}
-                              onChange={() => toggleResume(r.id)}
-                              disabled={running}
-                              className="mt-0.5"
-                              aria-label={`Select ${r.displayName}`}
+                          <div className="flex items-center gap-2 pr-3">
+                            <label
+                              className={cn(
+                                "hover:bg-muted/30 flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 px-3 py-2",
+                                running && "pointer-events-none opacity-60",
+                              )}
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onChange={() => toggleResume(r.id)}
+                                disabled={running}
+                                className="mt-0.5"
+                                aria-label={`Select ${r.displayName}`}
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="text-foreground block truncate text-[12px] font-medium">
+                                  {r.displayName}
+                                </span>
+                                <span className="text-muted-foreground block truncate text-[10px]">
+                                  {r.originalFilename || r.status}
+                                  {r.updatedAt ? ` · ${formatUpdated(r.updatedAt)}` : ""}
+                                </span>
+                              </span>
+                            </label>
+                            <ResumePreviewButton
+                              resumeName={r.displayName}
+                              onClick={() => setPreviewResume(r)}
                             />
-                            <span className="min-w-0 flex-1">
-                              <span className="text-foreground block truncate text-[12px] font-medium">
-                                {r.displayName}
-                              </span>
-                              <span className="text-muted-foreground block truncate text-[10px]">
-                                {r.originalFilename || r.status}
-                                {r.updatedAt ? ` · ${formatUpdated(r.updatedAt)}` : ""}
-                              </span>
-                            </span>
-                          </label>
+                          </div>
                         </li>
                       );
                     })
@@ -1346,73 +1355,35 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
                 </Select>
               </div>
 
-              <ScrollArea className="border-border/60 rounded-lg border" orientation="horizontal">
-                {/* Fixed layout: equal-width engine columns so score rings form an even grid. */}
-                <table
-                  className="w-full table-fixed border-collapse text-[12px]"
-                  style={{ minWidth: `${Math.max(36, 11 + tableEngines.length * 7.5)}rem` }}
-                >
-                  <colgroup>
-                    <col className="w-32 sm:w-44" />
-                    {tableEngines.map((eng) => (
-                      <col key={eng.id} />
-                    ))}
-                    <col className="w-32 sm:w-40" />
-                  </colgroup>
-                  <thead>
-                    <tr className="border-border/50 border-b">
-                      <th className="text-muted-foreground bg-card after:bg-border/60 sticky left-0 z-10 px-3 py-2.5 text-center align-middle font-medium after:absolute after:inset-y-0 after:right-0 after:w-px">
-                        Resume
-                      </th>
-                      {tableEngines.map((eng) => {
-                        const sample = [...displayMap.values()].find(
-                          (r) => r.engineId === eng.id && r.scoreType,
-                        );
-                        return (
-                          <th
-                            key={eng.id}
-                            className="text-muted-foreground px-2 py-2.5 text-center align-middle font-medium"
-                          >
-                            <EngineLabel engineId={eng.id} stacked className="mx-auto" />
-                            <span className="mt-0.5 block text-[9px] font-normal">
-                              {sample?.scoreType
-                                ? scoreTypeLabel(sample.scoreType)
-                                : scoreTypeLabel(eng.scoreTypes[0]!)}
-                            </span>
-                          </th>
-                        );
-                      })}
-                      <th className="text-muted-foreground bg-card before:bg-border/60 sticky right-0 z-10 px-2 py-2.5 text-center align-middle font-medium before:absolute before:inset-y-0 before:left-0 before:w-px">
-                        Final score
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tableResumes.map((resume) => (
-                      <tr key={resume.id} className="border-border/40 border-b last:border-b-0">
-                        <td className="text-foreground bg-card after:bg-border/60 sticky left-0 z-10 truncate px-3 py-2.5 font-medium after:absolute after:inset-y-0 after:right-0 after:w-px">
-                          {resume.displayName}
-                        </td>
-                        {tableEngines.map((eng) => (
-                          <td key={eng.id} className="h-12 px-2 text-center align-middle">
-                            {renderCell(resume.id, eng.id)}
-                          </td>
-                        ))}
-                        <td className="bg-card before:bg-border/60 sticky right-0 z-10 h-12 px-2 align-middle before:absolute before:inset-y-0 before:left-0 before:w-px">
-                          <FinalScoreCell
-                            scores={tableEngines.flatMap((eng) => {
-                              const c = displayMap.get(cellKey(resume.id, eng.id));
-                              return c?.status === "done" && c.overallScore != null
-                                ? [c.overallScore]
-                                : [];
-                            })}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ScrollArea>
+              <AtsScoreMatrix
+                engines={tableEngines.map((eng) => {
+                  const sample = [...displayMap.values()].find(
+                    (r) => r.engineId === eng.id && r.scoreType,
+                  );
+                  return {
+                    id: eng.id,
+                    header: (
+                      <>
+                        <EngineLabel engineId={eng.id} stacked className="mx-auto" />
+                        <span className="mt-0.5 block text-[9px] font-normal">
+                          {sample?.scoreType
+                            ? scoreTypeLabel(sample.scoreType)
+                            : scoreTypeLabel(eng.scoreTypes[0]!)}
+                        </span>
+                      </>
+                    ),
+                  };
+                })}
+                resumes={tableResumes}
+                renderCell={renderCell}
+                finalScores={(resumeId) =>
+                  tableEngines.flatMap((eng) => {
+                    const c = displayMap.get(cellKey(resumeId, eng.id));
+                    return c?.status === "done" && c.overallScore != null ? [c.overallScore] : [];
+                  })
+                }
+                onPreview={setPreviewResume}
+              />
 
               {detailCell?.analysis && !detailCell.analysis.error ? (
                 <div className="border-border/60 rounded-xl border p-3 md:p-4">
@@ -1487,6 +1458,11 @@ export function AtsHub({ initialResumes, defaultRole = "Software Engineer" }: At
         onClose={() => setUploadOpen(false)}
         existingNames={resumes.map((r) => r.displayName)}
         onUploaded={handleUploaded}
+      />
+      <ResumePreviewDialog
+        resume={previewResume}
+        description={previewResume?.originalFilename}
+        onClose={() => setPreviewResume(null)}
       />
     </ShellWidth>
   );
@@ -1588,7 +1564,7 @@ function UploadResumeModal({
           <FileUpload
             accept="application/pdf,.pdf"
             multiple={false}
-            maxSize={10 * 1024 * 1024}
+            maxSize={RESUME_MAX_BYTES}
             files={files}
             onFilesChange={setFiles}
             disabled={pending}

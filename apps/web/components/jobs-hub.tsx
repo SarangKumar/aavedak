@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CompanySelect } from "@/components/company-select";
+import { ResumePreviewDialog } from "@/components/resume-preview";
 import { EngineKindBadge } from "@/components/ats-engine-badge";
-import { FinalScoreCell } from "@/components/final-score-cell";
+import { AtsScoreMatrix } from "@/components/ats-score-matrix";
 import {
   companyInitials,
   JOB_CARD_BADGE,
@@ -1413,6 +1414,7 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
   const router = useRouter();
   const [resumeIds, setResumeIds] = useState<Set<string>>(() => new Set(resumes.map((r) => r.id)));
   const [engineIds, setEngineIds] = useState<Set<AtsEngineId>>(() => new Set(["aavedak"]));
+  const [previewResume, setPreviewResume] = useState<ResumeLite | null>(null);
   const [cells, setCells] = useState<Record<string, AtsCellState>>({});
   const [running, setRunning] = useState(false);
   const runToken = useRef(0);
@@ -1576,86 +1578,35 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
             </ToggleGroup>
           </div>
 
-          <ScrollArea orientation="horizontal" className="border-border/60 rounded-md border">
-            {/* Fixed layout: the resume column has a set width and every engine column is the
-                same width, so the score rings line up in an even grid. */}
-            <table
-              className="w-full table-fixed border-collapse text-[12px]"
-              style={{ minWidth: `${12 + selectedEngines.length * 7}rem` }}
-            >
-              <colgroup>
-                <col className="w-48" />
-                {selectedEngines.map((eng) => (
-                  <col key={eng.id} />
-                ))}
-                <col className="w-40" />
-              </colgroup>
-              <thead>
-                <tr className="border-border/40 border-b">
-                  {/* Frozen first column: stays in place while engine columns scroll. */}
-                  <th className="text-muted-foreground bg-card after:bg-border/60 sticky left-0 z-10 h-12 px-3 text-center align-middle font-medium after:absolute after:inset-y-0 after:right-0 after:w-px">
-                    Resume
-                  </th>
-                  {selectedEngines.map((eng) => (
-                    <th
-                      key={eng.id}
-                      className="text-muted-foreground h-12 px-2 text-center align-middle text-[11px] font-medium leading-tight"
-                    >
-                      {eng.name}
-                    </th>
-                  ))}
-                  <th className="text-muted-foreground bg-card before:bg-border/60 sticky right-0 z-10 h-12 px-2 text-center align-middle font-medium before:absolute before:inset-y-0 before:left-0 before:w-px">
-                    Final score
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {resumes.map((resume) => (
-                  <tr key={resume.id} className="border-border/40 border-b last:border-b-0">
-                    <td className="bg-card after:bg-border/60 sticky left-0 z-10 px-3 align-middle after:absolute after:inset-y-0 after:right-0 after:w-px">
-                      <label className="flex min-w-0 cursor-pointer items-center gap-2">
-                        <Checkbox
-                          checked={resumeIds.has(resume.id)}
-                          onChange={(e) => toggleResume(resume.id, e.target.checked)}
-                          disabled={running}
-                          aria-label={`Include ${resume.displayName}`}
-                        />
-                        <span className="text-foreground truncate">{resume.displayName}</span>
-                        {resume.status === "active" ? (
-                          <Badge variant="outline" className="shrink-0 px-1 py-0 text-[9px]">
-                            Active
-                          </Badge>
-                        ) : null}
-                      </label>
-                    </td>
-                    {selectedEngines.map((eng) => (
-                      <td key={eng.id} className="p-0 align-middle">
-                        {resumeIds.has(resume.id) ? (
-                          renderCell(resume.id, eng.id)
-                        ) : (
-                          <div className="h-12" />
-                        )}
-                      </td>
-                    ))}
-                    <td className="bg-card before:bg-border/60 sticky right-0 z-10 h-12 px-2 align-middle before:absolute before:inset-y-0 before:left-0 before:w-px">
-                      {resumeIds.has(resume.id) ? (
-                        <FinalScoreCell
-                          scores={selectedEngines.flatMap((eng) => {
-                            const c = cells[atsKey(resume.id, eng.id)];
-                            return typeof c === "object" &&
-                              c.status === "done" &&
-                              c.overallScore != null
-                              ? [c.overallScore]
-                              : [];
-                          })}
-                        />
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </ScrollArea>
+          <AtsScoreMatrix
+            engines={selectedEngines.map((eng) => ({
+              id: eng.id,
+              header: <span className="text-[11px] font-medium leading-tight">{eng.name}</span>,
+            }))}
+            resumes={resumes}
+            renderCell={(resumeId, engineId) =>
+              resumeIds.has(resumeId) ? renderCell(resumeId, engineId) : <div className="h-12" />
+            }
+            finalScores={(resumeId) =>
+              resumeIds.has(resumeId)
+                ? selectedEngines.flatMap((eng) => {
+                    const c = cells[atsKey(resumeId, eng.id)];
+                    return typeof c === "object" && c.status === "done" && c.overallScore != null
+                      ? [c.overallScore]
+                      : [];
+                  })
+                : null
+            }
+            renderResumeLeading={(resume) => (
+              <Checkbox
+                checked={resumeIds.has(resume.id)}
+                onChange={(e) => toggleResume(resume.id, e.target.checked)}
+                disabled={running}
+                aria-label={`Include ${resume.displayName}`}
+              />
+            )}
+            onPreview={setPreviewResume}
+          />
 
           <div className="flex flex-wrap items-center gap-1.5">
             <Button
@@ -1677,6 +1628,7 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
           </div>
         </>
       )}
+      <ResumePreviewDialog resume={previewResume} onClose={() => setPreviewResume(null)} />
     </Card>
   );
 }

@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { RESUME_MAX_BYTES } from "@/lib/resume-upload";
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 import { downloadResumePdf, isGcsConfigured, resumeObjectKey, uploadResumePdf } from "@/lib/gcs";
 import { extractPdfText, scoreResumeAtsReadiness } from "@/lib/match-score";
@@ -143,7 +144,7 @@ export async function createResumeFromPdf(opts: {
     throw new Error("Only PDF resumes are allowed.");
   }
   if (opts.file.size <= 0) throw new Error("Empty file.");
-  if (opts.file.size > 10 * 1024 * 1024) throw new Error("PDF must be 10MB or smaller.");
+  if (opts.file.size > RESUME_MAX_BYTES) throw new Error("PDF must be 2MB or smaller.");
 
   if (!isGcsConfigured()) {
     throw new Error(

@@ -11,6 +11,10 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Added
 
+- **ATS — hover to see what each measure means** — Every score row and signal in the ATS detail panel (for example ATS Parse Rate, Required Skills, Job Title Match, TF-IDF similarity or Quantified bullets) now explains itself when you hover over its name, so you can tell what the number is measuring.
+- **Resumes — 2 MB upload limit** — Resume PDFs can now be up to 2 MB, down from 10 MB, on the Documents page, the ATS upload and onboarding. The server enforces the same limit.
+
+- **ATS and Jobs — preview resumes and highlight the active one** — Each resume in the ATS page's resume list and in every results table (the ATS page and a job's ATS check on Jobs) has a Preview button that opens the PDF without leaving the page. The results table is now one shared component on both pages, so they look and behave the same. The active resume's row gets a primary-coloured border around the whole row.
 - **ATS — one results layout for every engine** — The resume detail view now looks the same for all 11 ATS engines: a score breakdown, strengths as pills, matched/partial/missing skills as pills, and improvements as cards with a severity tag — instead of some engines showing a plain accordion and a vague "part of the transparent weighted model" line with no detail. Engines pick up relevant context (the scoring formula, caveats) in a "Methodology & limitations" section instead.
 - **ATS — Enhancv engine** — A new reference engine approximates Enhancv's free resume checker: four Content checks shown as issue counts (ATS Parse Rate, Quantifying Impact, Repetition, Spelling & Grammar), each with the specific lines flagged and a fix. With a job description, it also blends in hard-skill coverage.
 - **ATS — filter engines by kind** — A Native / Reference / Open Source toggle above the engine list selects or deselects every engine of that kind at once. All 11 engines now run by default (previously only the native engine was pre-selected).
