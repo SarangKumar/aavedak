@@ -53,11 +53,65 @@ function mapRow(row: Row): JobScoreRecord {
 }
 
 const STOP = new Set([
-  "a","an","the","and","or","to","of","in","on","for","with","at","by","from","as",
-  "is","are","be","this","that","it","you","your","we","our","will","can","have",
-  "has","was","were","been","their","they","them","not","but","if","into","over",
-  "per","via","etc","such","using","use","used","work","working","role","job",
-  "team","years","year","experience","including","ability","strong","good",
+  "a",
+  "an",
+  "the",
+  "and",
+  "or",
+  "to",
+  "of",
+  "in",
+  "on",
+  "for",
+  "with",
+  "at",
+  "by",
+  "from",
+  "as",
+  "is",
+  "are",
+  "be",
+  "this",
+  "that",
+  "it",
+  "you",
+  "your",
+  "we",
+  "our",
+  "will",
+  "can",
+  "have",
+  "has",
+  "was",
+  "were",
+  "been",
+  "their",
+  "they",
+  "them",
+  "not",
+  "but",
+  "if",
+  "into",
+  "over",
+  "per",
+  "via",
+  "etc",
+  "such",
+  "using",
+  "use",
+  "used",
+  "work",
+  "working",
+  "role",
+  "job",
+  "team",
+  "years",
+  "year",
+  "experience",
+  "including",
+  "ability",
+  "strong",
+  "good",
 ]);
 
 function tokenize(text: string): string[] {
@@ -97,8 +151,9 @@ export function computeAtsScore(job: {
     hasSalary: Boolean(job.salary?.trim()),
     hasDescription: words >= 40,
     hasRequirements: /requirement|qualification|must have|you.?ll need|skills?:/i.test(desc),
-    hasResponsibilities:
-      /responsibilit|what you.?ll do|you will|day.?to.?day|about the role/i.test(desc),
+    hasResponsibilities: /responsibilit|what you.?ll do|you will|day.?to.?day|about the role/i.test(
+      desc,
+    ),
     hasBulletOrLines: /(?:^|\n)\s*[•\-*●]|\n{2,}/.test(desc),
     enoughLength: words >= 80,
   };
@@ -197,18 +252,11 @@ export function computeCompatibilityScore(input: {
     score += Math.min(10, soft * 2);
   }
 
-  if (career?.experienceLevel) {
+  if (career?.yearsExperience != null) {
     const yearsMatch = /(\d+)\+?\s*\+?\s*years?/i.exec(input.job.description);
     if (yearsMatch) {
       const needed = Number(yearsMatch[1]);
-      const map: Record<string, number> = {
-        "0-1": 1,
-        "1-3": 2,
-        "3-5": 4,
-        "5-8": 6,
-        "8+": 9,
-      };
-      const have = map[career.experienceLevel] ?? 0;
+      const have = career.yearsExperience;
       if (have >= needed) score += 8;
       else if (have >= needed - 1) score += 4;
     }

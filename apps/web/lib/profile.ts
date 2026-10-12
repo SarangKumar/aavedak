@@ -77,6 +77,7 @@ type ProfileRow = {
   onboarding_complete: number | boolean;
   approval_status: string | null;
   experience_level: string | null;
+  years_experience: number | string | null;
   preferred_roles_json: string | null;
   expected_salary_min: number | null;
   expected_salary_max: number | null;
@@ -96,6 +97,7 @@ function mapCareer(row: ProfileRow): CareerProfile {
   const base = emptyCareerProfile();
   return {
     experienceLevel: (row.experience_level as ExperienceLevel | null) ?? null,
+    yearsExperience: row.years_experience == null ? null : Number(row.years_experience),
     preferredRoles: parseStringList(row.preferred_roles_json),
     expectedSalaryMin: row.expected_salary_min == null ? null : Number(row.expected_salary_min),
     expectedSalaryMax: row.expected_salary_max == null ? null : Number(row.expected_salary_max),
@@ -162,7 +164,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   const rows = (await getSql()`
     SELECT user_id, username, email, name, bio, portfolio_url, linkedin_url,
       links_json, projects_json, image_url, onboarding_complete, approval_status,
-      experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
+      experience_level, years_experience, preferred_roles_json, expected_salary_min, expected_salary_max,
       salary_currency, preferred_locations_json, remote_preference, work_authorization,
       skills_json, job_search_status, company_size_preference, industry_preference,
       created_at, updated_at
@@ -176,7 +178,7 @@ export async function getProfileByUsername(username: string): Promise<Profile | 
   const rows = (await getSql()`
     SELECT user_id, username, email, name, bio, portfolio_url, linkedin_url,
       links_json, projects_json, image_url, onboarding_complete, approval_status,
-      experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
+      experience_level, years_experience, preferred_roles_json, expected_salary_min, expected_salary_max,
       salary_currency, preferred_locations_json, remote_preference, work_authorization,
       skills_json, job_search_status, company_size_preference, industry_preference,
       created_at, updated_at
@@ -248,7 +250,7 @@ export async function ensureProfile(user: {
       ON CONFLICT DO NOTHING
       RETURNING user_id, username, email, name, bio, portfolio_url, linkedin_url,
         links_json, projects_json, image_url, onboarding_complete, approval_status,
-        experience_level, preferred_roles_json, expected_salary_min, expected_salary_max,
+        experience_level, years_experience, preferred_roles_json, expected_salary_min, expected_salary_max,
         salary_currency, preferred_locations_json, remote_preference, work_authorization,
         skills_json, job_search_status, company_size_preference, industry_preference,
         created_at, updated_at
@@ -433,6 +435,9 @@ export async function updateCareerProfile(
   const next: CareerProfile = { ...existing.career };
 
   if (normalized.experienceLevel !== undefined) next.experienceLevel = normalized.experienceLevel;
+  if (normalized.yearsExperience !== undefined) {
+    next.yearsExperience = normalized.yearsExperience as number | null;
+  }
   if (normalized.preferredRoles !== undefined) next.preferredRoles = normalized.preferredRoles;
   if (normalized.expectedSalaryMin !== undefined)
     next.expectedSalaryMin = normalized.expectedSalaryMin;
@@ -468,6 +473,7 @@ export async function updateCareerProfile(
   await getSql()`
     UPDATE profiles SET
       experience_level = ${next.experienceLevel},
+      years_experience = ${next.yearsExperience},
       preferred_roles_json = ${serializeStringList(next.preferredRoles)},
       expected_salary_min = ${next.expectedSalaryMin},
       expected_salary_max = ${next.expectedSalaryMax},

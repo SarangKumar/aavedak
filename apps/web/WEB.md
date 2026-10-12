@@ -28,8 +28,8 @@ One folder per resource (`resumes`, `applications`, `ats`, `jobs`, `cover-letter
 
 ## ATS scores in the web app
 
-- `/ats` runs go through `/api/ats/run` → `lib/ats-engines/profiles.ts` → `lib/ats-service.ts` → FastAPI. Inputs: role, JD, and `yearsExperience` (defaulted from the profile's experience level, editable).
-- The Documents card pill is the **native Aavedak engine** with the same defaults the `/ats` page starts with (profile's first preferred role or "Software Engineer", profile years, no JD) — `scoreResumeAts` / `cardAtsInputs` in `lib/resumes.ts`. `resumes.ats_inputs` records the inputs used; `/api/resumes` flags rows whose inputs differ as `atsStale`, and Documents rescores them on load.
+- `/ats` runs go through `/api/ats/run` → `lib/ats-engines/profiles.ts` → `lib/ats-service.ts` → FastAPI. Inputs: role, JD, and `yearsExperience`, read silently from `profiles.years_experience` (collected in onboarding, edited in profile settings; not shown on `/ats`).
+- The Documents card pill is the **native Aavedak engine** with the same defaults the `/ats` page starts with (profile's first preferred role or "Software Engineer", profile years, no JD) — `scoreResumeAts` / `cardAtsInputs` in `lib/resumes.ts`. `resumes.ats_inputs` records the inputs used; `/api/resumes` flags rows whose role/years differ or whose native engine version (from `/svc/v1/ats/health`) changed as `atsStale` (`lib/ats-card-score.ts`), and Documents rescores them on load.
 - There is no TypeScript ATS scorer. `lib/match-score.ts` only holds the quick resume↔JD token overlap used for job cards and cover-letter drafts.
 
 ## Limits

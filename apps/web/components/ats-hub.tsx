@@ -84,7 +84,7 @@ type AtsHubProps = {
   /** `null` = not fetched on the server; the hub loads `/api/resumes` on mount. */
   initialResumes: ResumeRow[] | null;
   defaultRole?: string;
-  /** From the profile's experience level; null when the profile has none. */
+  /** Profile years of experience, sent with every run; null when the profile has none. */
   defaultYearsExperience?: number | null;
 };
 
@@ -116,9 +116,6 @@ function engineUsageText(
   if (optional.length > 0) return `Optional for ${names(optional)}`;
   return "Not used by the selected engines.";
 }
-
-/** Engines that read the stated years of experience (others ignore it). */
-const YEARS_AWARE_ENGINES = "Aavedak ATS and Resume Worded";
 
 function cellKey(resumeId: string, engineId: string) {
   return `${resumeId}::${engineId}`;
@@ -350,13 +347,8 @@ export function AtsHub({
   );
   const [role, setRole] = useState(defaultRole);
   const [jdText, setJdText] = useState("");
-  const [yearsInput, setYearsInput] = useState(
-    defaultYearsExperience == null ? "" : String(defaultYearsExperience),
-  );
-  const yearsValue = (() => {
-    const n = Number(yearsInput);
-    return yearsInput.trim() !== "" && Number.isFinite(n) && n >= 0 && n <= 60 ? n : null;
-  })();
+  // Years of experience come from the profile (set in onboarding / settings); not editable here.
+  const yearsValue = defaultYearsExperience;
   const [resumeQuery, setResumeQuery] = useState("");
 
   const [running, setRunning] = useState(false);
@@ -1116,31 +1108,7 @@ export function AtsHub({
           <div className="space-y-3">
             <div className="space-y-1.5 text-[12px]">
               <div className="flex items-center gap-1.5">
-                <Label htmlFor="ats-years-experience">Years of experience</Label>
-                <FieldHelp label="How years of experience are used">
-                  Defaults from your profile&apos;s experience level. {YEARS_AWARE_ENGINES}{" "}
-                  calibrate their checks to it (expected length, bullet count, quantified impact,
-                  leadership from ~3 years) and the native engine compares it with years a JD asks
-                  for. Leave empty to score without a level.
-                </FieldHelp>
-              </div>
-              <Input
-                id="ats-years-experience"
-                type="number"
-                inputMode="decimal"
-                min={0}
-                max={60}
-                step={0.5}
-                value={yearsInput}
-                disabled={running}
-                onChange={(e) => setYearsInput(e.target.value)}
-                placeholder="e.g. 2"
-                className="max-w-32"
-              />
-            </div>
-            <div className="space-y-1.5 text-[12px]">
-              <div className="flex items-center gap-1.5">
-                <Label htmlFor="ats-target-role">Target role / title</Label>
+                <Label htmlFor="ats-target-role">Target role</Label>
                 <FieldHelp label="Which engines use the target role">
                   {engineUsageText(
                     selectedEngineList.length === 0,

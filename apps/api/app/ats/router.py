@@ -17,6 +17,7 @@ from app.ats.pipeline import (
     MISSING_INPUT,
     EngineFailure,
 )
+from app.ats.version import ENGINE_VERSION
 from app.ats.schemas import BatchScoreRequest, EngineScoreRequest, ScoreRequest
 
 router = APIRouter(prefix="/svc/v1/ats", tags=["ats"])
@@ -24,7 +25,7 @@ router = APIRouter(prefix="/svc/v1/ats", tags=["ats"])
 
 @router.get("/health")
 def ats_health():
-    return {"ok": True, "service": "ats", "engine": "fastapi"}
+    return {"ok": True, "service": "ats", "engine": "fastapi", "engineVersion": ENGINE_VERSION}
 
 
 @router.post("/score-engine")

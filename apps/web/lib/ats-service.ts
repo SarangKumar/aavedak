@@ -100,6 +100,21 @@ export async function analyzeEngineViaService(input: {
   return null;
 }
 
+/** Native engine version from FastAPI (`/svc/v1/ats/health`), or null when unreachable. */
+export async function nativeEngineVersion(): Promise<string | null> {
+  try {
+    const res = await fetch(absoluteApiUrl("/svc/v1/ats/health"), {
+      cache: "no-store",
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { engineVersion?: unknown };
+    return typeof data.engineVersion === "string" ? data.engineVersion : null;
+  } catch {
+    return null;
+  }
+}
+
 export type ServiceStageEvent = { stage: AtsStage; message?: string; at: string; seq: number };
 
 export type StreamedEngineOutcome =

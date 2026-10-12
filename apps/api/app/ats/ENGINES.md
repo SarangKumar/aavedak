@@ -135,7 +135,7 @@ Not reproducible from text alone (all engines): file type/size, font size/typefa
 
 ## Years of experience (engine 2.3, `seniority.py`)
 
-Requests accept optional `yearsExperience` (0–60). The web app defaults it from the profile's experience level (`0-1`→0.5, `1-3`→2, `3-5`→4, `5-8`→6, `8+`→10) and the ATS page lets the user edit it. Omitted → scores are unchanged.
+Requests accept optional `yearsExperience` (0–60). The web app always sends the profile's `years_experience` (numeric, 0–50, required in onboarding, editable in settings; backfilled from the old bucket `0-1`→0.5, `1-3`→2, `3-5`→4, `5-8`→6, `8+`→10). The ATS page no longer shows it. Omitted → scores are unchanged.
 
 - Bands: entry <1, junior 1–3, mid 3–6, senior 6–10, staff 10+. Each sets a word-count window, a minimum bullet count and a minimum share of quantified bullets; leadership/ownership signals are expected from mid level. If the resume itself claims more than stated years + 2, a consistency check fails.
 - Native: the band checks are the _Length & seniority fit_ criterion (.12 of quality), and nudge `experienceMatch` by ±8 in role/job match. The stated years replace years parsed from the resume when comparing against a JD's "N+ years".

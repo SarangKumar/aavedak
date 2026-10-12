@@ -6,7 +6,6 @@ import { RESUME_MAX_BYTES } from "@/lib/resume-upload";
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 import { downloadResumePdf, isGcsConfigured, resumeObjectKey, uploadResumePdf } from "@/lib/gcs";
 import { analyzeEngineViaService, AtsServiceUnavailableError } from "@/lib/ats-service";
-import { yearsFromExperienceLevel } from "@/lib/career-profile";
 import { extractPdfText } from "@/lib/match-score";
 import { getProfile } from "@/lib/profile";
 
@@ -23,7 +22,7 @@ export type ResumeRecord = {
   byteSize: number;
   textExcerpt: string | null;
   atsScore: number | null;
-  /** `role|years` the stored ATS score was computed with; null = legacy or never scored. */
+  /** `role|years|vENGINE` the stored ATS score was computed with; null = never scored. */
   atsInputs: string | null;
   createdAt: string;
   updatedAt: string;
@@ -342,9 +341,11 @@ export async function cardAtsInputs(
 ): Promise<{ role: string; yearsExperience: number | null; key: string }> {
   const profile = await getProfile(userId);
   const role = profile?.career.preferredRoles[0]?.trim() || DEFAULT_ATS_ROLE;
-  const yearsExperience = yearsFromExperienceLevel(profile?.career.experienceLevel ?? null);
+  const yearsExperience = profile?.career.yearsExperience ?? null;
   return { role, yearsExperience, key: `${role}|${yearsExperience ?? ""}` };
 }
+
+export { isCardScoreStale } from "@/lib/ats-card-score";
 
 /**
  * Score a resume with the native Aavedak engine (FastAPI) — the same engine and inputs the ATS
@@ -370,7 +371,7 @@ export async function scoreResumeAts(userId: string, resumeId: string): Promise<
     UPDATE resumes
        SET extracted_text = ${excerpt || null},
            ats_score = ${score},
-           ats_inputs = ${inputs.key},
+           ats_inputs = ${`${inputs.key}|v${analysis.engineVersion ?? ""}`},
            updated_at = ${now}
      WHERE id = ${resumeId} AND user_id = ${userId}
   `;

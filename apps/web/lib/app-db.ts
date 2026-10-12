@@ -237,6 +237,14 @@ async function runSchema() {
 
   // Career preferences (YC-style) for onboarding + job matching
   await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS experience_level TEXT`;
+  await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS years_experience DOUBLE PRECISION`;
+  // Backfill exact years from the old bucket (same mapping the ATS defaulted to). Idempotent.
+  await db`
+    UPDATE profiles SET years_experience = CASE experience_level
+      WHEN '0-1' THEN 0.5 WHEN '1-3' THEN 2 WHEN '3-5' THEN 4 WHEN '5-8' THEN 6 WHEN '8+' THEN 10
+    END
+    WHERE years_experience IS NULL AND experience_level IS NOT NULL
+  `;
   await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS preferred_roles_json TEXT NOT NULL DEFAULT '[]'`;
   await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS expected_salary_min INTEGER`;
   await db`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS expected_salary_max INTEGER`;

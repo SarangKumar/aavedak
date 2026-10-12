@@ -48,6 +48,8 @@ export type SalaryCurrency = (typeof SALARY_CURRENCIES)[number]["value"];
 
 export type CareerProfile = {
   experienceLevel: ExperienceLevel | null;
+  /** Exact years of experience (0–50, decimals allowed). Source of truth for ATS and job matching. */
+  yearsExperience: number | null;
   preferredRoles: string[];
   expectedSalaryMin: number | null;
   expectedSalaryMax: number | null;
@@ -63,6 +65,7 @@ export type CareerProfile = {
 
 export type CareerProfilePatch = Partial<{
   experienceLevel: ExperienceLevel | null;
+  yearsExperience: number | string | null;
   preferredRoles: string[];
   expectedSalaryMin: number | null;
   expectedSalaryMax: number | null;
@@ -79,6 +82,7 @@ export type CareerProfilePatch = Partial<{
 export function emptyCareerProfile(): CareerProfile {
   return {
     experienceLevel: null,
+    yearsExperience: null,
     preferredRoles: [],
     expectedSalaryMin: null,
     expectedSalaryMax: null,
@@ -145,6 +149,26 @@ function normalizeSalary(value: unknown): number | null {
   return Math.round(n);
 }
 
+export const MAX_YEARS_EXPERIENCE = 50;
+
+function normalizeYears(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(String(value).trim());
+  if (!Number.isFinite(n) || n < 0 || n > MAX_YEARS_EXPERIENCE) {
+    throw new Error(`Years of experience must be a number from 0 to ${MAX_YEARS_EXPERIENCE}.`);
+  }
+  return Math.round(n * 10) / 10;
+}
+
+export function experienceLevelFromYears(years: number | null): ExperienceLevel | null {
+  if (years == null) return null;
+  if (years < 1) return "0-1";
+  if (years < 3) return "1-3";
+  if (years < 5) return "3-5";
+  if (years < 8) return "5-8";
+  return "8+";
+}
+
 export function normalizeCareerPatch(input: CareerProfilePatch): CareerProfilePatch {
   const out: CareerProfilePatch = {};
 
@@ -153,6 +177,12 @@ export function normalizeCareerPatch(input: CareerProfilePatch): CareerProfilePa
     else if (inSet(input.experienceLevel, EXPERIENCE_LEVELS))
       out.experienceLevel = input.experienceLevel;
     else throw new Error("Invalid experience level.");
+  }
+
+  if (input.yearsExperience !== undefined) {
+    out.yearsExperience = normalizeYears(input.yearsExperience);
+    // Keep the legacy bucket in sync for anything still reading it.
+    out.experienceLevel = experienceLevelFromYears(out.yearsExperience);
   }
 
   if (input.preferredRoles !== undefined) {
@@ -242,7 +272,7 @@ export function normalizeCareerPatch(input: CareerProfilePatch): CareerProfilePa
 
 /** Required fields for finishing onboarding / unlocking the app. */
 export function isCareerProfileComplete(career: CareerProfile): boolean {
-  if (!career.experienceLevel) return false;
+  if (career.yearsExperience == null) return false;
   if (career.preferredRoles.length < 1) return false;
   if (career.expectedSalaryMin == null && career.expectedSalaryMax == null) return false;
   if (!career.salaryCurrency) return false;
@@ -272,22 +302,4 @@ export function labelFor<T extends string>(
 ): string | null {
   if (!value) return null;
   return options.find((o) => o.value === value)?.label ?? value;
-}
-
-/** Representative years for an experience band, used to default the ATS years-of-experience input. */
-export function yearsFromExperienceLevel(level: ExperienceLevel | null): number | null {
-  switch (level) {
-    case "0-1":
-      return 0.5;
-    case "1-3":
-      return 2;
-    case "3-5":
-      return 4;
-    case "5-8":
-      return 6;
-    case "8+":
-      return 10;
-    default:
-      return null;
-  }
 }

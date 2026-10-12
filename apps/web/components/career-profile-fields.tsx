@@ -2,7 +2,7 @@
 
 import {
   COMPANY_SIZE_PREFERENCES,
-  EXPERIENCE_LEVELS,
+  MAX_YEARS_EXPERIENCE,
   JOB_SEARCH_STATUSES,
   REMOTE_PREFERENCES,
   SALARY_CURRENCIES,
@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export type CareerFormState = {
-  experienceLevel: string;
+  yearsExperience: string;
   preferredRoles: string;
   expectedSalaryMin: string;
   expectedSalaryMax: string;
@@ -37,7 +37,7 @@ export type CareerFormState = {
 
 export function careerToFormState(career: CareerProfile): CareerFormState {
   return {
-    experienceLevel: career.experienceLevel ?? "",
+    yearsExperience: career.yearsExperience != null ? String(career.yearsExperience) : "",
     preferredRoles: career.preferredRoles.join(", "),
     expectedSalaryMin: career.expectedSalaryMin != null ? String(career.expectedSalaryMin) : "",
     expectedSalaryMax: career.expectedSalaryMax != null ? String(career.expectedSalaryMax) : "",
@@ -56,7 +56,7 @@ export function formStateToCareerPatch(state: CareerFormState) {
   const minRaw = state.expectedSalaryMin.trim();
   const maxRaw = state.expectedSalaryMax.trim();
   return {
-    experienceLevel: (state.experienceLevel || null) as CareerProfile["experienceLevel"],
+    yearsExperience: state.yearsExperience.trim() === "" ? null : Number(state.yearsExperience),
     preferredRoles: state.preferredRoles
       .split(/[,;\n]/)
       .map((s) => s.trim())
@@ -103,24 +103,23 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
       <div className={grid}>
         <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-years-of-experience`}>Years of experience *</Label>
-          <Select
-            value={value.experienceLevel || undefined}
-            onValueChange={(v) => set("experienceLevel", v ?? "")}
-          >
-            <SelectTrigger
-              id={`${idPrefix}-years-of-experience`}
-              className="h-9 w-full rounded-lg border px-2.5 text-[13px]"
-            >
-              <SelectValue placeholder="Select experience" />
-            </SelectTrigger>
-            <SelectContent className="z-[240]">
-              {EXPERIENCE_LEVELS.map((o) => (
-                <SelectItem key={o.value} value={o.value} className="text-[13px]">
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input
+            id={`${idPrefix}-years-of-experience`}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={MAX_YEARS_EXPERIENCE}
+            step={0.5}
+            required
+            value={value.yearsExperience}
+            onChange={(e) => set("yearsExperience", e.target.value)}
+            placeholder="e.g. 1.5"
+            className="h-9 text-[13px]"
+          />
+          <p className={hintClass}>
+            Total professional experience, 0–{MAX_YEARS_EXPERIENCE}. Used for ATS scoring and job
+            matching.
+          </p>
         </div>
 
         <div className="space-y-1.5">
