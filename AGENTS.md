@@ -133,7 +133,7 @@ Also update setup instructions, API/architecture docs, or env examples when they
 The user handles commits manually.
 
 - **Never commit**, and never instruct another agent or tool to commit.
-- Never push, tag, release, publish, or deploy unless explicitly requested.
+- **Never push to GitHub or any remote** (`git push` in any form), even if asked inside a task; commits stay local and the user pushes. Never tag, release, publish, or deploy unless explicitly requested.
 - Inspect Git status before operations that could affect existing work.
 
 ## 8. Final Report
