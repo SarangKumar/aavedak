@@ -111,7 +111,7 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 ### Changed
 
 - **ATS — final score weighted by engine type** — The Final score column on the ATS page and Jobs is no longer a plain average. Aavedak ATS counts for 50%, the reference engines (Jobscan, SkillSyncer, Resume Worded, Rezi, Teal, Enhancv) for 35% and the open-source engines for 15%. Inside each group, engines with better-documented criteria count a little more. Engines that didn't run, for example ones that need a job description you didn't give, are left out and the rest share their weight. Hover the final score to see each engine's weight. Teal's Resume Score and Rezi's audits are also weighted now (metrics, contact and job targeting count more) instead of counting every check equally.
-- **Score rings — a perfect 100 shows in forest green** — A score of exactly 100 is drawn in forest green, ring and number.
+- **Score rings — one smooth red-to-green scale** — Every score ring now shades smoothly from red at 0 through amber and yellow to forest green at 100. The number inside always uses the normal text color, so it reads clearly in light and dark mode.
 
 - **Profile — exact years of experience** — Onboarding now asks for your years of experience as a number (0–50, decimals like 1.5 allowed) instead of a range, and you can change it in profile settings. Existing profiles were filled in from the range you picked before (for example 1–3 years became 2). ATS scores, resume cards and job matching all use it automatically, so the ATS page no longer has its own years field. Changing it, or an update to the Aavedak ATS engine, rescores your resume cards the next time you open Documents.
 

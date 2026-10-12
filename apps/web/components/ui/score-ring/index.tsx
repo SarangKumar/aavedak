@@ -19,10 +19,6 @@ export type ScoreRingProps = Omit<React.ComponentProps<"div">, "children" | "rol
   /** Score that fills the whole ring. Defaults to 100. */
   max?: number;
   size?: ScoreRingSize;
-  /** Ring color at a score of 0. Any CSS color. Defaults to red. */
-  fromColor?: string;
-  /** Ring color at the maximum score. Any CSS color. Defaults to green. */
-  toColor?: string;
   /** Show the score in the middle of the ring. Defaults to true. */
   showValue?: boolean;
   /** Replaces the default score text in the middle of the ring. */
@@ -31,24 +27,32 @@ export type ScoreRingProps = Omit<React.ComponentProps<"div">, "children" | "rol
   label?: string;
 };
 
-const PERFECT_COLOR = "#228B22";
+// Forest green (#228B22) is hsl(120 60.7% 34.1%). The stroke keeps that
+// saturation and lightness and moves the hue from 0 (red) to 120 (green), so a
+// full score is exactly #228B22 and the scale passes through amber and yellow.
+const RING_SATURATION = 60.7;
+const RING_LIGHTNESS = 34.1;
+
+/** Stroke color for a 0–1 score ratio: red at 0, forest green (#228B22) at 1. */
+export function scoreRingColor(ratio: number) {
+  const hue = Math.round(clamp(ratio, 0, 1) * 1200) / 10;
+  return `hsl(${hue} ${RING_SATURATION}% ${RING_LIGHTNESS}%)`;
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
 /**
- * A circular score meter. The stroke color is mixed between `fromColor` and
- * `toColor` by the score (`color-mix` in oklch, which passes through orange
- * and yellow for the default red to green), so 0 is `fromColor` and the max
- * is `toColor`. Pass `label` so the meter has an accessible name.
+ * A circular score meter. The stroke hue moves smoothly from red at 0 through
+ * amber and yellow to forest green (#228B22) at the max (see `scoreRingColor`).
+ * The number in the middle is always the foreground color. Pass `label` so the
+ * meter has an accessible name.
  */
 export function ScoreRing({
   value,
   max = 100,
   size = "default",
-  fromColor = "var(--color-red-500, #ef4444)",
-  toColor = "var(--color-green-500, #22c55e)",
   showValue = true,
   label,
   children,
@@ -63,11 +67,7 @@ export function ScoreRing({
   const { box, stroke, text } = sizes[size];
   const radius = 50 - stroke / 2;
   const circumference = 2 * Math.PI * radius;
-  // A perfect score gets forest green (#228B22) on both the stroke and the number.
-  const perfect = Math.round(score) >= safeMax;
-  const color = perfect
-    ? PERFECT_COLOR
-    : `color-mix(in oklch, ${toColor} ${Math.round(ratio * 100)}%, ${fromColor})`;
+  const color = scoreRingColor(ratio);
 
   return (
     <div
@@ -112,7 +112,6 @@ export function ScoreRing({
             "text-foreground absolute inset-0 flex items-center justify-center font-semibold tabular-nums leading-none",
             text,
           )}
-          style={perfect ? { color: PERFECT_COLOR } : undefined}
         >
           {children ?? Math.round(score)}
         </span>
