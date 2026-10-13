@@ -1,6 +1,16 @@
 "use client";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -85,6 +95,9 @@ import { SearchInput } from "@/components/search-input";
 export type JobDto = JobDtoBase;
 
 export type JobsTab = "discover" | "applied";
+
+type PendingAction =
+  "create" | "parse" | "paste" | "apply" | "bookmark" | "ignore" | "unapply" | null;
 export type JobsSort = "newest" | "oldest";
 
 type ResumeLite = { id: string; displayName: string; status: string };
@@ -194,9 +207,7 @@ export function JobsHub({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   // Which action is running. Only that action's button shows a spinner; the rest just disable.
-  const [pendingAction, setPendingAction] = useState<
-    "create" | "parse" | "paste" | "apply" | "bookmark" | "ignore" | null
-  >(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const pending = pendingAction !== null;
   const [addOpen, setAddOpen] = useState(false);
   // Add job: a link to read the posting from, the result of reading it, and which section is open.
@@ -648,6 +659,48 @@ export function JobsHub({
     }
   }
 
+  /**
+   * Mark as unapplied: the server removes the tracker application (its follow-ups are
+   * cancelled, cover letters kept but unlinked); the job goes back to Discover.
+   */
+  async function unapplyJob(job: JobDto): Promise<boolean> {
+    setError(null);
+    setMessage(null);
+    setPendingAction("unapply");
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/unapply`, { method: "POST" });
+      const data = (await res.json()) as { error?: string; cancelledFollowUps?: number };
+      if (!res.ok) throw new Error(data.error || "Could not mark as unapplied.");
+      setApplied((list) => list.filter((j) => j.id !== job.id));
+      const ids = await reloadJobs();
+      if (ids === null) {
+        setDiscover((list) => [
+          { ...job, applicationId: null, applicationStatus: null },
+          ...list.filter((j) => j.id !== job.id),
+        ]);
+      }
+      if (selectedId === job.id) setSelectedId(null);
+      const cancelled = data.cancelledFollowUps ?? 0;
+      toast.add({
+        title: "Marked as unapplied",
+        description: `Moved back to Discover and removed from your tracker${
+          cancelled ? `; ${cancelled} follow-up${cancelled === 1 ? "" : "s"} cancelled` : ""
+        }.`,
+        type: "success",
+      });
+      return true;
+    } catch (err) {
+      toast.add({
+        title: "Could not mark as unapplied",
+        description: err instanceof Error ? err.message : undefined,
+        type: "error",
+      });
+      return false;
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
   /** Bookmark / Apply create an application; the job moves to the Applied tab. */
   async function createApplicationFromJob(job: JobDto, status: "bookmarked" | "applied") {
     setError(null);
@@ -843,6 +896,7 @@ export function JobsHub({
           onApply={() => void createApplicationFromJob(selected, "applied")}
           onBookmark={() => void createApplicationFromJob(selected, "bookmarked")}
           onIgnore={() => void ignoreJob(selected.id)}
+          onUnapply={() => unapplyJob(selected)}
         />
       )}
     </>
@@ -1298,18 +1352,21 @@ function JobDetail({
   onApply,
   onBookmark,
   onIgnore,
+  onUnapply,
 }: {
   job: JobDto;
   /** Full-screen board: fill the panel height and let "About the job" take the spare space. */
   stretch: boolean;
   tab: JobsTab;
-  pendingAction: "create" | "parse" | "paste" | "apply" | "bookmark" | "ignore" | null;
+  pendingAction: PendingAction;
   resumes: ResumeLite[];
   onApply: () => void;
   onBookmark: () => void;
   onIgnore: () => void;
+  onUnapply: () => Promise<boolean>;
 }) {
   const pending = pendingAction !== null;
+  const [confirmUnapply, setConfirmUnapply] = useState(false);
   const left = daysLeft(job);
   const reasons = [...(job.reasons?.skills ?? []), ...(job.reasons?.roles ?? [])].slice(0, 8);
 
@@ -1467,12 +1524,24 @@ function JobDetail({
               </Button>
             </>
           ) : (
-            <Link
-              href="/job-tracker"
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              Open in tracker
-            </Link>
+            <>
+              <Link
+                href="/job-tracker"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                Open in tracker
+              </Link>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="cursor-pointer"
+                disabled={pending}
+                onClick={() => setConfirmUnapply(true)}
+              >
+                Mark as unapplied
+              </Button>
+            </>
           )}
           <Link
             href={`/documents?tab=cover_letters&jobId=${job.id}`}
@@ -1482,6 +1551,41 @@ function JobDetail({
           </Link>
         </div>
       </Card>
+
+      <AlertDialog
+        open={confirmUnapply}
+        onOpenChange={(open) => {
+          if (!open && pendingAction !== "unapply") setConfirmUnapply(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark “{job.title}” as unapplied?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The job moves back to Discover. Its application is removed from your Job tracker,
+              along with its status history, so it no longer counts on your dashboard. Follow-ups
+              waiting to be sent for it are cancelled. Cover letters you wrote for it are kept in
+              Documents, just no longer linked to an application.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pendingAction === "unapply"}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              className="cursor-pointer"
+              loading={pendingAction === "unapply"}
+              onClick={(e) => {
+                e.preventDefault();
+                void onUnapply().then((ok) => {
+                  if (ok) setConfirmUnapply(false);
+                });
+              }}
+            >
+              Mark as unapplied
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* 2 · About / JD — stretches to take any spare height */}
       <Card className={cn("gap-2", stretch && "min-h-48 flex-1")}>

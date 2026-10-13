@@ -519,3 +519,42 @@ export function applicationToDto(app: ApplicationRecord) {
 }
 
 export { isArchivedStatus };
+
+/**
+ * "Mark as unapplied" from the Jobs page: remove the user's applications linked to a job so
+ * it returns to Discover. Queued / pending / failed follow-ups for those applications are
+ * dismissed (never sent), then each application is deleted like a tracker delete (its
+ * events go, so dashboard counts drop; cover letters, people and follow-ups are kept but
+ * unlinked). Returns how many applications and follow-ups were affected.
+ */
+export async function unapplyJob(
+  userId: string,
+  jobId: string,
+): Promise<{ applications: number; cancelledFollowUps: number }> {
+  await ensureAppSchema();
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT id FROM applications WHERE user_id = ${userId} AND job_id = ${jobId}
+    UNION
+    SELECT s.application_id AS id FROM user_job_state s
+    JOIN applications a ON a.id = s.application_id AND a.user_id = ${userId}
+    WHERE s.user_id = ${userId} AND s.job_id = ${jobId}
+  `) as Array<{ id: string }>;
+  const now = new Date().toISOString();
+  let cancelledFollowUps = 0;
+  for (const { id } of rows) {
+    const cancelled = (await sql`
+      UPDATE follow_up_tasks SET status = 'dismissed', updated_at = ${now}
+      WHERE user_id = ${userId} AND application_id = ${id}
+        AND status IN ('pending', 'queued', 'failed')
+      RETURNING id
+    `) as Array<{ id: string }>;
+    cancelledFollowUps += cancelled.length;
+    await deleteApplication(userId, id);
+  }
+  await sql`
+    UPDATE user_job_state SET application_id = NULL, ignored = 0, updated_at = ${now}
+    WHERE user_id = ${userId} AND job_id = ${jobId}
+  `;
+  return { applications: rows.length, cancelledFollowUps };
+}
