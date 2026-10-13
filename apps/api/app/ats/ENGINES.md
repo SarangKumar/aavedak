@@ -156,3 +156,11 @@ No engine score is a plain average of its sub-metrics, except where the vendor d
 - **OSS engines** — upstream weights (see each section).
 
 The cross-engine **Final score** in the web app is weighted by engine type — see `apps/web/WEB.md`.
+
+## Experience in job matching
+
+ATS scoring calibrates checks to the profile's `years_experience` (level bands). Job
+recommendations use the same number separately: discovery shows jobs whose minimum required
+years is within `[0, years_experience + experience_window_years]` (default +2; no stated
+requirement is included) and boosts jobs closest to the user's level. See
+`app/discovery/DISCOVERY.md` → "Matching".

@@ -254,7 +254,7 @@ def test_expiry_rejects_early_applications_once(conn, settings):
                     VALUES ('manual1', 'u1', 'Old manual', 'X', 'Y', %s, %s, '2020-01-01T00:00:00.000Z')""", (now, now))
 
     result = expiry.run_expiry(conn, settings)
-    assert result == {"jobsExpired": 1, "applicationsRejected": 1}
+    assert result == {"jobsExpired": 1, "applicationsRejected": 1, "jobsCompacted": 0}
     rows = {r["id"]: r for r in conn.execute("SELECT id, status, status_reason FROM applications").fetchall()}
     assert rows["app_applied"]["status"] == "rejected" and rows["app_applied"]["status_reason"] == "job_expired"
     assert rows["app_interview"]["status"] == "interview"
@@ -262,7 +262,7 @@ def test_expiry_rejects_early_applications_once(conn, settings):
 
     # User reopens → never re-rejected; re-running is a no-op.
     conn.execute("UPDATE applications SET status = 'applied' WHERE id = 'app_applied'")
-    assert expiry.run_expiry(conn, settings) == {"jobsExpired": 0, "applicationsRejected": 0}
+    assert expiry.run_expiry(conn, settings) == {"jobsExpired": 0, "applicationsRejected": 0, "jobsCompacted": 0}
     events = conn.execute("SELECT COUNT(*) AS n FROM application_events WHERE application_id = 'app_applied'").fetchone()
     assert events["n"] == 1
 

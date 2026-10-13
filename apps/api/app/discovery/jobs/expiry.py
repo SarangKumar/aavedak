@@ -91,5 +91,27 @@ def prune_filled_jobs(conn: psycopg.Connection) -> int:
     return cur.rowcount or 0
 
 
+# Expired / closed shared jobs keep their row (dedupe, history) but drop the description
+# after this many days unless someone applied to them — keeps the worldwide pool inside
+# Neon's free 0.5 GB.
+COMPACT_AFTER_DAYS = 7
+
+
+def compact_dead_jobs(conn: psycopg.Connection) -> int:
+    cur = conn.execute(
+        """UPDATE jobs j SET description = '', description_raw = NULL
+           WHERE j.user_id IS NULL AND (j.description <> '' OR j.description_raw IS NOT NULL)
+             AND COALESCE(j.expired_at, j.closed_at) IS NOT NULL
+             AND COALESCE(j.expired_at, j.closed_at) < %s
+             AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.job_id = j.id)""",
+        (expiry_cutoff_iso(COMPACT_AFTER_DAYS),),
+    )
+    return cur.rowcount or 0
+
+
 def run_expiry(conn: psycopg.Connection, settings: DiscoverySettings) -> dict[str, int]:
-    return {"jobsExpired": expire_jobs(conn, settings), "applicationsRejected": reject_expired_applications(conn)}
+    return {
+        "jobsExpired": expire_jobs(conn, settings),
+        "applicationsRejected": reject_expired_applications(conn),
+        "jobsCompacted": compact_dead_jobs(conn),
+    }

@@ -7,18 +7,27 @@ forwards admin actions to `/svc/v1/discovery/admin/*` after its own allowlist ch
 
 ## Scope (product decisions)
 
-- **India or remote-open-to-India**, **tech roles**, junior: stated minimum experience
-  `< JUNIOR_MAX_YEARS_EXCLUSIVE` (default 3). Location (`filters.is_india_eligible`): an
-  Indian city/state/tech park (common misspellings included), or a remote posting whose
-  region includes India (worldwide / anywhere / global / APAC / Asia; not South-East or
-  other Asian sub-regions). A bare "Remote" or a non-Indian country code is not enough.
+- **Worldwide tech roles, India first.** Every tech posting is stored wherever it is; each
+  gets `jobs.region` (`filters.job_region`): `india` (Indian city/state/tech park, common
+  misspellings included), `india_remote` (remote open to India: worldwide / anywhere /
+  global / APAC / Asia, not other Asian sub-regions), `remote` (remote tied elsewhere or
+  unstated) or `global` (on-site/hybrid outside India), plus `jobs.country_code` (ISO, from
+  the canonical city or a single named country). Ranking and the Jobs page put India first.
+  SmartRecruiters lists are still requested with `country=in` (its descriptions need one
+  detail call per posting, capped per company).
+- **Experience is matched per user, not filtered at ingest.** `filters.years_required`
+  stores the stated minimum (`jobs.min_years`) and, for an explicit range, the maximum
+  (`jobs.max_years`); with nothing stated, a Senior/Lead/level-III title implies 5 and
+  Staff/Principal/Architect 8. Ingest skips only executive titles (director, head, VP,
+  manager, chief…) and roles above `ingest_max_min_years` (10). Postings already older than
+  `job_expiry_days` are skipped (`too_old`).
   Roles (`filters.is_engineering_title`): every engineering title in any discipline (any
   title containing "engineer", plus MTS, GET, software trainee, technology analyst,
   full-stack/frontend/backend) plus data &
   analytics, ML/AI, QA/testing, IT & infrastructure, security, UI/UX/product design, and
   associate product manager / product analyst. Matching uses explicit phrases, so generic
   "analyst" / "scientist" / "designer" titles stay out. Skip reasons keep their names
-  (`not_india`, `not_engineering`). Internships excluded unless
+  (`not_engineering`, `senior_title`, `experience`, `too_old`). Internships excluded unless
   `include_internships = True` (config.py). Filters run **before** anything is written, so the database only
   holds relevant jobs; skipped postings are only counted per reason.
 - Sources: public ATS posting APIs (Greenhouse, Lever, Ashby, SmartRecruiters, Workable),
@@ -68,7 +77,7 @@ app/discovery/
   jobs/
     models.py    SourceTarget, RawPosting, NormalizedJob, FetchResult
     providers/   one module per source; pure parse() + fetch(); detect_source(url)
-    filters.py   India-or-remote / tech role / junior / experience parsing (pure)
+    filters.py   region / tech role / executive / experience parsing (pure)
     salary.py    stated salary / stipend from provider pay data or labelled text (pure)
     email_extractor.py  pull published emails from posting text; pick one application inbox (pure)
     normalize.py RawPosting → NormalizedJob + content hash + dedupe key + apply_email
@@ -273,6 +282,17 @@ run also closes leftover v1 `people_discover_company` items. Admin: "Discover pe
 Item counts: `created`, `enriched`, `unchanged`, `ambiguous`, per-source counts,
 `emailsPublished`, `emailsInferred`, `pages`, `requests`.
 
+## People location
+
+Each person's raw `location` (GitHub profile, Apollo, a LinkedIn search snippet's
+"Location: …" / leading place) is normalized with the canonical locations into
+`people.location_city` ("City, Country") and `people.country_code`; rows stored earlier are
+backfilled (1,000 per discovery run, idempotent). For a job's "People at company" and the
+referrals composer, people are ordered same city → same country → unknown → other country
+(still shown, labelled "Other country"; web `lib/people-proximity.ts`). Discovery does not
+yet bias which GitHub members it fetches by country: member listings carry no location, so
+that would cost extra profile calls.
+
 ## Schema
 
 Pipeline tables (`company_sources`, `job_sources`, `discovery_runs`,
@@ -315,6 +335,26 @@ cd apps/api
 # SQL paths need a disposable Postgres (superuser URL; a temp database is created per module):
 TEST_DATABASE_URL=postgresql://... .venv/bin/python -m pytest tests/test_discovery_db.py -q
 ```
+
+## Matching (experience window, India first)
+
+`ranking.recommend` offers a user only jobs whose `min_years` is NULL or at most
+`years_experience + experience_window_years` (2; a profile without years counts as
+`default_years_experience` = 0). So 0 YOE sees fresher to 2-year roles, 2 YOE sees up to 4. The pool query orders India → India-remote → remote → global before recency, so a large
+worldwide pool cannot crowd Indian roles out of `POOL_LIMIT`. The stored ranking value
+(`user_job_state.score`) is the match score plus an experience closeness bonus (0–10, highest
+when `min_years` equals the user's years; unstated = 5) plus a region bonus (India 12,
+India-remote 9, remote 4, global 0). `reasons_json.match` keeps the plain match score, which is
+what the UI shows. Re-rank drops open recommendations now outside the window. The Jobs page's
+Region menu (`?region=`) defaults to **India first**; India only, Outside India and All regions
+are the other views.
+
+## Storage (Neon free 0.5 GB)
+
+Descriptions are HTML-stripped, boilerplate-stripped and capped at 12,000 characters
+(`normalize.MAX_DESCRIPTION`); discovered jobs keep no `description_raw`. `/cron/expire` also
+empties the description of shared jobs expired or closed for 7+ days that nobody applied to
+(`expiry.compact_dead_jobs`); the row stays for dedupe and history (~1 KB).
 
 ## Career change re-rank
 

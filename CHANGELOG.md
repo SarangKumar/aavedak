@@ -11,10 +11,16 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Fixed
 
+- **Database size** — Job descriptions are capped at 12,000 characters, discovered jobs no longer keep a second raw copy, and descriptions of jobs that expired or closed over a week ago (and that nobody applied to) are cleared, so the worldwide job pool stays within Neon's free 0.5 GB.
 - **Admin — Runs chart** — The chart showed only the days that had discoveries, so 1M, 3M, 6M and 12M looked the same. Now every India-time day in the range appears on the x-axis, with 0 for quiet days, including days before the site existed. Every run kind gets a line even when it found nothing. A 1W option was added, and month ranges are calendar months ending today.
 - **Pickers inside dialogs** — Date pickers, location and company lists, dropdowns, tooltips and hover cards now open on top of dialogs and side drawers (such as Add job and the admin job editor), not behind them. Pressing Escape in an open picker now closes just the picker, not the whole dialog.
 
 ### Added
+
+- **Jobs worldwide, India first** — Discovery now stores tech jobs from every country, not only India and India-open remote roles. Each job records its region and country. Recommendations and the Jobs page put Indian roles first, then remote roles open to India, then other remote and global roles. A new Region menu on Jobs (India first, India only, Outside India, All regions) defaults to India first. The 1-month posted cap and expiry are unchanged; postings already older than a month are not stored.
+- **Experience matched to you** — The fixed "under 3 years" filter is gone. Each job stores its required years (minimum, and maximum when a range is stated; Senior titles count as 5+ and Staff/Principal as 8+ when nothing is stated). You are shown jobs needing up to your years of experience plus 2 (0 years: fresher to 2-year roles; 2 years: up to 4), plus jobs that state no requirement, and jobs closest to your level rank higher. Profiles without years count as 0. Badges show ranges like "2–4 yrs".
+- **Globe shows the world** — The homepage globe plots openings in every country and slowly turns all the way round (it still starts on India). 63 global tech hubs (San Francisco, Seattle, Amsterdam, Dublin, Zurich, Tel Aviv, …) were added to the canonical locations from GeoNames, with no duplicates.
+- **People near the job** — People discovery saves each person's city and country (from GitHub profiles, LinkedIn search snippets and Apollo). In a job's "People at company" and in Referrals, people in the same city come first, then the same country; people in other countries are listed last and labelled. Their location is shown.
 
 - **Company registry: 170 → 804 companies** — The jobs scan now covers 804 companies with public job boards (Greenhouse 365, Ashby 317, Lever 88, SmartRecruiters 34), every board checked live against the provider's public API on 2026-10-13; dead or empty boards were dropped. New seed companies are added to the existing database automatically on the next scan, with no duplicates by board or company name. Scan and drain crons now get a 240 s budget (under Vercel's 300 s) and fetch 10 companies at a time, so the full list is still scanned every day with the existing crons.
 
