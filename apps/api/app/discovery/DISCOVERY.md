@@ -233,7 +233,18 @@ domain must have MX records (DNS-over-HTTPS via dns.google; no SMTP probing). In
 addresses are stored only in `person_contacts` with `verification = 'inferred'` and a
 confidence (≤ 70), never in `people.email` (so outreach never sends to a guess) and never
 `verified` (`merge.add_contact` refuses it). Personal email/phone are kept only when published
-by the person/company or reported by a provider. Patterns live in `company_email_patterns`.
+by the person/company or reported by a provider. Patterns live in `company_email_patterns`
+(per domain) and are mirrored onto the company record (`companies.email_pattern`,
+`email_pattern_domain`, `_confidence`, `_evidence`, `_source`, `_updated_at`). A weaker result
+(lower confidence, or equal confidence with fewer supporting emails) never overwrites a stronger
+one. The Jobs detail view shows it as "Email format: first.last@domain".
+
+**GitHub commit emails** (`sources/github.py`): for a public org member with no public profile
+email, we read `GET /users/{login}/events/public` and take a PushEvent commit author email
+(company domain first, else an author name that matches the profile; `noreply` skipped). If the
+payload has no commit list, one `GET /repos/{repo}/commits/{sha}` is made. At most 2 extra requests
+per member, behind the same `GitHubGuard`, and only while 10+ requests of the per-company budget
+remain. Counted as `githubCommitEmails` in run counts.
 
 **Merge** (`merge.py`): LinkedIn → email → GitHub login → name + company (conflicting
 identifiers are never merged; counted `ambiguous`). Fill-empty only, so user-entered data

@@ -119,14 +119,37 @@ def _known_evidence(conn: psycopg.Connection, company_id: str, domain: str) -> l
     return [(r["name"], r["email"]) for r in rows]
 
 
-def _store_pattern(conn: psycopg.Connection, domain: str, pattern: str, count: int, confidence: int, source: str, mx_ok: bool | None) -> None:
+def _store_pattern(
+    conn: psycopg.Connection, company_id: str, domain: str, pattern: str, count: int, confidence: int,
+    source: str, mx_ok: bool | None,
+) -> None:
+    """Persist the domain's pattern and mirror it onto the company. A weaker guess (lower
+    confidence, or equal confidence with less evidence) never replaces a stronger one."""
     conn.execute(
         """INSERT INTO company_email_patterns (domain, pattern, evidence_count, confidence, source, mx_ok, updated_at)
            VALUES (%s, %s, %s, %s, %s, %s, %s)
            ON CONFLICT (domain) DO UPDATE SET pattern = EXCLUDED.pattern, evidence_count = EXCLUDED.evidence_count,
              confidence = EXCLUDED.confidence, source = EXCLUDED.source, mx_ok = EXCLUDED.mx_ok,
-             updated_at = EXCLUDED.updated_at""",
+             updated_at = EXCLUDED.updated_at
+           WHERE EXCLUDED.confidence > company_email_patterns.confidence
+              OR (EXCLUDED.confidence = company_email_patterns.confidence
+                  AND EXCLUDED.evidence_count >= company_email_patterns.evidence_count)""",
         (domain, pattern, count, confidence, source, None if mx_ok is None else int(mx_ok), now_iso()),
+    )
+    sync_company_pattern(conn, company_id, domain)
+
+
+def sync_company_pattern(conn: psycopg.Connection, company_id: str, domain: str) -> None:
+    """Copy the domain's best stored pattern onto the company record."""
+    conn.execute(
+        """UPDATE companies c SET email_pattern = p.pattern, email_pattern_domain = p.domain,
+             email_pattern_confidence = p.confidence, email_pattern_evidence = p.evidence_count,
+             email_pattern_source = p.source, email_pattern_updated_at = p.updated_at
+           FROM company_email_patterns p
+           WHERE c.id = %s AND p.domain = %s
+             AND (c.email_pattern_confidence IS NULL OR c.email_pattern_domain = p.domain
+                  OR p.confidence >= c.email_pattern_confidence)""",
+        (company_id, domain),
     )
 
 
@@ -157,7 +180,7 @@ def discover_company(
     conn: psycopg.Connection, settings: DiscoverySettings, fetcher: Fetcher, company_id: str, company_name: str
 ) -> tuple[dict[str, Any], str | None, str | None]:
     """Collect and merge people for one company. Returns (counts, domain, github org)."""
-    counts: dict[str, Any] = {"skippedNoEmail": 0,
+    counts: dict[str, Any] = {"skippedNoEmail": 0, "githubCommitEmails": 0,
         "created": 0, "enriched": 0, "unchanged": 0, "ambiguous": 0,
         "site": 0, "github": 0, "search": 0, "hunter": 0, "apollo": 0,
         "emailsPublished": 0, "emailsInferred": 0, "inbox": 0, "pages": 0, "requests": 0, "relevanceLinks": 0,
@@ -188,7 +211,8 @@ def discover_company(
             domain = domain or found[1]
     if org and not fetcher.exhausted:
         members = github.members(fetcher, token=settings.github_token or None, org=org, company=company_name,
-                                 limit=settings.people_github_members, guard=guard)
+                                 limit=settings.people_github_members, guard=guard, domain=domain,
+                                 stats=counts)
         candidates += members
         counts["github"] = len(members)
 
@@ -237,7 +261,7 @@ def discover_company(
                     if address:
                         cand.email, cand.email_status = address, "inferred"
                         cand.email_confidence = emails.inferred_confidence(pattern_conf, mx_ok)
-            _store_pattern(conn, domain, pattern, count, pattern_conf, pattern_source, mx_ok)
+            _store_pattern(conn, company_id, domain, pattern, count, pattern_conf, pattern_source, mx_ok)
 
     inbox_options = [(e, "job_posting", None) for e in _published_job_emails(conn, company_id)]
     if site_result.inbox:

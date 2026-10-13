@@ -13,6 +13,8 @@ from app.discovery.people.fetch import Fetcher
 from app.discovery.people.quota import GitHubGuard
 
 API = "https://api.github.com"
+# Keep this many requests of the per-company budget for search + MX after commit lookups.
+COMMIT_LOOKUP_HEADROOM = 10
 
 
 def _headers(token: str | None) -> dict[str, str]:
@@ -69,7 +71,7 @@ def find_org(
 
 def members(
     fetcher: Fetcher, *, token: str | None, org: str, company: str, limit: int = 12,
-    guard: GitHubGuard | None = None,
+    guard: GitHubGuard | None = None, domain: str | None = None, stats: dict | None = None,
 ) -> list[Candidate]:
     if guard and not guard.available():
         return []
@@ -115,5 +117,69 @@ def members(
         email = (user.get("email") or "").strip().lower()
         if email:  # the user chose to make this public on their profile
             cand.email, cand.email_status, cand.email_confidence = email, "published", base
+        elif fetcher.budget - fetcher.used > COMMIT_LOOKUP_HEADROOM and (not guard or guard.available()):
+            commit_email = commit_author_email(fetcher, token=token, login=login, name=name, domain=domain, guard=guard)
+            if commit_email:
+                cand.email, cand.email_status, cand.email_confidence = commit_email, "published", base - 10
+                if stats is not None:
+                    stats["githubCommitEmails"] = stats.get("githubCommitEmails", 0) + 1
         out.append(cand)
     return out
+
+
+def _usable_commit_email(email: str) -> bool:
+    email = email.strip().lower()
+    return bool(email) and "@" in email and "noreply" not in email and not email.endswith(
+        ("@localhost", ".local", "@example.com", "@users.github.com")
+    )
+
+
+def pick_commit_email(authors: list[tuple[str, str]], *, name: str, domain: str | None) -> str | None:
+    """From (author name, author email) pairs, prefer an address on the company domain,
+    then one whose author name matches the profile name. Noreply addresses are skipped. Pure."""
+    name_key = re.sub(r"[^a-z]", "", name.lower())
+    by_name: str | None = None
+    for author_name, email in authors:
+        email = (email or "").strip().lower()
+        if not _usable_commit_email(email):
+            continue
+        if domain and email.endswith("@" + domain.lower()):
+            return email
+        if by_name is None and name_key and re.sub(r"[^a-z]", "", (author_name or "").lower()) == name_key:
+            by_name = email
+    return by_name
+
+
+def commit_author_email(
+    fetcher: Fetcher, *, token: str | None, login: str, name: str, domain: str | None,
+    guard: GitHubGuard | None = None,
+) -> str | None:
+    """Author email from the member's recent public pushes (at most 2 requests). Uses the
+    commit list in PushEvent payloads, or one commit lookup when the payload omits it."""
+    events = fetcher.api("GET", f"{API}/users/{login}/events/public", headers=_headers(token), params={"per_page": 30})
+    if guard:
+        guard.observe(fetcher.last_status, fetcher.last_headers)
+    if not isinstance(events, list):
+        return None
+    authors: list[tuple[str, str]] = []
+    head_lookup: tuple[str, str] | None = None
+    for ev in events:
+        if not isinstance(ev, dict) or ev.get("type") != "PushEvent":
+            continue
+        payload = ev.get("payload") or {}
+        for commit in payload.get("commits") or []:
+            author = (commit or {}).get("author") or {}
+            authors.append((author.get("name") or "", author.get("email") or ""))
+        repo = (ev.get("repo") or {}).get("name")
+        if head_lookup is None and repo and payload.get("head"):
+            head_lookup = (repo, payload["head"])
+    found = pick_commit_email(authors, name=name, domain=domain)
+    if found or head_lookup is None or fetcher.exhausted or (guard and not guard.available()):
+        return found
+    commit = fetcher.api("GET", f"{API}/repos/{head_lookup[0]}/commits/{head_lookup[1]}", headers=_headers(token))
+    if guard:
+        guard.observe(fetcher.last_status, fetcher.last_headers)
+    if not isinstance(commit, dict):
+        return None
+    author = ((commit.get("commit") or {}).get("author")) or {}
+    return pick_commit_email([(author.get("name") or "", author.get("email") or "")], name=name, domain=domain)

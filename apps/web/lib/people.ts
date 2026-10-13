@@ -413,3 +413,58 @@ export async function listPeopleForJob(
     .sort((a, b) => b.relevanceScore - a.relevanceScore || voteScore(b.votes) - voteScore(a.votes))
     .slice(0, limit);
 }
+
+export type CompanyEmailPattern = {
+  /** e.g. "{first}.{last}" */
+  pattern: string;
+  domain: string;
+  /** e.g. "first.last@stripe.com" */
+  example: string;
+  confidence: number;
+  evidence: number;
+  source: string;
+  updatedAt: string | null;
+};
+
+/** Human template for a stored pattern: "{first}.{last}" → "first.last". */
+export function patternTemplate(pattern: string): string {
+  return pattern.replace(/[{}]/g, "");
+}
+
+/** Learned email format for the job's company (from people discovery), if any. */
+export async function getEmailPatternForJob(
+  userId: string,
+  jobId: string,
+): Promise<CompanyEmailPattern | null> {
+  await ensureAppSchema();
+  try {
+    const rows = (await getSql()`
+      SELECT c.email_pattern, c.email_pattern_domain, c.email_pattern_confidence,
+             c.email_pattern_evidence, c.email_pattern_source, c.email_pattern_updated_at
+      FROM jobs j JOIN companies c ON c.id = j.company_id
+      WHERE j.id = ${jobId} AND (j.user_id IS NULL OR j.user_id = ${userId})
+        AND c.email_pattern IS NOT NULL AND c.email_pattern_domain IS NOT NULL
+      LIMIT 1
+    `) as Array<{
+      email_pattern: string;
+      email_pattern_domain: string;
+      email_pattern_confidence: number | null;
+      email_pattern_evidence: number | null;
+      email_pattern_source: string | null;
+      email_pattern_updated_at: string | null;
+    }>;
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      pattern: row.email_pattern,
+      domain: row.email_pattern_domain,
+      example: `${patternTemplate(row.email_pattern)}@${row.email_pattern_domain}`,
+      confidence: row.email_pattern_confidence ?? 0,
+      evidence: row.email_pattern_evidence ?? 0,
+      source: row.email_pattern_source ?? "evidence",
+      updatedAt: row.email_pattern_updated_at,
+    };
+  } catch {
+    return null;
+  }
+}

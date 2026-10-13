@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
-import { listPeopleForJob } from "@/lib/people";
+import { getEmailPatternForJob, listPeopleForJob } from "@/lib/people";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -10,8 +10,12 @@ export async function GET(_request: Request, ctx: Ctx) {
   const auth = await requireApiUser();
   if (auth.error) return auth.error;
   const { id } = await ctx.params;
-  const people = await listPeopleForJob(auth.user.id, id);
+  const [people, emailPattern] = await Promise.all([
+    listPeopleForJob(auth.user.id, id),
+    getEmailPatternForJob(auth.user.id, id),
+  ]);
   return NextResponse.json({
+    emailPattern,
     people: people.map((p) => ({
       id: p.id,
       name: p.name,

@@ -73,6 +73,12 @@ SHARED_STATEMENTS: tuple[str, ...] = (
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS phone TEXT",
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS confidence INTEGER",
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS last_seen_at TEXT",
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern TEXT",
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern_domain TEXT",
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern_confidence INTEGER",
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern_evidence INTEGER",
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern_source TEXT",
+    "ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern_updated_at TEXT",
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS discovery_source TEXT",
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS github_login TEXT",
     """CREATE UNIQUE INDEX IF NOT EXISTS people_github_login_uidx

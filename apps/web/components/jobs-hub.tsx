@@ -66,6 +66,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
 import { STATUS_LABELS, isApplicationStatus } from "@/lib/application-status";
 import { ATS_ENGINES } from "@/lib/ats-engines/registry";
@@ -121,6 +122,16 @@ type JobsHubProps = {
   initialApplied: JobDto[];
   discoveryEnabled: boolean;
   profileSettingsHref: string;
+};
+
+type EmailPatternDto = {
+  pattern: string;
+  domain: string;
+  example: string;
+  confidence: number;
+  evidence: number;
+  source: string;
+  updatedAt: string | null;
 };
 
 type JobPersonDto = {
@@ -1866,17 +1877,62 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
   );
 }
 
+/** The company's learned email format, so the user can build addresses for people found on LinkedIn. */
+function EmailPatternLine({ pattern }: { pattern: EmailPatternDto | null }) {
+  if (!pattern) {
+    return <p className="text-muted-foreground text-[11px]">Email format: Unknown</p>;
+  }
+  const level = pattern.confidence >= 70 ? "High" : pattern.confidence >= 45 ? "Medium" : "Low";
+  const basis =
+    pattern.source === "hunter"
+      ? "from Hunter"
+      : `from ${pattern.evidence} known email${pattern.evidence === 1 ? "" : "s"}`;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+      <span className="text-muted-foreground">Email format:</span>
+      <code className="text-foreground bg-muted rounded px-1 py-0.5 text-[11px]">
+        {pattern.example}
+      </code>
+      <Tooltip
+        content={`Learned ${basis}. Replace first/last with the person's name; a guess, not a verified address.`}
+      >
+        <Badge variant="outline" className="cursor-default px-1 py-0 text-[9px]">
+          {level} · {pattern.confidence}%
+        </Badge>
+      </Tooltip>
+      <Button
+        type="button"
+        size="icon-xs"
+        variant="ghost"
+        aria-label="Copy email format"
+        title="Copy email format"
+        onClick={() => {
+          void navigator.clipboard.writeText(pattern.example).then(
+            () => toast.add({ title: "Email format copied", type: "success" }),
+            () => toast.add({ title: "Could not copy", type: "error" }),
+          );
+        }}
+      >
+        <CopyIcon />
+      </Button>
+    </div>
+  );
+}
+
 /** People at the job's company, for a referral ask (relevance first, then community votes). */
 function JobPeople({ jobId, company }: { jobId: string; company: string }) {
   const [people, setPeople] = useState<JobPersonDto[] | null>(null);
+  const [pattern, setPattern] = useState<EmailPatternDto | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/jobs/${jobId}/people`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("failed"))))
-      .then((data: { people: JobPersonDto[] }) => {
-        if (!cancelled) setPeople(data.people);
+      .then((data: { people: JobPersonDto[]; emailPattern?: EmailPatternDto | null }) => {
+        if (cancelled) return;
+        setPeople(data.people);
+        setPattern(data.emailPattern ?? null);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -1889,6 +1945,7 @@ function JobPeople({ jobId, company }: { jobId: string; company: string }) {
   return (
     <Card className="gap-2">
       <SectionTitle>People at {company}</SectionTitle>
+      {people !== null ? <EmailPatternLine pattern={pattern} /> : null}
       {failed ? (
         <p className="text-muted-foreground text-[12px]">Could not load people.</p>
       ) : people === null ? (

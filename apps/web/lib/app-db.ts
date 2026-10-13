@@ -449,6 +449,19 @@ async function runDiscoverySchema(db: NeonQueryFunction<false, false>) {
   await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS phone TEXT`;
   await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS confidence INTEGER`;
   await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS last_seen_at TEXT`;
+  await db`ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern TEXT`;
+  await db`ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern_domain TEXT`;
+  await db`ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern_confidence INTEGER`;
+  await db`ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern_evidence INTEGER`;
+  await db`ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern_source TEXT`;
+  await db`ALTER TABLE companies ADD COLUMN IF NOT EXISTS email_pattern_updated_at TEXT`;
+  await db`DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM people WHERE user_id IS NULL AND email IS NOT NULL
+                   GROUP BY lower(email) HAVING count(*) > 1) THEN
+      CREATE UNIQUE INDEX IF NOT EXISTS people_shared_email_uidx
+        ON people (lower(email)) WHERE user_id IS NULL AND email IS NOT NULL;
+    END IF;
+  END $$`;
   await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS discovery_source TEXT`;
   await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS github_login TEXT`;
   await db`CREATE UNIQUE INDEX IF NOT EXISTS people_github_login_uidx
