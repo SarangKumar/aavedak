@@ -20,6 +20,7 @@ import {
   type DashboardMatch,
 } from "@/lib/dashboard";
 import type { FollowUpRecord } from "@/lib/follow-ups";
+import { StatusBadge } from "@/components/status-badge";
 import { ApplicationAgingChart } from "@/components/application-aging-chart";
 import { JOB_CARD_BADGE, JobCardContent, jobCardClassName } from "@/components/job-card";
 import { cn } from "@/lib/utils";
@@ -479,7 +480,6 @@ export async function AgingCard({ userId }: { userId: string }) {
   const chart = AGING_BUCKETS.map((b, i) => ({
     label: b.label,
     count: aging.buckets[i] ?? 0,
-    overdue: b.min > FOLLOW_UP_AFTER_DAYS,
   }));
   return (
     <Card role="region" aria-labelledby="aging-heading" className="gap-3">
@@ -516,16 +516,17 @@ export async function AgingCard({ userId }: { userId: string }) {
                     <p className="text-foreground truncate text-[13px] font-medium">
                       {app.companyName}
                     </p>
-                    <p className="text-muted-foreground truncate text-[11px]">
-                      {app.role} · {STATUS_LABELS[app.status]}
-                    </p>
+                    <p className="text-muted-foreground truncate text-[11px]">{app.role}</p>
                   </div>
-                  <Badge
-                    variant={app.daysSinceApplied > 30 ? "destructive" : "secondary"}
-                    className="shrink-0 text-[10px] tabular-nums"
-                  >
-                    {app.daysSinceApplied}d
-                  </Badge>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <StatusBadge status={app.status} className="text-[10px]" />
+                    <Badge
+                      variant={app.daysSinceApplied > 30 ? "destructive" : "secondary"}
+                      className="text-[10px] tabular-nums"
+                    >
+                      {app.daysSinceApplied}d
+                    </Badge>
+                  </div>
                 </Link>
               </li>
             ))}

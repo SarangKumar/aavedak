@@ -11,6 +11,8 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Fixed
 
+- **Needs a follow-up card polish** — The aging chart is now horizontal bars (age buckets down the side), all in the primary colour. Each listed application shows a status badge with its own icon (new shared `StatusBadge`, lucide icons). The badge uses a new `inverted` Badge variant (foreground fill, background-coloured text).
+
 - **Dashboard Pipeline health** — "Pipeline by status" (which repeated the Conversion funnel) is replaced by **Needs a follow-up**. It covers applications in Applied / Under review with no reply, shown as a bar chart by days since applied (0–7, 8–14, 15–30, 30+). It shows how many are past 7 days with no follow-up queued or sent that week, and lists the 5 oldest (company · role · days). Each opens that application in the Job tracker (`/job-tracker?edit=<id>`), and a "Queue follow-ups" button links to Referrals. The Conversion funnel with response and offer rates stays.
 
 - **Slow cold starts** — Vercel functions (web and API) now run in Singapore (`sin1`), next to the Neon database, instead of US East. Web schema setup records a version (manual tag + hash of the setup code) in `schema_version` and skips its ~160 statements and data clean-ups when nothing changed: one query per cold start (~16 s → ~0.1 s locally). The API's discovery schema check does the same in one round trip. Signed-in pages load the profile and onboarding check in parallel.

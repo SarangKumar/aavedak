@@ -184,9 +184,12 @@ export function DashboardAgingSkeleton() {
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-3 w-64 max-w-full" />
       </div>
-      <div className="flex h-[120px] items-end gap-3 px-1">
-        {[70, 45, 30, 20].map((h, i) => (
-          <Skeleton key={i} className="flex-1 rounded-sm" style={{ height: `${h}%` }} />
+      <div className="flex h-[132px] flex-col justify-around gap-2">
+        {[70, 45, 30, 20].map((w, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Skeleton className="h-3 w-10 shrink-0" />
+            <Skeleton className="h-5 rounded-sm" style={{ width: `${w}%` }} />
+          </div>
         ))}
       </div>
       {Array.from({ length: 3 }).map((_, i) => (
