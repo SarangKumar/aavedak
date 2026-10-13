@@ -21,6 +21,8 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Fixed
 
+- **Jobscan, Teal and SkillSyncer engines** (reference profile 1.5) — "other keywords" now come from the JD's actual requirements (boilerplate, benefits and company pitch removed, skills not double-counted, ranked by frequency, plural/inflection-aware); soft skills match inflections; "Go" is recognised; "Professional Experience"-style headings are detected and education dates no longer count as jobs; Jobscan and SkillSyncer report "requires a job description" instead of a fake 0/100.
+
 - **People table** — Rebuilt on the Vinyaas DataTable.
   - Every column sorts. Search covers name, company, role, email, location, GitHub and source. 20 per page, and you can show or hide columns.
   - New Location column ("City, Country" from discovery's parsed `location_city` / `country_code`; "—" when unknown).

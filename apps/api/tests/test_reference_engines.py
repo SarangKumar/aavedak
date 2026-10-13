@@ -166,3 +166,63 @@ Python, SQL
     r = run_engine_profile(engine_id="enhancv_style", resume_text=resume, role="", jd_text="", resume_id="e2")
     labels = {m["label"]: m["value"] for m in r["metrics"]}
     assert labels["Repetition"] == "No issues"
+
+
+# ---------- keyword extraction / matching fixes (profile 1.5)
+
+import pytest  # noqa: E402
+
+from app.ats.engine_runner import run_engine_staged  # noqa: E402
+from app.ats.pipeline import EngineFailure as _EngineFailure  # noqa: E402
+from app.ats.reference_signals import (  # noqa: E402
+    extract_quality_signals,
+    extract_reference_signals,
+    go_count,
+    jd_keywords,
+)
+
+_NOISY_JD = """About the job
+We're a fast-growing fintech on a mission to make payments simple. Join our world-class team!
+
+What you'll do
+- Design and build scalable backend services and APIs in Python
+- Collaborate with product managers; mentor junior engineers
+
+Benefits
+- Competitive salary, health insurance, flexible work from home
+"""
+
+
+def test_jd_keywords_skip_boilerplate_and_skills():
+    kws = jd_keywords(_NOISY_JD)
+    for noise in ("salari", "insuranc", "mission", "fintech", "world", "python"):
+        assert noise not in kws
+    assert "backend" in kws and "servic" in kws
+
+
+def test_keywords_match_across_plurals_and_inflections():
+    s = extract_reference_signals("Built a backend service and an API; developed caching.", _NOISY_JD, "")
+    assert "servic" in s.resume_stems
+    assert {"collaboration", "mentoring"} <= set(s.soft_skills_jd)
+
+
+def test_go_language_detected_only_in_list_context():
+    assert go_count("Languages: Python, Go, SQL") == 1
+    assert go_count("Built services in Go and Python") == 1
+    assert go_count("Ready to go live; Go-to-market plan") == 0
+
+
+def test_education_dates_are_not_roles():
+    text = "EXPERIENCE\nAcme  Jan 2020 – Present\n• Built x\nEDUCATION\nB.Tech  2015 – 2019\n"
+    assert extract_quality_signals(text).roles == 1
+
+
+def test_professional_experience_heading_counts_as_section():
+    s = extract_reference_signals("Jane\nProfessional Experience\nAcme\nTechnical Skills\nPython\n")
+    assert {"experience", "skills"} <= set(s.sections)
+
+
+@pytest.mark.parametrize("engine", ["jobscan_style", "skillsyncer_style"])
+def test_jd_only_engines_fail_without_jd(engine):
+    with pytest.raises(_EngineFailure):
+        run_engine_staged(engine_id=engine, resume_text=SAMPLE_RESUME, role="Backend Engineer")

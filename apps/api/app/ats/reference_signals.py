@@ -91,18 +91,164 @@ def count_phrase(haystack: str, phrase: str) -> int:
     return len(re.findall(pat, haystack, flags=re.I))
 
 
+# The taxonomy leaves bare "go" out (it's an English verb). Vendors still recognise the language, so
+# count a capitalised "Go" only where it reads as a list item next to other terms:
+# "Python, Go, SQL", "in Go and Python", "Python or Go", "Python and/or Go", "Go/Rust".
+_GO_LANG = re.compile(
+    r"(?:^|[,/(:]|\b(?:in|and|or|with|and/or))\s*Go(?=\s*(?:[,/);]|\.?\s*$|\b(?:and|or)\b))",
+    re.M,
+)
+
+
+def go_count(text: str) -> int:
+    return len(_GO_LANG.findall(text or ""))
+
+
 def _find_hard(text: str) -> list[str]:
     lower = text.lower()
     found: list[str] = []
     for canonical, aliases in HARD_SKILL_ALIASES.items():
-        if any(count_phrase(lower, a) > 0 for a in aliases):
+        if any(count_phrase(lower, a) > 0 for a in aliases) or (canonical == "go" and go_count(text)):
             found.append(canonical)
     return found
 
 
+# Inflection-aware soft-skill patterns: "mentored" / "mentor" count for mentoring, "collaborated" for
+# collaboration, "communicating" for communication. Exact-phrase matching missed them on both sides.
+_SOFT_PATTERNS: dict[str, re.Pattern[str]] = {
+    "communication": re.compile(r"\bcommunicat(?:e|es|ed|ing|ion|ions|or)\b"),
+    "collaboration": re.compile(r"\bcollaborat(?:e|es|ed|ing|ion|ive)\b|\bcross-functional\b"),
+    "leadership": re.compile(r"\bleadership\b"),
+    "mentoring": re.compile(r"\bmentor(?:s|ed|ing|ship)?\b"),
+    "ownership": re.compile(r"\bownership\b"),
+    "teamwork": re.compile(r"\bteamwork\b|\bteam player\b"),
+    "stakeholder": re.compile(r"\bstakeholders?\b"),
+    "problem solving": re.compile(r"\bproblem[- ]solv(?:ing|er|e)\b"),
+    "agile": re.compile(r"\bagile\b"),
+    "scrum": re.compile(r"\bscrum\b"),
+}
+assert set(_SOFT_PATTERNS) == set(SOFT_TERMS)
+
+
 def _soft_hits(text: str) -> list[str]:
     lower = text.lower()
-    return [t for t in SOFT_TERMS if count_phrase(lower, t) > 0]
+    return [t for t in SOFT_TERMS if _SOFT_PATTERNS[t].search(lower)]
+
+
+# ── "Other keywords" (Jobscan / Teal / SkillSyncer) ─────────────────────────────────────────────
+# All three describe a third keyword bucket beside hard and soft skills: the JD's recurring words.
+# Built from the JD *after* removing hiring boilerplate (company pitch, benefits, EEO), excluding
+# words already counted as hard/soft skills, ranked by frequency, matched on stems so "APIs" meets
+# "API" and "services" meets "service".
+
+_BOILERPLATE_HEAD = re.compile(
+    r"^\s*(?:benefits|perks(?: and benefits)?|what we offer|why (?:join|work)|about (?:us|the company|the team)"
+    r"|who we are|our (?:culture|values|mission)|compensation|equal (?:opportunity|employment)|eeo)\b.*$",
+    re.I,
+)
+_KEEP_HEAD = re.compile(
+    r"^\s*(?:what you(?:'|’)?ll do|responsibilit|requirements?|qualifications?|what we(?:'|’)?re looking"
+    r"|you have|must have|nice to have|preferred|skills|about the role|the role|minimum|basic)\b",
+    re.I,
+)
+_KW_FILLER = frozenset(
+    """what what's whats we're were you'll youll your you're who how why when where which while within
+    make made build own join help world-class fast-growing mission future simple millions plus etc
+    across based like well new great best high highly level levels day days good able looking
+    familiarity proficiency equivalent understanding solid deep hands-on excellent strong""".split()
+)
+
+
+def jd_body(jd_text: str) -> str:
+    """JD without hiring boilerplate: cleaned by the discovery JD cleaner, then benefit / company /
+    EEO sections dropped (until the next requirements-type heading)."""
+    from app.discovery.jobs.jd_clean import strip_boilerplate
+
+    lines = strip_boilerplate(jd_text or "").splitlines()
+    # A short company pitch before the first duties/requirements heading is not about the job.
+    first_keep = next((i for i, ln in enumerate(lines) if _KEEP_HEAD.match(ln) and len(ln.split()) <= 6), None)
+    if first_keep is not None and sum(1 for ln in lines[:first_keep] if ln.strip()) <= 6:
+        lines = lines[first_keep:]
+    out: list[str] = []
+    skipping = False
+    for line in lines:
+        if _BOILERPLATE_HEAD.match(line) and len(line.split()) <= 6:
+            skipping = True
+            continue
+        if skipping and _KEEP_HEAD.match(line):
+            skipping = False
+        if not skipping:
+            out.append(line)
+    return "\n".join(out)
+
+
+def _kw_words(text: str) -> list[str]:
+    """Lowercase words; hyphenated compounds split unless the compound itself is filler."""
+    out: list[str] = []
+    for tok in re.findall(r"[a-z][a-z0-9+#]*(?:-[a-z0-9+#]+)*", (text or "").lower()):
+        if "-" in tok and tok in _KW_FILLER:
+            continue
+        out.extend(tok.split("-"))
+    return out
+
+
+def _kw_stem(w: str) -> str:
+    """Light stemmer for keyword matching: plurals, -ing/-ed/-ion/-ment, trailing e
+    (develop/developed/development, cache/caching, service/services all meet)."""
+    for suf in ("ments", "ment", "ings", "ing", "ions", "ion", "ed", "es", "s"):
+        if w.endswith(suf) and len(w) - len(suf) >= 4:
+            w = w[: -len(suf)]
+            break
+    return w[:-1] if w.endswith("e") and len(w) > 4 else w
+
+
+def _without_skills(text: str) -> str:
+    """Blank out hard- and soft-skill mentions so they aren't counted again as 'other' keywords."""
+    lower = (text or "").lower()
+    for aliases in HARD_SKILL_ALIASES.values():
+        for a in aliases:
+            lower = re.sub(rf"(?<![a-z0-9]){re.escape(a.lower())}(?![a-z0-9])", " ", lower)
+    for pat in _SOFT_PATTERNS.values():
+        lower = pat.sub(" ", lower)
+    return lower
+
+
+def jd_keywords(jd_text: str, role: str = "", limit: int = 25) -> list[str]:
+    """Top recurring JD words (stems), boilerplate and skills removed, most frequent first."""
+    from app.ats.text_similarity import ENGLISH_STOP_WORDS
+
+    body = _without_skills(jd_body(jd_text))
+    counts: dict[str, int] = {}
+    first: dict[str, int] = {}
+    for i, w in enumerate(_kw_words(body)):
+        if len(w) < 3 or w in STOP or w in ENGLISH_STOP_WORDS or w in _JD_FILLER or w in _KW_FILLER:
+            continue
+        st = _kw_stem(w)
+        counts[st] = counts.get(st, 0) + 1
+        first.setdefault(st, i)
+    ranked = sorted(counts, key=lambda k: (-counts[k], first[k]))
+    return ranked[:limit]
+
+
+def stem_counts(text: str) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for w in _kw_words(_without_skills(text)):
+        st = _kw_stem(w)
+        out[st] = out.get(st, 0) + 1
+    return out
+
+
+def keyword_points(jd_keywords: list[str], resume_text: str, jd_text: str, max_points: float) -> float:
+    """SkillSyncer-style frequency points for 'other' keywords, on stems (mirrors frequency_category_points)."""
+    if not jd_keywords:
+        return float(max_points)
+    jd_c, res_c = stem_counts(jd_body(jd_text)), stem_counts(resume_text)
+    share = max_points / len(jd_keywords)
+    return sum(min(1.0, res_c.get(k, 0) / max(1, jd_c.get(k, 1))) * share for k in jd_keywords)
+
+
+def resume_stems(resume_text: str) -> set[str]:
+    return {_kw_stem(w) for w in _kw_words(resume_text)}
 
 
 def _tokens(text: str) -> list[str]:
@@ -147,6 +293,8 @@ class ReferenceSignals:
     degree_jd: int
     jd_tokens: list[str]
     resume_tokens: list[str]
+    jd_keywords: list[str]  # boilerplate-free, skill-free, stemmed, most frequent first
+    resume_stems: set[str]
     stuffing: int
     resume_lower: str
     jd_lower: str
@@ -155,7 +303,7 @@ class ReferenceSignals:
 def extract_reference_signals(resume_text: str, jd_text: str = "", role: str = "") -> ReferenceSignals:
     text = resume_text or ""
     lower = text.lower()
-    jd_lower = f"{role}\n{jd_text}".lower()
+    jd_lower = f"{role}\n{jd_body(jd_text) if (jd_text or '').strip() else ''}".lower()
     lines = [l.strip() for l in text.split("\n") if len(l.strip()) >= 24]
     action_re = re.compile(
         r"^(built|developed|designed|implemented|led|owned|created|optimized|improved|"
@@ -166,15 +314,18 @@ def extract_reference_signals(resume_text: str, jd_text: str = "", role: str = "
     metric_bullets = sum(
         1 for l in lines if re.search(r"\d+(?:\.\d+)?%|\d+[kKmMbB]\+?|\bp\d{2}\b", l)
     )
+    # A heading is a short line naming the section, with up to two qualifiers in front
+    # ("Professional Experience", "Technical Skills", "Work History"-style PDF headings).
     sections = [
         s
         for s in ("experience", "education", "skills", "projects", "summary")
-        if re.search(rf"(?:^|\n)\s*{s}\b", text, re.I)
+        if re.search(rf"^\s*(?:[a-z&/]+\s+){{0,2}}{s}\s*:?\s*$", text, re.I | re.M)
     ]
     hard_resume = _find_hard(text)
-    hard_jd = _find_hard(f"{role}\n{jd_text}")
+    body = jd_body(jd_text) if (jd_text or "").strip() else ""
+    hard_jd = _find_hard(f"{role}\n{body}")
     soft_resume = _soft_hits(text)
-    soft_jd = _soft_hits(f"{role}\n{jd_text}")
+    soft_jd = _soft_hits(f"{role}\n{body}")
     role_norm = role.strip().lower()
     role_norm = re.sub(r"\s+", " ", role_norm)
     title_exact = len(role_norm) >= 3 and role_norm in lower
@@ -205,6 +356,8 @@ def extract_reference_signals(resume_text: str, jd_text: str = "", role: str = "
         degree_jd=degree_jd,
         jd_tokens=_tokens(jd_text),
         resume_tokens=_tokens(text),
+        jd_keywords=jd_keywords(jd_text, role) if body else [],
+        resume_stems=resume_stems(text),
         stuffing=stuffing,
         resume_lower=lower,
         jd_lower=jd_lower,
@@ -235,7 +388,9 @@ def frequency_category_points(
     jd_lower: str,
     max_points: float,
     aliases: dict[str, list[str]] | None = None,
+    go_counts: tuple[int, int] = (0, 0),
 ) -> tuple[float, list[str], list[str]]:
+    """`go_counts` = (JD, resume) counts of the bare Go language, from the original-case text."""
     unique = list(dict.fromkeys(t.lower() for t in terms))
     if not unique:
         return float(max_points), [], []
@@ -247,6 +402,9 @@ def frequency_category_points(
         phrases = (aliases or {}).get(term, [term])
         jd_count = max(1, sum(count_phrase(jd_lower, p) for p in phrases))
         resume_count = sum(count_phrase(resume_lower, p) for p in phrases)
+        if term == "go" and aliases is not None:  # bare "Go" needs the cased text
+            jd_count = max(jd_count, go_counts[0])
+            resume_count += go_counts[1]
         if resume_count <= 0:
             missing.append(term)
             continue
@@ -307,6 +465,31 @@ class QualitySignals:
     category_skill_lines: int
 
 
+_HEADING_LINE = re.compile(r"^\s*(?:[A-Za-z&/]+\s+){0,2}[A-Za-z&/]+\s*:?\s*$")
+_EDU_HEAD = re.compile(r"\b(?:education|academics?|certifications?|courses|coursework)\b", re.I)
+_SECTION_WORDS = re.compile(
+    r"\b(?:experience|employment|work|history|projects?|skills|summary|profile|achievements|awards|"
+    r"publications|volunteer|leadership|interests|languages)\b",
+    re.I,
+)
+
+
+def _without_education(text: str) -> str:
+    """Text minus Education / Certifications blocks, so degree dates aren't counted as jobs."""
+    out: list[str] = []
+    in_edu = False
+    for line in text.splitlines():
+        if _HEADING_LINE.match(line) and len(line.split()) <= 3:
+            if _EDU_HEAD.search(line):
+                in_edu = True
+                continue
+            if _SECTION_WORDS.search(line):
+                in_edu = False
+        if not in_edu:
+            out.append(line)
+    return "\n".join(out)
+
+
 def extract_quality_signals(text: str) -> QualitySignals:
     lines = [l for l in (text or "").split("\n") if l.strip()]
     bullets = [m.group(1) for l in lines if (m := _BULLET_MARKER.match(l))]
@@ -316,7 +499,7 @@ def extract_quality_signals(text: str) -> QualitySignals:
             l.strip() for l in lines
             if len(l.split()) >= 6 and not l.strip().endswith(":") and "@" not in l and not _DATE_RANGE.search(l)
         ]
-    roles = len(_DATE_RANGE.findall(text or ""))
+    roles = len(_DATE_RANGE.findall(_without_education(text or "")))
     lower = (text or "").lower()
     full = len(_FULL_MONTH_DATE.findall(text or ""))
     other = max(0, len(_ANY_MONTH_DATE.findall(text or "")) - full)
@@ -341,7 +524,7 @@ def hard_skill_frequencies(text: str) -> dict[str, int]:
     lower = (text or "").lower()
     out: dict[str, int] = {}
     for canonical, aliases in HARD_SKILL_ALIASES.items():
-        n = sum(count_phrase(lower, a) for a in aliases)
+        n = sum(count_phrase(lower, a) for a in aliases) + (go_count(text) if canonical == "go" else 0)
         if n:
             out[canonical] = n
     return out

@@ -8,6 +8,7 @@ from typing import Any
 
 from app.ats.analyze import _fingerprint, _label
 from app.ats.benchmark import COMMON_TYPOS, WEAK_OPENERS
+from app.ats.pipeline import MISSING_INPUT, EngineFailure
 from app.ats.seniority import level_band
 from app.ats.reference_signals import (
     HARD_SKILL_ALIASES,
@@ -18,7 +19,10 @@ from app.ats.reference_signals import (
     extract_reference_signals,
     frequency_category_points,
     hard_skill_frequencies,
+    go_count,
+    jd_body,
     jd_keyphrases,
+    keyword_points,
     keyphrase_coverage,
     pass_rate,
     weighted_pass,
@@ -35,7 +39,17 @@ from app.ats.reference_weights import (
     TEAL_CARD_WEIGHTS,
 )
 
-PROFILE_VERSION = "1.4"
+PROFILE_VERSION = "1.5"
+
+
+def _require_jd(engine: str, jd_text: str) -> None:
+    """Jobscan and SkillSyncer only score a resume against a job description."""
+    if not (jd_text or "").strip():
+        raise EngineFailure(MISSING_INPUT, f"{engine} requires a job description.")
+
+
+def _kw_coverage(s: ReferenceSignals) -> float:
+    return sum(1 for k in s.jd_keywords if k in s.resume_stems) / len(s.jd_keywords) if s.jd_keywords else 0.0
 
 
 def _skill_hits(resume: list[str], jd: list[str]) -> tuple[list[dict], list[dict]]:
@@ -112,7 +126,8 @@ def run_jobscan_style(resume_id: str, resume_text: str, role: str, jd_text: str)
     formatting are not part of it. Exact weights are not public (see JOBSCAN_WEIGHTS)."""
     s = extract_reference_signals(resume_text, jd_text, role)
     w = JOBSCAN_WEIGHTS
-    jd_freq = hard_skill_frequencies(f"{role}\n{jd_text}")
+    _require_jd("Jobscan", jd_text)
+    jd_freq = hard_skill_frequencies(f"{role}\n{jd_body(jd_text)}")
     rset = set(s.hard_skills_resume)
     # category -> (0..1 ratio, weight). Categories the job description doesn't ask for are left out
     # and the rest renormalised, like Jobscan recalculating over the remaining skills.
@@ -134,8 +149,8 @@ def run_jobscan_style(resume_id: str, resume_text: str, role: str, jd_text: str)
         parts["title"] = (1.0 if s.title_exact else 0.0, w["title"])
     if s.soft_skills_jd:
         parts["soft"] = (coverage(s.soft_skills_resume, s.soft_skills_jd), w["soft"])
-    if s.jd_tokens:
-        parts["other"] = (token_coverage(s.resume_tokens, s.jd_tokens), w["other"])
+    if s.jd_keywords:
+        parts["other"] = (_kw_coverage(s), w["other"])
     total_w = sum(wt for _, wt in parts.values())
     match = clamp(100 * sum(r * wt for r, wt in parts.values()) / total_w) if total_w else 0
 
@@ -329,11 +344,16 @@ def run_teal_style(
         # Teal: "Your match score reflects how many of the job's keywords appear in your resume" —
         # hard skills, soft skills and other keywords, no published weights → share of all surfaced keywords.
         hard = coverage(s.hard_skills_resume, s.hard_skills_jd) if s.hard_skills_jd else 1.0
-        toks = token_coverage(s.resume_tokens, s.jd_tokens[:30]) if s.jd_tokens else 1.0
+        toks = _kw_coverage(s) if s.jd_keywords else 1.0
         title = 1.0 if s.title_exact else s.title_hit
-        rset = set(s.hard_skills_resume) | set(s.soft_skills_resume) | set(s.resume_tokens)
-        keywords = list(dict.fromkeys([*s.hard_skills_jd, *s.soft_skills_jd, *s.jd_tokens[:30]]))
-        overall = clamp(100 * sum(1 for k in keywords if k in rset) / len(keywords)) if keywords else 0
+        # Each bucket matched on its own terms: canonical hard skills, soft-skill patterns, stems.
+        found = (
+            sum(1 for k in s.hard_skills_jd if k in set(s.hard_skills_resume))
+            + sum(1 for k in s.soft_skills_jd if k in set(s.soft_skills_resume))
+            + sum(1 for k in s.jd_keywords if k in s.resume_stems)
+        )
+        keywords = [*s.hard_skills_jd, *s.soft_skills_jd, *s.jd_keywords]
+        overall = clamp(100 * found / len(keywords)) if keywords else 0
         matched, missing = _skill_hits(s.hard_skills_resume, s.hard_skills_jd)
         return _pack(
             resume_id=resume_id,
@@ -524,15 +544,15 @@ def run_rezi_style(
 
 
 def run_skillsyncer_style(resume_id: str, resume_text: str, role: str, jd_text: str) -> dict[str, Any]:
+    _require_jd("SkillSyncer", jd_text)
     s = extract_reference_signals(resume_text, jd_text, role)
     p = SKILLSYNCER_POINTS
     hard_pts, hard_m, hard_miss = frequency_category_points(
-        s.hard_skills_jd, s.resume_lower, s.jd_lower, p["hard"], HARD_SKILL_ALIASES
+        s.hard_skills_jd, s.resume_lower, s.jd_lower, p["hard"], HARD_SKILL_ALIASES,
+        go_counts=(go_count(jd_body(jd_text)), go_count(resume_text)),
     )
     soft_pts, _, _ = frequency_category_points(s.soft_skills_jd, s.resume_lower, s.jd_lower, p["soft"])
-    other_pts, _, _ = frequency_category_points(
-        s.jd_tokens[:40], s.resume_lower, s.jd_lower, p["other"]
-    )
+    other_pts = keyword_points(s.jd_keywords, resume_text, jd_text, p["other"])
     title_pts = p["title"] if (s.title_exact or (role.strip() and s.title_hit >= 1)) else 0
     degree_pts = skillsyncer_degree_points(s.degree_resume, s.degree_jd)
     overall = clamp(hard_pts + soft_pts + other_pts + title_pts + degree_pts)

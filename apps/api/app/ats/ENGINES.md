@@ -133,6 +133,14 @@ Each engine compared with the vendor's own pages (fetched 2026-10-12). Vendors p
 
 Not reproducible from text alone (all engines): file type/size, font size/typeface, file name, page count, header/footer placement, LinkedIn profile match, peer benchmarking.
 
+## Jobscan / Teal / SkillSyncer low-score fixes (profile 1.5, 2026-10-13)
+
+- "Other keywords" came from the raw JD (company pitch, benefits, EEO, punctuation like `businesses.`), Teal took the first 30 by position, and hard/soft skills were counted a second time. Now `jd_keywords()`: discovery JD cleaner + benefits/company sections and a short pre-heading pitch dropped, skills blanked out, top 25 by frequency, matched on light stems (API/APIs, develop/development, cache/caching).
+- Soft skills matched exact phrases only; now inflection-aware (mentored → mentoring, collaborate/cross-functional → collaboration).
+- Bare "Go" is recognised in list context ("Python, Go", "in Go and …", "Python or Go").
+- Section headings like "Professional Experience" / "Technical Skills" are detected; education date ranges are no longer counted as roles (bullets per role).
+- Jobscan and SkillSyncer raise `missing_input` without a JD instead of returning 0 or 100.
+
 ## Years of experience (engine 2.3, `seniority.py`)
 
 Requests accept optional `yearsExperience` (0–60). The web app always sends the profile's `years_experience` (numeric, 0–50, required in onboarding, editable in settings; backfilled from the old bucket `0-1`→0.5, `1-3`→2, `3-5`→4, `5-8`→6, `8+`→10). The ATS page no longer shows it. Omitted → scores are unchanged.
