@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { auth, getServerSession } from "@/lib/auth";
-import { ensureProfile, type Profile } from "@/lib/profile";
+import { ensureProfile, profileHasCompleteCareer, type Profile } from "@/lib/profile";
+import { hasCompletedOnboardingRequirement } from "@/lib/resumes";
 import { hasFullyOnboarded } from "@/lib/onboarding";
 import { PENDING_APPROVAL_MESSAGE, REJECTED_APPROVAL_MESSAGE } from "@/lib/user-approval-shared";
 
@@ -41,9 +42,13 @@ function enforceApproval(profile: Profile): void {
 export async function requireOnboarded(): Promise<AppAccess> {
   const user = await getSessionUser();
   if (!user) redirect("/sign-in?next=/dashboard");
-  const profile = await ensureProfile(user);
+  // Profile upsert and the resume check in parallel (one round trip each, not three in a row).
+  const [profile, hasResume] = await Promise.all([
+    ensureProfile(user),
+    hasCompletedOnboardingRequirement(user.id),
+  ]);
   enforceApproval(profile);
-  if (!(await hasFullyOnboarded(user.id))) {
+  if (!hasResume || !profileHasCompleteCareer(profile)) {
     redirect("/onboarding");
   }
   return { user, profile };
@@ -55,7 +60,7 @@ export async function requireOnboardingSession(): Promise<AppAccess> {
   if (!user) redirect("/sign-in?next=/onboarding");
   const profile = await ensureProfile(user);
   enforceApproval(profile);
-  if (await hasFullyOnboarded(user.id)) {
+  if (await hasFullyOnboarded(user.id, profile)) {
     if (!profile.onboardingComplete) {
       const { setOnboardingComplete } = await import("@/lib/profile");
       await setOnboardingComplete(user.id, true);
