@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cleanJobDescription } from "@/lib/jd-clean";
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 import { ensureCompany } from "@/lib/companies";
 import { jobSourceLabel } from "@/lib/job-dto";
@@ -201,6 +202,8 @@ export async function updateAdminJob(id: string, patch: AdminJobPatch): Promise<
         )
       : JSON.stringify(existing.skills);
 
+  const cleaned =
+    patch.description !== undefined ? cleanJobDescription(String(patch.description)) : null;
   await sql`
     UPDATE jobs SET
       title = ${title},
@@ -213,7 +216,9 @@ export async function updateAdminJob(id: string, patch: AdminJobPatch): Promise<
       url = ${patch.url !== undefined ? optionalText(patch.url) : existing.url},
       source_url = ${patch.sourceUrl !== undefined ? optionalText(patch.sourceUrl) : existing.sourceUrl},
       salary = ${patch.salary !== undefined ? optionalText(patch.salary, 200) : existing.salary},
-      description = ${patch.description !== undefined ? String(patch.description) : existing.description},
+      description = ${cleaned ? cleaned.description : existing.description},
+      description_raw = CASE WHEN ${cleaned !== null}::boolean
+                             THEN ${cleaned?.descriptionRaw ?? null}::text ELSE description_raw END,
       work_mode = ${workMode},
       employment_type = ${patch.employmentType !== undefined ? optionalText(patch.employmentType, 80) : existing.employmentType},
       seniority = ${patch.seniority !== undefined ? optionalText(patch.seniority, 80) : existing.seniority},

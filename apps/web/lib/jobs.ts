@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cleanJobDescription } from "@/lib/jd-clean";
 import { randomUUID } from "node:crypto";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
@@ -418,7 +419,10 @@ export async function createJob(
       : requireCanonicalLocation(input.location);
   const source = parseSource(input.source);
   const url = optional(input.url);
-  const description = typeof input.description === "string" ? input.description : "";
+  // Stored and scored without privacy / EEO / cookie / navigation boilerplate (lib/jd-clean).
+  const { description, descriptionRaw } = cleanJobDescription(
+    typeof input.description === "string" ? input.description : "",
+  );
   const salary = optional(input.salary);
   const externalId = optional(input.externalId);
   const feedSource = optional(input.feedSource);
@@ -443,11 +447,12 @@ export async function createJob(
     INSERT INTO jobs
       (id, user_id, title, company, company_id, location, source, url, description, salary,
        status, external_id, feed_source, created_at, updated_at, first_seen_at,
-       source_url, work_mode, employment_type, seniority, posted_at, skills_json)
+       source_url, work_mode, employment_type, seniority, posted_at, skills_json, description_raw)
     VALUES (
       ${id}, ${userId}, ${title}, ${companyName}, ${companyId}, ${location}, ${source}, ${url},
       ${description}, ${salary}, 'active', ${externalId}, ${feedSource}, ${now}, ${now}, ${now},
-      ${sourceUrl}, ${workMode}, ${employmentType}, ${seniority}, ${postedAt}, ${skillsJson}
+      ${sourceUrl}, ${workMode}, ${employmentType}, ${seniority}, ${postedAt}, ${skillsJson},
+      ${descriptionRaw}
     )
   `;
   const created = await getJobById(id);
@@ -488,7 +493,8 @@ export async function updateJob(
     patch.location !== undefined ? requireCanonicalLocation(patch.location) : existing.location;
   const source = patch.source !== undefined ? parseSource(patch.source) : existing.source;
   const url = patch.url !== undefined ? optional(patch.url) : existing.url;
-  const description = patch.description !== undefined ? patch.description : existing.description;
+  const cleaned = patch.description !== undefined ? cleanJobDescription(patch.description) : null;
+  const description = cleaned ? cleaned.description : existing.description;
   const salary = patch.salary !== undefined ? optional(patch.salary) : existing.salary;
   const status = patch.status ?? existing.status;
   if (status !== "active" && status !== "archived") throw new Error("Invalid status.");
@@ -498,6 +504,8 @@ export async function updateJob(
     UPDATE jobs SET
       title = ${title}, company = ${company}, company_id = ${companyId}, location = ${location},
       source = ${source}, url = ${url}, description = ${description}, salary = ${salary},
+      description_raw = CASE WHEN ${cleaned !== null}::boolean
+                             THEN ${cleaned?.descriptionRaw ?? null}::text ELSE description_raw END,
       status = ${status}, updated_at = ${now}
     WHERE id = ${id}
   `;

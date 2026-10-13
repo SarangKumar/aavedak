@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from app.discovery.jobs.jd_clean import strip_boilerplate
 from app.discovery.jobs.locations import canonical_location
 from app.discovery.jobs import filters, salary
 from app.discovery.jobs.email_extractor import best_application_email
@@ -73,7 +74,8 @@ def normalize_postings(
             result.skipped["duplicate_in_feed"] += 1
             continue
         seen_ids.add(posting.external_id)
-        description = html_to_text(posting.description)
+        raw_description = html_to_text(posting.description)
+        description = strip_boilerplate(raw_description)
         outcome = filters.classify(
             posting,
             description,
@@ -113,8 +115,9 @@ def normalize_postings(
                 min_years=outcome.min_years,
                 dedupe_key=dedupe_key(company, title, location),
                 content_hash=content_hash(hashed),
-                apply_email=best_application_email(description),
+                apply_email=best_application_email(raw_description),
                 salary=pay,
+                description_raw=raw_description if raw_description != description else None,
             )
         )
     return result

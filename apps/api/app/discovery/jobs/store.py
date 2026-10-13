@@ -173,7 +173,7 @@ def ingest_company(
                             job.location, job.url, job.description, job.salary, job.external_id,
                             provider,
                             now, now, job.posted_at, 0 if job.posted_at else 1, now,
-                            job.dedupe_key, job.min_years, job.apply_email,
+                            job.dedupe_key, job.min_years, job.apply_email, job.description_raw,
                         )
                     )
                 source_rows.append(
@@ -189,9 +189,9 @@ def ingest_company(
                              (id, user_id, title, company, company_id, location, source, url,
                               description, salary, status, external_id, feed_source, created_at,
                               updated_at, posted_at, posted_at_estimated, first_seen_at,
-                              dedupe_key, min_years, apply_email)
+                              dedupe_key, min_years, apply_email, description_raw)
                            VALUES (%s, NULL, %s, %s, %s, %s, 'careers', %s, %s, %s, 'active',
-                                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                            ON CONFLICT DO NOTHING""",
                         job_rows,
                     )
@@ -248,6 +248,8 @@ def ingest_company(
                                     THEN url ELSE %(url)s END,
                          description = CASE WHEN %(description)s::text = '' THEN description
                                             ELSE %(description)s::text END,
+                         description_raw = CASE WHEN %(description)s::text = '' THEN description_raw
+                                                ELSE %(description_raw)s::text END,
                          posted_at_estimated = CASE WHEN COALESCE(posted_at, %(p)s::text) IS NULL
                                                     THEN 1 ELSE 0 END,
                          posted_at = CASE WHEN %(p)s::text IS NOT NULL
@@ -264,7 +266,8 @@ def ingest_company(
                         {
                             "id": job_id, "title": j.title, "company": j.company_name,
                             "company_id": company_id_for(j.company_name), "location": j.location,
-                            "url": j.url, "description": j.description, "p": j.posted_at,
+                            "url": j.url, "description": j.description,
+                            "description_raw": j.description_raw, "p": j.posted_at,
                             "dedupe_key": j.dedupe_key, "min_years": j.min_years,
                             "apply_email": j.apply_email, "salary": j.salary,
                             "provider": provider, "now": now,

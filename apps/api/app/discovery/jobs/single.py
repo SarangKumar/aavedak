@@ -19,6 +19,7 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 
 from app.discovery.jobs import linkedin, page_extract
+from app.discovery.jobs.jd_clean import strip_boilerplate
 from app.discovery.jobs.models import RawPosting, SourceTarget
 from app.discovery.jobs.providers import ProviderError, detect_source
 from app.discovery.jobs.providers import ashby, greenhouse, lever, smartrecruiters, workable
@@ -126,7 +127,7 @@ def _to_parsed(posting: RawPosting, *, fallback_url: str, provider: str) -> Pars
         company=clean_line(posting.company_name),
         location=_join_locations(posting.locations),
         url=posting.url or fallback_url,
-        description=html_to_text(posting.description),
+        description=strip_boilerplate(html_to_text(posting.description)),
         postedAt=to_iso(posted) if posted else None,
         source="careers",
         provider=provider,
@@ -153,7 +154,7 @@ def _from_page(page: str, url: str) -> ParsedJob:
             "JavaScript). Fill in the details below."
         )
     posted = parse_datetime(found.posted) if found.posted else None
-    description = found.description
+    description = strip_boilerplate(found.description)
     return ParsedJob(
         title=found.title,
         company=found.company,
@@ -190,7 +191,7 @@ def fetch_job_from_url(client: httpx.Client, url: str) -> ParsedJob:
             company=data["company"],
             location=data["location"],
             url=data["url"],
-            description=data["description"],
+            description=strip_boilerplate(data["description"]),
             postedAt=data["postedAt"],
             source="linkedin",
             provider=f"linkedin:{data['via']}",

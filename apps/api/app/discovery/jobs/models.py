@@ -68,6 +68,8 @@ class NormalizedJob:
     apply_email: str | None = None
     # Salary / stipend the company states, as display text (never estimated).
     salary: str | None = None
+    # The parsed description before boilerplate stripping, when stripping changed it.
+    description_raw: str | None = None
 
 
 @dataclass

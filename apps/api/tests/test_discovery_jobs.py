@@ -690,3 +690,21 @@ def test_ingest_display_location_is_canonical():
 
     assert display_location(["Bangalore, Karnataka, India", "Gurgaon"]) == "Bengaluru, India · Gurugram, India"
     assert display_location(["Magrahat-II, West Bengal, India"]) == "Magrahat-II, West Bengal, India"
+
+
+def test_jd_boilerplate_is_stripped_with_shared_patterns():
+    from pathlib import Path
+
+    from app.discovery.jobs import jd_clean
+
+    root = Path(__file__).resolve().parents[3]
+    assert jd_clean.DATA_PATH == root / "data/jd/boilerplate.json"
+    sample = (root / "data/jd/fixtures/sample.txt").read_text(encoding="utf-8")
+    expected = (root / "data/jd/fixtures/sample.expected.txt").read_text(encoding="utf-8")
+    assert jd_clean.strip_boilerplate(sample) == expected.strip()
+    # Over-stripping falls back to the original; plain JDs are unchanged.
+    assert jd_clean.strip_boilerplate("Privacy Notice\nWe process personal data.") == (
+        "Privacy Notice\nWe process personal data."
+    )
+    plain = "Responsibilities\n• Build APIs.\n\nRequirements\n• Python."
+    assert jd_clean.strip_boilerplate(plain) == plain

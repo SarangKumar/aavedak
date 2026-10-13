@@ -27,6 +27,8 @@ SHARED_STATEMENTS: tuple[str, ...] = (
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS min_years INTEGER",
     # Application / recruiting email published in the posting text (never guessed).
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_email TEXT",
+    # Description as parsed, before JD boilerplate stripping (set only when stripping changed it).
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS description_raw TEXT",
     """CREATE INDEX IF NOT EXISTS jobs_shared_active_idx
        ON jobs (first_seen_at) WHERE user_id IS NULL AND expired_at IS NULL""",
     "CREATE INDEX IF NOT EXISTS jobs_dedupe_key_idx ON jobs (dedupe_key) WHERE user_id IS NULL",
