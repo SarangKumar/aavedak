@@ -177,14 +177,25 @@ export function DashboardListCardSkeleton({
   );
 }
 
-export function DashboardPipelineSkeleton() {
+export function DashboardAgingSkeleton() {
   return (
     <div className={cn(dashCard, "space-y-3")}>
-      <Skeleton className="h-4 w-36" />
-      {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <Skeleton className="h-3 w-20 shrink-0" />
-          <Skeleton className="h-3.5 rounded-sm" style={{ width: `${70 - i * 6}%` }} />
+      <div className="space-y-1.5">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3 w-64 max-w-full" />
+      </div>
+      <div className="flex h-[120px] items-end gap-3 px-1">
+        {[70, 45, 30, 20].map((h, i) => (
+          <Skeleton key={i} className="flex-1 rounded-sm" style={{ height: `${h}%` }} />
+        ))}
+      </div>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between gap-2">
+          <div className="space-y-1.5">
+            <Skeleton className="h-3.5 w-32" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <Skeleton className="h-5 w-10 shrink-0 rounded-full" />
         </div>
       ))}
     </div>
@@ -264,7 +275,7 @@ function DashboardSkeleton() {
       <section className="space-y-4">
         {groupHeading}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <DashboardPipelineSkeleton />
+          <DashboardAgingSkeleton />
           <DashboardFunnelSkeleton />
         </div>
       </section>

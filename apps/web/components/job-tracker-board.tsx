@@ -125,6 +125,8 @@ type JobTrackerBoardProps = {
   initialApplications: ApplicationDto[];
   initialCoverLetters?: CoverLetterOptionDto[];
   initialPreferences: TrackerPrefsDto;
+  /** Open this application's editor on load (`/job-tracker?edit=<id>`). */
+  initialEditId?: string | null;
 };
 
 type Draft = {
@@ -194,19 +196,25 @@ export function JobTrackerBoard({
   initialApplications,
   initialCoverLetters = [],
   initialPreferences,
+  initialEditId = null,
 }: JobTrackerBoardProps) {
+  const initialEdit = initialEditId
+    ? (initialApplications.find((a) => a.id === initialEditId && a.status !== "archived") ?? null)
+    : null;
   const [applications, setApplications] = useState(() =>
     initialApplications.filter((a) => a.status !== "archived"),
   );
   const [coverLetters] = useState(initialCoverLetters);
   const [prefs, setPrefs] = useState(initialPreferences);
   const [createOpen, setCreateOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(initialEdit?.id ?? null);
   const [importOpen, setImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [listPageSize, setListPageSize] = useState<ListPageSize>(10);
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [draft, setDraft] = useState<Draft>(() =>
+    initialEdit ? draftFromApp(initialEdit) : emptyDraft(),
+  );
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);

@@ -172,6 +172,86 @@ export const getStaleApplications = cache(
   },
 );
 
+/** Applied/Under review with no reply this long should get a follow-up. */
+export const FOLLOW_UP_AFTER_DAYS = 7;
+
+export const AGING_BUCKETS = [
+  { label: "0–7d", min: 0, max: 7 },
+  { label: "8–14d", min: 8, max: 14 },
+  { label: "15–30d", min: 15, max: 30 },
+  { label: "30+d", min: 31, max: Infinity },
+] as const;
+
+export type DashboardAgingItem = {
+  id: string;
+  companyName: string;
+  role: string;
+  status: ApplicationStatus;
+  daysSinceApplied: number;
+};
+
+export type DashboardAging = {
+  /** Same order as AGING_BUCKETS. */
+  buckets: number[];
+  total: number;
+  /** Older than FOLLOW_UP_AFTER_DAYS, nothing queued and nothing sent in that window. */
+  needsFollowUp: number;
+  /** Oldest first, top 5 of those needing a follow-up. */
+  items: DashboardAgingItem[];
+};
+
+/**
+ * Applications still in Applied / Under review with no reply, aged by days since applied.
+ * One query; follow-up state per application comes from follow_up_tasks.
+ */
+export const getApplicationAging = cache(async (userId: string): Promise<DashboardAging> => {
+  await ensureAppSchema();
+  const recentCutoff = new Date(Date.now() - FOLLOW_UP_AFTER_DAYS * 86_400_000).toISOString();
+  const rows = (await getSql()`
+    SELECT a.id, a.company_name, a.role, a.status,
+      COALESCE(a.applied_at, a.created_at) AS since,
+      EXISTS (
+        SELECT 1 FROM follow_up_tasks f
+        WHERE f.user_id = a.user_id AND f.application_id = a.id
+          AND (f.status IN ('pending', 'queued')
+               OR (f.status IN ('sent', 'sent_stub') AND f.updated_at >= ${recentCutoff}))
+      ) AS followed_up
+    FROM applications a
+    WHERE a.user_id = ${userId}
+      AND a.status IN ('applied', 'under_review')
+      AND NOT EXISTS (
+        SELECT 1 FROM follow_up_tasks f
+        WHERE f.user_id = a.user_id AND f.application_id = a.id AND f.replied_at IS NOT NULL
+      )
+    ORDER BY since ASC
+  `) as Array<{
+    id: string;
+    company_name: string;
+    role: string;
+    status: string;
+    since: string;
+    followed_up: boolean;
+  }>;
+  const now = Date.now();
+  const buckets = AGING_BUCKETS.map(() => 0);
+  const due: DashboardAgingItem[] = [];
+  for (const row of rows) {
+    const days = Math.max(0, Math.floor((now - new Date(row.since).getTime()) / 86_400_000));
+    const bucket = AGING_BUCKETS.findIndex((b) => days >= b.min && days <= b.max);
+    buckets[bucket === -1 ? AGING_BUCKETS.length - 1 : bucket]! += 1;
+    if (days > FOLLOW_UP_AFTER_DAYS && !row.followed_up) {
+      due.push({
+        id: row.id,
+        companyName: row.company_name,
+        role: row.role,
+        status: row.status as ApplicationStatus,
+        daysSinceApplied: days,
+      });
+    }
+  }
+  return { buckets, total: rows.length, needsFollowUp: due.length, items: due.slice(0, 5) };
+});
+
 /** Best open recommendations first; manual jobs have no score and are left out. */
 export const getTopMatches = cache(
   async (userId: string): Promise<{ items: DashboardMatch[]; newThisWeek: number }> => {

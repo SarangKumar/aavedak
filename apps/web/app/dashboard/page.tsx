@@ -9,7 +9,7 @@ import {
   DashboardFunnelSkeleton,
   DashboardKpisSkeleton,
   DashboardListCardSkeleton,
-  DashboardPipelineSkeleton,
+  DashboardAgingSkeleton,
   DashboardWorkspaceSkeleton,
 } from "@/components/page-loading-skeleton";
 import { ShellWidth } from "@/components/shell-width";
@@ -21,7 +21,7 @@ import {
   FollowUpsCard,
   FunnelCard,
   KpiTiles,
-  PipelineCard,
+  AgingCard,
   RecentApplicationsCard,
   StaleApplicationsCard,
   TopMatchesCard,
@@ -143,11 +143,11 @@ export default async function DashboardPage() {
         <DashboardGroup
           id="pipeline"
           title="Pipeline health"
-          description="How your applications are spread across statuses and how far they get."
+          description="Which applications need a nudge, and how far applications get."
         >
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Suspense fallback={<DashboardPipelineSkeleton />}>
-              <PipelineCard userId={userId} />
+            <Suspense fallback={<DashboardAgingSkeleton />}>
+              <AgingCard userId={userId} />
             </Suspense>
             <Suspense fallback={<DashboardFunnelSkeleton />}>
               <FunnelCard userId={userId} />

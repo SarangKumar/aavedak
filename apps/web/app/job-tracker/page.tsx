@@ -13,7 +13,12 @@ export const metadata: Metadata = {
   description: "Kanban and list views for every application stage.",
 };
 
-export default async function JobTrackerPage() {
+export default async function JobTrackerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ edit?: string | string[] }>;
+}) {
+  const { edit } = await searchParams;
   const { user } = await requireOnboarded();
 
   // Independent reads run in parallel; linked jobs come back in one batched query.
@@ -63,6 +68,7 @@ export default async function JobTrackerPage() {
       <div className="relative">
         <JobTrackerBoard
           initialApplications={initialApplications}
+          initialEditId={typeof edit === "string" ? edit : null}
           initialCoverLetters={coverLetters.map((c) => ({
             id: c.id,
             title: c.title,
