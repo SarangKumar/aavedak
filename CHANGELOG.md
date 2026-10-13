@@ -11,6 +11,8 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Fixed
 
+- **Slow cold starts** — Vercel functions (web and API) now run in Singapore (`sin1`), next to the Neon database, instead of US East. Web schema setup records a version (manual tag + hash of the setup code) in `schema_version` and skips its ~160 statements and data clean-ups when nothing changed: one query per cold start (~16 s → ~0.1 s locally). The API's discovery schema check does the same in one round trip. Signed-in pages load the profile and onboarding check in parallel.
+
 - **Admin page sections collapse** — Every Admin section (Pending registrations, Recent resumes, Jobs, Discovery, Email suggest-corrections, allowlist) now uses the same collapsible card as the ATS steps, now a shared `CollapsibleSection` component. Pending registrations starts open and the rest start closed. Header actions (resume filter, Discovery scan/rank buttons) work without collapsing the section.
 - **Admin Jobs pagination** — The Jobs list shows 5 jobs per page with page controls and an "x–y of N jobs" count. Search and filters still run server-side across all jobs and jump back to page 1.
 
