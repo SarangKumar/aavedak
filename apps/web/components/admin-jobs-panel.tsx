@@ -3,6 +3,7 @@
 import { format, parseISO } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { JobFormFields, type JobFormField, type JobFormValues } from "@/components/job-form-fields";
 import { SearchInput } from "@/components/search-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -229,327 +230,333 @@ export function AdminJobsPanel() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const page = filters.page;
 
+  const first = data && data.total > 0 ? (data.page - 1) * data.pageSize + 1 : 0;
+  const last = data ? Math.min(data.total, first + data.rows.length - 1) : 0;
+
   return (
-    <Card className="border-border/80 bg-card gap-0 space-y-3 rounded-xl border p-3.5 shadow-sm">
-      <div className="space-y-0.5">
-        <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Jobs</h2>
-        <p className="text-muted-foreground text-[12px] leading-relaxed">
-          Search every job (discovered and users&apos; own) by title, company, location, link or id.
-          Edit fixes it for everyone; delete removes it but keeps users&apos; applications.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchInput
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Title, company, location, URL or id…"
-          className="w-full sm:max-w-sm"
-          aria-label="Search jobs"
-        />
-        <Select
-          value={filters.source}
-          onValueChange={(v) => setFilters((f) => ({ ...f, source: v || "all", page: 1 }))}
-        >
-          <SelectTrigger
-            className="h-8 w-40 rounded-md border px-2.5 text-[12px]"
-            aria-label="Filter by source"
+    <CollapsibleSection
+      title="Jobs"
+      summary="Search every job (discovered and users' own) by title, company, location, link or id. Edit fixes it for everyone; delete removes it but keeps users' applications."
+    >
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchInput
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Title, company, location, URL or id…"
+            className="w-full sm:max-w-sm"
+            aria-label="Search jobs"
+          />
+          <Select
+            value={filters.source}
+            onValueChange={(v) => setFilters((f) => ({ ...f, source: v || "all", page: 1 }))}
           >
-            <SelectValue placeholder="All sources" />
-          </SelectTrigger>
-          <SelectContent className="z-240">
-            <SelectItem value="all" className="text-[12px]">
-              All sources
-            </SelectItem>
-            {(data?.sources ?? []).map((s) => (
-              <SelectItem key={s} value={s} className="text-[12px]">
-                {s}
+            <SelectTrigger
+              className="h-8 w-40 rounded-md border px-2.5 text-[12px]"
+              aria-label="Filter by source"
+            >
+              <SelectValue placeholder="All sources" />
+            </SelectTrigger>
+            <SelectContent className="z-240">
+              <SelectItem value="all" className="text-[12px]">
+                All sources
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <DateRangePicker
-          value={
-            filters.from || filters.to
-              ? {
-                  from: filters.from ? parseISO(filters.from) : undefined,
-                  to: filters.to ? parseISO(filters.to) : undefined,
-                }
-              : undefined
-          }
-          onValueChange={(range) =>
-            setFilters((f) => ({
-              ...f,
-              from: range?.from ? format(range.from, "yyyy-MM-dd") : "",
-              to: range?.to ? format(range.to, "yyyy-MM-dd") : "",
-              page: 1,
-            }))
-          }
-          placeholder="Posted date range"
-          aria-label="Posted date range"
-          formatString="d MMM yyyy"
-          className="h-8 w-64 text-[12px]"
-        />
-        {filters.source !== "all" || filters.from || filters.to || query ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setQuery("");
-              setFilters(EMPTY_FILTERS);
-            }}
-          >
-            Clear
-          </Button>
-        ) : null}
-        <span className="text-muted-foreground ml-auto text-[11px] tabular-nums">
-          {data ? `${data.total} job${data.total === 1 ? "" : "s"}` : ""}
-        </span>
-      </div>
-
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription className="text-[12px]">{error}</AlertDescription>
-        </Alert>
-      ) : null}
-      {notice ? <p className="text-primary text-[12px]">{notice}</p> : null}
-
-      <div className="border-border/70 overflow-hidden rounded-xl border">
-        <Table className="text-[12px] font-normal">
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="font-normal">Job</TableHead>
-              <TableHead className="font-normal">Location</TableHead>
-              <TableHead className="font-normal">Source</TableHead>
-              <TableHead className="font-normal">Posted</TableHead>
-              <TableHead className="font-normal">Owner</TableHead>
-              <TableHead className="text-right font-normal">Applications</TableHead>
-              <TableHead className="text-right font-normal">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading && !data
-              ? Array.from({ length: 6 }, (_, i) => <AdminJobsRowSkeleton key={i} />)
-              : (data?.rows ?? []).map((row) => (
-                  <TableRow key={row.id} className={loading ? "opacity-60" : undefined}>
-                    <TableCell className="max-w-72">
-                      <p className="text-foreground truncate font-medium">{row.title}</p>
-                      <p className="text-muted-foreground truncate">{row.company}</p>
-                      <p className="text-muted-foreground truncate font-mono text-[10px]">
-                        {row.id}
-                      </p>
-                    </TableCell>
-                    <TableCell className="max-w-48 truncate">{row.location}</TableCell>
-                    <TableCell>
-                      <span className="text-foreground">{row.sourceLabel}</span>
-                      {row.closed ? (
-                        <Badge variant="secondary" className="ml-1.5 px-1.5 py-0 text-[10px]">
-                          closed
-                        </Badge>
-                      ) : null}
-                      {row.sourceUrl || row.url ? (
-                        <a
-                          href={row.sourceUrl ?? row.url ?? "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary block max-w-48 truncate text-[11px] hover:underline"
-                        >
-                          {row.sourceUrl ?? row.url}
-                        </a>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">
-                      {day(row.postedAt ?? row.postedAtFallback)}
-                      {row.postedAt ? null : (
-                        <span className="text-muted-foreground block text-[10px]">first seen</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-44 truncate">
-                      {row.shared ? (
-                        <span className="text-muted-foreground">Shared</span>
-                      ) : (
-                        (row.ownerEmail ?? "User")
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {row.applicationCount}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEdit(row)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive"
-                          onClick={() => void askDelete(row)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-            {!loading && data && data.rows.length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={7} className="text-muted-foreground py-8 text-center">
-                  No jobs match.
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </div>
-
-      {totalPages > 1 ? (
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                disabled={page <= 1}
-                onClick={() => setFilters((f) => ({ ...f, page: Math.max(1, f.page - 1) }))}
-              />
-            </PaginationItem>
-            {paginationPageList(page, totalPages).flatMap((p, i, list) => [
-              ...(i > 0 && p - list[i - 1]! > 1
-                ? [
-                    <PaginationItem key={`gap-${p}`}>
-                      <PaginationEllipsis />
-                    </PaginationItem>,
-                  ]
-                : []),
-              <PaginationItem key={p}>
-                <PaginationLink
-                  isActive={p === page}
-                  onClick={() => setFilters((f) => ({ ...f, page: p }))}
-                >
-                  {p}
-                </PaginationLink>
-              </PaginationItem>,
-            ])}
-            <PaginationItem>
-              <PaginationNext
-                disabled={page >= totalPages}
-                onClick={() =>
-                  setFilters((f) => ({ ...f, page: Math.min(totalPages, f.page + 1) }))
-                }
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      ) : null}
-
-      <Sheet
-        open={editing !== null}
-        onOpenChange={(open) => {
-          if (!open) setEditing(null);
-        }}
-      >
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
-          <SheetHeader>
-            <SheetTitle>Edit job</SheetTitle>
-            <SheetDescription>
-              Changes apply to everyone who sees this job.
-              {editing && !editing.shared ? ` Owned by ${editing.ownerEmail ?? "a user"}.` : ""}
-            </SheetDescription>
-          </SheetHeader>
-          {form && editing ? (
-            <div className="space-y-3 px-4">
-              <JobFormFields
-                value={form}
-                onFieldChange={(field: JobFormField, next: string) =>
-                  setForm((f) => (f ? { ...f, [field]: next } : f))
-                }
-                onSourceChange={(src) => setForm((f) => (f ? { ...f, source: src } : f))}
-                locationHint={form.location ? null : editing.location || null}
-              />
-              {formError ? (
-                <Alert variant="destructive">
-                  <AlertDescription className="text-[12px]">{formError}</AlertDescription>
-                </Alert>
-              ) : null}
-            </div>
-          ) : null}
-          <SheetFooter>
-            <Button type="button" variant="outline" size="sm" onClick={() => setEditing(null)}>
-              Cancel
-            </Button>
+              {(data?.sources ?? []).map((s) => (
+                <SelectItem key={s} value={s} className="text-[12px]">
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DateRangePicker
+            value={
+              filters.from || filters.to
+                ? {
+                    from: filters.from ? parseISO(filters.from) : undefined,
+                    to: filters.to ? parseISO(filters.to) : undefined,
+                  }
+                : undefined
+            }
+            onValueChange={(range) =>
+              setFilters((f) => ({
+                ...f,
+                from: range?.from ? format(range.from, "yyyy-MM-dd") : "",
+                to: range?.to ? format(range.to, "yyyy-MM-dd") : "",
+                page: 1,
+              }))
+            }
+            placeholder="Posted date range"
+            aria-label="Posted date range"
+            formatString="d MMM yyyy"
+            className="h-8 w-64 text-[12px]"
+          />
+          {filters.source !== "all" || filters.from || filters.to || query ? (
             <Button
               type="button"
+              variant="ghost"
               size="sm"
-              loading={saving}
-              disabled={!form || !form.title.trim() || !form.company.trim()}
-              onClick={() => void save()}
-            >
-              Save
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
-      <AlertDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open && !deletePending) setDeleting(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{deleting?.title}”?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The job is removed for everyone. Users&apos; applications stay in their tracker with
-              their company, role, location, link and status history, they just no longer link to
-              this job. Cover letters and JD analyses are kept and unlinked too. Its recommendations
-              and match scores are removed. The next scan won&apos;t add the same posting back from
-              the same source.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="text-muted-foreground px-1 text-[12px]">
-            {impact ? (
-              <ul className="list-disc space-y-0.5 pl-5">
-                <li>
-                  {impact.applications} application{impact.applications === 1 ? "" : "s"} from{" "}
-                  {impact.users} user{impact.users === 1 ? "" : "s"} will be unlinked
-                </li>
-                <li>
-                  {impact.coverLetters} cover letter{impact.coverLetters === 1 ? "" : "s"} and{" "}
-                  {impact.analyses} analys{impact.analyses === 1 ? "is" : "es"} unlinked
-                </li>
-                <li>
-                  Recommended to {impact.recommendedTo} user
-                  {impact.recommendedTo === 1 ? "" : "s"} (removed from their Discover)
-                </li>
-              </ul>
-            ) : (
-              <Skeleton className="h-12 w-full" />
-            )}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              loading={deletePending}
-              onClick={(e) => {
-                e.preventDefault();
-                void confirmDelete();
+              onClick={() => {
+                setQuery("");
+                setFilters(EMPTY_FILTERS);
               }}
             >
-              Delete job
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Card>
+              Clear
+            </Button>
+          ) : null}
+          <span className="text-muted-foreground ml-auto text-[11px] tabular-nums">
+            {data
+              ? data.total === 0
+                ? "0 jobs"
+                : `${first}–${last} of ${data.total} job${data.total === 1 ? "" : "s"}`
+              : ""}
+          </span>
+        </div>
+
+        {error ? (
+          <Alert variant="destructive">
+            <AlertDescription className="text-[12px]">{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        {notice ? <p className="text-primary text-[12px]">{notice}</p> : null}
+
+        <div className="border-border/70 overflow-hidden rounded-xl border">
+          <Table className="text-[12px] font-normal">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="font-normal">Job</TableHead>
+                <TableHead className="font-normal">Location</TableHead>
+                <TableHead className="font-normal">Source</TableHead>
+                <TableHead className="font-normal">Posted</TableHead>
+                <TableHead className="font-normal">Owner</TableHead>
+                <TableHead className="text-right font-normal">Applications</TableHead>
+                <TableHead className="text-right font-normal">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading && !data
+                ? Array.from({ length: 6 }, (_, i) => <AdminJobsRowSkeleton key={i} />)
+                : (data?.rows ?? []).map((row) => (
+                    <TableRow key={row.id} className={loading ? "opacity-60" : undefined}>
+                      <TableCell className="max-w-72">
+                        <p className="text-foreground truncate font-medium">{row.title}</p>
+                        <p className="text-muted-foreground truncate">{row.company}</p>
+                        <p className="text-muted-foreground truncate font-mono text-[10px]">
+                          {row.id}
+                        </p>
+                      </TableCell>
+                      <TableCell className="max-w-48 truncate">{row.location}</TableCell>
+                      <TableCell>
+                        <span className="text-foreground">{row.sourceLabel}</span>
+                        {row.closed ? (
+                          <Badge variant="secondary" className="ml-1.5 px-1.5 py-0 text-[10px]">
+                            closed
+                          </Badge>
+                        ) : null}
+                        {row.sourceUrl || row.url ? (
+                          <a
+                            href={row.sourceUrl ?? row.url ?? "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary block max-w-48 truncate text-[11px] hover:underline"
+                          >
+                            {row.sourceUrl ?? row.url}
+                          </a>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums">
+                        {day(row.postedAt ?? row.postedAtFallback)}
+                        {row.postedAt ? null : (
+                          <span className="text-muted-foreground block text-[10px]">
+                            first seen
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-44 truncate">
+                        {row.shared ? (
+                          <span className="text-muted-foreground">Shared</span>
+                        ) : (
+                          (row.ownerEmail ?? "User")
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {row.applicationCount}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEdit(row)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive"
+                            onClick={() => void askDelete(row)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              {!loading && data && data.rows.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={7} className="text-muted-foreground py-8 text-center">
+                    No jobs match.
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
+
+        {totalPages > 1 ? (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  disabled={page <= 1}
+                  onClick={() => setFilters((f) => ({ ...f, page: Math.max(1, f.page - 1) }))}
+                />
+              </PaginationItem>
+              {paginationPageList(page, totalPages).flatMap((p, i, list) => [
+                ...(i > 0 && p - list[i - 1]! > 1
+                  ? [
+                      <PaginationItem key={`gap-${p}`}>
+                        <PaginationEllipsis />
+                      </PaginationItem>,
+                    ]
+                  : []),
+                <PaginationItem key={p}>
+                  <PaginationLink
+                    isActive={p === page}
+                    onClick={() => setFilters((f) => ({ ...f, page: p }))}
+                  >
+                    {p}
+                  </PaginationLink>
+                </PaginationItem>,
+              ])}
+              <PaginationItem>
+                <PaginationNext
+                  disabled={page >= totalPages}
+                  onClick={() =>
+                    setFilters((f) => ({ ...f, page: Math.min(totalPages, f.page + 1) }))
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        ) : null}
+
+        <Sheet
+          open={editing !== null}
+          onOpenChange={(open) => {
+            if (!open) setEditing(null);
+          }}
+        >
+          <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
+            <SheetHeader>
+              <SheetTitle>Edit job</SheetTitle>
+              <SheetDescription>
+                Changes apply to everyone who sees this job.
+                {editing && !editing.shared ? ` Owned by ${editing.ownerEmail ?? "a user"}.` : ""}
+              </SheetDescription>
+            </SheetHeader>
+            {form && editing ? (
+              <div className="space-y-3 px-4">
+                <JobFormFields
+                  value={form}
+                  onFieldChange={(field: JobFormField, next: string) =>
+                    setForm((f) => (f ? { ...f, [field]: next } : f))
+                  }
+                  onSourceChange={(src) => setForm((f) => (f ? { ...f, source: src } : f))}
+                  locationHint={form.location ? null : editing.location || null}
+                />
+                {formError ? (
+                  <Alert variant="destructive">
+                    <AlertDescription className="text-[12px]">{formError}</AlertDescription>
+                  </Alert>
+                ) : null}
+              </div>
+            ) : null}
+            <SheetFooter>
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditing(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                loading={saving}
+                disabled={!form || !form.title.trim() || !form.company.trim()}
+                onClick={() => void save()}
+              >
+                Save
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+
+        <AlertDialog
+          open={deleting !== null}
+          onOpenChange={(open) => {
+            if (!open && !deletePending) setDeleting(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete “{deleting?.title}”?</AlertDialogTitle>
+              <AlertDialogDescription>
+                The job is removed for everyone. Users&apos; applications stay in their tracker with
+                their company, role, location, link and status history, they just no longer link to
+                this job. Cover letters and JD analyses are kept and unlinked too. Its
+                recommendations and match scores are removed. The next scan won&apos;t add the same
+                posting back from the same source.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="text-muted-foreground px-1 text-[12px]">
+              {impact ? (
+                <ul className="list-disc space-y-0.5 pl-5">
+                  <li>
+                    {impact.applications} application{impact.applications === 1 ? "" : "s"} from{" "}
+                    {impact.users} user{impact.users === 1 ? "" : "s"} will be unlinked
+                  </li>
+                  <li>
+                    {impact.coverLetters} cover letter{impact.coverLetters === 1 ? "" : "s"} and{" "}
+                    {impact.analyses} analys{impact.analyses === 1 ? "is" : "es"} unlinked
+                  </li>
+                  <li>
+                    Recommended to {impact.recommendedTo} user
+                    {impact.recommendedTo === 1 ? "" : "s"} (removed from their Discover)
+                  </li>
+                </ul>
+              ) : (
+                <Skeleton className="h-12 w-full" />
+              )}
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletePending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                loading={deletePending}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void confirmDelete();
+                }}
+              >
+                Delete job
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </CollapsibleSection>
   );
 }
 
@@ -598,7 +605,7 @@ export function AdminJobsPanelSkeleton() {
       <div className="border-border/70 overflow-hidden rounded-xl border">
         <Table className="text-[12px]">
           <TableBody>
-            {Array.from({ length: 6 }, (_, i) => (
+            {Array.from({ length: 5 }, (_, i) => (
               <AdminJobsRowSkeleton key={i} />
             ))}
           </TableBody>

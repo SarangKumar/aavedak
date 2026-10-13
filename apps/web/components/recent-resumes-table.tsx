@@ -1,10 +1,11 @@
 "use client";
 
+import { CollapsibleSection } from "@/components/collapsible-section";
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { AdminResumeRow } from "@/lib/admin-data";
@@ -121,16 +122,10 @@ export function RecentResumesTable({ resumes }: { resumes: AdminResumeRow[] }) {
   );
 
   return (
-    <Card className="border-border/80 bg-card gap-3 rounded-xl border p-3.5 shadow-sm">
-      <CardHeader className="flex flex-wrap items-start justify-between gap-2 p-0">
-        <div className="space-y-0.5">
-          <CardTitle className="text-foreground text-[13px] font-semibold tracking-tight">
-            Recent resumes
-          </CardTitle>
-          <CardDescription className="text-muted-foreground text-[11px]">
-            Metadata from Neon. Open the PDF when the GCS object key is present.
-          </CardDescription>
-        </div>
+    <CollapsibleSection
+      title="Recent resumes"
+      summary="Metadata from Neon. Open the PDF when the GCS object key is present."
+      headerRight={
         <ToggleGroup
           aria-label="Filter resumes by status"
           variant="outline"
@@ -149,8 +144,9 @@ export function RecentResumesTable({ resumes }: { resumes: AdminResumeRow[] }) {
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-      </CardHeader>
-      <CardContent className="p-0">
+      }
+    >
+      <div>
         <DataTable
           columns={columns}
           data={data}
@@ -175,7 +171,7 @@ export function RecentResumesTable({ resumes }: { resumes: AdminResumeRow[] }) {
           }
           actionsWidth="5rem"
         />
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleSection>
   );
 }

@@ -8,7 +8,7 @@ import { getJobById, mapJobRow, type JobRecord } from "@/lib/jobs";
 import { isJobSource } from "@/lib/job-constants";
 import { canonicalLocation } from "@/lib/locations";
 
-export const ADMIN_JOBS_PAGE_SIZE = 25;
+export const ADMIN_JOBS_PAGE_SIZE = 5;
 
 export type AdminJobRow = {
   id: string;

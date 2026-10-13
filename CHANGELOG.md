@@ -11,6 +11,9 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Fixed
 
+- **Admin page sections collapse** — Every Admin section (Pending registrations, Recent resumes, Jobs, Discovery, Email suggest-corrections, allowlist) now uses the same collapsible card as the ATS steps, now a shared `CollapsibleSection` component. Pending registrations starts open and the rest start closed. Header actions (resume filter, Discovery scan/rank buttons) work without collapsing the section.
+- **Admin Jobs pagination** — The Jobs list shows 5 jobs per page with page controls and an "x–y of N jobs" count. Search and filters still run server-side across all jobs and jump back to page 1.
+
 - **Inbox duplicates** — The Inbox list now shows exactly one entry per person (matched by person, or by recipient email when no person is linked). Each person + application is one chronological thread merged across days; other applications with the same person appear as a thread switcher, latest first. All existing Inbox chats in production (15 follow-ups, 5 replies) were cleared once to start clean.
 - **Deleting people removes their chats** — People now have a Delete action (admins or whoever added the person). After a confirmation it permanently removes the person with their Inbox chats, replies and queued follow-ups. Emails already sent via Gmail can't be recalled.
 

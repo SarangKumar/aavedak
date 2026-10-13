@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { PendingRegistrations } from "@/components/pending-registrations";
 import { RecentResumesTable } from "@/components/recent-resumes-table";
 import { AdminDiscoveryPanel } from "@/components/admin-discovery-panel";
@@ -134,28 +135,25 @@ export default async function AdminPage() {
 
       <AdminDiscoveryPanel />
 
-      <Card className="border-border/80 bg-card gap-0 space-y-2 rounded-xl border p-3.5 shadow-sm">
-        <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
-          Person email suggest-corrections
-        </h2>
-        <p className="text-muted-foreground text-[12px] leading-relaxed">
-          Queue for proposed email fixes on global/user contacts. Coming later — no items yet.
-        </p>
+      <CollapsibleSection
+        title="Person email suggest-corrections"
+        summary="Queue for proposed email fixes on global/user contacts. Coming later — no items yet."
+      >
         <div className="border-border/70 text-muted-foreground rounded-xl border border-dashed px-3 py-10 text-center text-[12px]">
           Empty queue — nothing to review.
         </div>
-      </Card>
+      </CollapsibleSection>
 
-      <Card className="border-border/80 bg-card gap-0 rounded-xl border p-3.5">
-        <p className="text-foreground text-[12px] font-semibold tracking-tight">
-          ADMIN_EMAILS allowlist
-        </p>
-        <ul className="text-muted-foreground mt-2 space-y-1 font-mono text-[11px]">
+      <CollapsibleSection
+        title="ADMIN_EMAILS allowlist"
+        summary={`${allowlist.length} admin${allowlist.length === 1 ? "" : "s"}`}
+      >
+        <ul className="text-muted-foreground space-y-1 font-mono text-[11px]">
           {allowlist.map((email) => (
             <li key={email}>{email}</li>
           ))}
         </ul>
-      </Card>
+      </CollapsibleSection>
     </ShellWidth>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { CollapsibleSection } from "@/components/collapsible-section";
+
 import { Textarea } from "@/components/ui/textarea";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -486,21 +488,11 @@ export function AdminDiscoveryPanel() {
   }
 
   return (
-    <section className="space-y-3" aria-labelledby="discovery-heading">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h2
-            id="discovery-heading"
-            className="text-foreground text-[15px] font-semibold tracking-tight"
-          >
-            Discovery
-          </h2>
-          <p className="text-muted-foreground text-[12px]">
-            Job and people discovery run in FastAPI. Scheduled scans run nightly (IST) across{" "}
-            {overview?.settings.shards ?? "—"} staggered shards.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
+    <CollapsibleSection
+      title="Discovery"
+      summary={`Job and people discovery run in FastAPI. Scheduled scans run nightly (IST) across ${overview?.settings.shards ?? "—"} staggered shards.`}
+      headerRight={
+        <>
           <FuseButton
             size="sm"
             active={scanLit}
@@ -563,313 +555,315 @@ export function AdminDiscoveryPanel() {
           >
             Rank now
           </Button>
-        </div>
-      </div>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        {loadError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Discovery service error</AlertTitle>
+            <AlertDescription>{loadError}</AlertDescription>
+          </Alert>
+        ) : null}
 
-      {loadError ? (
-        <Alert variant="destructive">
-          <AlertTitle>Discovery service error</AlertTitle>
-          <AlertDescription>{loadError}</AlertDescription>
-        </Alert>
-      ) : null}
+        {!overview && !loadError ? <Skeleton className="h-40 w-full" /> : null}
 
-      {!overview && !loadError ? <Skeleton className="h-40 w-full" /> : null}
-
-      {overview ? (
-        <>
-          <div className="grid gap-3 lg:grid-cols-2">
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle className="text-[13px]">Queue & settings</CardTitle>
-                <CardDescription className="text-[11px]">
-                  Env-configured in the API. Recommendations: up to {overview.settings.dailyLimit}
-                  /user/day.
-                </CardDescription>
-                <CardAction>
-                  <Badge variant={overview.settings.enabled ? "default" : "destructive"}>
-                    {overview.settings.enabled ? "Enabled" : "Disabled"}
-                  </Badge>
-                </CardAction>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-1.5">
-                  <Badge variant="secondary">Expiry {overview.settings.expiryDays}d</Badge>
-                  <Badge variant="secondary">
-                    YOE window +{overview.settings.experienceWindowYears}
-                  </Badge>
-                  <Badge variant="secondary">
-                    Internships {overview.settings.includeInternships ? "included" : "excluded"}
-                  </Badge>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[12px]">
-                    <span className="text-foreground font-semibold tabular-nums">
-                      {overview.openItems}
-                    </span>{" "}
-                    <span className="text-muted-foreground">items waiting</span>
-                  </p>
-                  {processing ? (
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      onClick={() => (processingRef.current = false)}
-                    >
-                      Pause processing
-                    </Button>
-                  ) : (
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      disabled={overview.openItems === 0}
-                      onClick={() => void processQueue()}
-                    >
-                      Process now
-                    </Button>
-                  )}
-                </div>
-                {processing ? (
-                  <p className="text-muted-foreground text-[11px]">
-                    Processing in ~40s ticks while this page is open…
-                  </p>
-                ) : null}
-              </CardContent>
-            </Card>
-
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle className="text-[13px]">Career sources</CardTitle>
-                <CardDescription className="text-[11px]">
-                  Public ATS boards (Greenhouse, Lever, Ashby, SmartRecruiters, Workable) and career
-                  pages with JobPosting data. Tech roles are stored worldwide (India first) up to{" "}
-                  {overview.settings.ingestMaxMinYears} yrs minimum experience.
-                </CardDescription>
-                <CardAction>
-                  <Button size="xs" variant="outline" onClick={() => setSourcesOpen(true)}>
-                    Manage
-                  </Button>
-                </CardAction>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-1.5">
-                  <Badge>{overview.sourceSummary.enabled ?? 0} enabled</Badge>
-                  <Badge variant="secondary">{overview.sourceSummary.total ?? 0} total</Badge>
-                  {overview.sourceSummary.failing ? (
-                    <Badge variant="destructive">{overview.sourceSummary.failing} failing</Badge>
-                  ) : null}
-                  {overview.sourceSummary.unsupported ? (
-                    <Badge variant="outline">
-                      {overview.sourceSummary.unsupported} unsupported pages
+        {overview ? (
+          <>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <Card size="sm">
+                <CardHeader>
+                  <CardTitle className="text-[13px]">Queue & settings</CardTitle>
+                  <CardDescription className="text-[11px]">
+                    Env-configured in the API. Recommendations: up to {overview.settings.dailyLimit}
+                    /user/day.
+                  </CardDescription>
+                  <CardAction>
+                    <Badge variant={overview.settings.enabled ? "default" : "destructive"}>
+                      {overview.settings.enabled ? "Enabled" : "Disabled"}
                     </Badge>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(overview.byProvider).map(([provider, n]) => (
-                    <Badge key={provider} variant="outline" className="text-[10px]">
-                      {provider} · {n}
+                  </CardAction>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant="secondary">Expiry {overview.settings.expiryDays}d</Badge>
+                    <Badge variant="secondary">
+                      YOE window +{overview.settings.experienceWindowYears}
                     </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <PeopleDiscoveryStats />
-
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle className="text-[13px]">Bulk people discovery</CardTitle>
-                <CardDescription className="text-[11px]">
-                  Upload a CSV with a header row: name (required), company, role, email, linkedin,
-                  source_url. Rows are matched by LinkedIn → email → name + company and only fill
-                  empty fields. Emails are stored as unverified; phone numbers are ignored.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <FileUpload
-                  accept=".csv,text/csv"
-                  maxSize={4 * 1024 * 1024}
-                  files={csvFiles}
-                  onFilesChange={setCsvFiles}
-                >
-                  <FileUploadDropzone className="min-h-24">
-                    <span className="text-[12px]">
-                      Drop a CSV here or click to choose (max 4 MB)
-                    </span>
-                  </FileUploadDropzone>
-                  <FileUploadList />
-                </FileUpload>
-                <Button
-                  size="sm"
-                  disabled={!csvFiles.some((f) => !f.error) || busy !== null}
-                  loading={busy === "People import queued"}
-                  onClick={() => void startPeopleImport()}
-                >
-                  Start import
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          <section className="space-y-3" aria-label="Discovery runs">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="min-w-0">
-                <h3 className="text-foreground text-[13px] font-semibold tracking-tight">Runs</h3>
-                <p className="text-muted-foreground text-[11px]">
-                  The filter applies to both the chart and the list below.
-                </p>
-              </div>
-              <HoverCard>
-                <HoverCardTrigger>
-                  <ToggleGroup
-                    aria-label="Filter runs by kind"
-                    variant="outline"
-                    size="sm"
-                    spacing={1}
-                    value={[runKind]}
-                    onValueChange={(next) => setRunKind(next[0] ?? "all")}
-                  >
-                    <ToggleGroupItem value="all" className="h-7 rounded-full px-2.5 text-[11px]">
-                      All
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="jobs_scan"
-                      className="h-7 rounded-full px-2.5 text-[11px]"
-                    >
-                      Jobs
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="people_discovery"
-                      className="h-7 rounded-full px-2.5 text-[11px]"
-                    >
-                      People discovery
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="people_import"
-                      className="h-7 rounded-full px-2.5 text-[11px]"
-                    >
-                      People import
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-72" align="end">
-                  <CronScheduleHover kind={runKind} />
-                </HoverCardContent>
-              </HoverCard>
-            </div>
-
-            <DiscoveryRunsChart kind={runKind} />
-
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle className="text-[13px]">Recent runs</CardTitle>
-                <CardDescription className="text-[11px]">
-                  Resumable: failed items retry automatically up to 3 times.
-                </CardDescription>
-                <CardAction>
-                  <ToggleGroup
-                    aria-label="Runs per page"
-                    variant="outline"
-                    size="sm"
-                    // spacing={1}
-                    value={[String(runsPageSize)]}
-                    onValueChange={(next) => {
-                      const n = Number(next[0]);
-                      if (n) setRunsPageSize(n);
-                    }}
-                  >
-                    {[5, 10, 20].map((n) => (
-                      <ToggleGroupItem
-                        key={n}
-                        value={String(n)}
-                        className="h-7 rounded-full px-2.5 text-[11px]"
-                      >
-                        {n}
-                      </ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
-                </CardAction>
-              </CardHeader>
-              <CardContent>
-                <DataTable
-                  columns={runColumns}
-                  data={filteredRuns}
-                  getRowId={(r) => r.id}
-                  searchable
-                  searchPlaceholder="Search run kind…"
-                  pagination={runsPageSize}
-                  emptyMessage="No runs match this filter."
-                  renderRowActions={(r) =>
-                    r.failedItems > 0 ? (
+                    <Badge variant="secondary">
+                      Internships {overview.settings.includeInternships ? "included" : "excluded"}
+                    </Badge>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[12px]">
+                      <span className="text-foreground font-semibold tabular-nums">
+                        {overview.openItems}
+                      </span>{" "}
+                      <span className="text-muted-foreground">items waiting</span>
+                    </p>
+                    {processing ? (
                       <Button
                         size="xs"
-                        variant="ghost"
-                        disabled={busy !== null}
-                        onClick={() => void retryRun(r.id)}
+                        variant="outline"
+                        onClick={() => (processingRef.current = false)}
                       >
-                        Retry
+                        Pause processing
                       </Button>
-                    ) : null
-                  }
-                  actionsWidth="5rem"
-                />
-              </CardContent>
-            </Card>
-          </section>
-        </>
-      ) : null}
+                    ) : (
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        disabled={overview.openItems === 0}
+                        onClick={() => void processQueue()}
+                      >
+                        Process now
+                      </Button>
+                    )}
+                  </div>
+                  {processing ? (
+                    <p className="text-muted-foreground text-[11px]">
+                      Processing in ~40s ticks while this page is open…
+                    </p>
+                  ) : null}
+                </CardContent>
+              </Card>
 
-      <SourcesSheet
-        open={sourcesOpen}
-        onClose={() => setSourcesOpen(false)}
-        onChanged={() => void refresh()}
-      />
-
-      <Sheet
-        open={runDetail !== null}
-        onOpenChange={(next) => {
-          if (!next) setRunDetail(null);
-        }}
-      >
-        <SheetContent className="w-full max-w-md sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle className="aavedak-display text-lg font-normal">
-              {runDetail ? (RUN_LABELS[runDetail.kind] ?? runDetail.kind) : "Run"}
-            </SheetTitle>
-            <SheetDescription className="text-[12px] leading-relaxed">
-              {runDetail?.runKey ?? runDetail?.id}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="min-h-0 flex-1">
-            {runDetail ? (
-              <div className="space-y-3 text-[12px]">
-                <Progress value={runProgress(runDetail)} />
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(runDetail.totals).map(([k, v]) => (
-                    <Badge key={k} variant="outline" className="text-[10px]">
-                      {k}: {v}
-                    </Badge>
-                  ))}
-                </div>
-                <Separator />
-                <p className="text-foreground font-medium">Recent errors</p>
-                {runDetail.recentErrors?.length ? (
-                  <ul className="space-y-1.5">
-                    {runDetail.recentErrors.map((e, i) => (
-                      <li key={`${e.refId}-${i}`} className="text-muted-foreground">
-                        <span className="text-foreground">{e.status}</span> · attempt {e.attempts} ·{" "}
-                        {e.error}
-                      </li>
+              <Card size="sm">
+                <CardHeader>
+                  <CardTitle className="text-[13px]">Career sources</CardTitle>
+                  <CardDescription className="text-[11px]">
+                    Public ATS boards (Greenhouse, Lever, Ashby, SmartRecruiters, Workable) and
+                    career pages with JobPosting data. Tech roles are stored worldwide (India first)
+                    up to {overview.settings.ingestMaxMinYears} yrs minimum experience.
+                  </CardDescription>
+                  <CardAction>
+                    <Button size="xs" variant="outline" onClick={() => setSourcesOpen(true)}>
+                      Manage
+                    </Button>
+                  </CardAction>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge>{overview.sourceSummary.enabled ?? 0} enabled</Badge>
+                    <Badge variant="secondary">{overview.sourceSummary.total ?? 0} total</Badge>
+                    {overview.sourceSummary.failing ? (
+                      <Badge variant="destructive">{overview.sourceSummary.failing} failing</Badge>
+                    ) : null}
+                    {overview.sourceSummary.unsupported ? (
+                      <Badge variant="outline">
+                        {overview.sourceSummary.unsupported} unsupported pages
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(overview.byProvider).map(([provider, n]) => (
+                      <Badge key={provider} variant="outline" className="text-[10px]">
+                        {provider} · {n}
+                      </Badge>
                     ))}
-                  </ul>
-                ) : (
-                  <p className="text-muted-foreground">None.</p>
-                )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <PeopleDiscoveryStats />
+
+              <Card size="sm">
+                <CardHeader>
+                  <CardTitle className="text-[13px]">Bulk people discovery</CardTitle>
+                  <CardDescription className="text-[11px]">
+                    Upload a CSV with a header row: name (required), company, role, email, linkedin,
+                    source_url. Rows are matched by LinkedIn → email → name + company and only fill
+                    empty fields. Emails are stored as unverified; phone numbers are ignored.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FileUpload
+                    accept=".csv,text/csv"
+                    maxSize={4 * 1024 * 1024}
+                    files={csvFiles}
+                    onFilesChange={setCsvFiles}
+                  >
+                    <FileUploadDropzone className="min-h-24">
+                      <span className="text-[12px]">
+                        Drop a CSV here or click to choose (max 4 MB)
+                      </span>
+                    </FileUploadDropzone>
+                    <FileUploadList />
+                  </FileUpload>
+                  <Button
+                    size="sm"
+                    disabled={!csvFiles.some((f) => !f.error) || busy !== null}
+                    loading={busy === "People import queued"}
+                    onClick={() => void startPeopleImport()}
+                  >
+                    Start import
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <section className="space-y-3" aria-label="Discovery runs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="text-foreground text-[13px] font-semibold tracking-tight">Runs</h3>
+                  <p className="text-muted-foreground text-[11px]">
+                    The filter applies to both the chart and the list below.
+                  </p>
+                </div>
+                <HoverCard>
+                  <HoverCardTrigger>
+                    <ToggleGroup
+                      aria-label="Filter runs by kind"
+                      variant="outline"
+                      size="sm"
+                      spacing={1}
+                      value={[runKind]}
+                      onValueChange={(next) => setRunKind(next[0] ?? "all")}
+                    >
+                      <ToggleGroupItem value="all" className="h-7 rounded-full px-2.5 text-[11px]">
+                        All
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="jobs_scan"
+                        className="h-7 rounded-full px-2.5 text-[11px]"
+                      >
+                        Jobs
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="people_discovery"
+                        className="h-7 rounded-full px-2.5 text-[11px]"
+                      >
+                        People discovery
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="people_import"
+                        className="h-7 rounded-full px-2.5 text-[11px]"
+                      >
+                        People import
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-72" align="end">
+                    <CronScheduleHover kind={runKind} />
+                  </HoverCardContent>
+                </HoverCard>
               </div>
-            ) : null}
-          </div>
-        </SheetContent>
-      </Sheet>
-    </section>
+
+              <DiscoveryRunsChart kind={runKind} />
+
+              <Card size="sm">
+                <CardHeader>
+                  <CardTitle className="text-[13px]">Recent runs</CardTitle>
+                  <CardDescription className="text-[11px]">
+                    Resumable: failed items retry automatically up to 3 times.
+                  </CardDescription>
+                  <CardAction>
+                    <ToggleGroup
+                      aria-label="Runs per page"
+                      variant="outline"
+                      size="sm"
+                      // spacing={1}
+                      value={[String(runsPageSize)]}
+                      onValueChange={(next) => {
+                        const n = Number(next[0]);
+                        if (n) setRunsPageSize(n);
+                      }}
+                    >
+                      {[5, 10, 20].map((n) => (
+                        <ToggleGroupItem
+                          key={n}
+                          value={String(n)}
+                          className="h-7 rounded-full px-2.5 text-[11px]"
+                        >
+                          {n}
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </CardAction>
+                </CardHeader>
+                <CardContent>
+                  <DataTable
+                    columns={runColumns}
+                    data={filteredRuns}
+                    getRowId={(r) => r.id}
+                    searchable
+                    searchPlaceholder="Search run kind…"
+                    pagination={runsPageSize}
+                    emptyMessage="No runs match this filter."
+                    renderRowActions={(r) =>
+                      r.failedItems > 0 ? (
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          disabled={busy !== null}
+                          onClick={() => void retryRun(r.id)}
+                        >
+                          Retry
+                        </Button>
+                      ) : null
+                    }
+                    actionsWidth="5rem"
+                  />
+                </CardContent>
+              </Card>
+            </section>
+          </>
+        ) : null}
+
+        <SourcesSheet
+          open={sourcesOpen}
+          onClose={() => setSourcesOpen(false)}
+          onChanged={() => void refresh()}
+        />
+
+        <Sheet
+          open={runDetail !== null}
+          onOpenChange={(next) => {
+            if (!next) setRunDetail(null);
+          }}
+        >
+          <SheetContent className="w-full max-w-md sm:max-w-md">
+            <SheetHeader>
+              <SheetTitle className="aavedak-display text-lg font-normal">
+                {runDetail ? (RUN_LABELS[runDetail.kind] ?? runDetail.kind) : "Run"}
+              </SheetTitle>
+              <SheetDescription className="text-[12px] leading-relaxed">
+                {runDetail?.runKey ?? runDetail?.id}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="min-h-0 flex-1">
+              {runDetail ? (
+                <div className="space-y-3 text-[12px]">
+                  <Progress value={runProgress(runDetail)} />
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(runDetail.totals).map(([k, v]) => (
+                      <Badge key={k} variant="outline" className="text-[10px]">
+                        {k}: {v}
+                      </Badge>
+                    ))}
+                  </div>
+                  <Separator />
+                  <p className="text-foreground font-medium">Recent errors</p>
+                  {runDetail.recentErrors?.length ? (
+                    <ul className="space-y-1.5">
+                      {runDetail.recentErrors.map((e, i) => (
+                        <li key={`${e.refId}-${i}`} className="text-muted-foreground">
+                          <span className="text-foreground">{e.status}</span> · attempt {e.attempts}{" "}
+                          · {e.error}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted-foreground">None.</p>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </CollapsibleSection>
   );
 }
 
