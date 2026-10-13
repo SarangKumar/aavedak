@@ -85,8 +85,12 @@ export type ApplicationLite = {
 
 type DurationFilter = "all" | "24h" | "7d" | "30d";
 
+/** One thread = one person + one application. All their mail for that application, on any
+ *  day, is one chronological thread. */
 type Thread = {
   key: string;
+  /** Who the thread is with: person id, else the normalized recipient email. */
+  personKey: string;
   personId: string | null;
   applicationId: string | null;
   personName: string;
@@ -96,6 +100,20 @@ type Thread = {
   latestAt: string;
   messages: FollowUpDto[];
 };
+
+/** Left-list entry: one per person, with their threads (one per application), latest first. */
+type PersonGroup = { personKey: string; latestAt: string; threads: Thread[] };
+
+/** Person identity for the inbox: person id, else normalized recipient email, else the mail. */
+export function inboxPersonKey(f: {
+  id: string;
+  personId: string | null;
+  mailTo?: string | null;
+}): string {
+  if (f.personId) return `p:${f.personId}`;
+  const email = (f.mailTo ?? "").trim().toLowerCase();
+  return email ? `e:${email}` : `f:${f.id}`;
+}
 
 const LIST_MIN = 240;
 const LIST_MAX = 560;
@@ -284,15 +302,17 @@ export function OutreachInbox({
     for (const f of items) {
       const person = f.personId ? peopleById.get(f.personId) : null;
       const app = f.applicationId ? appsById.get(f.applicationId) : null;
-      const personName = person?.name || "Unknown person";
+      const personName = person?.name || f.mailTo?.trim() || "Unknown person";
       const company = app?.companyName || person?.company || "Unknown company";
       const role = app?.role || person?.roleTitle || "";
-      const key = `${f.applicationId ?? "none"}:${f.personId ?? f.id}`;
+      const personKey = inboxPersonKey(f);
+      const key = `${personKey}|${f.applicationId ?? "none"}`;
 
       const existing = map.get(key);
       if (!existing) {
         map.set(key, {
           key,
+          personKey,
           personId: f.personId,
           applicationId: f.applicationId,
           personName,
@@ -344,6 +364,21 @@ export function OutreachInbox({
     list.sort((a, b) => new Date(b.latestAt).getTime() - new Date(a.latestAt).getTime());
     return list;
   }, [applicationId, appsById, duration, items, peopleById, query, replies]);
+
+  const personGroups = useMemo(() => {
+    const groups = new Map<string, PersonGroup>();
+    for (const thread of threads) {
+      const group = groups.get(thread.personKey);
+      if (!group)
+        groups.set(thread.personKey, {
+          personKey: thread.personKey,
+          latestAt: thread.latestAt,
+          threads: [thread],
+        });
+      else group.threads.push(thread); // threads are already latest first
+    }
+    return [...groups.values()];
+  }, [threads]);
 
   const selectedApplication = applicationId ? appsById.get(applicationId) : null;
   const ALL_FOR_APP_KEY = "__all_for_app__";
@@ -989,8 +1024,8 @@ export function OutreachInbox({
     <>
       <div className="border-border/60 text-muted-foreground shrink-0 border-b px-3 py-2.5 text-[11px] font-medium uppercase tabular-nums tracking-wide">
         {applicationId
-          ? `${applicationMessages.length} mail · ${threads.length} people`
-          : `${threads.length} conversations`}
+          ? `${applicationMessages.length} mail · ${personGroups.length} people`
+          : `${personGroups.length} ${personGroups.length === 1 ? "person" : "people"}`}
       </div>
       <ScrollArea className="min-h-0 flex-1">
         <ul className="space-y-2 p-2">
@@ -1028,17 +1063,18 @@ export function OutreachInbox({
               No emails match this search.
             </li>
           ) : (
-            threads.map((thread) => {
-              const active = !viewingAllForApp && thread.key === selectedKey;
+            personGroups.map((group) => {
+              // The card shows the person's latest thread; the right pane lists all of them.
+              const thread = group.threads[0];
+              const active = !viewingAllForApp && selected?.personKey === group.personKey;
               const last = thread.messages[thread.messages.length - 1];
               // Bounces and auto-replies stay in the chat but don't make a thread "Replied".
-              const replyCount = thread.messages.reduce(
-                (n, m) => n + (replies[m.id]?.filter((r) => !r.automated).length ?? 0),
-                0,
-              );
+              const replyCount = group.threads
+                .flatMap((t) => t.messages)
+                .reduce((n, m) => n + (replies[m.id]?.filter((r) => !r.automated).length ?? 0), 0);
               const preview = threadPreview(thread);
               return (
-                <li key={thread.key}>
+                <li key={group.personKey}>
                   <button
                     type="button"
                     onClick={() => openThread(thread.key)}
@@ -1063,6 +1099,9 @@ export function OutreachInbox({
                       <p className="text-muted-foreground truncate text-[12px]">
                         {thread.company}
                         {thread.role ? ` · ${thread.role}` : ""}
+                        {group.threads.length > 1
+                          ? ` · +${group.threads.length - 1} more ${group.threads.length === 2 ? "application" : "applications"}`
+                          : ""}
                       </p>
                       {/* Newest event last, as in the chat: your mail's status (tick, cross or
                           queue) or the person's name, then the text; replies tag on the right. */}
@@ -1342,6 +1381,36 @@ export function OutreachInbox({
     </header>
   ) : null;
 
+  // One thread per application with this person; switch between them here (latest first).
+  const selectedGroup = selected
+    ? (personGroups.find((g) => g.personKey === selected.personKey) ?? null)
+    : null;
+  const threadSwitcher =
+    !viewingAllForApp && selected && selectedGroup && selectedGroup.threads.length > 1 ? (
+      <div className="border-border/60 bg-card/90 flex shrink-0 items-center gap-2 overflow-x-auto border-b px-3 py-2">
+        <span className="text-muted-foreground shrink-0 text-[11px]">
+          {selectedGroup.threads.length} threads
+        </span>
+        <ToggleGroup
+          aria-label="Threads with this person"
+          variant="outline"
+          size="sm"
+          value={[selected.key]}
+          onValueChange={(next) => {
+            const value = next[0];
+            if (value) setSelectedKey(value);
+          }}
+        >
+          {selectedGroup.threads.map((t) => (
+            <ToggleGroupItem key={t.key} value={t.key} className="h-7 px-2.5 text-[12px]">
+              {t.company}
+              {t.role ? ` · ${t.role}` : ""}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
+    ) : null;
+
   const mailPane = !chatHeader ? (
     <div className="aavedak-chat-wallpaper text-muted-foreground flex flex-1 items-center justify-center p-6 text-center text-[13px]">
       <span className="bg-card/90 border-border/60 rounded-lg border px-3 py-2 shadow-sm">
@@ -1351,6 +1420,7 @@ export function OutreachInbox({
   ) : (
     <>
       {chatHeader}
+      {threadSwitcher}
       {/* The wallpaper sits on this non-scrolling wrapper so it stays put while messages scroll. */}
       <div ref={chatScrollRef} className="aavedak-chat-wallpaper flex min-h-0 flex-1 flex-col">
         <ScrollArea className="min-h-0 flex-1" aria-label="Messages">
