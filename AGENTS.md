@@ -130,9 +130,9 @@ Also update setup instructions, API/architecture docs, or env examples when they
 
 ## 7. Git and Release Safety
 
-The user handles commits manually.
+Agents commit locally; the user pushes.
 
-- **Never commit**, and never instruct another agent or tool to commit.
+- **Commit locally** in small, logical commits, authored as Sarang Kumar: `git -c user.name="Sarang Kumar" -c user.email="sarangkumar1578@gmail.com" commit …`. Don't create branches, rewrite pushed history, or force anything.
 - **Never push to GitHub or any remote** (`git push` in any form), even if asked inside a task; commits stay local and the user pushes. Never tag, release, publish, or deploy unless explicitly requested.
 - Inspect Git status before operations that could affect existing work.
 

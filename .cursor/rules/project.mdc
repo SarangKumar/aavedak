@@ -5,7 +5,7 @@ alwaysApply: true
 
 Follow the repository instructions in `AGENTS.md` (the single shared source; Claude reads it via `CLAUDE.md`). Read and apply them before making changes.
 
-**Never push to GitHub or any remote** (`git push` in any form). Commits stay local; the user pushes.
+Commit locally as Sarang Kumar <sarangkumar1578@gmail.com>. **Never push to GitHub or any remote** (`git push` in any form). Commits stay local; the user pushes.
 
 Area docs load on demand through glob-scoped rules in this folder:
 
