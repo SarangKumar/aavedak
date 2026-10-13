@@ -11,6 +11,12 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Fixed
 
+- **People table** — Rebuilt on the Vinyaas DataTable.
+  - Every column sorts. Search covers name, company, role, email, location, GitHub and source. 20 per page, and you can show or hide columns.
+  - New Location column ("City, Country" from discovery's parsed `location_city` / `country_code`; "—" when unknown).
+  - Email has a copy button.
+  - Row actions (Edit, Archive/Restore, Delete with its confirmation) moved into a ⋯ dropdown menu.
+
 - **Dashboard: Referrals & replies** — The "Needs a follow-up" card and its aging chart are replaced by a compact **Referrals & replies** card built only from Inbox data (follow-ups + replies).
   - Stats: referral requests sent, replies received (with reply rate), awaiting reply, and queued.
   - The 5 latest real replies (person · company · when, with the application's status badge). Each opens its Inbox thread (`/outreach?thread=<id>`).

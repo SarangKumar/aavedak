@@ -11,6 +11,22 @@ export const metadata: Metadata = {
   description: "Contacts for warm intros and cold outreach.",
 };
 
+const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+/** "Pune, India" from discovery's parsed city + ISO country; null when neither is known. */
+function personLocationLabel(city: string | null, countryCode: string | null): string | null {
+  let country: string | null = null;
+  if (countryCode) {
+    try {
+      country = regionNames.of(countryCode.toUpperCase()) ?? countryCode;
+    } catch {
+      country = countryCode;
+    }
+  }
+  const parts = [city, country].filter((v): v is string => Boolean(v));
+  return parts.length ? [...new Set(parts)].join(", ") : null;
+}
+
 export default async function PeoplePage() {
   const { user } = await requireOnboarded();
   const [people, applications] = await Promise.all([
@@ -39,6 +55,7 @@ export default async function PeoplePage() {
             origin: p.origin,
             linkedin: p.linkedin ? `https://www.${p.linkedin}` : null,
             githubUrl: p.githubUrl,
+            location: personLocationLabel(p.locationCity, p.countryCode),
             discoverySource: p.discoverySource,
             confidence: p.confidence,
             inferredEmail: p.inferredEmail,

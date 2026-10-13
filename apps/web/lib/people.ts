@@ -34,6 +34,8 @@ export type PersonRecord = {
   seniority: string | null;
   department: string | null;
   location: string | null;
+  /** Canonical city parsed from `location` by discovery (null when unknown or remote). */
+  locationCity: string | null;
   /** ISO country parsed from `location` by discovery (null when unknown). */
   countryCode: string | null;
   githubUrl: string | null;
@@ -62,6 +64,7 @@ type Row = {
   seniority?: string | null;
   department?: string | null;
   location?: string | null;
+  location_city?: string | null;
   country_code?: string | null;
   github_url?: string | null;
   inferred_email?: string | null;
@@ -89,6 +92,7 @@ function mapRow(row: Row): PersonRecord {
     seniority: row.seniority ?? null,
     department: row.department ?? null,
     location: row.location ?? null,
+    locationCity: row.location_city ?? null,
     countryCode: row.country_code ?? null,
     githubUrl: row.github_url ?? null,
     inferredEmail: row.email ? null : (row.inferred_email ?? null),

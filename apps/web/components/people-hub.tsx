@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
@@ -27,20 +27,19 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Archive, ArchiveRestore, Check, Copy, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { CompanySelect } from "@/components/company-select";
 import { PersonVote, personInitials, type VoteSummaryDto } from "@/components/person-vote";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
-import { SearchInput } from "@/components/search-input";
 
 export type PersonDto = {
   id: string;
@@ -56,6 +55,8 @@ export type PersonDto = {
   linkedin?: string | null;
   /** Public GitHub profile (people discovered from GitHub). */
   githubUrl?: string | null;
+  /** "City, Country" from discovery's parsed location; null when unknown. */
+  location?: string | null;
   discoverySource?: string | null;
   confidence?: number | null;
   inferredEmail?: string | null;
@@ -81,6 +82,107 @@ function GitHubMark({ className }: { className?: string }) {
 }
 
 const NO_VOTES: VoteSummaryDto = { up: 0, down: 0, mine: 0, replies: 0 };
+
+type PersonRow = {
+  id: string;
+  person: PersonDto;
+  name: string;
+  company: string;
+  role: string;
+  email: string;
+  location: string;
+  github: string;
+  source: string;
+  linkedApp: string;
+  status: PersonDto["status"];
+};
+
+/** Plain text for sorting/searching the Source column (badges render the visual). */
+function sourceLabel(p: PersonDto): string {
+  return [p.origin === "system" ? "discovered" : "added", p.discoverySource ?? ""]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function Muted({ children }: { children: React.ReactNode }) {
+  return <span className="text-muted-foreground block truncate text-[12px]">{children}</span>;
+}
+
+function CopyIconButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      aria-label={copied ? "Copied" : "Copy email"}
+      title={copied ? "Copied" : "Copy email"}
+      className="text-muted-foreground hover:text-foreground shrink-0 cursor-pointer rounded p-0.5"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1500);
+        } catch {
+          // Clipboard blocked; nothing to do.
+        }
+      }}
+    >
+      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+    </button>
+  );
+}
+
+function PersonActions({
+  person,
+  busy,
+  onEdit,
+  onArchive,
+  onRestore,
+  onDelete,
+}: {
+  person: PersonDto;
+  busy: boolean;
+  onEdit: () => void;
+  onArchive: () => void;
+  onRestore: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger>
+        <Button
+          size="icon-xs"
+          variant="ghost"
+          aria-label={`Actions for ${person.name}`}
+          disabled={busy}
+        >
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={onEdit}>
+          <Pencil className="size-3.5" />
+          Edit
+        </DropdownMenuItem>
+        {person.status === "active" ? (
+          <DropdownMenuItem onClick={onArchive}>
+            <Archive className="size-3.5" />
+            Archive
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem onClick={onRestore}>
+            <ArchiveRestore className="size-3.5" />
+            Restore
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={onDelete}>
+          <Trash2 className="size-3.5" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export type ApplicationLite = {
   id: string;
@@ -115,7 +217,6 @@ type Props = {
 
 export function PeopleHub({ initialPeople, applications }: Props) {
   const [people, setPeople] = useState(initialPeople);
-  const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -128,17 +229,169 @@ export function PeopleHub({ initialPeople, applications }: Props) {
 
   const appsById = useMemo(() => new Map(applications.map((a) => [a.id, a])), [applications]);
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return people.filter((p) => {
-      if (!showArchived && p.status === "archived") return false;
-      if (!q) return true;
-      const hay = [p.name, p.email ?? "", p.company ?? "", p.roleTitle ?? "", p.notes ?? ""]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [people, query, showArchived]);
+  const rows = useMemo<PersonRow[]>(
+    () =>
+      people
+        .filter((p) => showArchived || p.status !== "archived")
+        .map((p) => {
+          const app = p.applicationId ? appsById.get(p.applicationId) : null;
+          return {
+            id: p.id,
+            person: p,
+            name: p.name,
+            company: p.company ?? "",
+            role: p.roleTitle ?? "",
+            email: p.email ?? p.inferredEmail ?? "",
+            location: p.location ?? "",
+            github: githubHandle(p.githubUrl) ?? "",
+            source: sourceLabel(p),
+            linkedApp: app ? `${app.companyName} · ${app.role}` : "",
+            status: p.status,
+          };
+        }),
+    [people, showArchived, appsById],
+  );
+
+  const columns = useMemo<DataTableColumn<PersonRow>[]>(
+    () => [
+      {
+        id: "name",
+        header: "Name",
+        accessorKey: "name",
+        sortable: true,
+        searchable: true,
+        enableHiding: false,
+        width: "15rem",
+        cell: (row) => {
+          const p = row.person;
+          const href = p.githubUrl || p.linkedin || undefined;
+          return (
+            <div className="flex min-w-0 items-center gap-2">
+              <Avatar className="size-7 shrink-0">
+                <AvatarFallback className="text-[10px]">{personInitials(p.name)}</AvatarFallback>
+              </Avatar>
+              {href ? (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={p.githubUrl ? "Open GitHub profile" : "Open LinkedIn profile"}
+                  className="text-foreground truncate text-[13px] font-medium hover:underline"
+                >
+                  {p.name}
+                </a>
+              ) : (
+                <span className="text-foreground truncate text-[13px] font-medium">{p.name}</span>
+              )}
+              {p.linkedin ? (
+                <a
+                  href={p.linkedin}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-muted-foreground hover:text-foreground shrink-0 text-[11px]"
+                >
+                  in
+                </a>
+              ) : null}
+            </div>
+          );
+        },
+      },
+      {
+        id: "company",
+        header: "Company",
+        accessorKey: "company",
+        sortable: true,
+        searchable: true,
+        cell: (row) => <Muted>{row.company || "—"}</Muted>,
+      },
+      {
+        id: "role",
+        header: "Role",
+        accessorKey: "role",
+        sortable: true,
+        searchable: true,
+        cell: (row) => <Muted>{row.role || "—"}</Muted>,
+      },
+      {
+        id: "email",
+        header: "Email",
+        accessorKey: "email",
+        sortable: true,
+        searchable: true,
+        width: "14rem",
+        cell: (row) => (
+          <span className="text-muted-foreground flex min-w-0 items-center gap-1 text-[12px]">
+            <span className="min-w-0 truncate">
+              <PersonEmail email={row.person.email} person={row.person} />
+            </span>
+            {row.email ? <CopyIconButton text={row.email} /> : null}
+          </span>
+        ),
+      },
+      {
+        id: "location",
+        header: "Location",
+        accessorKey: "location",
+        sortable: true,
+        searchable: true,
+        cell: (row) => <Muted>{row.location || "—"}</Muted>,
+      },
+      {
+        id: "github",
+        header: "GitHub",
+        accessorKey: "github",
+        sortable: true,
+        searchable: true,
+        cell: (row) =>
+          row.github ? (
+            <a
+              href={row.person.githubUrl ?? undefined}
+              target="_blank"
+              rel="noreferrer"
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[12px]"
+            >
+              <GitHubMark />@{row.github}
+            </a>
+          ) : (
+            <Muted>—</Muted>
+          ),
+      },
+      {
+        id: "source",
+        header: "Source",
+        accessorKey: "source",
+        sortable: true,
+        searchable: true,
+        width: "9rem",
+        cell: (row) => <PersonSourceBadges person={row.person} />,
+      },
+      {
+        id: "linkedApp",
+        header: "Linked app",
+        accessorKey: "linkedApp",
+        sortable: true,
+        cell: (row) => <Muted>{row.linkedApp || "—"}</Muted>,
+      },
+      {
+        id: "status",
+        header: "Status",
+        accessorKey: "status",
+        sortable: true,
+        width: "6rem",
+        cell: (row) => (
+          <Badge variant={row.status === "active" ? "secondary" : "outline"}>{row.status}</Badge>
+        ),
+      },
+      {
+        id: "community",
+        header: <span title="Community signal — not proof they will refer">Community</span>,
+        width: "8rem",
+        cell: (row) => <PersonVote personId={row.id} initial={row.person.votes ?? NO_VOTES} />,
+      },
+    ],
+    [],
+  );
 
   function openCreate() {
     setEditingId(null);
@@ -293,14 +546,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
         </p>
       ) : null}
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <SearchInput
-          className="h-9 sm:max-w-sm"
-          placeholder="Search name, email, company…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search people"
-        />
+      <div className="flex justify-end">
         <Button
           size="sm"
           variant={showArchived ? "default" : "outline"}
@@ -310,150 +556,26 @@ export function PeopleHub({ initialPeople, applications }: Props) {
         </Button>
       </div>
 
-      <Card className="border-border/80 bg-card gap-0 overflow-hidden rounded-lg border p-0 shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>GitHub</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Linked app</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead title="Community signal — not proof they will refer">Community</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visible.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={9}
-                  className="text-muted-foreground py-8 text-center text-[13px]"
-                >
-                  No people yet. Add a contact to use in referrals.
-                </TableCell>
-              </TableRow>
-            ) : (
-              visible.map((person) => {
-                const app = person.applicationId ? appsById.get(person.applicationId) : null;
-                const busy = busyId === person.id;
-                return (
-                  <TableRow key={person.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="size-7">
-                          <AvatarFallback className="text-[10px]">
-                            {personInitials(person.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        {person.githubUrl || person.linkedin ? (
-                          <a
-                            href={person.githubUrl || person.linkedin || undefined}
-                            target="_blank"
-                            rel="noreferrer"
-                            title={
-                              person.githubUrl ? "Open GitHub profile" : "Open LinkedIn profile"
-                            }
-                            className="text-foreground cursor-pointer text-[13px] font-medium hover:underline"
-                          >
-                            {person.name}
-                          </a>
-                        ) : (
-                          <span className="text-foreground text-[13px] font-medium">
-                            {person.name}
-                          </span>
-                        )}
-                        <PersonSourceBadges person={person} />
-                        {person.linkedin ? (
-                          <a
-                            href={person.linkedin}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-muted-foreground hover:text-foreground text-[11px]"
-                          >
-                            in
-                          </a>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-[12px]">
-                      {githubHandle(person.githubUrl) ? (
-                        <a
-                          href={person.githubUrl ?? undefined}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="hover:text-foreground inline-flex cursor-pointer items-center gap-1"
-                        >
-                          <GitHubMark />@{githubHandle(person.githubUrl)}
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-[12px]">
-                      <PersonEmail email={person.email} person={person} />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-[12px]">
-                      {person.company ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-[12px]">
-                      {person.roleTitle ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground max-w-40 truncate text-[12px]">
-                      {app ? `${app.companyName} · ${app.role}` : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={person.status === "active" ? "secondary" : "outline"}>
-                        {person.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <PersonVote personId={person.id} initial={person.votes ?? NO_VOTES} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="inline-flex flex-wrap justify-end gap-1">
-                        <Button size="xs" variant="outline" onClick={() => openEdit(person)}>
-                          Edit
-                        </Button>
-                        {person.status === "active" ? (
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            disabled={busy}
-                            onClick={() => void archivePerson(person.id)}
-                          >
-                            {busy ? "…" : "Archive"}
-                          </Button>
-                        ) : (
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            disabled={busy}
-                            onClick={() => void restorePerson(person.id)}
-                          >
-                            {busy ? "…" : "Restore"}
-                          </Button>
-                        )}
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          className="text-destructive"
-                          disabled={busy}
-                          onClick={() => setDeleting(person)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={rows}
+        searchable
+        searchPlaceholder="Search name, company, role, email, location…"
+        pagination={20}
+        columnVisibility
+        emptyMessage="No people yet. Add a contact to use in referrals."
+        renderRowActions={(row) => (
+          <PersonActions
+            person={row.person}
+            busy={busyId === row.id}
+            onEdit={() => openEdit(row.person)}
+            onArchive={() => void archivePerson(row.id)}
+            onRestore={() => void restorePerson(row.id)}
+            onDelete={() => setDeleting(row.person)}
+          />
+        )}
+        actionsWidth="3rem"
+      />
 
       <Sheet
         open={drawerOpen}
