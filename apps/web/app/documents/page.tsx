@@ -53,7 +53,7 @@ export default async function DocumentsPage({
       initialTab={initialTab}
       initialJobId={initialJobId}
       userEmail={user.email}
-      userName={user.name}
+      userName={profile?.name?.trim() || user.name}
       profileEmail={profile?.email ?? user.email ?? null}
       profileLinks={profile?.links ?? {}}
       initialJobs={jobs.map((j) => ({

@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { FooterRowItem } from "@/lib/cover-letter-download";
+import { HighlightedTemplateText } from "@/components/template-variables-info";
 import { cn } from "@/lib/utils";
 
 export type CoverLetterPdfPreviewProps = {
@@ -120,7 +121,7 @@ function PaperContent({
               : "text-[12.5px] font-bold leading-snug tracking-tight text-black"
           }
         >
-          {title || "(untitled cover letter)"}
+          {title ? <HighlightedTemplateText text={title} /> : "(untitled cover letter)"}
         </p>
         {companyName || role ? (
           <p
@@ -142,7 +143,7 @@ function PaperContent({
                 : "mt-1.5 text-[9.5px] text-neutral-500"
             }
           >
-            Pick an application to fill {"{{company}}"} / {"{{role}}"}.
+            Pick a job or enter a company and role to fill {"{{company}}"} / {"{{role}}"}.
           </p>
         )}
         <pre
@@ -153,7 +154,7 @@ function PaperContent({
           }
           style={{ fontFamily: PAPER_FONT }}
         >
-          {body || "(empty body)"}
+          {body ? <HighlightedTemplateText text={body} /> : "(empty body)"}
         </pre>
       </div>
       {footer ? <div className="mt-auto">{footer}</div> : null}
@@ -240,7 +241,8 @@ export function CoverLetterPdfPreview({
       <div className="mb-2 shrink-0">
         <p className="aavedak-section-title text-foreground">Live PDF preview</p>
         <p className="aavedak-meta text-muted-foreground mt-0.5">
-          A4 · print-scale type · one page max. Variables resolve from the selected application.
+          A4 · print-scale type · one page max. Variables resolve from your profile and the selected
+          job; highlighted ones are missing and are left out of the PDF.
         </p>
       </div>
 

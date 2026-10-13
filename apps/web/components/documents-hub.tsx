@@ -17,7 +17,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { TemplateVariablesInfo } from "@/components/template-variables-info";
+import { TemplateVariablesInfo, missingVarLabels } from "@/components/template-variables-info";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -55,7 +55,13 @@ import {
   type ProfileLinks,
 } from "@/lib/profile-links";
 import { RESUME_MAX_BYTES } from "@/lib/resume-upload";
-import { renderTemplatePreview } from "@/lib/template-preview";
+import {
+  jobTemplateVars,
+  renderTemplateFinal,
+  resolveTemplate,
+  templateDate,
+  userTemplateVars,
+} from "@/lib/template-preview";
 import { CompanySelect } from "@/components/company-select";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -334,6 +340,8 @@ export function DocumentsHub({
   const [clCustomCompany, setClCustomCompany] = useState("");
   const [clCustomRole, setClCustomRole] = useState("");
   const [clApplicationId, setClApplicationId] = useState<string>("");
+  /** Values typed for variables the profile / job can't supply (phone, hiring manager, …). */
+  const [clFill, setClFill] = useState<Record<string, string>>({});
   const [editingClId, setEditingClId] = useState<string | null>(null);
   const [clFooterInclude, setClFooterInclude] = useState<FooterInclude>(() =>
     defaultFooterInclude(profileEmail, profileLinks),
@@ -375,6 +383,7 @@ export function DocumentsHub({
     setClCustomCompany("");
     setClCustomRole("");
     setClApplicationId("");
+    setClFill({});
     setClFooterInclude(defaultFooterInclude(profileEmail, profileLinks));
     const active = usableResumes.find((r) => r.status === "active");
     setClFooterResumeId(active?.id ?? usableResumes[0]?.id ?? "");
@@ -392,26 +401,33 @@ export function DocumentsHub({
       };
     }
     if (clMode === "custom") {
-      return {
-        company: clCustomCompany.trim() || "Acme Corp",
-        role: clCustomRole.trim() || "Software Engineer",
-        location: "Remote",
-      };
+      return { company: clCustomCompany.trim(), role: clCustomRole.trim(), location: "" };
     }
-    return { company: "Acme Corp", role: "Software Engineer", location: "Remote" };
+    return { company: "", role: "", location: "" };
   }, [selectedJob, clMode, clCustomCompany, clCustomRole]);
 
+  // Cover letters resolve to real values: your profile + the selected job / custom company.
+  const userVars = useMemo(
+    () =>
+      userTemplateVars({
+        name: userName,
+        email: profileEmail || userEmail,
+        links: profileLinks,
+      }),
+    [userName, profileEmail, userEmail, profileLinks],
+  );
+
   const coverVars = useMemo(() => {
-    return {
-      company: coverTarget.company,
-      role: coverTarget.role,
-      location: coverTarget.location,
-      user_name: "John Doe",
-      from_email: "john.doe@example.com",
-      person_name: "Jane Smith",
-      person_email: "jane.smith@example.com",
+    const base: Record<string, string> = {
+      ...userVars,
+      ...jobTemplateVars(coverTarget),
+      date: templateDate(),
     };
-  }, [coverTarget]);
+    for (const [key, value] of Object.entries(clFill)) {
+      if (value.trim() && !base[key]?.trim()) base[key] = value.trim();
+    }
+    return base;
+  }, [userVars, coverTarget, clFill]);
 
   const clFooterResumeUrl = useMemo(() => {
     if (!clFooterInclude.resume || !clFooterResumeId) return null;
@@ -424,8 +440,12 @@ export function DocumentsHub({
     [clFooterInclude, profileEmail, profileLinks, clFooterResumeUrl],
   );
 
-  const previewTitle = renderTemplatePreview(clTitle || "", coverVars);
-  const previewBody = renderTemplatePreview(clBody || "", coverVars);
+  // Preview keeps missing variables as {{key}} so they're highlighted; output drops them.
+  const titleResolved = resolveTemplate(clTitle || "", coverVars);
+  const bodyResolved = resolveTemplate(clBody || "", coverVars);
+  const previewTitle = titleResolved.text;
+  const previewBody = bodyResolved.text;
+  const clMissing = [...new Set([...titleResolved.missing, ...bodyResolved.missing])];
   const footerRow = coverFooterRowItems(clFooter);
 
   async function downloadCl(
@@ -437,21 +457,17 @@ export function DocumentsHub({
     setDownloadBusy(`${cl.id}-${format}`);
     try {
       const job = cl.jobId ? jobsById.get(cl.jobId) : undefined;
-      const company = cl.companyName || job?.company || "Acme Corp";
-      const role = cl.roleTitle || job?.title || "Software Engineer";
-      const location = job?.location || "Remote";
+      const company = cl.companyName || job?.company || "";
+      const role = cl.roleTitle || job?.title || "";
+      const location = job?.location || "";
       const vars = {
-        company,
-        role,
-        location,
-        user_name: "John Doe",
-        from_email: "john.doe@example.com",
-        person_name: "Jane Smith",
-        person_email: "jane.smith@example.com",
+        ...userVars,
+        ...jobTemplateVars({ company, role, location }),
+        date: templateDate(),
       };
       const rendered = {
-        title: renderTemplatePreview(cl.title, vars),
-        body: renderTemplatePreview(cl.body, vars),
+        title: renderTemplateFinal(cl.title, vars),
+        body: renderTemplateFinal(cl.body, vars),
         companyName: company,
         role,
         footer: footer ?? clFooter,
@@ -484,8 +500,8 @@ export function DocumentsHub({
     setDownloadBusy(`draft-${format}`);
     try {
       const rendered = {
-        title: previewTitle || clTitle || "Cover letter",
-        body: previewBody,
+        title: renderTemplateFinal(clTitle, coverVars) || "Cover letter",
+        body: renderTemplateFinal(clBody, coverVars),
         companyName: coverTarget.company,
         role: coverTarget.role,
         footer: clFooter,
@@ -733,8 +749,8 @@ export function DocumentsHub({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: clTitle,
-            body: clBody,
+            title: previewTitle,
+            body: previewBody,
             jobId: clMode === "job" ? clJobId || null : null,
             companyName: clMode === "custom" ? clCustomCompany.trim() : coverTarget.company,
             roleTitle: clMode === "custom" ? clCustomRole.trim() : coverTarget.role,
@@ -753,8 +769,8 @@ export function DocumentsHub({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: clTitle,
-            body: clBody,
+            title: previewTitle,
+            body: previewBody,
             jobId: clMode === "job" ? clJobId || null : null,
             companyName: clMode === "custom" ? clCustomCompany.trim() : coverTarget.company,
             roleTitle: clMode === "custom" ? clCustomRole.trim() : coverTarget.role,
@@ -1089,7 +1105,7 @@ export function DocumentsHub({
                   <p className="aavedak-section-title text-foreground">
                     {editingClId ? "Edit cover letter" : "New cover letter"}
                   </p>
-                  <TemplateVariablesInfo />
+                  <TemplateVariablesInfo mode="cover" vars={coverVars} />
                 </div>
                 <ToggleGroup
                   aria-label="Cover letter target"
@@ -1169,6 +1185,33 @@ export function DocumentsHub({
                   maxRows={32}
                   className="min-h-40 font-mono text-[12px] leading-relaxed"
                 />
+                {clMissing.length ? (
+                  <div className="border-border/80 space-y-1.5 rounded-md border border-dashed p-2">
+                    <p className="text-foreground text-[11px] font-semibold">
+                      Missing values ({missingVarLabels(clMissing).join(", ")})
+                    </p>
+                    <p className="text-muted-foreground text-[10px] leading-relaxed">
+                      Highlighted in the preview and left out of the PDF and DOCX. Fill them in
+                      here, or add them to your profile or the job.
+                    </p>
+                    <div className="grid gap-1.5 sm:grid-cols-2">
+                      {clMissing.map((key) => (
+                        <label key={key} className="block space-y-0.5">
+                          <span className="text-muted-foreground font-mono text-[10px]">
+                            {`{{${key}}}`} · {missingVarLabels([key])[0]}
+                          </span>
+                          <Input
+                            value={clFill[key] ?? ""}
+                            onChange={(e) =>
+                              setClFill((prev) => ({ ...prev, [key]: e.target.value }))
+                            }
+                            className="h-7 text-[12px]"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="space-y-1.5">
                   <p className="text-foreground text-[11px] font-semibold tracking-tight">
                     Footer from profile
@@ -1431,8 +1474,9 @@ export function DocumentsHub({
               onTemplatesChange={(next) =>
                 setTemplates((prev) => [...prev.filter((t) => t.kind !== "outreach"), ...next])
               }
-              fromEmail={userEmail}
+              fromEmail={profileEmail || userEmail}
               userName={userName}
+              userLinks={profileLinks}
             />
           </section>
         </TabsContent>
@@ -1451,8 +1495,9 @@ export function DocumentsHub({
               onTemplatesChange={(next) =>
                 setTemplates((prev) => [...prev.filter((t) => t.kind !== "followup"), ...next])
               }
-              fromEmail={userEmail}
+              fromEmail={profileEmail || userEmail}
               userName={userName}
+              userLinks={profileLinks}
             />
           </section>
         </TabsContent>

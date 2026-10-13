@@ -7,7 +7,11 @@ import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { TemplateVariablesInfo } from "@/components/template-variables-info";
+import {
+  HighlightedTemplateText,
+  TemplateVariablesInfo,
+  missingVarLabels,
+} from "@/components/template-variables-info";
 import {
   Select,
   SelectContent,
@@ -15,13 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { ProfileLinks } from "@/lib/profile-links";
 import {
-  DEFAULT_DUMMY_APPLICATION,
   DEFAULT_FOLLOWUP_SUBJECT,
   DEFAULT_TEMPLATE_SUBJECT,
-  dummyApplicationToVars,
-  renderTemplatePreview,
-  type DummyApplication,
+  DEMO_MAIL_VARS,
+  mailPreviewVars,
+  resolveTemplate,
 } from "@/lib/template-preview";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -51,10 +55,12 @@ type Props = {
   lockedKind?: TemplateKindDto;
   listTitle?: string;
   newButtonLabel?: string;
-  /** Ignored — dummy strip always uses example.com placeholders. Kept for call-site compat. */
+  /** Your email (profile email, else sign-in email): resolves {{user_email}} in the preview. */
   fromEmail?: string;
-  /** Ignored — dummy strip always uses example.com placeholders. Kept for call-site compat. */
+  /** Your name: resolves {{user_name}} in the preview. */
   userName?: string;
+  /** Your profile links: resolve {{linkedin}}, {{github}}, {{portfolio}} in the preview. */
+  userLinks?: ProfileLinks;
   className?: string;
 };
 
@@ -92,6 +98,9 @@ export function ColdEmailTemplatesPanel({
   lockedKind,
   listTitle = "Your templates",
   newButtonLabel = "New blank template",
+  fromEmail,
+  userName,
+  userLinks,
   className,
 }: Props) {
   const defaultKind = lockedKind ?? "outreach";
@@ -101,12 +110,16 @@ export function ColdEmailTemplatesPanel({
   const titleRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
 
-  // Dummy strip always uses example.com placeholders (props kept for call-site compat).
-  const dummy: DummyApplication = DEFAULT_DUMMY_APPLICATION;
-
-  const vars = useMemo(() => dummyApplicationToVars(dummy), [dummy]);
-  const previewSubject = renderTemplatePreview(draft.subject || "", vars);
-  const previewBody = renderTemplatePreview(draft.body || "", vars);
+  // Your own variables are real; job / company / recipient use labelled demo values until send.
+  const vars = useMemo(
+    () => mailPreviewVars({ name: userName, email: fromEmail, links: userLinks }),
+    [userName, fromEmail, userLinks],
+  );
+  const subjectPreview = resolveTemplate(draft.subject || "", vars);
+  const bodyPreview = resolveTemplate(draft.body || "", vars);
+  const previewSubject = subjectPreview.text;
+  const previewBody = bodyPreview.text;
+  const previewMissing = [...new Set([...subjectPreview.missing, ...bodyPreview.missing])];
 
   function startNew() {
     setDraft(emptyDraft(defaultKind));
@@ -226,20 +239,21 @@ export function ColdEmailTemplatesPanel({
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-1.5">
             <p className="text-foreground text-[12px] font-semibold tracking-tight">
-              Dummy application
+              Preview values
             </p>
           </div>
           <p className="text-muted-foreground text-[11px] leading-relaxed">
-            Preview substitutes placeholders from this sample job + person.
+            Your details come from your profile. Job and recipient are demo values; when you send,
+            they become the real application and person.
           </p>
           <div className="flex flex-wrap gap-1.5 pt-0.5">
-            <Chip label="Company" value={dummy.company} />
-            <Chip label="Role" value={dummy.role} />
-            <Chip label="Location" value={dummy.location} />
-            <Chip label="Person" value={dummy.personName} />
-            <Chip label="Person email" value={dummy.personEmail} />
-            <Chip label="From" value={dummy.fromEmail} />
-            <Chip label="You" value={dummy.userName} />
+            <Chip label="You" value={vars.user_name || "— (add your name in Profile)"} />
+            <Chip label="Your email" value={vars.user_email || "—"} />
+            {vars.linkedin ? <Chip label="LinkedIn" value={vars.linkedin} /> : null}
+            <Chip label="Demo company" value={DEMO_MAIL_VARS.company!} />
+            <Chip label="Demo role" value={DEMO_MAIL_VARS.role!} />
+            <Chip label="Demo location" value={DEMO_MAIL_VARS.location!} />
+            <Chip label="Demo recipient" value={DEMO_MAIL_VARS.person_name!} />
           </div>
         </div>
       </Card>
@@ -272,7 +286,7 @@ export function ColdEmailTemplatesPanel({
                   New blank
                 </Button>
               ) : null}
-              <TemplateVariablesInfo />
+              <TemplateVariablesInfo mode="mail" vars={vars} />
             </div>
           </div>
           <Input
@@ -344,14 +358,24 @@ export function ColdEmailTemplatesPanel({
               Subject
             </p>
             <p className="text-foreground mt-0.5 text-[12px] font-medium">
-              {previewSubject || "(empty subject)"}
+              {previewSubject ? (
+                <HighlightedTemplateText text={previewSubject} />
+              ) : (
+                "(empty subject)"
+              )}
             </p>
             <p className="text-muted-foreground mt-3 text-[10px] font-medium uppercase tracking-wide">
               Body
             </p>
             <pre className="text-foreground/90 mt-0.5 whitespace-pre-wrap font-sans text-[12px] leading-relaxed">
-              {previewBody || "(empty body)"}
+              {previewBody ? <HighlightedTemplateText text={previewBody} /> : "(empty body)"}
             </pre>
+            {previewMissing.length ? (
+              <p className="text-muted-foreground mt-3 text-[11px]">
+                Missing from your profile: {missingVarLabels(previewMissing).join(", ")}. These are
+                left out when the email is sent — add them in Profile settings.
+              </p>
+            ) : null}
           </ScrollArea>
         </Card>
       </div>

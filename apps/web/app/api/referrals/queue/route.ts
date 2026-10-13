@@ -10,12 +10,20 @@ import {
 } from "@/lib/follow-ups";
 import { getGmailAuthStatus, replySubject } from "@/lib/gmail";
 import { getPerson } from "@/lib/people";
+import { getProfile } from "@/lib/profile";
 import { getResume } from "@/lib/resumes";
+import {
+  jobTemplateVars,
+  renderTemplateFinal,
+  templateDate,
+  userTemplateVars,
+} from "@/lib/template-preview";
 
 const FOLLOWUP_COOLDOWN_MS = 60 * 60 * 1000;
 
+/** Send-time resolution: every variable gets its real value; anything unknown is dropped. */
 function fill(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => vars[key] ?? "");
+  return renderTemplateFinal(template, vars);
 }
 
 function mailKindOf(row: FollowUpRecord): FollowUpMailKind {
@@ -109,11 +117,19 @@ export async function POST(request: Request) {
   const existing = await listFollowUps(userId, { includeClosed: true });
   const forApp = existing.filter((f) => f.applicationId === applicationId);
 
+  const profile = await getProfile(userId);
   const baseVars = {
-    company: application.companyName,
-    role: application.role,
-    location: application.location,
-    user_name: session.user.name?.split(" ")[0] || session.user.email.split("@")[0] || "",
+    ...userTemplateVars({
+      name: profile?.name?.trim() || session.user.name?.trim() || session.user.email.split("@")[0],
+      email: profile?.email || session.user.email,
+      links: profile?.links ?? {},
+    }),
+    ...jobTemplateVars({
+      company: application.companyName,
+      role: application.role,
+      location: application.location,
+    }),
+    date: templateDate(),
   };
 
   const created = [];
@@ -189,6 +205,7 @@ export async function POST(request: Request) {
       ...baseVars,
       person_name: person.name,
       person_email: person.email ?? "",
+      hiring_manager: person.name,
     };
     let subject = fill(subjectTpl, vars);
     if (mailKind === "followup") {
