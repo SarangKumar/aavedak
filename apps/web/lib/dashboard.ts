@@ -6,6 +6,7 @@ import { ensureAppSchema, getSql } from "@/lib/app-db";
 import {
   APPLICATION_STATUSES,
   STATUS_LABELS,
+  isApplicationStatus,
   type ApplicationStatus,
 } from "@/lib/application-status";
 import { listApplications, type ApplicationRecord } from "@/lib/applications";
@@ -172,84 +173,95 @@ export const getStaleApplications = cache(
   },
 );
 
-/** Applied/Under review with no reply this long should get a follow-up. */
-export const FOLLOW_UP_AFTER_DAYS = 7;
-
-export const AGING_BUCKETS = [
-  { label: "0–7d", min: 0, max: 7 },
-  { label: "8–14d", min: 8, max: 14 },
-  { label: "15–30d", min: 15, max: 30 },
-  { label: "30+d", min: 31, max: Infinity },
-] as const;
-
-export type DashboardAgingItem = {
+export type DashboardReply = {
   id: string;
-  companyName: string;
-  role: string;
-  status: ApplicationStatus;
-  daysSinceApplied: number;
+  followUpId: string;
+  personName: string;
+  company: string | null;
+  receivedAt: string;
+  applicationStatus: ApplicationStatus | null;
 };
 
-export type DashboardAging = {
-  /** Same order as AGING_BUCKETS. */
-  buckets: number[];
-  total: number;
-  /** Older than FOLLOW_UP_AFTER_DAYS, nothing queued and nothing sent in that window. */
-  needsFollowUp: number;
-  /** Oldest first, top 5 of those needing a follow-up. */
-  items: DashboardAgingItem[];
+export type DashboardOutreach = {
+  /** Sent mails (referral requests + follow-ups). */
+  sent: number;
+  referralRequestsSent: number;
+  /** Sent mails that got a real (non-automated) reply. */
+  repliedMails: number;
+  /** Real replies received. */
+  replies: number;
+  awaitingReply: number;
+  queued: number;
+  latestReplies: DashboardReply[];
 };
 
-/**
- * Applications still in Applied / Under review with no reply, aged by days since applied.
- * One query; follow-up state per application comes from follow_up_tasks.
- */
-export const getApplicationAging = cache(async (userId: string): Promise<DashboardAging> => {
+/** Inbox stats from follow_up_tasks + mail_replies only (two queries, run together). */
+export const getOutreachSummary = cache(async (userId: string): Promise<DashboardOutreach> => {
   await ensureAppSchema();
-  const recentCutoff = new Date(Date.now() - FOLLOW_UP_AFTER_DAYS * 86_400_000).toISOString();
-  const rows = (await getSql()`
-    SELECT a.id, a.company_name, a.role, a.status,
-      COALESCE(a.applied_at, a.created_at) AS since,
-      EXISTS (
-        SELECT 1 FROM follow_up_tasks f
-        WHERE f.user_id = a.user_id AND f.application_id = a.id
-          AND (f.status IN ('pending', 'queued')
-               OR (f.status IN ('sent', 'sent_stub') AND f.updated_at >= ${recentCutoff}))
-      ) AS followed_up
-    FROM applications a
-    WHERE a.user_id = ${userId}
-      AND a.status IN ('applied', 'under_review')
-      AND NOT EXISTS (
-        SELECT 1 FROM follow_up_tasks f
-        WHERE f.user_id = a.user_id AND f.application_id = a.id AND f.replied_at IS NOT NULL
-      )
-    ORDER BY since ASC
-  `) as Array<{
-    id: string;
-    company_name: string;
-    role: string;
-    status: string;
-    since: string;
-    followed_up: boolean;
-  }>;
-  const now = Date.now();
-  const buckets = AGING_BUCKETS.map(() => 0);
-  const due: DashboardAgingItem[] = [];
-  for (const row of rows) {
-    const days = Math.max(0, Math.floor((now - new Date(row.since).getTime()) / 86_400_000));
-    const bucket = AGING_BUCKETS.findIndex((b) => days >= b.min && days <= b.max);
-    buckets[bucket === -1 ? AGING_BUCKETS.length - 1 : bucket]! += 1;
-    if (days > FOLLOW_UP_AFTER_DAYS && !row.followed_up) {
-      due.push({
-        id: row.id,
-        companyName: row.company_name,
-        role: row.role,
-        status: row.status as ApplicationStatus,
-        daysSinceApplied: days,
-      });
-    }
-  }
-  return { buckets, total: rows.length, needsFollowUp: due.length, items: due.slice(0, 5) };
+  const sql = getSql();
+  const [countRows, replyRows] = (await Promise.all([
+    sql`
+      SELECT
+        COUNT(*) FILTER (WHERE status IN ('sent', 'sent_stub'))::int AS sent,
+        COUNT(*) FILTER (WHERE status IN ('sent', 'sent_stub')
+          AND COALESCE(mail_kind, '') <> 'followup')::int AS referral_sent,
+        COUNT(*) FILTER (WHERE status IN ('sent', 'sent_stub') AND replied_at IS NOT NULL)::int
+          AS replied_mails,
+        COUNT(*) FILTER (WHERE status IN ('sent', 'sent_stub') AND replied_at IS NULL)::int
+          AS awaiting,
+        COUNT(*) FILTER (WHERE status IN ('pending', 'queued'))::int AS queued,
+        (SELECT COUNT(*)::int FROM mail_replies r WHERE r.user_id = ${userId} AND r.automated = 0)
+          AS replies
+      FROM follow_up_tasks
+      WHERE user_id = ${userId}
+    `,
+    sql`
+      SELECT r.id, r.follow_up_id, r.from_address, r.received_at,
+        p.name AS person_name, COALESCE(a.company_name, p.company) AS company, a.status AS app_status
+      FROM mail_replies r
+      JOIN follow_up_tasks f ON f.id = r.follow_up_id AND f.user_id = r.user_id
+      LEFT JOIN people p ON p.id = f.person_id
+      LEFT JOIN applications a ON a.id = f.application_id AND a.user_id = r.user_id
+      WHERE r.user_id = ${userId} AND r.automated = 0
+      ORDER BY r.received_at DESC
+      LIMIT 5
+    `,
+  ])) as [
+    Array<{
+      sent: number;
+      referral_sent: number;
+      replied_mails: number;
+      awaiting: number;
+      queued: number;
+      replies: number;
+    }>,
+    Array<{
+      id: string;
+      follow_up_id: string;
+      from_address: string;
+      received_at: string;
+      person_name: string | null;
+      company: string | null;
+      app_status: string | null;
+    }>,
+  ];
+  const c = countRows[0];
+  return {
+    sent: c?.sent ?? 0,
+    referralRequestsSent: c?.referral_sent ?? 0,
+    repliedMails: c?.replied_mails ?? 0,
+    replies: c?.replies ?? 0,
+    awaitingReply: c?.awaiting ?? 0,
+    queued: c?.queued ?? 0,
+    latestReplies: replyRows.map((r) => ({
+      id: r.id,
+      followUpId: r.follow_up_id,
+      personName: r.person_name || r.from_address,
+      company: r.company,
+      receivedAt: r.received_at,
+      applicationStatus: r.app_status && isApplicationStatus(r.app_status) ? r.app_status : null,
+    })),
+  };
 });
 
 /** Best open recommendations first; manual jobs have no score and are left out. */

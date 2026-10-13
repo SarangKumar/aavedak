@@ -177,28 +177,26 @@ export function DashboardListCardSkeleton({
   );
 }
 
-export function DashboardAgingSkeleton() {
+export function DashboardOutreachSkeleton() {
   return (
     <div className={cn(dashCard, "space-y-3")}>
       <div className="space-y-1.5">
         <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-3 w-64 max-w-full" />
+        <Skeleton className="h-3 w-56 max-w-full" />
       </div>
-      <div className="flex h-[132px] flex-col justify-around gap-2">
-        {[70, 45, 30, 20].map((w, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Skeleton className="h-3 w-10 shrink-0" />
-            <Skeleton className="h-5 rounded-sm" style={{ width: `${w}%` }} />
-          </div>
-        ))}
-      </div>
-      {Array.from({ length: 3 }).map((_, i) => (
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between gap-2 py-1">
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-3 w-10" />
+        </div>
+      ))}
+      {Array.from({ length: 2 }).map((_, i) => (
         <div key={i} className="flex items-center justify-between gap-2">
           <div className="space-y-1.5">
-            <Skeleton className="h-3.5 w-32" />
-            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-3 w-20" />
           </div>
-          <Skeleton className="h-5 w-10 shrink-0 rounded-full" />
+          <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
         </div>
       ))}
     </div>
@@ -278,7 +276,7 @@ function DashboardSkeleton() {
       <section className="space-y-4">
         {groupHeading}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <DashboardAgingSkeleton />
+          <DashboardOutreachSkeleton />
           <DashboardFunnelSkeleton />
         </div>
       </section>

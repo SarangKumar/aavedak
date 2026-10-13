@@ -7,7 +7,13 @@ import { listRepliesForUser } from "@/lib/mail-replies";
 import { listPeople } from "@/lib/people";
 
 /** Shared loader for /outreach (page) and /outreach/board (full-screen inbox). */
-export async function OutreachBoard({ variant }: { variant: "page" | "board" }) {
+export async function OutreachBoard({
+  variant,
+  threadId = null,
+}: {
+  variant: "page" | "board";
+  threadId?: string | null;
+}) {
   const { user } = await requireOnboarded();
   const followUps = await listFollowUps(user.id, { includeClosed: true });
   const people = await listPeople({ includeArchived: true });
@@ -23,6 +29,7 @@ export async function OutreachBoard({ variant }: { variant: "page" | "board" }) 
       <div className="relative">
         <OutreachInbox
           variant={variant}
+          initialFollowUpId={threadId}
           initialFollowUps={followUps.map((f) => ({
             id: f.id,
             title: f.title,

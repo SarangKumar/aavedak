@@ -11,6 +11,11 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Fixed
 
+- **Dashboard: Referrals & replies** — The "Needs a follow-up" card and its aging chart are replaced by a compact **Referrals & replies** card built only from Inbox data (follow-ups + replies).
+  - Stats: referral requests sent, replies received (with reply rate), awaiting reply, and queued.
+  - The 5 latest real replies (person · company · when, with the application's status badge). Each opens its Inbox thread (`/outreach?thread=<id>`).
+  - With no data it shows "No referral requests yet" with a link to Referrals.
+
 - **Status badges everywhere** — Application statuses now use the shared `StatusBadge` (inverted, per-status icon) on:
   - the dashboard Recent applications card (Offers keep the primary fill) and Needs a status update card
   - Job tracker table rows and kanban column headers

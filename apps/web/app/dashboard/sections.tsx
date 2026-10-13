@@ -1,10 +1,8 @@
 import Link from "next/link";
 
 import {
-  AGING_BUCKETS,
-  FOLLOW_UP_AFTER_DAYS,
   getActiveResumeName,
-  getApplicationAging,
+  getOutreachSummary,
   getFocusItems,
   getFollowUpSummary,
   getFunnel,
@@ -20,7 +18,6 @@ import {
 } from "@/lib/dashboard";
 import type { FollowUpRecord } from "@/lib/follow-ups";
 import { StatusBadge } from "@/components/status-badge";
-import { ApplicationAgingChart } from "@/components/application-aging-chart";
 import { JOB_CARD_BADGE, JobCardContent, jobCardClassName } from "@/components/job-card";
 import { cn } from "@/lib/utils";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
@@ -475,68 +472,90 @@ export async function RecentApplicationsCard({ userId }: { userId: string }) {
   );
 }
 
-export async function AgingCard({ userId }: { userId: string }) {
-  const aging = await getApplicationAging(userId);
-  const chart = AGING_BUCKETS.map((b, i) => ({
-    label: b.label,
-    count: aging.buckets[i] ?? 0,
-  }));
+function ReplyStatRow({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
-    <Card role="region" aria-labelledby="aging-heading" className="gap-3">
+    <div className="flex items-baseline justify-between gap-2 py-1.5 text-[12px]">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-foreground tabular-nums">
+        <span className="font-semibold">{value}</span>
+        {hint ? <span className="text-muted-foreground"> · {hint}</span> : null}
+      </dd>
+    </div>
+  );
+}
+
+export async function OutreachRepliesCard({ userId }: { userId: string }) {
+  const o = await getOutreachSummary(userId);
+  const empty = o.sent === 0 && o.queued === 0;
+  const rate = pct(o.repliedMails, o.sent);
+  return (
+    <Card role="region" aria-labelledby="outreach-heading" className="gap-3">
       <CardHeader>
-        <CardTitle id="aging-heading" className="text-[13px] tracking-tight">
-          Needs a follow-up
+        <CardTitle id="outreach-heading" className="text-[13px] tracking-tight">
+          Referrals &amp; replies
         </CardTitle>
         <CardDescription className="text-[11px] leading-relaxed">
-          {aging.total === 0
-            ? "Nothing waiting on a reply in Applied or Under review."
-            : `${aging.total} waiting on a reply · ${aging.needsFollowUp} past ${FOLLOW_UP_AFTER_DAYS} days with no follow-up queued`}
+          From your Inbox: emails you sent and the replies they got.
         </CardDescription>
         <CardAction>
-          <SectionLink href="/job-tracker">Open tracker</SectionLink>
+          <SectionLink href="/outreach">Open inbox</SectionLink>
         </CardAction>
       </CardHeader>
-      {aging.total > 0 ? <ApplicationAgingChart data={chart} /> : null}
-      {aging.items.length === 0 ? (
-        <p className="text-muted-foreground text-[12px] leading-relaxed">
-          {aging.total === 0
-            ? "Applications you mark Applied show up here as they age."
-            : `Everything older than ${FOLLOW_UP_AFTER_DAYS} days already has a follow-up.`}
-        </p>
+      {empty ? (
+        <div className="border-border/70 rounded-xl border border-dashed px-3 py-8 text-center">
+          <p className="text-foreground text-[13px] font-medium">No referral requests yet</p>
+          <p className="text-muted-foreground mt-1 text-[12px]">
+            Ask someone at a company for a referral from{" "}
+            <Link href="/referrals" className="text-primary hover:underline">
+              Referrals
+            </Link>
+            ; replies show up here.
+          </p>
+        </div>
       ) : (
         <>
-          <ul className="divide-border/60 divide-y">
-            {aging.items.map((app) => (
-              <li key={app.id}>
-                <Link
-                  href={`/job-tracker?edit=${encodeURIComponent(app.id)}`}
-                  className="hover:bg-muted/40 -mx-1 flex items-center justify-between gap-2 rounded-md px-1 py-2.5 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <p className="text-foreground truncate text-[13px] font-medium">
-                      {app.companyName}
-                    </p>
-                    <p className="text-muted-foreground truncate text-[11px]">{app.role}</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <StatusBadge status={app.status} className="text-[10px]" />
-                    <Badge
-                      variant={app.daysSinceApplied > 30 ? "destructive" : "secondary"}
-                      className="text-[10px] tabular-nums"
+          <dl className="divide-border/60 divide-y">
+            <ReplyStatRow label="Referral requests sent" value={o.referralRequestsSent} />
+            <ReplyStatRow
+              label="Replies received"
+              value={o.replies}
+              hint={rate === null ? undefined : `${rate}% reply rate`}
+            />
+            <ReplyStatRow label="Awaiting reply" value={o.awaitingReply} />
+            <ReplyStatRow label="Queued" value={o.queued} />
+          </dl>
+          {o.latestReplies.length === 0 ? (
+            <p className="text-muted-foreground text-[12px]">No replies yet.</p>
+          ) : (
+            <div className="space-y-1">
+              <p className="text-muted-foreground text-[11px] font-medium">Latest replies</p>
+              <ul className="divide-border/60 divide-y">
+                {o.latestReplies.map((r) => (
+                  <li key={r.id}>
+                    <Link
+                      href={`/outreach?thread=${encodeURIComponent(r.followUpId)}`}
+                      className="hover:bg-muted/40 -mx-1 flex items-center justify-between gap-2 rounded-md px-1 py-2 transition-colors"
                     >
-                      {app.daysSinceApplied}d
-                    </Badge>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <Link
-            href="/referrals"
-            className={cn(buttonVariants({ size: "sm", variant: "outline" }), "self-start")}
-          >
-            Queue follow-ups
-          </Link>
+                      <div className="min-w-0">
+                        <p className="text-foreground truncate text-[13px] font-medium">
+                          {r.personName}
+                        </p>
+                        <p className="text-muted-foreground truncate text-[11px]">
+                          {[r.company, agoLabel(daysAgo(r.receivedAt))].filter(Boolean).join(" · ")}
+                        </p>
+                      </div>
+                      {r.applicationStatus ? (
+                        <StatusBadge
+                          status={r.applicationStatus}
+                          className="shrink-0 text-[10px]"
+                        />
+                      ) : null}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       )}
     </Card>

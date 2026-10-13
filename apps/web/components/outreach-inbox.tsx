@@ -236,6 +236,8 @@ type Props = {
   applications: ApplicationLite[];
   /** "board" = full-screen inbox only (/outreach/board). */
   variant?: "page" | "board";
+  /** Open the thread containing this follow-up on load (`/outreach?thread=<id>`). */
+  initialFollowUpId?: string | null;
 };
 
 type MailReplyView = {
@@ -256,6 +258,7 @@ export function OutreachInbox({
   people,
   applications,
   variant = "page",
+  initialFollowUpId = null,
 }: Props) {
   const router = useRouter();
   const [items, setItems] = useState(initialFollowUps);
@@ -392,7 +395,17 @@ export function OutreachInbox({
       );
   }, [applicationId, threads]);
 
+  // Deep link: select the thread holding `initialFollowUpId` once, before the default pick.
+  const [deepLinkId, setDeepLinkId] = useState(initialFollowUpId);
   useEffect(() => {
+    if (!deepLinkId) return;
+    const target = threads.find((t) => t.messages.some((m) => m.id === deepLinkId));
+    if (target) setSelectedKey(target.key);
+    setDeepLinkId(null);
+  }, [deepLinkId, threads]);
+
+  useEffect(() => {
+    if (deepLinkId) return;
     if (selectedKey === ALL_FOR_APP_KEY && applicationId) return;
     if (selectedKey && threads.some((t) => t.key === selectedKey)) return;
     if (applicationId && threads.length > 0) {
@@ -400,7 +413,7 @@ export function OutreachInbox({
       return;
     }
     setSelectedKey(threads[0]?.key ?? null);
-  }, [threads, selectedKey, applicationId]);
+  }, [threads, selectedKey, applicationId, deepLinkId]);
 
   const selected = threads.find((t) => t.key === selectedKey) ?? null;
   // Only lit for the conversation it was started in: switching chats quietly drops the fuse
