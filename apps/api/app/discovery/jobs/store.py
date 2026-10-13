@@ -174,6 +174,7 @@ def ingest_company(
                             provider,
                             now, now, job.posted_at, 0 if job.posted_at else 1, now,
                             job.dedupe_key, job.min_years, job.apply_email, job.description_raw,
+                            job.max_years, job.region, job.country_code,
                         )
                     )
                 source_rows.append(
@@ -189,9 +190,10 @@ def ingest_company(
                              (id, user_id, title, company, company_id, location, source, url,
                               description, salary, status, external_id, feed_source, created_at,
                               updated_at, posted_at, posted_at_estimated, first_seen_at,
-                              dedupe_key, min_years, apply_email, description_raw)
+                              dedupe_key, min_years, apply_email, description_raw,
+                              max_years, region, country_code)
                            VALUES (%s, NULL, %s, %s, %s, %s, 'careers', %s, %s, %s, 'active',
-                                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                   %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                            ON CONFLICT DO NOTHING""",
                         job_rows,
                     )
@@ -256,6 +258,8 @@ def ingest_company(
                                            AND (posted_at IS NULL OR %(p)s::text < posted_at)
                                           THEN %(p)s::text ELSE posted_at END,
                          dedupe_key = %(dedupe_key)s, min_years = %(min_years)s,
+                         max_years = %(max_years)s, region = %(region)s,
+                         country_code = %(country_code)s,
                          apply_email = COALESCE(apply_email, %(apply_email)s),
                          -- Keep a stated salary when an update has none (e.g. the text
                          -- came without its description) rather than erasing it.
@@ -269,6 +273,8 @@ def ingest_company(
                             "url": j.url, "description": j.description,
                             "description_raw": j.description_raw, "p": j.posted_at,
                             "dedupe_key": j.dedupe_key, "min_years": j.min_years,
+                            "max_years": j.max_years, "region": j.region,
+                            "country_code": j.country_code,
                             "apply_email": j.apply_email, "salary": j.salary,
                             "provider": provider, "now": now,
                         }

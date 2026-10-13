@@ -25,6 +25,11 @@ SHARED_STATEMENTS: tuple[str, ...] = (
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS closed_at TEXT",
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS dedupe_key TEXT",
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS min_years INTEGER",
+    # Upper end of a stated experience range; india | india_remote | remote | global; ISO
+    # country of the job's canonical city (people at the company are ranked by it).
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS max_years INTEGER",
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS region TEXT",
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS country_code TEXT",
     # Application / recruiting email published in the posting text (never guessed).
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_email TEXT",
     # Description as parsed, before JD boilerplate stripping (set only when stripping changed it).
@@ -67,6 +72,9 @@ SHARED_STATEMENTS: tuple[str, ...] = (
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS department TEXT",
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS company_domain TEXT",
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS location TEXT",
+    # Canonical "City, Country" (or NULL) and ISO country from the person's raw location.
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS location_city TEXT",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS country_code TEXT",
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS github_url TEXT",
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS website_url TEXT",
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS twitter_url TEXT",
@@ -101,6 +109,10 @@ SHARED_STATEMENTS: tuple[str, ...] = (
 )
 
 PIPELINE_STATEMENTS: tuple[str, ...] = (
+    # Backfill (idempotent): before worldwide ingest every shared job was India-eligible.
+    """UPDATE jobs SET region = CASE WHEN location ILIKE '%remote%' AND location NOT ILIKE '%india%'
+                                     THEN 'india_remote' ELSE 'india' END
+       WHERE region IS NULL AND user_id IS NULL""",
     # Career-page registry (seeded from data/career_sources.json, editable by admins).
     """CREATE TABLE IF NOT EXISTS company_sources (
       id TEXT PRIMARY KEY NOT NULL,

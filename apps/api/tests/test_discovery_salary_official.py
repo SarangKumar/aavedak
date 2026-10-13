@@ -187,7 +187,7 @@ def _raw(**overrides) -> RawPosting:
 
 
 def _normalize(postings):
-    return normalize_postings(postings, max_years_exclusive=3, include_internships=False)
+    return normalize_postings(postings, max_min_years=10, include_internships=False)
 
 
 def test_normalize_uses_structured_then_text_and_respects_location():

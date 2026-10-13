@@ -1,7 +1,9 @@
-"""Relevance filters applied *before* anything is written: jobs in India or remote roles open
-to India, tech roles (engineering in any discipline plus data, ML/AI, QA, IT/infra,
-security, design and junior product roles), junior (stated minimum experience below the
-configured cap).
+"""Relevance filters applied *before* anything is written. Jobs are stored worldwide (each
+gets a `region`: india, india_remote, remote or global, so India ranks first); only tech
+roles are kept (engineering in any discipline plus data, ML/AI, QA, IT/infra, security,
+design and junior product roles), executive titles are dropped, and the required years
+(stated, or inferred from a Senior/Staff title) are stored so each user is matched against
+their own experience at recommendation time.
 
 All functions are pure so they can be tuned and tested without a database. Postings that
 fail are only counted (by reason) in the run stats.
@@ -93,6 +95,22 @@ def is_remote_open_to_india(locations: list[str], country_code: str | None = Non
 def is_india_eligible(locations: list[str], country_code: str | None = None) -> bool:
     """Location rule for discovery: an Indian location, or a remote role open to India."""
     return is_india(locations, country_code) or is_remote_open_to_india(locations, country_code)
+
+
+# Region priority for ranking and the Jobs page (lower first).
+REGION_PRIORITY = {"india": 0, "india_remote": 1, "remote": 2, "global": 3}
+
+
+def job_region(locations: list[str], country_code: str | None = None) -> str:
+    """india (Indian location) | india_remote (remote open to India) | remote (remote tied
+    elsewhere or unstated) | global (on-site / hybrid outside India)."""
+    if is_india(locations, country_code):
+        return "india"
+    if is_remote_open_to_india(locations, country_code):
+        return "india_remote"
+    if any(_REMOTE_RE.search(loc or "") or _ANYWHERE_RE.match(loc or "") for loc in locations):
+        return "remote"
+    return "global"
 
 
 # --- Role ----------------------------------------------------------------------------
@@ -206,6 +224,33 @@ def is_senior_title(title: str) -> bool:
     return bool(_SENIOR_RE.search(title) or _HIGH_LEVEL_RE.search(title))
 
 
+# Titles never stored (leadership roles, far outside discovery's audience).
+_EXECUTIVE_RE = re.compile(
+    r"\b(?:director|head|vp|vice president|chief|cto|cio|ciso|distinguished|fellow|manager|mgr)\b",
+    re.I,
+)
+_STAFF_RE = re.compile(r"\b(?:staff|principal|architect)\b", re.I)
+
+
+def is_executive_title(title: str) -> bool:
+    return bool(_EXECUTIVE_RE.search(_JUNIOR_MANAGER_TITLE_RE.sub(" ", _title_words(title))))
+
+
+# Years assumed when a senior title states none: Senior / Lead / level III+ → 5,
+# Staff / Principal / Architect → 8.
+SENIOR_TITLE_YEARS = 5
+STAFF_TITLE_YEARS = 8
+
+
+def title_min_years(title: str) -> int | None:
+    title = _JUNIOR_MANAGER_TITLE_RE.sub(" ", _title_words(title))
+    if _STAFF_RE.search(title):
+        return STAFF_TITLE_YEARS
+    if _SENIOR_RE.search(title) or _HIGH_LEVEL_RE.search(title):
+        return SENIOR_TITLE_YEARS
+    return None
+
+
 def is_internship(title: str, employment_type: str | None, seniority_hint: str | None) -> bool:
     if _INTERN_RE.search(_title_words(title)):
         return True
@@ -228,6 +273,26 @@ _FRESHER_RE = re.compile(
     re.I,
 )
 _SPLIT_RE = re.compile(r"(?<=[.!?;•\n])\s+|\n")
+
+
+def years_required(text: str) -> tuple[int | None, int | None]:
+    """(minimum, maximum) years a posting states; the maximum only from an explicit range
+    ("2-4 years") whose low end is the binding minimum. (None, None) when nothing is stated;
+    fresher wording with no number is (0, None)."""
+    if not text:
+        return None, None
+    minimum = min_years_required(text)
+    if minimum is None:
+        return None, None
+    top: int | None = None
+    for clause in _SPLIT_RE.split(text):
+        if not clause or not _EXPERIENCE_CONTEXT_RE.search(clause) or _OPTIONAL_CONTEXT_RE.search(clause):
+            continue
+        for match in _RANGE_RE.finditer(clause):
+            low, high = float(match.group(1)), int(match.group(2))
+            if int(low) == minimum and high > low and high < 25:
+                top = max(top or 0, high)
+    return minimum, top
 
 
 def min_years_required(text: str) -> int | None:
@@ -271,30 +336,36 @@ class FilterOutcome:
     keep: bool
     reason: str  # "kept" or a skip reason
     min_years: int | None = None
+    max_years: int | None = None
+    region: str = "global"
 
 
 def classify(
     posting: RawPosting,
     description_text: str,
     *,
-    max_years_exclusive: int,
+    max_min_years: int,
     include_internships: bool,
 ) -> FilterOutcome:
+    """Keep tech roles worldwide. Skip: executives, internships (unless enabled), and roles
+    whose minimum years (stated, else inferred from the title) exceed `max_min_years` — no
+    user's window reaches them, so storing them only costs space."""
     title = (posting.title or "").strip()
     if not title:
         return FilterOutcome(False, "invalid")
-    if not is_india_eligible(posting.locations, posting.country_code):
-        return FilterOutcome(False, "not_india")
+    region = job_region(posting.locations, posting.country_code)
     if not is_engineering_title(title):
         return FilterOutcome(False, "not_engineering")
     if is_internship(title, posting.employment_type, posting.seniority_hint):
         if not include_internships:
             return FilterOutcome(False, "internship")
-    if is_senior_title(title):
+    if is_executive_title(title):
         return FilterOutcome(False, "senior_title")
     if posting.seniority_hint and posting.seniority_hint.lower() in _SENIOR_HINTS:
         return FilterOutcome(False, "senior_title")
-    years = min_years_required(description_text)
-    if years is not None and years >= max_years_exclusive:
+    years, top = years_required(description_text)
+    if years is None:
+        years = title_min_years(title)
+    if years is not None and years > max_min_years:
         return FilterOutcome(False, "experience", years)
-    return FilterOutcome(True, "kept", years)
+    return FilterOutcome(True, "kept", years, top, region)

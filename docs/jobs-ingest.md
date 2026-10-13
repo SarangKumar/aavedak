@@ -51,24 +51,26 @@ Env (repo-root `.env`, shared with the web app) carries only deployment values a
 Tuning is typed and lives in code: `DiscoveryTuning` in `apps/api/app/discovery/config.py`.
 Change a value there (and commit); it is no longer read from env.
 
-| Setting                          | Default | Purpose                                              |
-| -------------------------------- | ------- | ---------------------------------------------------- |
-| `discovery_daily_limit`          | `50`    | New recommendations per user per IST day             |
-| `job_expiry_days`                | `30`    | Expiry by posting date (web display mirrors it)      |
-| `junior_max_years_exclusive`     | `3`     | Keep postings whose stated minimum is below this     |
-| `include_internships`            | `false` | Also keep internships                                |
-| `discovery_shards`               | `6`     | Must match the number of scan crons in `vercel.json` |
-| `discovery_fetch_concurrency`    | `6`     | Sources fetched in parallel per tick                 |
-| `discovery_tick_budget_seconds`  | `45`    | Work per request before handing off                  |
-| `discovery_lease_seconds`        | `180`   | Lease on a claimed run item                          |
-| `discovery_min_match_score`      | `30`    | Minimum match (users with skills/resume text)        |
-| `discovery_max_attempts`         | `3`     | Retries per run item                                 |
-| `discovery_max_failures`         | `5`     | Then a source is only retried weekly                 |
-| `discovery_http_timeout_seconds` | `20`    | Per-request timeout for job sources                  |
-| `discovery_user_agent`           | bot UA  | User-Agent for every discovery request               |
-| `smartrecruiters_detail_limit`   | `40`    | Per-company detail fetches                           |
-| `people_batch_size`              | `100`   | Rows per people-import item                          |
-| `people_*`                       | —       | People discovery limits, see DISCOVERY.md            |
+| Setting                          | Default | Purpose                                                           |
+| -------------------------------- | ------- | ----------------------------------------------------------------- |
+| `discovery_daily_limit`          | `50`    | New recommendations per user per IST day                          |
+| `job_expiry_days`                | `30`    | Expiry by posting date (web display mirrors it)                   |
+| `ingest_max_min_years`           | `10`    | Skip roles whose min years (stated or title-inferred) exceed this |
+| `experience_window_years`        | `2`     | Match jobs with min years in [0, user YOE + this]                 |
+| `default_years_experience`       | `0`     | YOE assumed when the profile has none                             |
+| `include_internships`            | `false` | Also keep internships                                             |
+| `discovery_shards`               | `6`     | Must match the number of scan crons in `vercel.json`              |
+| `discovery_fetch_concurrency`    | `10`    | Sources fetched in parallel per tick                              |
+| `discovery_tick_budget_seconds`  | `45`    | Work per request before handing off                               |
+| `discovery_lease_seconds`        | `180`   | Lease on a claimed run item                                       |
+| `discovery_min_match_score`      | `30`    | Minimum match (users with skills/resume text)                     |
+| `discovery_max_attempts`         | `3`     | Retries per run item                                              |
+| `discovery_max_failures`         | `5`     | Then a source is only retried weekly                              |
+| `discovery_http_timeout_seconds` | `20`    | Per-request timeout for job sources                               |
+| `discovery_user_agent`           | bot UA  | User-Agent for every discovery request                            |
+| `smartrecruiters_detail_limit`   | `40`    | Per-company detail fetches                                        |
+| `people_batch_size`              | `100`   | Rows per people-import item                                       |
+| `people_*`                       | —       | People discovery limits, see DISCOVERY.md                         |
 
 The web app reads the same file/project env (`CRON_SECRET`, `NEXT_PUBLIC_API_URL`).
 

@@ -33,8 +33,14 @@ class DiscoveryTuning(BaseModel):
     discovery_daily_limit: int = Field(50, ge=1, le=200)
     # Jobs older than this (by posting date) leave the active tabs.
     job_expiry_days: int = Field(30, ge=1, le=365)
-    # Keep a posting only when its stated minimum experience is strictly below this.
-    junior_max_years_exclusive: int = Field(3, ge=1, le=15)
+    # Ingest: postings are stored worldwide; skip only roles whose minimum years (stated, or
+    # inferred from a Senior/Staff title) exceed this — no user's window reaches them.
+    ingest_max_min_years: int = Field(10, ge=1, le=25)
+    # Matching: a user with N years sees jobs whose minimum required years is within
+    # [0, N + experience_window_years] (jobs that state none are included). Users without
+    # `years_experience` count as `default_years_experience`.
+    experience_window_years: float = Field(2.0, ge=0, le=10)
+    default_years_experience: float = Field(0.0, ge=0, le=40)
     include_internships: bool = False
     # Staggered daily scan crons the registry is split across (vercel.json has one per shard).
     discovery_shards: int = Field(6, ge=1, le=24)

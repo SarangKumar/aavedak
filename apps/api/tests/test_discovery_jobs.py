@@ -171,21 +171,35 @@ def test_min_years_required(text, expected):
 
 
 def test_classify_reasons():
-    kw = {"max_years_exclusive": 3, "include_internships": False}
-    assert filters.classify(posting("Software Engineer", ["Austin, TX"]), "", **kw).reason == "not_india"
+    kw = {"max_min_years": 10, "include_internships": False}
+    berlin = filters.classify(posting("Software Engineer", ["Berlin, Germany"]), "", **kw)
+    assert berlin.keep and berlin.region == "global"
+    assert filters.classify(posting("Software Engineer", ["Remote"]), "", **kw).region == "remote"
+    assert filters.classify(posting("Data Analyst", ["Remote - APAC"]), "", **kw).region == "india_remote"
+    assert filters.classify(posting("Backend Engineer"), "", **kw).region == "india"
     assert filters.classify(posting("Marketing Manager"), "", **kw).reason == "not_engineering"
-    assert filters.classify(posting("Software Engineer", ["Remote"]), "", **kw).reason == "not_india"
-    assert filters.classify(posting("Data Analyst", ["Remote - APAC"]), "", **kw).keep
     assert filters.classify(posting("Software Engineering Intern"), "", **kw).reason == "internship"
-    assert filters.classify(posting("Senior Software Engineer"), "", **kw).reason == "senior_title"
-    assert filters.classify(posting("Backend Engineer"), "3+ years of experience", **kw).reason == "experience"
-    kept = filters.classify(posting("Backend Engineer"), "1-2 years of experience", **kw)
-    assert kept.keep and kept.min_years == 1
+    assert filters.classify(posting("Head of Software Engineering"), "", **kw).reason == "senior_title"
+    senior = filters.classify(posting("Senior Software Engineer"), "", **kw)
+    assert senior.keep and senior.min_years == filters.SENIOR_TITLE_YEARS
+    assert filters.classify(posting("Staff Engineer"), "", **kw).min_years == filters.STAFF_TITLE_YEARS
+    assert filters.classify(posting("Backend Engineer"), "12+ years of experience", **kw).reason == "experience"
+    kept = filters.classify(posting("Backend Engineer"), "2-4 years of experience", **kw)
+    assert kept.keep and (kept.min_years, kept.max_years) == (2, 4)
+    # A stated requirement beats the title inference.
+    assert filters.classify(posting("Senior Engineer"), "3+ years of experience", **kw).min_years == 3
     # Director-level provider label rejects even a junior-looking title.
     assert filters.classify(posting("Engineer", seniority_hint="director"), "", **kw).reason == "senior_title"
     # Interns allowed when configured.
-    assert filters.classify(posting("Software Engineering Intern"), "", max_years_exclusive=3,
+    assert filters.classify(posting("Software Engineering Intern"), "", max_min_years=10,
                             include_internships=True).keep
+
+
+def test_years_required_range():
+    assert filters.years_required("1 to 3 years of professional experience") == (1, 3)
+    assert filters.years_required("3+ years of experience") == (3, None)
+    assert filters.years_required("Freshers welcome") == (0, None)
+    assert filters.years_required("") == (None, None)
 
 
 def test_normalize_seniority():
@@ -339,9 +353,10 @@ def test_normalize_filters_and_hashes():
     ]
     raws[2].external_id = "x:3"
     raws[1].external_id = "x:2"
-    result = normalize_postings(raws, max_years_exclusive=3, include_internships=False, now=NOW)
-    assert [j.title for j in result.jobs] == ["Software Engineer I"]
-    assert result.skipped == {"senior_title": 1, "not_india": 1}
+    result = normalize_postings(raws, max_min_years=10, include_internships=False, now=NOW)
+    assert [j.title for j in result.jobs] == ["Software Engineer I", "Senior Software Engineer", "Software Engineer I"]
+    assert [j.region for j in result.jobs] == ["india", "india", "global"]
+    assert result.jobs[2].country_code == "DE" and result.jobs[0].country_code == "IN"
     job = result.jobs[0]
     assert job.min_years == 0 and job.posted_at == "2026-10-01T00:00:00.000Z" and "<" not in job.description
 
@@ -353,7 +368,7 @@ def test_postings_without_original_link_are_never_stored():
     missing.external_id, missing.url = "x:2", None
     relative = posting("Frontend Engineer")
     relative.external_id, relative.url = "x:3", "/careers/3"
-    result = normalize_postings([ok, missing, relative], max_years_exclusive=3, include_internships=False, now=NOW)
+    result = normalize_postings([ok, missing, relative], max_min_years=10, include_internships=False, now=NOW)
     assert [j.url for j in result.jobs] == ["https://boards.example/jobs/1"]
     assert result.skipped == {"missing_url": 2}
 
@@ -361,8 +376,8 @@ def test_postings_without_original_link_are_never_stored():
 def test_hash_ignores_description_when_provider_says_so():
     a = posting("Software Engineer", description="long text", hash_description=False)
     b = posting("Software Engineer", description="", hash_description=False)
-    ha = normalize_postings([a], max_years_exclusive=3, include_internships=False, now=NOW).jobs[0].content_hash
-    hb = normalize_postings([b], max_years_exclusive=3, include_internships=False, now=NOW).jobs[0].content_hash
+    ha = normalize_postings([a], max_min_years=10, include_internships=False, now=NOW).jobs[0].content_hash
+    hb = normalize_postings([b], max_min_years=10, include_internships=False, now=NOW).jobs[0].content_hash
     assert ha == hb
 
 

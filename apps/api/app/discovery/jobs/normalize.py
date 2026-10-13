@@ -5,18 +5,23 @@ from __future__ import annotations
 from collections import Counter
 from urllib.parse import urlparse
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.discovery.jobs.jd_clean import strip_boilerplate
-from app.discovery.jobs.locations import canonical_location
+from app.discovery.jobs.locations import canonical_location, first_country_code
 from app.discovery.jobs import filters, salary
 from app.discovery.jobs.email_extractor import best_application_email
 from app.discovery.jobs.models import NormalizedJob, RawPosting
 from app.discovery.jobs.text import clean_line, content_hash, dedupe_key, html_to_text
-from app.discovery.timeutil import clamp_posted_at
+from app.discovery.timeutil import clamp_posted_at, to_iso, utcnow
 
 MAX_TITLE = 300
 MAX_LOCATION = 300
+# Descriptions are cleaned (HTML → text, boilerplate stripped) and bounded so a worldwide
+# job pool stays well inside Neon's free 0.5 GB. Discovered jobs keep no raw copy: the
+# source is re-read on every scan.
+MAX_DESCRIPTION = 12_000
+UNSTATED_LOCATION = "Location not stated"
 
 
 @dataclass
@@ -46,7 +51,7 @@ def display_location(locations: list[str]) -> str:
         loc = canonical_location(loc) or loc
         if loc and loc.lower() not in (s.lower() for s in seen):
             seen.append(loc)
-    return " · ".join(seen[:3])[:MAX_LOCATION] or "India"
+    return " · ".join(seen[:3])[:MAX_LOCATION] or UNSTATED_LOCATION
 
 
 def _stated_salary(posting: RawPosting, description: str) -> str | None:
@@ -63,8 +68,9 @@ def _stated_salary(posting: RawPosting, description: str) -> str | None:
 def normalize_postings(
     postings: list[RawPosting],
     *,
-    max_years_exclusive: int,
+    max_min_years: int,
     include_internships: bool,
+    max_age_days: int | None = None,
     now: datetime | None = None,
 ) -> NormalizeResult:
     result = NormalizeResult()
@@ -79,7 +85,7 @@ def normalize_postings(
         outcome = filters.classify(
             posting,
             description,
-            max_years_exclusive=max_years_exclusive,
+            max_min_years=max_min_years,
             include_internships=include_internships,
         )
         if not outcome.keep:
@@ -93,6 +99,11 @@ def normalize_postings(
         company = clean_line(posting.company_name)[:200]
         location = display_location(posting.locations)
         posted_at = clamp_posted_at(posting.posted_at, now)
+        if posted_at and max_age_days is not None:
+            if posted_at < to_iso((now or utcnow()) - timedelta(days=max_age_days)):
+                result.skipped["too_old"] += 1  # would expire at once (1-month posted cap)
+                continue
+        description = description[:MAX_DESCRIPTION]
         pay = _stated_salary(posting, description)
         hashed = {
             "title": title,
@@ -113,11 +124,14 @@ def normalize_postings(
                 description=description,
                 posted_at=posted_at,
                 min_years=outcome.min_years,
+                max_years=outcome.max_years,
+                region=outcome.region,
+                country_code=("IN" if outcome.region == "india" else first_country_code(posting.locations)),
                 dedupe_key=dedupe_key(company, title, location),
                 content_hash=content_hash(hashed),
                 apply_email=best_application_email(raw_description),
                 salary=pay,
-                description_raw=raw_description if raw_description != description else None,
+                description_raw=None,
             )
         )
     return result

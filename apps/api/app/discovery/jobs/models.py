@@ -70,6 +70,11 @@ class NormalizedJob:
     salary: str | None = None
     # The parsed description before boilerplate stripping, when stripping changed it.
     description_raw: str | None = None
+    # Upper end of a stated experience range ("2-4 years" → 4), else None.
+    max_years: int | None = None
+    # india | india_remote | remote | global (filters.job_region).
+    region: str = "global"
+    country_code: str | None = None
 
 
 @dataclass

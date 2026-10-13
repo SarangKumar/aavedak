@@ -76,7 +76,8 @@ type Overview = {
     enabled: boolean;
     dailyLimit: number;
     expiryDays: number;
-    juniorMaxYearsExclusive: number;
+    ingestMaxMinYears: number;
+    experienceWindowYears: number;
     includeInternships: boolean;
     shards: number;
   };
@@ -594,7 +595,7 @@ export function AdminDiscoveryPanel() {
                 <div className="flex flex-wrap gap-1.5">
                   <Badge variant="secondary">Expiry {overview.settings.expiryDays}d</Badge>
                   <Badge variant="secondary">
-                    &lt; {overview.settings.juniorMaxYearsExclusive} yrs exp
+                    YOE window +{overview.settings.experienceWindowYears}
                   </Badge>
                   <Badge variant="secondary">
                     Internships {overview.settings.includeInternships ? "included" : "excluded"}
@@ -640,8 +641,8 @@ export function AdminDiscoveryPanel() {
                 <CardTitle className="text-[13px]">Career sources</CardTitle>
                 <CardDescription className="text-[11px]">
                   Public ATS boards (Greenhouse, Lever, Ashby, SmartRecruiters, Workable) and career
-                  pages with JobPosting data. Only India or India-open remote tech roles under{" "}
-                  {overview.settings.juniorMaxYearsExclusive} yrs are stored.
+                  pages with JobPosting data. Tech roles are stored worldwide (India first) up to{" "}
+                  {overview.settings.ingestMaxMinYears} yrs minimum experience.
                 </CardDescription>
                 <CardAction>
                   <Button size="xs" variant="outline" onClick={() => setSourcesOpen(true)}>

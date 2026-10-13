@@ -76,7 +76,7 @@ def _worth_details(posting: RawPosting) -> bool:
     return (
         filters.is_india_eligible(posting.locations, posting.country_code)
         and filters.is_engineering_title(title)
-        and not filters.is_senior_title(title)
+        and not filters.is_executive_title(title)
     )
 
 

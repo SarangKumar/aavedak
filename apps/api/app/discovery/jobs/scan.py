@@ -59,8 +59,9 @@ def official_target(target: SourceTarget) -> SourceTarget:
 def _normalize(postings, settings: DiscoverySettings) -> NormalizeResult:
     return normalize_postings(
         postings,
-        max_years_exclusive=settings.junior_max_years_exclusive,
+        max_min_years=settings.ingest_max_min_years,
         include_internships=settings.include_internships,
+        max_age_days=settings.job_expiry_days,
     )
 
 

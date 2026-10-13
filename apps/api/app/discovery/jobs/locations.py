@@ -99,3 +99,31 @@ def canonical_location(raw: str | None) -> str | None:
 def remote_or_none(text: str, remote=None) -> str | None:
     patterns = remote if remote is not None else _patterns()[2]
     return _data()["remote"] if any(r.search(text) for r in patterns) else None
+
+
+@lru_cache(maxsize=1)
+def _country_by_label() -> dict[str, str]:
+    return {_label(c).lower(): c["countryCode"] for c in _data()["cities"]}
+
+
+def country_code_of(raw: str | None) -> str | None:
+    """ISO country of a location: its canonical city's country, else the single country it
+    names ("Germany", "Remote - India"), else None (remote with no country, several, unknown)."""
+    text = (raw or "").strip()
+    if not text:
+        return None
+    label = canonical_location(text)
+    if label and label.lower() in _country_by_label():
+        return _country_by_label()[label.lower()]
+    _, countries, _, _ = _patterns()
+    work = f" {text.lower()} "
+    named = {code for code, rxs in countries if any(r.search(work) for r in rxs)}
+    return next(iter(named)) if len(named) == 1 else None
+
+
+def first_country_code(locations: list[str]) -> str | None:
+    for loc in locations:
+        code = country_code_of(loc)
+        if code:
+            return code
+    return None

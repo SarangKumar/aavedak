@@ -394,6 +394,11 @@ async function runDiscoverySchema(db: NeonQueryFunction<false, false>) {
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS closed_at TEXT`;
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS dedupe_key TEXT`;
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS min_years INTEGER`;
+  // Experience range upper end, region (india | india_remote | remote | global) and the ISO
+  // country of the job's canonical city — written by discovery at ingest.
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS max_years INTEGER`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS region TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS country_code TEXT`;
   // Application / recruiting email published in a posting's text (unverified, never guessed).
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_email TEXT`;
   await db`UPDATE jobs SET first_seen_at = created_at WHERE first_seen_at IS NULL`;
@@ -443,6 +448,9 @@ async function runDiscoverySchema(db: NeonQueryFunction<false, false>) {
   await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS department TEXT`;
   await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS company_domain TEXT`;
   await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS location TEXT`;
+  // Canonical "City, Country" and ISO country parsed from `location` (discovery).
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS location_city TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS country_code TEXT`;
   await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS github_url TEXT`;
   await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS website_url TEXT`;
   await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS twitter_url TEXT`;
