@@ -13,6 +13,7 @@ missing we fail with a clear message instead of creating partial copies.
 
 from __future__ import annotations
 
+import hashlib
 import threading
 
 import psycopg
@@ -261,31 +262,56 @@ class BaseSchemaMissing(RuntimeError):
     pass
 
 
+# Hash of the DDL: a changed statement re-runs the script once, then cold starts skip it.
+SCHEMA_VERSION = "api-" + hashlib.sha256(
+    "\n".join(SHARED_STATEMENTS + PIPELINE_STATEMENTS).encode()
+).hexdigest()[:16]
+
+_VERSION_TABLE = """CREATE TABLE IF NOT EXISTS schema_version (
+      id TEXT PRIMARY KEY NOT NULL,
+      version TEXT NOT NULL,
+      applied_at TEXT NOT NULL
+    )"""
+
 _ready = False
 _lock = threading.Lock()
 
 
 def ensure_schema(conn: psycopg.Connection) -> None:
-    """Apply discovery DDL once per process (all statements are idempotent)."""
+    """Apply discovery DDL when it changed; otherwise one query per process.
+
+    The API may run far from the database, so the base-table check and the stored-version
+    check share one round trip, and the DDL (when needed) is one script. Concurrent cold
+    starts may both run it; every statement is idempotent.
+    """
     global _ready
     if _ready:
         return
     with _lock:
         if _ready:
             return
-        # One round trip for the check and one for all DDL: the API may run far from the
-        # database (e.g. US functions, Singapore Neon), so per-statement trips add up.
-        found = conn.execute(
-            "SELECT t FROM unnest(%s::text[]) AS t WHERE to_regclass(t) IS NOT NULL",
+        row = conn.execute(
+            """SELECT
+                 ARRAY(SELECT t FROM unnest(%s::text[]) AS t WHERE to_regclass(t) IS NULL) AS missing,
+                 CASE WHEN to_regclass('schema_version') IS NULL THEN NULL
+                   ELSE (SELECT version FROM schema_version WHERE id = 'api') END AS version""",
             (list(BASE_TABLES),),
-        ).fetchall()
-        missing = sorted(set(BASE_TABLES) - {r["t"] for r in found})
+        ).fetchone()
+        missing = sorted(row["missing"] or [])
         if missing:
             raise BaseSchemaMissing(
                 "Web app schema not initialized (missing: "
                 + ", ".join(missing)
                 + "). Open the web app once so ensureAppSchema() creates base tables."
             )
-        # No parameters → simple query protocol, so the whole script is a single round trip.
-        conn.execute(";\n".join(SHARED_STATEMENTS + PIPELINE_STATEMENTS))
+        if row["version"] != SCHEMA_VERSION:
+            # No parameters → simple query protocol, so the whole script is a single round trip.
+            # SCHEMA_VERSION is "api-" + hex, safe to inline.
+            record = (
+                "INSERT INTO schema_version (id, version, applied_at) "
+                f"VALUES ('api', '{SCHEMA_VERSION}', to_char(now() AT TIME ZONE 'UTC', "
+                "'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) "
+                "ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version, applied_at = EXCLUDED.applied_at"
+            )
+            conn.execute(";\n".join(SHARED_STATEMENTS + PIPELINE_STATEMENTS + (_VERSION_TABLE, record)))
         _ready = True

@@ -2,6 +2,8 @@ import "server-only";
 
 import { cleanStoredDescriptions } from "@/lib/jd-clean-migrate";
 import { normalizeStoredLocations } from "@/lib/locations/migrate";
+import { createHash } from "node:crypto";
+
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
 /**
@@ -571,10 +573,65 @@ async function cleanUpAutomatedReplies(db: NeonQueryFunction<false, false>) {
   `;
 }
 
-/** Ensure Postgres app schema exists (idempotent). */
+/**
+ * Bump when a schema statement or data migration changes. The source of every setup step is
+ * hashed in too, so an edit that forgets the bump still re-runs setup once (a false re-run is
+ * harmless: every statement is idempotent).
+ */
+const SCHEMA_VERSION_BASE = "web-2026-10-13.1";
+
+function schemaVersion() {
+  const src = [
+    runSchema,
+    runDiscoverySchema,
+    purgeDemoJobs,
+    cleanUpAutomatedReplies,
+    normalizeStoredLocations,
+    cleanStoredDescriptions,
+  ]
+    .map((fn) => fn.toString())
+    .join("\n");
+  return `${SCHEMA_VERSION_BASE}:${createHash("sha256").update(src).digest("hex").slice(0, 16)}`;
+}
+
+/** One round trip: is the recorded version current? A missing table counts as "no". */
+async function schemaIsCurrent(db: NeonQueryFunction<false, false>, version: string) {
+  const rows = (await db`
+    SELECT CASE WHEN to_regclass('schema_version') IS NULL THEN NULL
+      ELSE (SELECT version FROM schema_version WHERE id = 'web') END AS version
+  `.catch(() => [])) as Array<{ version: string | null }>;
+  return rows[0]?.version === version;
+}
+
+/**
+ * Full setup, then record the version. Two cold starts racing both run it; that is safe
+ * because every statement is idempotent (Neon's HTTP driver has no session to hold a lock).
+ */
+async function setUpSchema() {
+  const db = getSql();
+  const version = schemaVersion();
+  if (await schemaIsCurrent(db, version)) return;
+  await runSchema();
+  await db`
+    CREATE TABLE IF NOT EXISTS schema_version (
+      id TEXT PRIMARY KEY NOT NULL,
+      version TEXT NOT NULL,
+      applied_at TEXT NOT NULL
+    )`;
+  await db`
+    INSERT INTO schema_version (id, version, applied_at)
+    VALUES ('web', ${version}, ${new Date().toISOString()})
+    ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version, applied_at = EXCLUDED.applied_at
+  `;
+}
+
+/**
+ * Ensure Postgres app schema exists. Costs one query per cold start when the stored
+ * schema version matches; runs the full idempotent setup only after a schema change.
+ */
 export async function ensureAppSchema() {
   if (!schemaReady) {
-    schemaReady = runSchema().catch((err) => {
+    schemaReady = setUpSchema().catch((err) => {
       schemaReady = null;
       throw err;
     });
