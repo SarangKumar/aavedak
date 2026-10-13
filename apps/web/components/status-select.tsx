@@ -1,5 +1,6 @@
 "use client";
 
+import { StatusLabel } from "@/components/status-badge";
 import {
   Select,
   SelectContent,
@@ -7,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
+import { type ApplicationStatus } from "@/lib/application-status";
 import { cn } from "@/lib/utils";
 
 type StatusSelectProps = {
@@ -46,7 +47,7 @@ export function StatusSelect({
       <SelectContent className={cn("z-[240]", className)}>
         {options.map((s) => (
           <SelectItem key={s} value={s} className="text-[13px]">
-            {STATUS_LABELS[s]}
+            <StatusLabel status={s} />
           </SelectItem>
         ))}
       </SelectContent>

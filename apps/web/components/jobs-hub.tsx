@@ -1,5 +1,6 @@
 "use client";
 
+import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -1496,7 +1497,11 @@ function JobDetail({
             {job.sourceLabel}
           </Badge>
           {tab === "applied" && job.applicationStatus ? (
-            <Badge className="text-[10px]">{statusLabel(job.applicationStatus)}</Badge>
+            isApplicationStatus(job.applicationStatus) ? (
+              <StatusBadge status={job.applicationStatus} className="text-[10px]" />
+            ) : (
+              <Badge className="text-[10px]">{statusLabel(job.applicationStatus)}</Badge>
+            )
           ) : null}
           {job.removedFromPortal ? (
             <Badge
@@ -2194,7 +2199,11 @@ function JobList({
                   </Badge>
                 ) : null}
                 {tab === "applied" && job.applicationStatus ? (
-                  <Badge className={JOB_CARD_BADGE}>{statusLabel(job.applicationStatus)}</Badge>
+                  isApplicationStatus(job.applicationStatus) ? (
+                    <StatusBadge status={job.applicationStatus} className={JOB_CARD_BADGE} />
+                  ) : (
+                    <Badge className={JOB_CARD_BADGE}>{statusLabel(job.applicationStatus)}</Badge>
+                  )
                 ) : null}
                 {job.compatibilityScore != null ? (
                   <span className="text-foreground/80 text-[10px] font-medium tabular-nums">

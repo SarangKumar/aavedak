@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { STATUS_LABELS } from "@/lib/application-status";
 import {
   AGING_BUCKETS,
   FOLLOW_UP_AFTER_DAYS,
@@ -268,16 +267,17 @@ export async function StaleApplicationsCard({ userId }: { userId: string }) {
                   <p className="text-foreground truncate text-[13px] font-medium">
                     {app.companyName}
                   </p>
-                  <p className="text-muted-foreground truncate text-[11px]">
-                    {app.role} · {STATUS_LABELS[app.status]}
-                  </p>
+                  <p className="text-muted-foreground truncate text-[11px]">{app.role}</p>
                 </div>
-                <Badge
-                  variant={app.daysIdle >= STALE_AFTER_DAYS * 2 ? "destructive" : "secondary"}
-                  className="shrink-0 text-[10px] tabular-nums"
-                >
-                  {app.daysIdle}d idle
-                </Badge>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <StatusBadge status={app.status} className="text-[10px]" />
+                  <Badge
+                    variant={app.daysIdle >= STALE_AFTER_DAYS * 2 ? "destructive" : "secondary"}
+                    className="text-[10px] tabular-nums"
+                  >
+                    {app.daysIdle}d idle
+                  </Badge>
+                </div>
               </Link>
             </li>
           ))}
@@ -459,12 +459,12 @@ export async function RecentApplicationsCard({ userId }: { userId: string }) {
                   title={app.role}
                   subtitle={`${app.companyName}${app.location ? ` · ${app.location}` : ""}`}
                 >
-                  <Badge
-                    variant={app.status === "offer" ? "engineNative" : "secondary"}
+                  <StatusBadge
+                    status={app.status}
+                    // Offers keep the primary fill so they stand out among inverted chips.
+                    variant={app.status === "offer" ? "default" : "inverted"}
                     className={JOB_CARD_BADGE}
-                  >
-                    {STATUS_LABELS[app.status]}
-                  </Badge>
+                  />
                 </JobCardContent>
               </Link>
             </li>

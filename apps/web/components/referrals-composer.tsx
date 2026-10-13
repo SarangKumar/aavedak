@@ -1,5 +1,6 @@
 "use client";
 
+import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
@@ -45,7 +46,6 @@ import { JOB_CARD_BADGE, JobCardContent, jobCardClassName } from "@/components/j
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
 import { ShellWidth } from "@/components/shell-width";
 import { formatDateTimeReadable } from "@/lib/format-datetime";
-import { STATUS_LABELS } from "@/lib/application-status";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/search-input";
@@ -1620,9 +1620,13 @@ function QuestionMarkIcon({ className }: { className?: string }) {
 function AppTags({ app, needsReferral = false }: { app: ApplicationDto; needsReferral?: boolean }) {
   return (
     <>
-      <Badge variant={app.jobOnly ? "outline" : "default"} className={JOB_CARD_BADGE}>
-        {app.jobOnly ? "Not applied" : STATUS_LABELS[app.status]}
-      </Badge>
+      {app.jobOnly ? (
+        <Badge variant="outline" className={JOB_CARD_BADGE}>
+          Not applied
+        </Badge>
+      ) : (
+        <StatusBadge status={app.status} className={JOB_CARD_BADGE} />
+      )}
       {app.jobId ? (
         <Badge variant="outline" className={JOB_CARD_BADGE}>
           From Jobs

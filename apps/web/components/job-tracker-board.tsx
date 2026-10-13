@@ -1,5 +1,6 @@
 "use client";
 
+import { StatusBadge, StatusLabel } from "@/components/status-badge";
 import { JobCardContent, jobCardClassName } from "@/components/job-card";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -49,7 +50,6 @@ import { StatusSelect } from "@/components/status-select";
 import {
   APPLICATION_STATUSES,
   DEFAULT_KANBAN_STATUSES,
-  STATUS_LABELS,
   type ApplicationStatus,
 } from "@/lib/application-status";
 import { ShellWidth } from "@/components/shell-width";
@@ -635,7 +635,7 @@ export function JobTrackerBoard({
                 value={status}
                 className="h-7 rounded-full px-2.5 text-[11px]"
               >
-                {STATUS_LABELS[status]}
+                <StatusLabel status={status} />
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
@@ -661,8 +661,8 @@ export function JobTrackerBoard({
                       className="border-border/60 bg-muted flex h-[min(75vh,46rem)] w-[18rem] shrink-0 flex-col overflow-hidden rounded-lg border"
                     >
                       <div className="mb-0 flex shrink-0 items-center justify-between gap-2 px-2.5 pb-2 pt-2.5">
-                        <h2 className="text-foreground truncate text-[12px] font-semibold tracking-tight">
-                          {STATUS_LABELS[status]}
+                        <h2 className="min-w-0 truncate">
+                          <StatusBadge status={status} className="text-[11px]" />
                         </h2>
                         <Badge
                           variant="outline"
@@ -1171,7 +1171,7 @@ function ListView({
               value={status}
               className="h-7 rounded-full px-2.5 text-[11px]"
             >
-              {STATUS_LABELS[status]} ({count})
+              <StatusLabel status={status} suffix={` (${count})`} />
             </ToggleGroupItem>
           );
         })}
@@ -1210,7 +1210,7 @@ function ListView({
               </TableCell>
               <TableCell className="text-muted-foreground font-normal">
                 <span className="inline-flex items-center gap-1.5">
-                  {STATUS_LABELS[app.status]}
+                  <StatusBadge status={app.status} className="text-[10px]" />
                   {app.statusReason === "job_expired" ? (
                     <JobExpiredBadge />
                   ) : app.jobRemovedFromPortal ? (
