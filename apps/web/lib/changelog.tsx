@@ -119,9 +119,7 @@ export function ChangelogBlockView({ block }: { block: ChangelogBlock }) {
       );
     case "h2":
       return (
-        <h2 className="aavedak-display text-foreground mt-8 text-xl">
-          {formatInline(block.text)}
-        </h2>
+        <h2 className="aavedak-display text-foreground mt-8 text-xl">{formatInline(block.text)}</h2>
       );
     case "h3":
       return (

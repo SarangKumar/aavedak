@@ -16,6 +16,8 @@ export type ImproveInput = {
   yearsExperience: number | null;
   /** null = every safe change; a list = only these change ids. */
   accepted: string[] | null;
+  /** Engines to score with; null = all. Engines that can't score these inputs are dropped. */
+  engines: string[] | null;
 };
 
 /** Engines that can score these inputs — the same rule the ATS page uses (JD-only engines need a JD). */
@@ -28,6 +30,12 @@ export function improverEngines(jdText: string): string[] {
 export async function improveResume(userId: string, input: ImproveInput): Promise<ImproveResult> {
   const { text, extractError } = await ensureResumeText(userId, input.resumeId);
   if (!text && extractError) throw new Error(extractError);
+  const engines = improverEngines(input.jdText).filter(
+    (e) => !input.engines || input.engines.includes(e),
+  );
+  if (engines.length === 0) {
+    throw new Error("None of the selected engines can score without a job description.");
+  }
   let res: Response;
   try {
     res = await fetch(absoluteApiUrl("/svc/v1/improve"), {
@@ -39,7 +47,7 @@ export async function improveResume(userId: string, input: ImproveInput): Promis
         jdText: input.jdText,
         yearsExperience: input.yearsExperience,
         accepted: input.accepted,
-        engines: improverEngines(input.jdText),
+        engines,
       }),
       cache: "no-store",
       signal: AbortSignal.timeout(60_000),

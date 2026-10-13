@@ -27,6 +27,7 @@ export type EngineScore =
       ok: true;
       score: number | null;
       scoreType?: string;
+      mode?: string;
       engineVersion?: string;
       breakdown: { key: string; label: string; score: number }[];
     }

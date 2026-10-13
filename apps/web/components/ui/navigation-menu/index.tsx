@@ -578,21 +578,42 @@ export function NavigationMenuIndicator({ className, ...props }: React.Component
 }
 
 export function NavigationMenuViewport({ className, ...props }: React.ComponentProps<"div">) {
-  const { value, setViewportNode } = useNavigationMenu();
+  const { value, setViewportNode, rootRef } = useNavigationMenu();
   const open = value != null;
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [left, setLeft] = useState(0);
+
+  // Open the panel under its trigger, nudged left only as far as needed to stay on screen.
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!value || !root) return;
+    const button = root.querySelector<HTMLElement>(
+      `[data-slot="navigation-menu-item"][data-value="${value}"] [data-slot="navigation-menu-trigger"]`,
+    );
+    if (!button) return;
+    const rootRect = root.getBoundingClientRect();
+    const buttonLeft = button.getBoundingClientRect().left;
+    const width = panelRef.current?.offsetWidth ?? 0;
+    const maxLeft = window.innerWidth - 8 - width;
+    setLeft(Math.max(8, Math.min(buttonLeft, maxLeft)) - rootRect.left);
+  }, [value, rootRef]);
 
   return (
     <div
+      style={{ left }}
       className={cn(
         // Padding (not margin) keeps the pointer inside the nav while moving
         // from a trigger into the panel, which avoids open/close flicker.
-        "absolute left-0 top-full z-50 flex justify-center pt-1.5",
+        "absolute top-full z-50 flex justify-center pt-1.5",
         className,
       )}
     >
       <div
         {...props}
-        ref={setViewportNode}
+        ref={(node) => {
+          panelRef.current = node;
+          setViewportNode(node);
+        }}
         data-slot="navigation-menu-viewport"
         data-state={open ? "open" : "closed"}
         className={cn(

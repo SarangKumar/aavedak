@@ -24,6 +24,7 @@ const mobileNav: readonly NavGroup[] = [
     items: [
       { href: "/ats", label: "Score", icon: "ats" },
       { href: "/resume-improver", label: "Improve", icon: "improve" },
+      { href: "/documents?tab=resumes&upload=1", label: "Upload resume", icon: "upload" },
     ],
   },
   {

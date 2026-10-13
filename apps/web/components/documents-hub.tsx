@@ -294,6 +294,15 @@ export function DocumentsHub({
     if (isDocumentsTab(searchTab) && searchTab !== tab) setTab(searchTab);
   }
 
+  // `?upload=1` (Resume menu → Upload resume): jump to the upload form and focus it.
+  const wantsUpload = useSearchParams().get("upload") === "1";
+  useEffect(() => {
+    if (!wantsUpload || tab !== "resumes") return;
+    const el = document.getElementById("resume-display-name");
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    el?.focus({ preventScroll: true });
+  }, [wantsUpload, tab]);
+
   // Keep the active tab in the URL so reloads and shared links open the same tab.
   useEffect(() => {
     try {

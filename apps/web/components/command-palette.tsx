@@ -126,6 +126,12 @@ export function CommandPalette() {
                 <CommandItem value="resume improve improver" onClick={() => go("/resume-improver")}>
                   Resume · Improve
                 </CommandItem>
+                <CommandItem
+                  value="resume upload"
+                  onClick={() => go("/documents?tab=resumes&upload=1")}
+                >
+                  Resume · Upload
+                </CommandItem>
                 <CommandItem value="people" onClick={() => go("/people")}>
                   People
                 </CommandItem>

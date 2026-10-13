@@ -165,6 +165,7 @@ def score_text(text: str, request: dict, engines: tuple[str, ...]) -> dict[str, 
             "ok": True,
             "score": res.get("overallScore"),
             "scoreType": res.get("scoreType") or res.get("scoreName"),
+            "mode": res.get("mode"),
             "engineVersion": res.get("engineVersion") or ENGINE_VERSION,
             "breakdown": [
                 {"key": b.get("key"), "label": b.get("label"), "score": b.get("score")}

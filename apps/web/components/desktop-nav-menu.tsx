@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { FileText, Gauge, type LucideIcon, Upload, WandSparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -54,18 +55,40 @@ const REFERRAL_LINKS: MenuLink[] = [
   },
 ];
 
-const RESUME_LINKS: MenuLink[] = [
-  {
-    href: "/ats",
-    label: "Score",
-    description: "ATS scores for your resumes, with or without a job description.",
-  },
+type IconLink = MenuLink & { icon: LucideIcon };
+
+const RESUME_LINKS: IconLink[] = [
+  { href: "/ats", label: "Score", description: "ATS scores from every engine.", icon: Gauge },
   {
     href: "/resume-improver",
     label: "Improve",
-    description: "Tighten wording and ordering without inventing anything, then re-score.",
+    description: "Better wording and order, nothing invented.",
+    icon: WandSparkles,
+  },
+  {
+    href: "/documents?tab=resumes&upload=1",
+    label: "Upload resume",
+    description: "Add a PDF resume.",
+    icon: Upload,
   },
 ];
+
+/** Name of the active resume, fetched once the Resume panel is first opened. */
+function useActiveResumeName(enabled: boolean) {
+  const [name, setName] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    if (!enabled || loaded) return;
+    setLoaded(true);
+    fetch("/api/resumes")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { resumes?: { displayName: string; status: string }[] } | null) =>
+        setName(d?.resumes?.find((r) => r.status === "active")?.displayName ?? null),
+      )
+      .catch(() => {});
+  }, [enabled, loaded]);
+  return name;
+}
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -117,6 +140,7 @@ export function DesktopNavMenu() {
   };
 
   const documentsActive = isActive(pathname, "/documents");
+  const activeResume = useActiveResumeName(open === "resume");
   const resumeActive = isActive(pathname, "/ats") || isActive(pathname, "/resume-improver");
   const referralsActive = isActive(pathname, "/referrals") || isActive(pathname, "/outreach");
 
@@ -208,11 +232,43 @@ export function DesktopNavMenu() {
             Resume
           </NavigationMenuTrigger>
           <NavigationMenuContent>
-            <ul className="flex w-80 flex-col gap-1">
-              {RESUME_LINKS.map((link) => (
-                <PanelLink key={link.href} link={link} onNavigate={close} />
-              ))}
-            </ul>
+            <div className="w-lg grid grid-cols-[13rem_1fr] gap-3">
+              <div className="bg-card flex flex-col rounded-lg border p-4">
+                <FileText className="text-primary size-5" aria-hidden />
+                <p className="text-foreground mt-2 text-[13px] font-semibold">Resumes</p>
+                <p className="text-muted-foreground mt-1 text-[12px] leading-snug">
+                  Score, improve and manage your resumes.
+                </p>
+                <p className="text-muted-foreground mt-auto pt-3 text-[11px]">
+                  Active:{" "}
+                  <span className="text-foreground font-medium">{activeResume ?? "none yet"}</span>
+                </p>
+              </div>
+              <ul className="flex flex-col gap-1">
+                {RESUME_LINKS.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      onClick={close}
+                      className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex gap-2.5 rounded-md px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2"
+                    >
+                      <link.icon
+                        className="text-muted-foreground mt-0.5 size-4 shrink-0"
+                        aria-hidden
+                      />
+                      <span>
+                        <span className="text-foreground block text-[13px] font-medium">
+                          {link.label}
+                        </span>
+                        <span className="text-muted-foreground mt-0.5 block text-[12px] leading-snug">
+                          {link.description}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </NavigationMenuContent>
         </NavigationMenuItem>
       </NavigationMenuList>

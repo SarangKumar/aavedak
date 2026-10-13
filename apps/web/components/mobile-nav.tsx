@@ -29,6 +29,7 @@ type IconName =
   | "tracker"
   | "ats"
   | "improve"
+  | "upload"
   | "documents"
   | "referrals"
   | "outreach"
@@ -50,6 +51,7 @@ const ICON_PATHS: Record<IconName, string> = {
   dashboard: "M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z",
   jobs: "M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 7h18v13H3zM3 13h18",
   tracker: "M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v6h-4z",
+  upload: "M12 15V3m0 0-4 4m4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4",
   improve: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z",
   ats: "M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9",
   documents: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5",

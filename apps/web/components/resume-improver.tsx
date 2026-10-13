@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { EngineLabel } from "@/components/ats-engine-badge";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { ShellWidth } from "@/components/shell-width";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -20,10 +21,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { weightedFinalScore } from "@/lib/ats-engines/aggregate";
-import { getEngine } from "@/lib/ats-engines/registry";
+import { ATS_ENGINES } from "@/lib/ats-engines/registry";
 import type { AtsEngineId } from "@/lib/ats-engines/types";
 import { downloadResumeDocx, downloadResumePdf, resumePdfBlob } from "@/lib/resume-download";
 import type {
@@ -36,7 +46,13 @@ import { cn } from "@/lib/utils";
 
 type ResumeRow = { id: string; displayName: string; status: string };
 
-type Request = { resumeId: string; role: string; jdText: string; yearsExperience: number | null };
+type Request = {
+  resumeId: string;
+  role: string;
+  jdText: string;
+  yearsExperience: number | null;
+  engines: string[];
+};
 
 const KIND_LABEL: Record<ImproveChange["kind"], string> = {
   bullet: "Bullet wording",
@@ -71,28 +87,6 @@ function Delta({ before, after }: { before: number | null; after: number | null 
     >
       {d > 0 ? `+${d}` : d}
     </span>
-  );
-}
-
-function ScoreTile({
-  label,
-  before,
-  after,
-}: {
-  label: string;
-  before: number | null;
-  after: number | null;
-}) {
-  return (
-    <div className="bg-card rounded-lg border p-3">
-      <p className="text-muted-foreground text-[12px]">{label}</p>
-      <p className="mt-1 flex items-baseline gap-2 text-[13px]">
-        <span className="text-muted-foreground tabular-nums">{before ?? "—"}</span>
-        <span aria-hidden>→</span>
-        <span className="text-foreground text-xl font-semibold tabular-nums">{after ?? "—"}</span>
-        <Delta before={before} after={after} />
-      </p>
-    </div>
   );
 }
 
@@ -188,6 +182,10 @@ export function ResumeImprover({
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
   const runSeq = useRef(0);
+  // Every engine by default; the user can deselect.
+  const [selectedEngines, setSelectedEngines] = useState<Set<string>>(
+    () => new Set(ATS_ENGINES.map((e) => e.id)),
+  );
 
   useEffect(() => {
     fetch("/api/resumes")
@@ -196,9 +194,6 @@ export function ResumeImprover({
         if (!res.ok) throw new Error(data.error || "Failed to load resumes.");
         const list = data.resumes ?? [];
         setResumes(list);
-        setResumeId(
-          (cur) => cur || list.find((r) => r.status === "active")?.id || list[0]?.id || "",
-        );
       })
       .catch((err: unknown) =>
         setLoadError(err instanceof Error ? err.message : "Failed to load resumes."),
@@ -235,6 +230,7 @@ export function ResumeImprover({
       role: role.trim(),
       jdText,
       yearsExperience: y !== null && Number.isFinite(y) ? y : null,
+      engines: ATS_ENGINES.filter((e) => selectedEngines.has(e.id)).map((e) => e.id),
     };
     const name = resumes?.find((r) => r.id === resumeId)?.displayName ?? "Resume";
     setSaveName(`${name} – improved for ${req.role}`.slice(0, 120));
@@ -290,7 +286,7 @@ export function ResumeImprover({
     }
   }
 
-  const canRun = Boolean(resumeId && role.trim()) && !running;
+  const canRun = Boolean(resumeId && role.trim()) && selectedEngines.size > 0 && !running;
 
   return (
     <ShellWidth className="space-y-4 py-6 sm:space-y-5 sm:py-8">
@@ -303,42 +299,50 @@ export function ResumeImprover({
         </p>
       </header>
 
-      <CollapsibleSection title="What to improve for" defaultOpen>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="imp-resume">Resume</Label>
-            {loadError ? (
-              <p className="text-destructive text-[12px]">{loadError}</p>
-            ) : resumes && resumes.length === 0 ? (
-              <p className="text-muted-foreground text-[12px]">
-                No resumes yet.{" "}
-                <Link href="/documents?tab=resumes" className="text-primary hover:underline">
-                  Upload one
-                </Link>
-                .
-              </p>
-            ) : (
-              <Select value={resumeId} onValueChange={setResumeId} disabled={!resumes || running}>
-                <SelectTrigger id="imp-resume" className="w-full">
-                  <SelectValue placeholder={resumes ? "Pick a resume" : "Loading…"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(resumes ?? []).map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          <div className="grid grid-cols-[1fr_7rem] gap-3">
+      <CollapsibleSection step={1} title="Choose a resume" defaultOpen>
+        <div className="max-w-md space-y-1.5">
+          <Label htmlFor="imp-resume">Resume to improve</Label>
+          {loadError ? (
+            <p className="text-destructive text-[12px]">{loadError}</p>
+          ) : resumes && resumes.length === 0 ? (
+            <p className="text-muted-foreground text-[12px]">
+              No resumes yet.{" "}
+              <Link href="/documents?tab=resumes&upload=1" className="text-primary hover:underline">
+                Upload one
+              </Link>
+              .
+            </p>
+          ) : (
+            <Select value={resumeId} onValueChange={setResumeId} disabled={!resumes || running}>
+              <SelectTrigger id="imp-resume" className="w-full">
+                <SelectValue placeholder={resumes ? "Pick a resume" : "Loading…"} />
+              </SelectTrigger>
+              <SelectContent>
+                {(resumes ?? []).map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.displayName}
+                    {r.status === "active" ? " (active)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        step={2}
+        title="Target job and engines"
+        open={Boolean(resumeId)}
+        summary={resumeId ? undefined : <span>Choose a resume first</span>}
+      >
+        <fieldset disabled={!resumeId || running} className="space-y-4 disabled:opacity-60">
+          <div className="grid gap-4 sm:grid-cols-[1fr_7rem]">
             <div className="space-y-1.5">
               <Label htmlFor="imp-role">Job title</Label>
               <Input
                 id="imp-role"
                 value={role}
-                disabled={running}
                 onChange={(e) => setRole(e.target.value)}
                 placeholder="e.g. Backend Engineer"
               />
@@ -351,17 +355,15 @@ export function ResumeImprover({
                 min={0}
                 max={60}
                 value={years}
-                disabled={running}
                 onChange={(e) => setYears(e.target.value)}
               />
             </div>
           </div>
-          <div className="space-y-1.5 sm:col-span-2">
+          <div className="space-y-1.5">
             <Label htmlFor="imp-jd">Job description (optional)</Label>
             <Textarea
               id="imp-jd"
               value={jdText}
-              disabled={running}
               onChange={(e) => setJdText(e.target.value)}
               rows={5}
               maxRows={16}
@@ -369,7 +371,52 @@ export function ResumeImprover({
               className="min-h-28 font-sans text-[13px] leading-relaxed"
             />
           </div>
-        </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Label>Engines</Label>
+              <span className="text-muted-foreground text-[11px]">
+                {selectedEngines.size} of {ATS_ENGINES.length} selected
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() =>
+                  setSelectedEngines(
+                    selectedEngines.size === ATS_ENGINES.length
+                      ? new Set()
+                      : new Set(ATS_ENGINES.map((e) => e.id)),
+                  )
+                }
+              >
+                {selectedEngines.size === ATS_ENGINES.length ? "Clear" : "Select all"}
+              </Button>
+            </div>
+            <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+              {ATS_ENGINES.map((eng) => (
+                <label
+                  key={eng.id}
+                  className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-1.5"
+                >
+                  <Checkbox
+                    checked={selectedEngines.has(eng.id)}
+                    onChange={(e) => {
+                      const next = new Set(selectedEngines);
+                      if (e.target.checked) next.add(eng.id);
+                      else next.delete(eng.id);
+                      setSelectedEngines(next);
+                    }}
+                    aria-label={`Score with ${eng.name}`}
+                  />
+                  <EngineLabel engineId={eng.id} />
+                  {eng.jd === "required" ? (
+                    <span className="text-muted-foreground ml-auto text-[10px]">needs JD</span>
+                  ) : null}
+                </label>
+              ))}
+            </div>
+          </div>
+        </fieldset>
         <div className="mt-4 flex items-center gap-2">
           <Button type="button" onClick={start} disabled={!canRun}>
             {running ? <Spinner /> : null}
@@ -412,60 +459,83 @@ export function ResumeImprover({
           >
             {scores ? (
               <div className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ScoreTile
-                    label="Final weighted score"
-                    before={finals?.before?.score ?? null}
-                    after={finals?.after?.score ?? null}
-                  />
-                  <ScoreTile
-                    label="Aavedak ATS (native)"
-                    before={okScore(scores.before.aavedak)}
-                    after={okScore(scores.after.aavedak)}
-                  />
-                </div>
-                <details className="text-[12px]">
-                  <summary className="text-muted-foreground cursor-pointer">Every engine</summary>
-                  <table className="mt-2 w-full text-left">
-                    <thead className="text-muted-foreground">
-                      <tr>
-                        <th className="py-1 font-medium">Engine</th>
-                        <th className="py-1 text-right font-medium">Before</th>
-                        <th className="py-1 text-right font-medium">After</th>
-                        <th className="py-1 text-right font-medium">Δ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <div className="overflow-x-auto rounded-lg border">
+                  <Table className="text-[12px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Engine</TableHead>
+                        <TableHead className="text-right">Before</TableHead>
+                        <TableHead className="text-right">After</TableHead>
+                        <TableHead className="text-right">Change</TableHead>
+                        <TableHead>Version · mode</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {scores.snapshot.engines.map((id) => {
                         const b = scores.before[id];
                         const a = scores.after[id];
                         return (
-                          <tr key={id} className="border-t">
-                            <td className="py-1">{getEngine(id)?.name ?? id}</td>
-                            <td className="py-1 text-right tabular-nums">
-                              {b && !b.ok ? (
-                                <span className="text-muted-foreground">{b.message}</span>
-                              ) : (
-                                (okScore(b) ?? "—")
-                              )}
-                            </td>
-                            <td className="py-1 text-right tabular-nums">{okScore(a) ?? "—"}</td>
-                            <td className="py-1 text-right">
-                              <Delta before={okScore(b)} after={okScore(a)} />
-                            </td>
-                          </tr>
+                          <TableRow key={id}>
+                            <TableCell>
+                              <EngineLabel engineId={id as AtsEngineId} />
+                            </TableCell>
+                            {b && !b.ok ? (
+                              <TableCell colSpan={3} className="text-muted-foreground text-right">
+                                {b.message}
+                              </TableCell>
+                            ) : (
+                              <>
+                                <TableCell className="text-right tabular-nums">
+                                  {okScore(b) ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-right font-medium tabular-nums">
+                                  {okScore(a) ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Delta before={okScore(b)} after={okScore(a)} />
+                                </TableCell>
+                              </>
+                            )}
+                            <TableCell className="text-muted-foreground">
+                              {b && b.ok
+                                ? `${b.engineVersion ?? "—"} · ${(b.mode ?? scores.snapshot.mode).replace("_", " ")}`
+                                : "—"}
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </details>
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow>
+                        <TableCell className="font-medium">Final weighted score</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {finals?.before?.score ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">
+                          {finals?.after?.score ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Delta
+                            before={finals?.before?.score ?? null}
+                            after={finals?.after?.score ?? null}
+                          />
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          weights from the ATS page
+                        </TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
+                </div>
                 <p className="text-muted-foreground text-[11px]">
-                  Same request for both: engine v{scores.snapshot.engineVersion} ·{" "}
-                  {scores.snapshot.mode.replace("_", " ")} · role “{scores.snapshot.role}” · years{" "}
+                  Identical request for both versions: role “{scores.snapshot.role}” · years{" "}
                   {scores.snapshot.yearsExperience ?? "not set"} ·{" "}
                   {request.jdText.trim() ? `JD #${scores.snapshot.jdHash}` : "no JD"} · improver v
-                  {result.improverVersion}. Scores can stay the same or drop — they are shown as
-                  computed.
+                  {result.improverVersion}. Only the resume text differs. Scores can stay the same
+                  or drop — they are shown as computed.
+                  {request.jdText.trim()
+                    ? ""
+                    : " Jobscan and SkillSyncer need a job description, so they're skipped."}
                 </p>
               </div>
             ) : null}

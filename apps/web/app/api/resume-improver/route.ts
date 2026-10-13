@@ -24,6 +24,12 @@ export async function POST(request: Request) {
   const accepted = Array.isArray(body.accepted)
     ? body.accepted.filter((x): x is string => typeof x === "string")
     : null;
+  const engines = Array.isArray(body.engines)
+    ? body.engines.filter((x): x is string => typeof x === "string")
+    : null;
+  if (engines && engines.length === 0) {
+    return NextResponse.json({ error: "Select at least one engine." }, { status: 400 });
+  }
   if (!resumeId || !role) {
     return NextResponse.json({ error: "Pick a resume and enter a job title." }, { status: 400 });
   }
@@ -34,6 +40,7 @@ export async function POST(request: Request) {
       jdText,
       yearsExperience: years,
       accepted,
+      engines,
     });
     return NextResponse.json(result);
   } catch (err) {
