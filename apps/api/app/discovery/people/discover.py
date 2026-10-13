@@ -257,10 +257,16 @@ def discover_company(
     counts["githubPaused"] = int(guard.paused)
     with conn.transaction():
         person_ids: list[str] = []
+        seen_emails: set[str] = set()
         for cand in candidates:
-            if not (cand.email or "").strip():
+            key = (cand.email or "").strip().lower()
+            if not key:
                 counts["skippedNoEmail"] += 1  # a person without an email is useless for outreach
                 continue
+            if key in seen_emails:
+                counts["skippedDuplicate"] = counts.get("skippedDuplicate", 0) + 1
+                continue
+            seen_emails.add(key)
             outcome = upsert_candidate(conn, cand, company_id=company_id, company_name=company_name, domain=domain)
             counts[outcome.action] += 1
             counts["ambiguous"] += int(outcome.ambiguous)

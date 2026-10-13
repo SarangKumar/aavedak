@@ -58,7 +58,7 @@ def find_person(
                WHERE lower(p.email) = %(e)s
                   OR EXISTS (SELECT 1 FROM person_contacts c
                              WHERE c.person_id = p.id AND c.kind = 'email' AND c.value_key = %(e)s
-                               AND c.visibility = 'shared' AND c.verification <> 'inferred')
+                               AND c.visibility = 'shared')
                ORDER BY p.created_at LIMIT 1""",
             {"e": email},
         ).fetchone()
@@ -131,7 +131,7 @@ def upsert_candidate(
     linkedin = normalize_linkedin(cand.linkedin)
     github = (cand.github_login or "").lower() or None
     dedupe = person_dedupe_key(cand.name, company_name)
-    existing, ambiguous = find_person(conn, linkedin=linkedin, email=primary_email, github=github, dedupe=dedupe)
+    existing, ambiguous = find_person(conn, linkedin=linkedin, email=email, github=github, dedupe=dedupe)
     title = (cand.title or "").strip()[:200] or None
     values = {
         "email": primary_email,

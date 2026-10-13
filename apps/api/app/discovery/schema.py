@@ -77,6 +77,13 @@ SHARED_STATEMENTS: tuple[str, ...] = (
     "ALTER TABLE people ADD COLUMN IF NOT EXISTS github_login TEXT",
     """CREATE UNIQUE INDEX IF NOT EXISTS people_github_login_uidx
        ON people (github_login) WHERE github_login IS NOT NULL""",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM people WHERE user_id IS NULL AND email IS NOT NULL
+                        GROUP BY lower(email) HAVING count(*) > 1) THEN
+           CREATE UNIQUE INDEX IF NOT EXISTS people_shared_email_uidx
+             ON people (lower(email)) WHERE user_id IS NULL AND email IS NOT NULL;
+         END IF;
+       END $$""",
     """CREATE TABLE IF NOT EXISTS job_person_relevance (
       job_id TEXT NOT NULL,
       person_id TEXT NOT NULL,
