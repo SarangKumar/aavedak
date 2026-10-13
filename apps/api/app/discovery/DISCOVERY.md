@@ -19,7 +19,7 @@ forwards admin actions to `/svc/v1/discovery/admin/*` after its own allowlist ch
   associate product manager / product analyst. Matching uses explicit phrases, so generic
   "analyst" / "scientist" / "designer" titles stay out. Skip reasons keep their names
   (`not_india`, `not_engineering`). Internships excluded unless
-  `INCLUDE_INTERNSHIPS=1`. Filters run **before** anything is written, so the database only
+  `include_internships = True` (config.py). Filters run **before** anything is written, so the database only
   holds relevant jobs; skipped postings are only counted per reason.
 - Sources: public ATS posting APIs (Greenhouse, Lever, Ashby, SmartRecruiters, Workable),
   career pages that embed schema.org `JobPosting` JSON-LD (robots.txt respected, no
@@ -118,9 +118,9 @@ Per company source (one run item):
 
 ## Runs, ticks, crons (Vercel Hobby)
 
-- A run = items with leases. A tick claims up to `DISCOVERY_FETCH_CONCURRENCY` items,
-  processes them, and repeats until `DISCOVERY_TICK_BUDGET_SECONDS` (default 45) is used.
-  Failed items retry up to `DISCOVERY_MAX_ATTEMPTS`; 404 boards / unsupported pages fail
+- A run = items with leases. A tick claims up to `discovery_fetch_concurrency` items,
+  processes them, and repeats until `discovery_tick_budget_seconds` (default 45) is used.
+  Failed items retry up to `discovery_max_attempts`; 404 boards / unsupported pages fail
   immediately. A crashed tick's items become claimable when their lease expires.
 - `vercel.json` crons (each once/day, ±59 min on Hobby), all UTC. The repetitive job scan is
   **spread evenly across the day**: shards `/cron/scan/0..5` run every 4 h at
@@ -130,7 +130,7 @@ Per company source (one run item):
   people-discovery runs are idempotent
   per IST day (`run_key`), so a retried cron resumes instead of duplicating.
 - Sources split into shards by `shard_seed % DISCOVERY_SHARDS`. Sources with
-  `DISCOVERY_MAX_FAILURES` consecutive failures are retried weekly only.
+  `discovery_max_failures` consecutive failures are retried weekly only.
 - The admin page drives ticks while open (`POST /admin/tick`); closing it is safe.
 
 ## Official careers pages
@@ -161,7 +161,7 @@ only the careers page lists (those still expire normally).
 
 ## Expiry
 
-`COALESCE(posted_at, first_seen_at, created_at)` older than `JOB_EXPIRY_DAYS` → `expired_at`
+`COALESCE(posted_at, first_seen_at, created_at)` older than `job_expiry_days` → `expired_at`
 (never cleared). Applications linked to an expired **shared** job in `bookmarked`,
 `preparing`, `applied`, `under_review`, `ghosted` move to `rejected` with
 `status_reason = job_expired` and a system `application_events` row. A unique index on

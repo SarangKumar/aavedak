@@ -1,10 +1,11 @@
-"""Discovery settings (env-driven, all optional). Documented in docs/jobs-ingest.md."""
+"""Discovery settings: typed tuning constants in code (`DiscoveryTuning`) plus the few
+values that come from env (kill switch, optional source keys). See docs/env.md."""
 
 from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.config import settings as core_settings
@@ -21,10 +22,12 @@ EXPIRY_REJECTABLE_STATUSES: tuple[str, ...] = (
 JOB_EXPIRED_REASON = "job_expired"
 
 
-class DiscoverySettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+class DiscoveryTuning(BaseModel):
+    """Non-secret tuning, typed and versioned here in code (not env). Change a value by
+    editing this class; tests may pass overrides to `DiscoverySettings(...)`."""
 
-    discovery_enabled: bool = True
+    model_config = ConfigDict(extra="ignore")
+
     # Max new recommendations per user per IST day.
     discovery_daily_limit: int = Field(50, ge=1, le=200)
     # Jobs older than this (by posting date) leave the active tabs.
@@ -50,6 +53,41 @@ class DiscoverySettings(BaseSettings):
     smartrecruiters_detail_limit: int = Field(40, ge=0, le=200)
     # Rows per people-import run item.
     people_batch_size: int = Field(100, ge=10, le=1000)
+    # People discovery v2 (see DISCOVERY.md): per-run and per-company limits.
+    people_companies_per_run: int = Field(12, ge=1, le=200)
+    people_requests_per_company: int = Field(40, ge=5, le=200)
+    people_host_delay_seconds: float = Field(1.0, ge=0, le=10)
+    people_refresh_days: int = Field(14, ge=1, le=180)
+    people_site_pages: int = Field(5, ge=1, le=12)
+    people_github_members: int = Field(12, ge=0, le=50)
+    people_search_results: int = Field(15, ge=0, le=50)
+
+
+class _DiscoveryEnv(BaseSettings):
+    """The only discovery values read from the environment: the deployment kill switch and
+    optional third-party keys (secrets). Each source is skipped when its key is empty."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    discovery_enabled: bool = True
+    github_token: str = ""
+    brave_search_api_key: str = ""
+    serpapi_key: str = ""
+    google_cse_key: str = ""
+    google_cse_cx: str = ""
+    hunter_api_key: str = ""
+    apollo_api_key: str = ""
+
+
+class DiscoverySettings(DiscoveryTuning):
+    discovery_enabled: bool = True
+    github_token: str = ""
+    brave_search_api_key: str = ""
+    serpapi_key: str = ""
+    google_cse_key: str = ""
+    google_cse_cx: str = ""
+    hunter_api_key: str = ""
+    apollo_api_key: str = ""
 
     @property
     def database_url(self) -> str:
@@ -62,4 +100,4 @@ class DiscoverySettings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> DiscoverySettings:
-    return DiscoverySettings()
+    return DiscoverySettings(**_DiscoveryEnv().model_dump())

@@ -58,7 +58,7 @@ def conn():
 
 @pytest.fixture
 def settings() -> DiscoverySettings:
-    return DiscoverySettings(_env_file=None, discovery_daily_limit=3, discovery_min_match_score=0)
+    return DiscoverySettings(discovery_daily_limit=3, discovery_min_match_score=0)
 
 
 def make_source(conn, provider="greenhouse", token=None) -> SourceTarget:

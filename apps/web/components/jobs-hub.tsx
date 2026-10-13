@@ -134,7 +134,7 @@ type JobPersonDto = {
   votes: VoteSummaryDto;
 };
 
-/** Must match JOB_EXPIRY_DAYS in the API (default 30). Display only. */
+/** Must match `job_expiry_days` in apps/api/app/discovery/config.py (30). Display only. */
 const EXPIRY_DAYS = 30;
 
 function daysSince(iso: string | null): number | null {
