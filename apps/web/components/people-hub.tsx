@@ -1,6 +1,16 @@
 "use client";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -112,6 +122,8 @@ export function PeopleHub({ initialPeople, applications }: Props) {
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<PersonDto | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const appsById = useMemo(() => new Map(applications.map((a) => [a.id, a])), [applications]);
@@ -207,6 +219,24 @@ export function PeopleHub({ initialPeople, applications }: Props) {
       setError(err instanceof Error ? err.message : "Archive failed.");
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function deletePersonForever(person: PersonDto): Promise<boolean> {
+    setDeleteBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/people/${person.id}?permanent=1`, { method: "DELETE" });
+      const data = (await res.json()) as { deleted?: boolean; error?: string };
+      if (!res.ok || !data.deleted) throw new Error(data.error || "Delete failed.");
+      setPeople((list) => list.filter((p) => p.id !== person.id));
+      if (editingId === person.id) setDrawerOpen(false);
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed.");
+      return false;
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -406,6 +436,15 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                             {busy ? "…" : "Restore"}
                           </Button>
                         )}
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          className="text-destructive"
+                          disabled={busy}
+                          onClick={() => setDeleting(person)}
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -542,6 +581,40 @@ export function PeopleHub({ initialPeople, applications }: Props) {
           </div>
         </SheetContent>
       </Sheet>
+      <AlertDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteBusy) setDeleting(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{deleting?.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the person, and their Inbox chats, replies and queued
+              follow-ups will be removed too. Emails already sent through Gmail can&apos;t be
+              recalled; they only disappear from Aavedak.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              className="cursor-pointer"
+              loading={deleteBusy}
+              onClick={(e) => {
+                e.preventDefault();
+                if (!deleting) return;
+                void deletePersonForever(deleting).then((ok) => {
+                  if (ok) setDeleting(null);
+                });
+              }}
+            >
+              Delete person and chats
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ShellWidth>
   );
 }

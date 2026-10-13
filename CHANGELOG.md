@@ -11,6 +11,9 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Fixed
 
+- **Inbox duplicates** — The Inbox list now shows exactly one entry per person (matched by person, or by recipient email when no person is linked). Each person + application is one chronological thread merged across days; other applications with the same person appear as a thread switcher, latest first. All existing Inbox chats in production (15 follow-ups, 5 replies) were cleared once to start clean.
+- **Deleting people removes their chats** — People now have a Delete action (admins or whoever added the person). After a confirmation it permanently removes the person with their Inbox chats, replies and queued follow-ups. Emails already sent via Gmail can't be recalled.
+
 - **Database size** — Job descriptions are capped at 12,000 characters, discovered jobs no longer keep a second raw copy, and descriptions of jobs that expired or closed over a week ago (and that nobody applied to) are cleared, so the worldwide job pool stays within Neon's free 0.5 GB.
 - **Admin — Runs chart** — The chart showed only the days that had discoveries, so 1M, 3M, 6M and 12M looked the same. Now every India-time day in the range appears on the x-axis, with 0 for quiet days, including days before the site existed. Every run kind gets a line even when it found nothing. A 1W option was added, and month ranges are calendar months ending today.
 - **Pickers inside dialogs** — Date pickers, location and company lists, dropdowns, tooltips and hover cards now open on top of dialogs and side drawers (such as Add job and the admin job editor), not behind them. Pressing Escape in an open picker now closes just the picker, not the whole dialog.

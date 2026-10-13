@@ -283,6 +283,47 @@ export async function archivePerson(id: string): Promise<PersonRecord> {
   return updatePerson(id, { status: "archived" });
 }
 
+export type PersonDeleteResult = { conversations: number; replies: number };
+
+/**
+ * Delete a person for good, with their Inbox: every follow-up / referral mail to them (by
+ * person id, or by their email when the mail was never linked), the replies in those
+ * threads, queued sends, and their votes, contacts and job links. Sent Gmail can't be
+ * recalled; it only leaves the app. Applications, jobs and templates are untouched.
+ */
+export async function deletePerson(id: string): Promise<PersonDeleteResult> {
+  await ensureAppSchema();
+  const person = await getPerson(id);
+  if (!person) throw new Error("Person not found.");
+  const email = person.email?.trim().toLowerCase() || null;
+  const sql = getSql();
+  const threadRows = (await sql`
+    SELECT f.id FROM follow_up_tasks f
+    WHERE f.person_id = ${id}
+       OR (${email}::text IS NOT NULL AND f.person_id IS NULL AND lower(btrim(f.mail_to)) = ${email})
+  `) as Array<{ id: string }>;
+  const ids = threadRows.map((r) => r.id);
+  const [{ n: replies }] = (await sql`
+    SELECT COUNT(*)::int AS n FROM mail_replies WHERE follow_up_id = ANY(${ids})
+  `) as Array<{ n: number }>;
+  // Contacts and field provenance belong to the discovery API; skip them if never created.
+  const [tables] = (await sql`
+    SELECT to_regclass('person_contacts') IS NOT NULL AS contacts,
+           to_regclass('person_field_sources') IS NOT NULL AS sources
+  `) as Array<{ contacts: boolean; sources: boolean }>;
+  await sql.transaction([
+    sql`DELETE FROM mail_replies WHERE follow_up_id = ANY(${ids})`,
+    sql`DELETE FROM person_reply_credits WHERE person_id = ${id} OR follow_up_id = ANY(${ids})`,
+    sql`DELETE FROM follow_up_tasks WHERE id = ANY(${ids})`,
+    sql`DELETE FROM person_votes WHERE person_id = ${id}`,
+    ...(tables?.contacts ? [sql`DELETE FROM person_contacts WHERE person_id = ${id}`] : []),
+    ...(tables?.sources ? [sql`DELETE FROM person_field_sources WHERE person_id = ${id}`] : []),
+    sql`DELETE FROM job_person_relevance WHERE person_id = ${id}`,
+    sql`DELETE FROM people WHERE id = ${id}`,
+  ]);
+  return { conversations: ids.length, replies: Number(replies) };
+}
+
 /** Keep people rows; clear adder + application links for a deleted account. */
 export async function detachPeopleForDeletedUser(userId: string): Promise<void> {
   await ensureAppSchema();
