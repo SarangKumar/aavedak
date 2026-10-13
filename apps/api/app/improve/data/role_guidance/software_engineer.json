@@ -1,0 +1,13 @@
+{
+  "roleKey": "software engineer",
+  "label": "Software Engineer",
+  "_doc": "Hand-written guidance. sectionOrder* list standard headings; skills come from skill_taxonomy.ROLE_PROFILES (not duplicated here). Prompts are shown as suggestions and never inserted into the resume.",
+  "sectionOrderExperienced": ["Summary", "Experience", "Projects", "Skills", "Education"],
+  "sectionOrderEntryLevel": ["Skills", "Projects", "Experience", "Education"],
+  "experiencedFromYears": 3,
+  "evidencePrompts": [
+    "Name the systems or features you built and who used them.",
+    "Mention testing, code review or CI if you did them.",
+    "Give scale where you know it: users, requests, data size, latency."
+  ]
+}

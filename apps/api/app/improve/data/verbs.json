@@ -1,0 +1,367 @@
+{
+  "_doc": "Verb forms used by the Resume Improver. Only verbs listed here are re-inflected; unknown verbs are left untouched.",
+  "forms": {
+    "build": {
+      "past": "built",
+      "gerund": "building",
+      "present3": "builds"
+    },
+    "develop": {
+      "past": "developed",
+      "gerund": "developing",
+      "present3": "develops"
+    },
+    "design": {
+      "past": "designed",
+      "gerund": "designing",
+      "present3": "designs"
+    },
+    "implement": {
+      "past": "implemented",
+      "gerund": "implementing",
+      "present3": "implements"
+    },
+    "create": {
+      "past": "created",
+      "gerund": "creating",
+      "present3": "creates"
+    },
+    "write": {
+      "past": "wrote",
+      "gerund": "writing",
+      "present3": "writes"
+    },
+    "manage": {
+      "past": "managed",
+      "gerund": "managing",
+      "present3": "manages"
+    },
+    "maintain": {
+      "past": "maintained",
+      "gerund": "maintaining",
+      "present3": "maintains"
+    },
+    "test": {
+      "past": "tested",
+      "gerund": "testing",
+      "present3": "tests"
+    },
+    "deploy": {
+      "past": "deployed",
+      "gerund": "deploying",
+      "present3": "deploys"
+    },
+    "automate": {
+      "past": "automated",
+      "gerund": "automating",
+      "present3": "automates"
+    },
+    "optimize": {
+      "past": "optimized",
+      "gerund": "optimizing",
+      "present3": "optimizes"
+    },
+    "improve": {
+      "past": "improved",
+      "gerund": "improving",
+      "present3": "improves"
+    },
+    "reduce": {
+      "past": "reduced",
+      "gerund": "reducing",
+      "present3": "reduces"
+    },
+    "increase": {
+      "past": "increased",
+      "gerund": "increasing",
+      "present3": "increases"
+    },
+    "migrate": {
+      "past": "migrated",
+      "gerund": "migrating",
+      "present3": "migrates"
+    },
+    "integrate": {
+      "past": "integrated",
+      "gerund": "integrating",
+      "present3": "integrates"
+    },
+    "analyze": {
+      "past": "analyzed",
+      "gerund": "analyzing",
+      "present3": "analyzes"
+    },
+    "monitor": {
+      "past": "monitored",
+      "gerund": "monitoring",
+      "present3": "monitors"
+    },
+    "debug": {
+      "past": "debugged",
+      "gerund": "debugging",
+      "present3": "debugs"
+    },
+    "fix": {
+      "past": "fixed",
+      "gerund": "fixing",
+      "present3": "fixes"
+    },
+    "refactor": {
+      "past": "refactored",
+      "gerund": "refactoring",
+      "present3": "refactors"
+    },
+    "document": {
+      "past": "documented",
+      "gerund": "documenting",
+      "present3": "documents"
+    },
+    "configure": {
+      "past": "configured",
+      "gerund": "configuring",
+      "present3": "configures"
+    },
+    "containerize": {
+      "past": "containerized",
+      "gerund": "containerizing",
+      "present3": "containerizes"
+    },
+    "research": {
+      "past": "researched",
+      "gerund": "researching",
+      "present3": "researches"
+    },
+    "prototype": {
+      "past": "prototyped",
+      "gerund": "prototyping",
+      "present3": "prototypes"
+    },
+    "collaborate": {
+      "past": "collaborated",
+      "gerund": "collaborating",
+      "present3": "collaborates"
+    },
+    "coordinate": {
+      "past": "coordinated",
+      "gerund": "coordinating",
+      "present3": "coordinates"
+    },
+    "support": {
+      "past": "supported",
+      "gerund": "supporting",
+      "present3": "supports"
+    },
+    "contribute": {
+      "past": "contributed",
+      "gerund": "contributing",
+      "present3": "contributes"
+    },
+    "perform": {
+      "past": "performed",
+      "gerund": "performing",
+      "present3": "performs"
+    },
+    "apply": {
+      "past": "applied",
+      "gerund": "applying",
+      "present3": "applies"
+    },
+    "use": {
+      "past": "used",
+      "gerund": "using",
+      "present3": "uses"
+    },
+    "make": {
+      "past": "made",
+      "gerund": "making",
+      "present3": "makes"
+    },
+    "do": {
+      "past": "did",
+      "gerund": "doing",
+      "present3": "does"
+    },
+    "handle": {
+      "past": "handled",
+      "gerund": "handling",
+      "present3": "handles"
+    },
+    "work": {
+      "past": "worked",
+      "gerund": "working",
+      "present3": "works"
+    },
+    "help": {
+      "past": "helped",
+      "gerund": "helping",
+      "present3": "helps"
+    },
+    "assist": {
+      "past": "assisted",
+      "gerund": "assisting",
+      "present3": "assists"
+    },
+    "participate": {
+      "past": "participated",
+      "gerund": "participating",
+      "present3": "participates"
+    },
+    "run": {
+      "past": "ran",
+      "gerund": "running",
+      "present3": "runs"
+    },
+    "lead": {
+      "past": "led",
+      "gerund": "leading",
+      "present3": "leads"
+    },
+    "own": {
+      "past": "owned",
+      "gerund": "owning",
+      "present3": "owns"
+    },
+    "launch": {
+      "past": "launched",
+      "gerund": "launching",
+      "present3": "launches"
+    },
+    "ship": {
+      "past": "shipped",
+      "gerund": "shipping",
+      "present3": "ships"
+    },
+    "deliver": {
+      "past": "delivered",
+      "gerund": "delivering",
+      "present3": "delivers"
+    },
+    "scale": {
+      "past": "scaled",
+      "gerund": "scaling",
+      "present3": "scales"
+    },
+    "architect": {
+      "past": "architected",
+      "gerund": "architecting",
+      "present3": "architects"
+    },
+    "mentor": {
+      "past": "mentored",
+      "gerund": "mentoring",
+      "present3": "mentors"
+    },
+    "review": {
+      "past": "reviewed",
+      "gerund": "reviewing",
+      "present3": "reviews"
+    },
+    "train": {
+      "past": "trained",
+      "gerund": "training",
+      "present3": "trains"
+    },
+    "model": {
+      "past": "modeled",
+      "gerund": "modeling",
+      "present3": "models"
+    },
+    "visualize": {
+      "past": "visualized",
+      "gerund": "visualizing",
+      "present3": "visualizes"
+    },
+    "present": {
+      "past": "presented",
+      "gerund": "presenting",
+      "present3": "presents"
+    },
+    "plan": {
+      "past": "planned",
+      "gerund": "planning",
+      "present3": "plans"
+    },
+    "streamline": {
+      "past": "streamlined",
+      "gerund": "streamlining",
+      "present3": "streamlines"
+    },
+    "validate": {
+      "past": "validated",
+      "gerund": "validating",
+      "present3": "validates"
+    },
+    "resolve": {
+      "past": "resolved",
+      "gerund": "resolving",
+      "present3": "resolves"
+    },
+    "investigate": {
+      "past": "investigated",
+      "gerund": "investigating",
+      "present3": "investigates"
+    },
+    "establish": {
+      "past": "established",
+      "gerund": "establishing",
+      "present3": "establishes"
+    },
+    "publish": {
+      "past": "published",
+      "gerund": "publishing",
+      "present3": "publishes"
+    },
+    "conduct": {
+      "past": "conducted",
+      "gerund": "conducting",
+      "present3": "conducts"
+    },
+    "define": {
+      "past": "defined",
+      "gerund": "defining",
+      "present3": "defines"
+    },
+    "evaluate": {
+      "past": "evaluated",
+      "gerund": "evaluating",
+      "present3": "evaluates"
+    },
+    "prepare": {
+      "past": "prepared",
+      "gerund": "preparing",
+      "present3": "prepares"
+    },
+    "set": {
+      "past": "set",
+      "gerund": "setting",
+      "present3": "sets"
+    },
+    "query": {
+      "past": "queried",
+      "gerund": "querying",
+      "present3": "queries"
+    },
+    "clean": {
+      "past": "cleaned",
+      "gerund": "cleaning",
+      "present3": "cleans"
+    },
+    "process": {
+      "past": "processed",
+      "gerund": "processing",
+      "present3": "processes"
+    },
+    "host": {
+      "past": "hosted",
+      "gerund": "hosting",
+      "present3": "hosts"
+    }
+  },
+  "_mapDoc": "Weak opener verb -> replacement base verb. Replacements never add scope or ownership (no led/owned/architected).",
+  "map": {
+    "make": "create",
+    "do": "perform",
+    "handle": "manage",
+    "use": "apply"
+  }
+}

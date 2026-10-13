@@ -1,0 +1,62 @@
+{
+  "_doc": "Opening phrases rewritten by rule weak_phrase. Each maps to a template; {rest} is the original remainder. 'gerund_to_verb' means: if the remainder starts with a known gerund, use that verb (tense from the entry); otherwise leave the bullet unchanged.",
+  "rules": [
+    {
+      "pattern": "responsible for",
+      "action": "gerund_to_verb"
+    },
+    {
+      "pattern": "tasked with",
+      "action": "gerund_to_verb"
+    },
+    {
+      "pattern": "in charge of",
+      "action": "gerund_to_verb"
+    },
+    {
+      "pattern": "worked on",
+      "action": "contribute"
+    },
+    {
+      "pattern": "helped with",
+      "action": "contribute"
+    },
+    {
+      "pattern": "helped to",
+      "action": "contribute_verb"
+    },
+    {
+      "pattern": "helped",
+      "action": "contribute_verb"
+    },
+    {
+      "pattern": "assisted with",
+      "action": "contribute"
+    },
+    {
+      "pattern": "assisted in",
+      "action": "contribute"
+    },
+    {
+      "pattern": "involved in",
+      "action": "contribute"
+    },
+    {
+      "pattern": "participated in",
+      "action": "contribute"
+    },
+    {
+      "pattern": "was part of",
+      "action": "contribute"
+    }
+  ],
+  "hedges": [
+    "familiar with",
+    "exposure to",
+    "basic understanding of",
+    "basic knowledge of",
+    "some experience with",
+    "some experience in"
+  ],
+  "pronounOpeners": ["i", "we"]
+}

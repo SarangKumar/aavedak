@@ -1,0 +1,13 @@
+{
+  "roleKey": "data engineer",
+  "label": "Data Engineer",
+  "_doc": "Hand-written guidance. sectionOrder* list standard headings; skills come from skill_taxonomy.ROLE_PROFILES (not duplicated here). Prompts are shown as suggestions and never inserted into the resume.",
+  "sectionOrderExperienced": ["Summary", "Experience", "Projects", "Skills", "Education"],
+  "sectionOrderEntryLevel": ["Skills", "Projects", "Experience", "Education"],
+  "experiencedFromYears": 3,
+  "evidencePrompts": [
+    "Name the pipelines you built: sources, tools, and destinations.",
+    "Give data volume or freshness where you know it.",
+    "Mention data quality checks or orchestration you set up."
+  ]
+}

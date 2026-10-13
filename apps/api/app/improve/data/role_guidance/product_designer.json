@@ -1,0 +1,13 @@
+{
+  "roleKey": "product designer",
+  "label": "Product Designer",
+  "_doc": "Hand-written guidance. sectionOrder* list standard headings; skills come from skill_taxonomy.ROLE_PROFILES (not duplicated here). Prompts are shown as suggestions and never inserted into the resume.",
+  "sectionOrderExperienced": ["Summary", "Experience", "Projects", "Skills", "Education"],
+  "sectionOrderEntryLevel": ["Projects", "Skills", "Experience", "Education"],
+  "experiencedFromYears": 3,
+  "evidencePrompts": [
+    "Link your portfolio near the top.",
+    "Describe the problem, your design decision and what changed for users.",
+    "Mention research, usability testing or design systems if you did them."
+  ]
+}

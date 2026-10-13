@@ -1,0 +1,13 @@
+{
+  "roleKey": "full stack",
+  "label": "Full Stack Engineer",
+  "_doc": "Hand-written guidance. sectionOrder* list standard headings; skills come from skill_taxonomy.ROLE_PROFILES (not duplicated here). Prompts are shown as suggestions and never inserted into the resume.",
+  "sectionOrderExperienced": ["Summary", "Experience", "Projects", "Skills", "Education"],
+  "sectionOrderEntryLevel": ["Skills", "Projects", "Experience", "Education"],
+  "experiencedFromYears": 3,
+  "evidencePrompts": [
+    "Show both sides: the UI you built and the API/database behind it.",
+    "Name the end-to-end features you owned from design to deploy, if you did.",
+    "Mention hosting/deployment you set up."
+  ]
+}

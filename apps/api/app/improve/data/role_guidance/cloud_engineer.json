@@ -1,0 +1,20 @@
+{
+  "roleKey": "cloud engineer",
+  "label": "Cloud / DevOps Engineer",
+  "_doc": "Hand-written guidance. sectionOrder* list standard headings; skills come from skill_taxonomy.ROLE_PROFILES (not duplicated here). Prompts are shown as suggestions and never inserted into the resume.",
+  "sectionOrderExperienced": [
+    "Summary",
+    "Experience",
+    "Skills",
+    "Projects",
+    "Education",
+    "Certifications"
+  ],
+  "sectionOrderEntryLevel": ["Skills", "Experience", "Projects", "Certifications", "Education"],
+  "experiencedFromYears": 3,
+  "evidencePrompts": [
+    "Name the infrastructure you provisioned and the tools (Terraform, Docker, Kubernetes) you used.",
+    "Give reliability or cost results where you know them.",
+    "List cloud certifications you actually hold."
+  ]
+}
