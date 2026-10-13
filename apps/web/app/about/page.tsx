@@ -65,7 +65,12 @@ const workspace = [
     body: "headline numbers, funnel and what needs attention.",
   },
   { href: "/jobs", label: "Jobs", body: "daily recommendations and the jobs you've applied to." },
-  { href: "/ats", label: "ATS", body: "check resumes with 10 scoring engines." },
+  { href: "/ats", label: "Resume · Score", body: "check resumes with 10 scoring engines." },
+  {
+    href: "/resume-improver",
+    label: "Resume · Improve",
+    body: "tighten wording and ordering for a role, without inventing anything.",
+  },
   {
     href: "/job-tracker",
     label: "Tracker",

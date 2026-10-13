@@ -17,7 +17,13 @@ const mobileNav: readonly NavGroup[] = [
       { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
       { href: "/jobs", label: "Jobs", icon: "jobs" },
       { href: "/job-tracker", label: "Tracker", icon: "tracker" },
-      { href: "/ats", label: "ATS", icon: "ats" },
+    ],
+  },
+  {
+    label: "Resume",
+    items: [
+      { href: "/ats", label: "Score", icon: "ats" },
+      { href: "/resume-improver", label: "Improve", icon: "improve" },
     ],
   },
   {

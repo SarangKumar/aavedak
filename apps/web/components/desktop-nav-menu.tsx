@@ -54,6 +54,19 @@ const REFERRAL_LINKS: MenuLink[] = [
   },
 ];
 
+const RESUME_LINKS: MenuLink[] = [
+  {
+    href: "/ats",
+    label: "Score",
+    description: "ATS scores for your resumes, with or without a job description.",
+  },
+  {
+    href: "/resume-improver",
+    label: "Improve",
+    description: "Tighten wording and ordering without inventing anything, then re-score.",
+  },
+];
+
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -104,6 +117,7 @@ export function DesktopNavMenu() {
   };
 
   const documentsActive = isActive(pathname, "/documents");
+  const resumeActive = isActive(pathname, "/ats") || isActive(pathname, "/resume-improver");
   const referralsActive = isActive(pathname, "/referrals") || isActive(pathname, "/outreach");
 
   return (
@@ -183,7 +197,24 @@ export function DesktopNavMenu() {
           </NavigationMenuContent>
         </NavigationMenuItem>
 
-        {directLink("/ats", "ATS")}
+        <NavigationMenuItem value="resume">
+          <NavigationMenuTrigger
+            className={cn(
+              topItemClass,
+              "gap-1 focus-visible:ring-offset-0",
+              (resumeActive || open === "resume") && topItemActiveClass,
+            )}
+          >
+            Resume
+          </NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="flex w-80 flex-col gap-1">
+              {RESUME_LINKS.map((link) => (
+                <PanelLink key={link.href} link={link} onNavigate={close} />
+              ))}
+            </ul>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
       </NavigationMenuList>
       <NavigationMenuViewport />
     </NavigationMenu>

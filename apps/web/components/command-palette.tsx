@@ -50,6 +50,7 @@ export function CommandPalette() {
       "/documents",
       "/referrals",
       "/ats",
+      "/resume-improver",
       "/people",
       "/outreach",
     );
@@ -119,8 +120,11 @@ export function CommandPalette() {
                 <CommandItem value="referrals" onClick={() => go("/referrals")}>
                   Referrals
                 </CommandItem>
-                <CommandItem value="ats" onClick={() => go("/ats")}>
-                  ATS score
+                <CommandItem value="resume score ats" onClick={() => go("/ats")}>
+                  Resume · Score
+                </CommandItem>
+                <CommandItem value="resume improve improver" onClick={() => go("/resume-improver")}>
+                  Resume · Improve
                 </CommandItem>
                 <CommandItem value="people" onClick={() => go("/people")}>
                   People

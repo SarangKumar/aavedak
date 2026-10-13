@@ -5,7 +5,7 @@ import { requireOnboarded } from "@/lib/app-access";
 import { cardAtsInputs } from "@/lib/resumes";
 
 export const metadata: Metadata = {
-  title: "ATS score",
+  title: "Resume score",
   description: "See ATS readiness for your resumes and score them against a job description.",
   robots: { index: false, follow: false },
 };
