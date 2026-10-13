@@ -735,3 +735,27 @@ def test_run_history_window_is_inclusive_ist_days():
     assert history_window(months=1, today=today) == (date(2026, 9, 14), today)
     assert history_window(months=3, today=today) == (date(2026, 7, 14), today)
     assert history_window(months=1, today=date(2026, 3, 31)) == (date(2026, 3, 1), date(2026, 3, 31))
+
+
+# --- experience window + India-first ranking -------------------------------------------------
+
+
+def test_experience_window_and_closeness():
+    from app.discovery.config import DiscoverySettings
+    from app.discovery.jobs import ranking
+
+    settings = DiscoverySettings()
+    assert ranking.max_min_years(settings, 2) == 4  # 2 YOE → fresher through 4-year roles
+    assert ranking.max_min_years(settings, 0) == 2
+    assert ranking.experience_closeness(2, 2) == ranking.CLOSENESS_MAX
+    assert ranking.experience_closeness(0, 2) < ranking.experience_closeness(2, 2)
+    assert ranking.experience_closeness(None, 2) == ranking.CLOSENESS_MAX // 2
+
+
+def test_rank_puts_india_first():
+    from app.discovery.jobs import ranking
+
+    india = ranking.rank_value(60, {"min_years": 1, "region": "india"}, 1)
+    berlin = ranking.rank_value(60, {"min_years": 1, "region": "global"}, 1)
+    remote_india = ranking.rank_value(60, {"min_years": 1, "region": "india_remote"}, 1)
+    assert india > remote_india > berlin

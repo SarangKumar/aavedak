@@ -83,6 +83,7 @@ import {
   type PostedWindow,
 } from "@/lib/job-posted-window";
 import { locationFilterKeys, locationFilterLabel, matchCities } from "@/lib/job-map/locations";
+import { JOBS_REGION_VIEWS, type JobsRegionView } from "@/lib/jobs-region";
 import { cn } from "@/lib/utils";
 import {
   clampJobsListWidth,
@@ -100,6 +101,27 @@ export type JobsTab = "discover" | "applied";
 type PendingAction =
   "create" | "parse" | "paste" | "apply" | "bookmark" | "ignore" | "unapply" | null;
 export type JobsSort = "newest" | "oldest";
+/** 0 India, 1 remote open to India, 2 other remote, 3 elsewhere. Manual jobs count as India. */
+function regionRank(job: JobDto): number {
+  switch (job.region) {
+    case "india_remote":
+      return 1;
+    case "remote":
+      return 2;
+    case "global":
+      return 3;
+    default:
+      return 0;
+  }
+}
+
+function experienceLabel(job: Pick<JobDto, "minYears" | "maxYears">): string {
+  if (job.minYears == null) return "Experience not stated";
+  if (job.maxYears != null && job.maxYears > job.minYears) {
+    return `${job.minYears}–${job.maxYears} yrs`;
+  }
+  return job.minYears === 0 ? "Fresher friendly" : `${job.minYears}+ yrs`;
+}
 
 type ResumeLite = { id: string; displayName: string; status: string };
 
@@ -115,6 +137,8 @@ type JobsHubProps = {
   initialJobId?: string | null;
   /** Location filter: a city id from lib/job-map/locations, "remote", or "all". */
   initialLocation?: string;
+  /** Region view from `?region=` (default India first). */
+  initialRegion?: JobsRegionView;
   /** Search box text from `?q=` (e.g. a city name linked from the homepage globe). */
   initialQuery?: string;
   resumes: ResumeLite[];
@@ -191,6 +215,7 @@ export function JobsHub({
   initialPosted = DEFAULT_POSTED_WINDOW,
   initialJobId = null,
   initialLocation = "all",
+  initialRegion = "india-first",
   initialQuery = "",
   resumes,
   initialDiscover,
@@ -208,6 +233,7 @@ export function JobsHub({
 
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>(initialLocation);
+  const [regionView, setRegionView] = useState<JobsRegionView>(initialRegion);
   // Newest posting first by default; the toggle beside the tabs flips it.
   const [postedSort, setPostedSort] = useState<JobsSort>(initialSort);
   const [postedWindow, setPostedWindow] = useState<PostedWindow>(initialPosted);
@@ -290,6 +316,8 @@ export function JobsHub({
     const q = query.trim().toLowerCase();
     const matches = jobs.filter((job) => {
       if (sourceFilter !== "all" && job.sourceLabel !== sourceFilter) return false;
+      if (regionView === "india" && regionRank(job) > 1) return false;
+      if (regionView === "outside" && regionRank(job) <= 1) return false;
       if (locationFilter !== "all" && !locationKeysById.get(job.id)?.includes(locationFilter)) {
         return false;
       }
@@ -312,12 +340,27 @@ export function JobsHub({
     };
     const direction = postedSort === "newest" ? -1 : 1;
     return [...matches].sort((a, b) => {
+      // India first: Indian and India-open remote roles lead, then the date order.
+      if (regionView === "india-first") {
+        const ra = Math.min(regionRank(a), 2);
+        const rb = Math.min(regionRank(b), 2);
+        if (ra !== rb) return ra - rb;
+      }
       const ta = time(a);
       const tb = time(b);
       if (ta === null || tb === null) return (ta === null ? 1 : 0) - (tb === null ? 1 : 0);
       return (ta - tb) * direction;
     });
-  }, [jobs, query, queryCities, sourceFilter, locationFilter, locationKeysById, postedSort]);
+  }, [
+    jobs,
+    query,
+    queryCities,
+    sourceFilter,
+    locationFilter,
+    locationKeysById,
+    postedSort,
+    regionView,
+  ]);
 
   const selected = filtered.find((j) => j.id === selectedId) ?? filtered[0] ?? null;
   const selectedJobId = selected?.id ?? null;
@@ -335,13 +378,15 @@ export function JobsHub({
       else url.searchParams.delete("q");
       if (locationFilter !== "all") url.searchParams.set("location", locationFilter);
       else url.searchParams.delete("location");
+      if (regionView !== "india-first") url.searchParams.set("region", regionView);
+      else url.searchParams.delete("region");
       if (selectedJobId) url.searchParams.set("job", selectedJobId);
       else url.searchParams.delete("job");
       window.history.replaceState(window.history.state, "", url);
     } catch {
       // URL sync is a convenience; the board works without it.
     }
-  }, [tab, postedSort, postedWindow, query, locationFilter, selectedJobId]);
+  }, [tab, postedSort, postedWindow, query, locationFilter, regionView, selectedJobId]);
 
   function switchTab(next: string) {
     const value: JobsTab = next === "applied" ? "applied" : "discover";
@@ -819,7 +864,7 @@ export function JobsHub({
     }
   }
 
-  const boardQuery = `tab=${tab}&sort=${postedSort}&posted=${postedWindow}${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}${locationFilter !== "all" ? `&location=${encodeURIComponent(locationFilter)}` : ""}${selected ? `&job=${encodeURIComponent(selected.id)}` : ""}`;
+  const boardQuery = `tab=${tab}&sort=${postedSort}&posted=${postedWindow}${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}${locationFilter !== "all" ? `&location=${encodeURIComponent(locationFilter)}` : ""}${regionView !== "india-first" ? `&region=${regionView}` : ""}${selected ? `&job=${encodeURIComponent(selected.id)}` : ""}`;
 
   const listPane = (
     <>
@@ -989,6 +1034,24 @@ export function JobsHub({
             {POSTED_WINDOWS.map((w) => (
               <SelectItem key={w.value} value={w.value} className="text-[12px]">
                 {w.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={regionView}
+          onValueChange={(v) => setRegionView((v as JobsRegionView) || "india-first")}
+        >
+          <SelectTrigger
+            className="h-8 w-36 rounded-md border px-2.5 text-[12px]"
+            aria-label="Region"
+          >
+            <SelectValue placeholder="India first" />
+          </SelectTrigger>
+          <SelectContent className="z-240">
+            {JOBS_REGION_VIEWS.map((r) => (
+              <SelectItem key={r.value} value={r.value} className="text-[12px]">
+                {r.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -1456,11 +1519,7 @@ function JobDetail({
             </Badge>
           ) : null}
           <Badge variant="secondary" className="text-[10px]">
-            {job.minYears == null
-              ? "Experience not stated"
-              : job.minYears === 0
-                ? "Fresher friendly"
-                : `${job.minYears}+ yrs`}
+            {experienceLabel(job)}
           </Badge>
           {job.salary ? (
             <Badge variant="secondary" className="text-[10px]" title="Pay stated by the company">

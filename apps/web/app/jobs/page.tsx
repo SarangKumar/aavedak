@@ -12,7 +12,8 @@ import { JobsBoard, type JobsSearchParams } from "./jobs-board-data";
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
   title: "Jobs",
-  description: "Discovered junior engineering roles in India and the jobs you applied to.",
+  description:
+    "Discovered engineering roles matched to your experience, India first, and the jobs you applied to.",
 };
 
 export default async function JobsPage({ searchParams }: { searchParams: JobsSearchParams }) {

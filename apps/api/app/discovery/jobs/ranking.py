@@ -5,6 +5,12 @@ gets at most `discovery_daily_limit` new recommendations per IST day. Recommenda
 accumulate (stored on `user_job_state.recommended_at`) until the user applies or ignores;
 expired/closed jobs simply drop out of the Discover query.
 
+Experience: a user with N years (profile `years_experience`, else
+`default_years_experience`) is offered jobs whose minimum required years is within
+[0, N + experience_window_years]; jobs stating none are included. Ranking adds a closeness
+bonus (min years near N) and a region bonus (India, then remote open to India, then other
+remote, then elsewhere) to the match score, so India leads while global roles still appear.
+
 Runs incrementally after each company scan (for its new jobs) and once a day over the
 whole active pool to top up. Both paths are idempotent (`ON CONFLICT DO NOTHING`).
 """
@@ -23,6 +29,9 @@ from app.discovery.jobs.scoring import Career, ats_score, compatibility_score
 from app.discovery.timeutil import expiry_cutoff_iso, ist_day_start_iso, now_iso
 
 POOL_LIMIT = 1500
+# Rank bonus by job region (filters.REGION_PRIORITY order): India first.
+REGION_BONUS = {"india": 12, "india_remote": 9, "remote": 4, "global": 0}
+CLOSENESS_MAX = 10
 
 
 @dataclass
@@ -31,6 +40,27 @@ class UserContext:
     career: Career
     resume_text: str
     resume_id: str | None
+    years: float = 0.0
+
+
+def max_min_years(settings: DiscoverySettings, years: float) -> float:
+    """Highest minimum-required years a user is shown."""
+    return years + settings.experience_window_years
+
+
+def experience_closeness(min_years: int | None, years: float) -> int:
+    """0..CLOSENESS_MAX: highest when the job's minimum is at the user's level; a job asking
+    for more (up to the window) or far less scores lower. Unstated → middle."""
+    if min_years is None:
+        return CLOSENESS_MAX // 2
+    gap = abs(years - min_years)
+    return max(0, round(CLOSENESS_MAX - 2.5 * gap))
+
+
+def rank_value(compat: int, row: dict[str, Any], years: float) -> int:
+    return compat + experience_closeness(row.get("min_years"), years) + REGION_BONUS.get(
+        row.get("region") or "india", 0
+    )
 
 
 def _json_list(raw: str | None) -> list[str]:
@@ -51,10 +81,12 @@ def eligible_users(conn: psycopg.Connection) -> list[str]:
     return [r["user_id"] for r in rows]
 
 
-def load_user_context(conn: psycopg.Connection, user_id: str) -> UserContext:
+def load_user_context(
+    conn: psycopg.Connection, user_id: str, default_years: float = 0.0
+) -> UserContext:
     profile = conn.execute(
         """SELECT skills_json, preferred_roles_json, preferred_locations_json, remote_preference,
-                  experience_level, industry_preference
+                  experience_level, industry_preference, years_experience
            FROM profiles WHERE user_id = %s""",
         (user_id,),
     ).fetchone() or {}
@@ -78,26 +110,37 @@ def load_user_context(conn: psycopg.Connection, user_id: str) -> UserContext:
         resume_text = "\n".join(
             filter(None, [" ".join(career.skills), " ".join(career.preferred_roles), career.industry_preference or ""])
         )
-    return UserContext(user_id, career, resume_text, (resume or {}).get("id"))
+    years = profile.get("years_experience")
+    return UserContext(
+        user_id, career, resume_text, (resume or {}).get("id"),
+        float(years) if years is not None else default_years,
+    )
 
 
 def _candidates(
-    conn: psycopg.Connection, user_id: str, cutoff: str, job_ids: list[str] | None
+    conn: psycopg.Connection, user_id: str, cutoff: str, job_ids: list[str] | None, max_years: float
 ) -> list[dict[str, Any]]:
     base = """SELECT j.id, j.title, j.company, j.location, j.description, j.salary, j.url,
-                     j.min_years, COALESCE(j.posted_at, j.first_seen_at) AS posted
+                     j.min_years, j.max_years, j.region,
+                     COALESCE(j.posted_at, j.first_seen_at) AS posted
               FROM jobs j
               WHERE j.user_id IS NULL AND j.status = 'active'
                 AND j.expired_at IS NULL AND j.closed_at IS NULL
                 AND COALESCE(j.posted_at, j.first_seen_at) >= %(cutoff)s
+                AND (j.min_years IS NULL OR j.min_years <= %(max_years)s)
                 AND EXISTS (SELECT 1 FROM job_sources s WHERE s.job_id = j.id)
                 AND NOT EXISTS (SELECT 1 FROM user_job_state u
                                 WHERE u.user_id = %(user)s AND u.job_id = j.id)"""
-    params: dict[str, Any] = {"cutoff": cutoff, "user": user_id, "limit": POOL_LIMIT}
+    params: dict[str, Any] = {
+        "cutoff": cutoff, "user": user_id, "limit": POOL_LIMIT, "max_years": max_years,
+    }
     if job_ids is not None:
         base += " AND j.id = ANY(%(ids)s)"
         params["ids"] = job_ids
-    base += " ORDER BY j.first_seen_at DESC LIMIT %(limit)s"
+    # India first, so a big worldwide pool never crowds Indian roles out of the limit.
+    base += """ ORDER BY CASE COALESCE(j.region, 'india') WHEN 'india' THEN 0
+                  WHEN 'india_remote' THEN 1 WHEN 'remote' THEN 2 ELSE 3 END,
+                j.first_seen_at DESC LIMIT %(limit)s"""
     return conn.execute(base, params).fetchall()
 
 
@@ -128,11 +171,13 @@ def recommend(
         remaining = settings.discovery_daily_limit - int(today)
         if remaining <= 0:
             continue
-        rows = _candidates(conn, user_id, cutoff, job_ids)
+        ctx = contexts.get(user_id) or load_user_context(
+            conn, user_id, settings.default_years_experience
+        )
+        contexts[user_id] = ctx
+        rows = _candidates(conn, user_id, cutoff, job_ids, max_min_years(settings, ctx.years))
         if not rows:
             continue
-        ctx = contexts.get(user_id) or load_user_context(conn, user_id)
-        contexts[user_id] = ctx
 
         scored = []
         for row in rows:
@@ -140,7 +185,10 @@ def recommend(
             if ctx.career.has_signals and compat < settings.discovery_min_match_score:
                 continue
             ats, ats_details = ats_score(row)
-            scored.append((compat, row["posted"] or "", row, compat_details, ats, ats_details))
+            scored.append(
+                (rank_value(compat, row, ctx.years), row["posted"] or "", row, compat_details, ats,
+                 ats_details, compat)
+            )
         scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
         picked = scored[:remaining]
         if not picked:
@@ -155,17 +203,10 @@ def recommend(
                    ON CONFLICT (user_id, job_id) DO NOTHING""",
                 [
                     (
-                        user_id, row["id"], now, now, compat,
-                        json.dumps(
-                            {
-                                "skills": details["skillHits"][:8],
-                                "roles": details["roleHits"][:4],
-                                "locations": details["locationHits"][:4],
-                                "minYears": row["min_years"],
-                            }
-                        ),
+                        user_id, row["id"], now, now, rank,
+                        json.dumps(_reasons(details, row, ctx.years, compat)),
                     )
-                    for compat, _, row, details, _, _ in picked
+                    for rank, _, row, details, _, _, compat in picked
                 ],
             )
             cur.executemany(
@@ -185,11 +226,24 @@ def recommend(
                         json.dumps({"ats": ats_details, "compatibility": details}),
                         now, now,
                     )
-                    for compat, _, row, details, ats, ats_details in picked
+                    for _, _, row, details, ats, ats_details, compat in picked
                 ],
             )
         created[user_id] = len(picked)
     return created
+
+
+def _reasons(details: dict[str, Any], row: dict[str, Any], years: float, compat: int) -> dict[str, Any]:
+    return {
+        "skills": details["skillHits"][:8],
+        "roles": details["roleHits"][:4],
+        "locations": details["locationHits"][:4],
+        "minYears": row["min_years"],
+        "maxYears": row.get("max_years"),
+        "region": row.get("region"),
+        "experienceFit": experience_closeness(row["min_years"], years),
+        "match": compat,
+    }
 
 
 def rerank_user(conn: psycopg.Connection, settings: DiscoverySettings, user_id: str) -> dict[str, int]:
@@ -207,10 +261,12 @@ def rerank_user(conn: psycopg.Connection, settings: DiscoverySettings, user_id: 
     """
     if user_id not in eligible_users(conn):
         return {"rescored": 0, "dropped": 0, "added": 0}
-    ctx = load_user_context(conn, user_id)
+    ctx = load_user_context(conn, user_id, settings.default_years_experience)
+    limit_years = max_min_years(settings, ctx.years)
     rows = conn.execute(
         """SELECT j.id, j.title, j.company, j.location, j.description, j.salary, j.url,
-                  j.min_years, COALESCE(j.posted_at, j.first_seen_at) AS posted,
+                  j.min_years, j.max_years, j.region,
+                  COALESCE(j.posted_at, j.first_seen_at) AS posted,
                   s.recommended_at
            FROM user_job_state s
            JOIN jobs j ON j.id = s.job_id
@@ -226,21 +282,15 @@ def rerank_user(conn: psycopg.Connection, settings: DiscoverySettings, user_id: 
     drop: list[tuple[Any, ...]] = []
     for row in rows:
         compat, compat_details = compatibility_score(row, ctx.career, ctx.resume_text)
-        if ctx.career.has_signals and compat < settings.discovery_min_match_score:
+        outside = row["min_years"] is not None and row["min_years"] > limit_years
+        if outside or (ctx.career.has_signals and compat < settings.discovery_min_match_score):
             drop.append((user_id, row["id"]))
             continue
         ats, _ = ats_score(row)
         keep.append(
             (
-                compat,
-                json.dumps(
-                    {
-                        "skills": compat_details["skillHits"][:8],
-                        "roles": compat_details["roleHits"][:4],
-                        "locations": compat_details["locationHits"][:4],
-                        "minYears": row["min_years"],
-                    }
-                ),
+                rank_value(compat, row, ctx.years),
+                json.dumps(_reasons(compat_details, row, ctx.years, compat)),
                 now,
                 user_id,
                 row["id"],

@@ -21,6 +21,8 @@ export type JobDtoBase = {
   postedAtEstimated: boolean;
   firstSeenAt: string | null;
   minYears: number | null;
+  maxYears: number | null;
+  region: JobRecord["region"];
   /** Published application email from the posting (unverified; discovered jobs only). */
   applyEmail: string | null;
   /** Link pasted in Add job, and details read from that posting (user jobs). */
@@ -87,6 +89,8 @@ export function toJobDto(
     postedAtEstimated: job.postedAtEstimated,
     firstSeenAt: job.firstSeenAt,
     minYears: job.minYears,
+    maxYears: job.maxYears,
+    region: job.region,
     applyEmail: job.userId === null ? job.applyEmail : null,
     sourceUrl: job.sourceUrl,
     workMode: job.workMode,

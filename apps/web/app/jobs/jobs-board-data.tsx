@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
 import { JobsHub, type JobsSort, type JobsTab } from "@/components/jobs-hub";
+import { parseJobsRegionView } from "@/lib/jobs-region";
 import { requireOnboarded } from "@/lib/app-access";
 import { toJobDto } from "@/lib/job-dto";
 import { listJobScores } from "@/lib/job-scoring";
@@ -18,6 +19,7 @@ export type JobsSearchParams = Promise<{
   location?: string | string[];
   q?: string | string[];
   posted?: string | string[];
+  region?: string | string[];
 }>;
 
 function first(value: string | string[] | undefined): string | undefined {
@@ -57,6 +59,8 @@ export async function JobsBoard({
   const initialLocation =
     requestedLocation && locationFilterLabel(requestedLocation) ? requestedLocation : "all";
 
+  const initialRegion = parseJobsRegionView(first(params.region));
+
   return (
     <JobsHub
       variant={variant}
@@ -66,6 +70,7 @@ export async function JobsBoard({
       initialPosted={initialPosted}
       initialJobId={initialJobId}
       initialLocation={initialLocation}
+      initialRegion={initialRegion}
       initialQuery={(first(params.q) ?? "").slice(0, 200)}
       initialDiscover={discover.map((job) => toJobDto(job, byJob.get(job.id)))}
       initialApplied={applied.map((job) => toJobDto(job, byJob.get(job.id)))}

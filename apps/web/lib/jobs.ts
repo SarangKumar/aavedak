@@ -34,6 +34,10 @@ export type JobRecord = {
   /** No longer listed by its source(s). */
   closedAt: string | null;
   minYears: number | null;
+  /** Upper end of a stated experience range ("2-4 years" → 4). */
+  maxYears: number | null;
+  /** india | india_remote | remote | global (discovered jobs); null for manual jobs. */
+  region: JobRegion | null;
   /** Application / recruiting email published in the posting text (unverified; shared jobs only). */
   applyEmail: string | null;
   /** Link the user pasted in Add job (LinkedIn, careers page, …); `url` is where to apply. */
@@ -100,6 +104,8 @@ type Row = {
   expired_at?: string | null;
   closed_at?: string | null;
   min_years?: number | null;
+  max_years?: number | null;
+  region?: string | null;
   apply_email?: string | null;
   source_url?: string | null;
   work_mode?: string | null;
@@ -109,6 +115,13 @@ type Row = {
   created_at: string;
   updated_at: string;
 };
+
+export const JOB_REGIONS = ["india", "india_remote", "remote", "global"] as const;
+export type JobRegion = (typeof JOB_REGIONS)[number];
+
+function parseRegion(value: string | null | undefined): JobRegion | null {
+  return (JOB_REGIONS as readonly string[]).includes(value ?? "") ? (value as JobRegion) : null;
+}
 
 export function mapJobRow(row: Row): JobRecord {
   const source = (JOB_SOURCES as readonly string[]).includes(row.source)
@@ -134,6 +147,8 @@ export function mapJobRow(row: Row): JobRecord {
     expiredAt: row.expired_at ?? null,
     closedAt: row.closed_at ?? null,
     minYears: row.min_years == null ? null : Number(row.min_years),
+    maxYears: row.max_years == null ? null : Number(row.max_years),
+    region: parseRegion(row.region),
     applyEmail: row.apply_email ?? null,
     sourceUrl: row.source_url ?? null,
     workMode: parseWorkMode(row.work_mode),
@@ -280,7 +295,18 @@ export async function listJobsForUser(
 export type DiscoverJob = JobRecord & {
   recommendedAt: string | null;
   recommendationScore: number | null;
-  reasons: { skills?: string[]; roles?: string[]; locations?: string[]; minYears?: number | null };
+  reasons: {
+    skills?: string[];
+    roles?: string[];
+    locations?: string[];
+    minYears?: number | null;
+    maxYears?: number | null;
+    region?: string | null;
+    /** 0–10: how close the job's minimum years is to the user's experience. */
+    experienceFit?: number;
+    /** Match score (0–100); `score` on the row also adds experience and region bonuses. */
+    match?: number;
+  };
 };
 
 export type AppliedJob = JobRecord & {
@@ -335,12 +361,18 @@ export async function listDiscoverJobs(
       reasons_json: string | null;
     }
   >;
-  return rows.map((row) => ({
-    ...mapJobRow(row),
-    recommendedAt: row.recommended_at,
-    recommendationScore: row.recommendation_score == null ? null : Number(row.recommendation_score),
-    reasons: parseReasons(row.reasons_json),
-  }));
+  return rows.map((row) => {
+    const reasons = parseReasons(row.reasons_json);
+    // `s.score` is the ranking value (match + experience + region bonuses) and orders the
+    // list; the displayed score is the plain match when discovery recorded it.
+    const rank = row.recommendation_score == null ? null : Number(row.recommendation_score);
+    return {
+      ...mapJobRow(row),
+      recommendedAt: row.recommended_at,
+      recommendationScore: typeof reasons.match === "number" ? reasons.match : rank,
+      reasons,
+    };
+  });
 }
 
 /**
