@@ -185,3 +185,20 @@ export function toObjectKey(storagePath: string): string {
   }
   return trimmed;
 }
+
+/** Health probe: list at most one object (cheap Class A op). Never throws; no secrets returned. */
+export async function probeGcsBucket(): Promise<{
+  ok: boolean;
+  bucket: string | null;
+  detail: string;
+}> {
+  if (!isGcsConfigured()) return { ok: false, bucket: null, detail: "GCS not configured" };
+  try {
+    const name = getBucketName();
+    await getStorage().bucket(name).getFiles({ maxResults: 1, autoPaginate: false });
+    return { ok: true, bucket: name, detail: "bucket reachable" };
+  } catch (err) {
+    const code = (err as { code?: number | string }).code;
+    return { ok: false, bucket: null, detail: `bucket probe failed${code ? ` (${code})` : ""}` };
+  }
+}

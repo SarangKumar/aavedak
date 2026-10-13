@@ -40,23 +40,10 @@ async def log_requests(request: Request, call_next):
 
 @app.get("/svc/health")
 def health(response: Response):
-    """
-    Aggregate health for backend, Google OAuth, Better Auth, and Postgres.
-
-    Example:
-    {
-      "ok": true,
-      "service": "api",
-      "checks": {
-        "backend": { "ok": true, "service": "api" },
-        "google": { "ok": true, "configured": true, "provider": "google" },
-        "betterAuth": { "ok": true, "configured": true, "url": "…" },
-        "database": { "ok": true, "configured": true, "latencyMs": 12.3 }
-      }
-    }
-    """
+    """Per-dependency health as JSON (status ok|degraded|down|not_configured). No secret values."""
     report = build_health_report()
     response.status_code = 200 if report["ok"] else 503
+    response.headers["Cache-Control"] = "no-store"
     return report
 
 
