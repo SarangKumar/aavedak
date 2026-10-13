@@ -19,7 +19,9 @@ from app.improve.lexicon import (
     removable_words,
 )
 
-NUMBER_RE = re.compile(r"(?<![A-Za-z])[$₹€£]?\d+(?:[.,]\d+)*\s*(?:%|[kKmMbBxX]\b|\+)?")
+# Unit gap is spaces/tabs only: "\s*" used to swallow the line break after "2025", so merging a
+# wrapped line ("2025\n" → "2025 ") looked like one number dropped and another added.
+NUMBER_RE = re.compile(r"(?<![A-Za-z])[$₹€£]?\d+(?:[.,]\d+)*[ \t]*(?:%|[kKmMbBxX]\b|\+)?")
 MONTH_RE = re.compile(
     r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?(?=\s|$|,)", re.I
 )
@@ -49,7 +51,7 @@ def _entities(text: str) -> Counter:
 def token_classes(text: str) -> dict[str, Counter]:
     t = text or ""
     return {
-        "numbers": Counter(m.group(0).replace(" ", "").lower() for m in NUMBER_RE.finditer(t)),
+        "numbers": Counter(re.sub(r"\s", "", m.group(0)).lower() for m in NUMBER_RE.finditer(t)),
         "months": Counter(m.group(0).lower().rstrip(".")[:3] for m in MONTH_RE.finditer(t)),
         "emails": Counter(m.group(0).lower() for m in EMAIL_RE.finditer(t)),
         "urls": Counter(m.group(0).lower() for m in URL_RE.finditer(t)),

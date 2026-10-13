@@ -98,21 +98,9 @@ def improve(resume_text: str, *, role: str = "", jd_text: str = "",
     original_text = render(resume)
     valid, rejected = candidate_changes(resume, role, jd_text, years_experience)
     chosen = valid if accepted is None else [c for c in valid if c.id in set(accepted)]
-    revised = apply_changes(resume, chosen)
-    revised_text = render(revised)
 
-    doc_problems = guards.check_document(
-        original_text, revised_text,
-        header_before=[ln.text for ln in resume.header],
-        header_after=[ln.text for ln in revised.header],
-        entries_before=[ln.text for ln in resume.all_lines() if ln.kind == "entry"],
-        entries_after=[ln.text for ln in revised.all_lines() if ln.kind == "entry"],
-        label_words=sum(
-            len(guards._words(label)) for c in chosen if c.kind == "skills" for label in c.target["labels"]
-        ),
-    )
-    if doc_problems:  # never ship a document that fails the whole-resume check
-        revised, revised_text, chosen = resume, original_text, []
+    revised, chosen, dropped, doc_problems = _apply_with_document_check(resume, original_text, chosen)
+    revised_text = render(revised)
     chosen_ids = {c.id for c in chosen}
     pack = role_pack(role)
     return {
@@ -123,11 +111,65 @@ def improve(resume_text: str, *, role: str = "", jd_text: str = "",
         "changes": [_change_json(c, accepted=c.id in chosen_ids) for c in valid],
         "rejected": rejected,
         "documentProblems": doc_problems,
+        "dropped": dropped,
         "alignment": align(resume, role, jd_text),
         "suggestions": suggestions(resume, role),
         "rolePack": {"key": pack["roleKey"], "label": pack["label"], "matched": pack["matched"]},
         "structureConfidence": _confidence(resume),
     }
+
+
+_PROBLEM_TEXT = {
+    "header changed": "it would change your name or contact lines",
+    "a role/project line changed": "it would change a job or project title line",
+    "skill set changed": "it would add or remove a skill",
+    "word count grew by more than 5%": "it would make the resume noticeably longer",
+}
+
+
+def _friendly(problem: str) -> str:
+    if problem.startswith("adds "):
+        return f"it would add {problem[5:].split(':')[0]} ({problem.split(':', 1)[1].strip()})"
+    if problem.startswith("drops "):
+        return f"it would remove {problem[6:].split(':')[0]} ({problem.split(':', 1)[1].strip()})"
+    return _PROBLEM_TEXT.get(problem, problem)
+
+
+def _document_problems(resume: StructuredResume, original_text: str, changes: list[Change]):
+    revised = apply_changes(resume, changes)
+    problems = guards.check_document(
+        original_text,
+        render(revised),
+        header_before=[ln.text for ln in resume.header],
+        header_after=[ln.text for ln in revised.header],
+        entries_before=[ln.text for ln in resume.all_lines() if ln.kind == "entry"],
+        entries_after=[ln.text for ln in revised.all_lines() if ln.kind == "entry"],
+        label_words=sum(
+            len(guards._words(label)) for c in changes if c.kind == "skills" for label in c.target["labels"]
+        ),
+    )
+    return revised, problems
+
+
+def _apply_with_document_check(resume: StructuredResume, original_text: str, chosen: list[Change]):
+    """Apply every chosen change; if the whole document fails, keep changes one at a time in order
+    and drop only those that make it fail, so one bad change doesn't discard the rest."""
+    revised, problems = _document_problems(resume, original_text, chosen)
+    if not problems:
+        return revised, chosen, [], []
+    kept: list[Change] = []
+    dropped: list[dict] = []
+    for ch in chosen:
+        _, p = _document_problems(resume, original_text, [*kept, ch])
+        if p:
+            dropped.append({"id": ch.id, "kind": ch.kind, "before": ch.before,
+                            "reasons": [_friendly(x) for x in p]})
+        else:
+            kept.append(ch)
+    revised, problems = _document_problems(resume, original_text, kept)
+    if problems:  # cannot happen with an empty `kept`, but never ship a failing document
+        return resume, [], dropped, [_friendly(x) for x in problems]
+    return revised, kept, dropped, []
 
 
 def _confidence(resume: StructuredResume) -> str:

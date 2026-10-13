@@ -129,8 +129,38 @@ def parse_skill_items(lines: list[str]) -> list[str]:
     return items
 
 
+_LABELLED = re.compile(r"^\s*([^:,]{2,40}):\s*(\S.*)$")
+
+
+def _item_rank(item: str, rank: dict[str, int]) -> int:
+    canon = normalize_skill(item) or next(iter(_find_skills(item)), None)
+    return rank.get(canon or item.lower(), 99)
+
+
+def _reorder_labelled(lines: list[str], rank: dict[str, int]) -> tuple[list[str], set[str]] | None:
+    rows = []
+    for idx, ln in enumerate(lines):
+        m = _LABELLED.match(ln)
+        label, rest = m.group(1).strip(), m.group(2)
+        items = [i.strip() for i in rest.split(",") if i.strip()]
+        ordered = [i for _, _, i in sorted((_item_rank(i, rank), n, i) for n, i in enumerate(items))]
+        best = min((_item_rank(i, rank) for i in items), default=99)
+        rows.append((best, idx, f"{label}: {', '.join(ordered)}"))
+    out = [r for _, _, r in sorted(rows)]
+    if out == [ln.strip() for ln in lines]:
+        return None
+    return out, set()
+
+
 def regroup_skills(lines: list[str], rank: dict[str, int]) -> tuple[list[str], set[str]] | None:
-    """Group + order existing skills; None when there is nothing to do."""
+    """Group + order existing skills; None when there is nothing to do.
+
+    When the user already labelled their skill lines ("Programming: Java, SQL"), their labels are
+    kept and only the order changes — relabelling dropped words like "Software Development" that
+    are themselves skills, which the guard (rightly) rejected."""
+    labelled = [ln for ln in lines if ln.strip()]
+    if labelled and all(_LABELLED.match(ln) for ln in labelled):
+        return _reorder_labelled(labelled, rank)
     items = parse_skill_items(lines)
     if len(items) < 3:
         return None

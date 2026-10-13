@@ -103,3 +103,55 @@ def test_scoring_uses_identical_request_and_real_engine_scores():
     again = score_pair(r["originalText"], r["originalText"], role="Backend Engineer",
                        jd_text=BACKEND_JD, years_experience=4, engines=("aavedak",))
     assert again["before"]["aavedak"]["score"] == again["after"]["aavedak"]["score"] == s["before"]["aavedak"]["score"]
+
+
+# ---------- regressions: document check rejected every change on real PDF text
+
+WRAPPED = """Jane Doe
+jane@example.com
+EXPERIENCE
+Engineer, Acme    Jan 2023 – Present
+• Responsible for building the billing service used by 10
+customers across 3 regions in 2025
+• Worked on dashboards in React
+SKILLS
+Programming: Java, SQL, Python
+Software Development: Git, Docker
+"""
+
+
+def test_merging_wrapped_line_after_number_passes_document_check():
+    # "10\\n" vs "10 " used to tokenize as different numbers → whole revision discarded.
+    r = improve(WRAPPED, role="Backend Engineer", years_experience=3)
+    assert r["documentProblems"] == [] and r["dropped"] == []
+    assert r["revisedText"] != r["originalText"]
+    assert all(c["accepted"] for c in r["changes"])
+
+
+def test_number_tokens_ignore_line_breaks():
+    assert guards.token_classes("used by 10\ncustomers")["numbers"] == guards.token_classes("used by 10 customers")["numbers"]
+
+
+def test_user_skill_labels_are_kept():
+    r = improve(WRAPPED, role="Backend Engineer", years_experience=3)
+    skills = [c for c in r["changes"] if c["kind"] == "skills"]
+    assert not r["rejected"]
+    for c in skills:
+        assert {ln.split(":")[0] for ln in c["after"]} == {"Programming", "Software Development"}
+
+
+def test_document_check_drops_only_the_offending_change(monkeypatch):
+    from app.improve import service
+
+    real = service.guards.check_document
+    calls = {"n": 0}
+
+    def fake(before, after, **kw):
+        # Pretend any revision containing "Contributed" is a fabrication.
+        return ["adds entities: X"] if "Contributed" in after else real(before, after, **kw)
+
+    monkeypatch.setattr(service.guards, "check_document", fake)
+    r = improve(WRAPPED, role="Backend Engineer", years_experience=3)
+    assert len(r["dropped"]) == 1 and "would add entities" in r["dropped"][0]["reasons"][0]
+    assert any(c["accepted"] for c in r["changes"])
+    assert "Contributed" not in r["revisedText"]
