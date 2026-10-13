@@ -44,6 +44,8 @@ export type PersonDto = {
   /** `system` = added by admin bulk discovery. */
   origin?: "system" | "user";
   linkedin?: string | null;
+  /** Public GitHub profile (people discovered from GitHub). */
+  githubUrl?: string | null;
   discoverySource?: string | null;
   confidence?: number | null;
   inferredEmail?: string | null;
@@ -53,6 +55,20 @@ export type PersonDto = {
   createdAt: string;
   updatedAt: string;
 };
+
+/** `octocat` from https://github.com/octocat. */
+function githubHandle(url: string | null | undefined): string | null {
+  const m = url?.match(/github\.com\/([A-Za-z0-9-]+)\/?$/i);
+  return m ? m[1]! : null;
+}
+
+function GitHubMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden className={cn("size-3.5 fill-current", className)}>
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+    </svg>
+  );
+}
 
 const NO_VOTES: VoteSummaryDto = { up: 0, down: 0, mine: 0, replies: 0 };
 
@@ -269,6 +285,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>GitHub</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Company</TableHead>
               <TableHead>Role</TableHead>
@@ -282,7 +299,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
             {visible.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className="text-muted-foreground py-8 text-center text-[13px]"
                 >
                   No people yet. Add a contact to use in referrals.
@@ -301,13 +318,23 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                             {personInitials(person.name)}
                           </AvatarFallback>
                         </Avatar>
-                        <button
-                          type="button"
-                          className="text-foreground cursor-pointer text-left text-[13px] font-medium hover:underline"
-                          onClick={() => openEdit(person)}
-                        >
-                          {person.name}
-                        </button>
+                        {person.githubUrl || person.linkedin ? (
+                          <a
+                            href={person.githubUrl || person.linkedin || undefined}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={
+                              person.githubUrl ? "Open GitHub profile" : "Open LinkedIn profile"
+                            }
+                            className="text-foreground cursor-pointer text-[13px] font-medium hover:underline"
+                          >
+                            {person.name}
+                          </a>
+                        ) : (
+                          <span className="text-foreground text-[13px] font-medium">
+                            {person.name}
+                          </span>
+                        )}
                         <PersonSourceBadges person={person} />
                         {person.linkedin ? (
                           <a
@@ -320,6 +347,20 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                           </a>
                         ) : null}
                       </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-[12px]">
+                      {githubHandle(person.githubUrl) ? (
+                        <a
+                          href={person.githubUrl ?? undefined}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:text-foreground inline-flex cursor-pointer items-center gap-1"
+                        >
+                          <GitHubMark />@{githubHandle(person.githubUrl)}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-[12px]">
                       <PersonEmail email={person.email} person={person} />

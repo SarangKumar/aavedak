@@ -38,6 +38,7 @@ export default async function PeoplePage() {
             status: p.status,
             origin: p.origin,
             linkedin: p.linkedin ? `https://www.${p.linkedin}` : null,
+            githubUrl: p.githubUrl,
             discoverySource: p.discoverySource,
             confidence: p.confidence,
             inferredEmail: p.inferredEmail,
