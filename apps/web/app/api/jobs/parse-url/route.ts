@@ -14,11 +14,18 @@ export type ParsedJobDto = {
   postedAt: string | null;
   source: string;
   provider: string;
+  salary?: string | null;
+  workMode?: "remote" | "hybrid" | "onsite" | null;
+  employmentType?: string | null;
+  seniority?: string | null;
+  applyUrl?: string | null;
+  skills?: string[];
 };
 
 /**
- * Read one job posting from its link (Add job → "Add from a job link"). Parsing runs in
- * FastAPI with the discovery providers; nothing is saved here. The user reviews the fields
+ * Read one job posting from its link (Add job → "Job link"). Parsing runs in FastAPI:
+ * ATS board APIs, JSON-LD / SuccessFactors / page fallbacks, and LinkedIn's public guest job
+ * page for LinkedIn links (`app/discovery/jobs/linkedin.py`). Nothing is saved here. The user reviews the fields
  * and creates the job with POST /api/jobs.
  */
 export async function POST(request: Request) {

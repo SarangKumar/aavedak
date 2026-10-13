@@ -280,6 +280,12 @@ async function runSchema() {
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS company_id TEXT`;
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS external_id TEXT`;
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS feed_source TEXT`;
+  // Add job from a link: the link the user pasted, plus details read from the posting.
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source_url TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS work_mode TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS employment_type TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS seniority TEXT`;
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS skills_json TEXT NOT NULL DEFAULT '[]'`;
   await db`CREATE UNIQUE INDEX IF NOT EXISTS jobs_feed_external_uidx
     ON jobs (feed_source, external_id) WHERE external_id IS NOT NULL`;
 

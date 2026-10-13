@@ -34,9 +34,44 @@ export type JobRecord = {
   minYears: number | null;
   /** Application / recruiting email published in the posting text (unverified; shared jobs only). */
   applyEmail: string | null;
+  /** Link the user pasted in Add job (LinkedIn, careers page, …); `url` is where to apply. */
+  sourceUrl: string | null;
+  workMode: WorkMode | null;
+  employmentType: string | null;
+  seniority: string | null;
+  skills: string[];
   createdAt: string;
   updatedAt: string;
 };
+
+export const WORK_MODES = ["remote", "hybrid", "onsite"] as const;
+export type WorkMode = (typeof WORK_MODES)[number];
+
+function parseWorkMode(value: unknown): WorkMode | null {
+  return typeof value === "string" && (WORK_MODES as readonly string[]).includes(value)
+    ? (value as WorkMode)
+    : null;
+}
+
+function parseSkills(value: unknown): string[] {
+  const list = typeof value === "string" ? safeJsonArray(value) : value;
+  if (!Array.isArray(list)) return [];
+  const out: string[] = [];
+  for (const item of list) {
+    const s = typeof item === "string" ? item.trim().slice(0, 60) : "";
+    if (s && !out.some((o) => o.toLowerCase() === s.toLowerCase())) out.push(s);
+    if (out.length >= 40) break;
+  }
+  return out;
+}
+
+function safeJsonArray(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return [];
+  }
+}
 
 export type UserJobState = {
   ignored: boolean;
@@ -64,6 +99,11 @@ type Row = {
   closed_at?: string | null;
   min_years?: number | null;
   apply_email?: string | null;
+  source_url?: string | null;
+  work_mode?: string | null;
+  employment_type?: string | null;
+  seniority?: string | null;
+  skills_json?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -93,6 +133,11 @@ export function mapJobRow(row: Row): JobRecord {
     closedAt: row.closed_at ?? null,
     minYears: row.min_years == null ? null : Number(row.min_years),
     applyEmail: row.apply_email ?? null,
+    sourceUrl: row.source_url ?? null,
+    workMode: parseWorkMode(row.work_mode),
+    employmentType: row.employment_type ?? null,
+    seniority: row.seniority ?? null,
+    skills: parseSkills(row.skills_json ?? "[]"),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -335,6 +380,12 @@ export async function createJob(
     externalId?: string | null;
     feedSource?: string | null;
     companyId?: string | null;
+    sourceUrl?: string | null;
+    workMode?: string | null;
+    employmentType?: string | null;
+    seniority?: string | null;
+    postedAt?: string | null;
+    skills?: unknown;
   },
 ): Promise<JobRecord> {
   await ensureAppSchema();
@@ -347,6 +398,14 @@ export async function createJob(
   const salary = optional(input.salary);
   const externalId = optional(input.externalId);
   const feedSource = optional(input.feedSource);
+  const sourceUrl = optional(input.sourceUrl);
+  const workMode = parseWorkMode(input.workMode);
+  const employmentType = optional(input.employmentType)?.slice(0, 80) ?? null;
+  const seniority = optional(input.seniority)?.slice(0, 80) ?? null;
+  const postedRaw = optional(input.postedAt);
+  const postedAt =
+    postedRaw && !Number.isNaN(Date.parse(postedRaw)) ? new Date(postedRaw).toISOString() : null;
+  const skillsJson = JSON.stringify(parseSkills(input.skills));
 
   let companyId = optional(input.companyId);
   if (!companyId) {
@@ -359,10 +418,12 @@ export async function createJob(
   await getSql()`
     INSERT INTO jobs
       (id, user_id, title, company, company_id, location, source, url, description, salary,
-       status, external_id, feed_source, created_at, updated_at, first_seen_at)
+       status, external_id, feed_source, created_at, updated_at, first_seen_at,
+       source_url, work_mode, employment_type, seniority, posted_at, skills_json)
     VALUES (
       ${id}, ${userId}, ${title}, ${companyName}, ${companyId}, ${location}, ${source}, ${url},
-      ${description}, ${salary}, 'active', ${externalId}, ${feedSource}, ${now}, ${now}, ${now}
+      ${description}, ${salary}, 'active', ${externalId}, ${feedSource}, ${now}, ${now}, ${now},
+      ${sourceUrl}, ${workMode}, ${employmentType}, ${seniority}, ${postedAt}, ${skillsJson}
     )
   `;
   const created = await getJobById(id);

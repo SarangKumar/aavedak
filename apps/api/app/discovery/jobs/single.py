@@ -2,20 +2,23 @@
 
 Reuses the scan providers: hosted ATS boards are read through their public APIs (the single
 posting endpoint where one exists, otherwise the board, then the matching posting), and any
-other page through its schema.org JobPosting JSON-LD (robots.txt respected). Nothing is
-filtered or stored: the user reviews the fields and saves the job themselves. Fields the
-source does not give stay empty; nothing is guessed.
+other page through its schema.org JobPosting JSON-LD (robots.txt respected), then
+SuccessFactors / microdata / meta-tag / main-text fallbacks (`page_extract`). LinkedIn job
+links are read from LinkedIn's public guest job page (`linkedin.py`), only when a user pastes
+one; scans never touch LinkedIn. Nothing is filtered or stored: the user reviews the fields
+and saves the job themselves. Fields the source does not give stay empty.
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 import httpx
 
+from app.discovery.jobs import linkedin, page_extract
 from app.discovery.jobs.models import RawPosting, SourceTarget
 from app.discovery.jobs.providers import ProviderError, detect_source
 from app.discovery.jobs.providers import ashby, greenhouse, lever, smartrecruiters, workable
@@ -25,8 +28,8 @@ from app.discovery.jobs.text import clean_line, html_to_text
 from app.discovery.timeutil import parse_datetime, to_iso
 
 # Job sites without permitted automated access (see DISCOVERY.md): never fetched.
+# LinkedIn is handled separately (user-pasted single job links only, see linkedin.py).
 BLOCKED_HOSTS = {
-    "linkedin.com": "linkedin",
     "naukri.com": "other",
     "indeed.com": "indeed",
     "indeed.co.in": "indeed",
@@ -60,6 +63,12 @@ class ParsedJob:
     postedAt: str | None
     source: str  # web JobSource: "careers" for company boards/pages
     provider: str
+    salary: str | None = None
+    workMode: str | None = None  # remote | hybrid | onsite
+    employmentType: str | None = None
+    seniority: str | None = None
+    applyUrl: str | None = None
+    skills: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -135,6 +144,30 @@ def _company_from_token(token: str) -> str:
     return token.replace("-", " ").replace("_", " ").strip().title()
 
 
+def _from_page(page: str, url: str) -> ParsedJob:
+    """No JSON-LD: SuccessFactors markup, microdata, meta tags, then the main text block."""
+    found = page_extract.extract(page, url)
+    if not found.title and not found.description:
+        raise JobLinkError(
+            "No job details found on this page (the site may load them with "
+            "JavaScript). Fill in the details below."
+        )
+    posted = parse_datetime(found.posted) if found.posted else None
+    description = found.description
+    return ParsedJob(
+        title=found.title,
+        company=found.company,
+        location=found.location,
+        url=url,
+        description=description,
+        postedAt=to_iso(posted) if posted else None,
+        source="careers",
+        provider=found.method or "page",
+        workMode=linkedin.work_mode(found.location, found.title, description),
+        skills=linkedin.skills_in(description),
+    )
+
+
 def fetch_job_from_url(client: httpx.Client, url: str) -> ParsedJob:
     url = url.strip()
     if not url:
@@ -147,6 +180,27 @@ def fetch_job_from_url(client: httpx.Client, url: str) -> ParsedJob:
             source=blocked,
         )
     host = urlparse(url if "://" in url else f"https://{url}").netloc
+    if linkedin.is_linkedin_host(host):
+        try:
+            data = linkedin.fetch(client, url if "://" in url else f"https://{url}")
+        except linkedin.LinkedInError as exc:
+            raise JobLinkError(str(exc), source="linkedin") from exc
+        return ParsedJob(
+            title=data["title"],
+            company=data["company"],
+            location=data["location"],
+            url=data["url"],
+            description=data["description"],
+            postedAt=data["postedAt"],
+            source="linkedin",
+            provider=f"linkedin:{data['via']}",
+            salary=data["salary"],
+            workMode=data["workMode"],
+            employmentType=data["employmentType"],
+            seniority=data["seniority"],
+            applyUrl=data["applyUrl"],
+            skills=data["skills"],
+        )
     if not host or "." not in host or any(ch.isspace() for ch in url):
         raise JobLinkError("That doesn't look like a valid job link.")
     try:
@@ -166,12 +220,10 @@ def fetch_job_from_url(client: httpx.Client, url: str) -> ParsedJob:
         if provider == "jsonld":
             if not robots_allows(client, url):
                 raise JobLinkError("This site's robots.txt doesn't allow reading the page.")
-            postings = parse_html(get_text(client, url), target, url)
+            page = get_text(client, url)
+            postings = parse_html(page, target, url)
             if not postings:
-                raise JobLinkError(
-                    "No job details found on this page (the site may load them with "
-                    "JavaScript). Fill in the details below."
-                )
+                return _from_page(page, url)
             posting = postings[0] if len(postings) == 1 else (_match(postings, url) or postings[0])
             return _to_parsed(posting, fallback_url=url, provider=provider)
 

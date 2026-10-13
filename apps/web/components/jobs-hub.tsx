@@ -200,6 +200,14 @@ export function JobsHub({
   const [addSection, setAddSection] = useState<string | undefined>(undefined);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
+  // Fields the user typed into themselves; autofill asks before replacing them.
+  const typedFields = useRef(new Set<DraftField>());
+  const lastFetchedLink = useRef("");
+  const fetchInFlight = useRef(false);
+  const [pendingFill, setPendingFill] = useState<{
+    values: Partial<Record<DraftField, string>>;
+    conflicts: DraftField[];
+  } | null>(null);
   const [draft, setDraft] = useState({
     title: "",
     company: "",
@@ -208,6 +216,12 @@ export function JobsHub({
     url: "",
     salary: "",
     description: "",
+    workMode: "",
+    employmentType: "",
+    seniority: "",
+    postedAt: "",
+    skills: "",
+    sourceUrl: "",
   });
 
   const sourceCounts = useMemo(() => {
@@ -322,6 +336,12 @@ export function JobsHub({
     url: "",
     salary: "",
     description: "",
+    workMode: "",
+    employmentType: "",
+    seniority: "",
+    postedAt: "",
+    skills: "",
+    sourceUrl: "",
   };
 
   function closeAddJob() {
@@ -329,6 +349,39 @@ export function JobsHub({
     setJobLink("");
     setLinkNotice(null);
     setAddSection(undefined);
+    setPendingFill(null);
+    typedFields.current.clear();
+    lastFetchedLink.current = "";
+  }
+
+  /** A field the user edits by hand: remembered so autofill won't silently replace it. */
+  function editDraft(field: DraftField, value: string) {
+    typedFields.current.add(field);
+    setDraft((d) => ({ ...d, [field]: value }));
+  }
+
+  /**
+   * Put values read from a posting into the form. Empty values are skipped. Fields the user
+   * already typed (and that differ) are only replaced with `overwrite`; otherwise they are
+   * listed so the user can confirm.
+   */
+  function applyFill(values: Partial<Record<DraftField, string>>, overwrite: boolean) {
+    const conflicts: DraftField[] = [];
+    const next: Partial<Record<DraftField, string>> = {};
+    for (const [key, raw] of Object.entries(values) as [DraftField, string | undefined][]) {
+      const value = (raw ?? "").trim();
+      if (!value) continue;
+      const current = String(draft[key] ?? "").trim();
+      if (!overwrite && typedFields.current.has(key) && current && current !== value) {
+        conflicts.push(key);
+        continue;
+      }
+      next[key] = value;
+    }
+    setDraft((d) => ({ ...d, ...next }));
+    if (overwrite)
+      for (const key of Object.keys(values) as DraftField[]) typedFields.current.delete(key);
+    setPendingFill(conflicts.length ? { values: pickFields(values, conflicts), conflicts } : null);
   }
 
   /** Job sites we don't read still get the right source and keep their link. */
@@ -344,10 +397,19 @@ export function JobsHub({
   }
 
   /** Read the posting behind a link (FastAPI) and fill the form for review. Saves nothing. */
-  async function fetchFromLink() {
-    const link = jobLink.trim();
-    if (!link) return;
+  async function fetchFromLink(rawLink?: string) {
+    const link = (rawLink ?? jobLink).trim();
+    // Blur then a Fetch click (or paste then blur) must not start a second request.
+    if (!link || fetchInFlight.current) return;
+    const problem = jobLinkProblem(link);
+    if (problem) {
+      setLinkNotice({ ok: false, text: problem });
+      return;
+    }
+    lastFetchedLink.current = link;
+    fetchInFlight.current = true;
     setLinkNotice(null);
+    setPendingFill(null);
     setPendingAction("parse");
     try {
       const res = await fetch("/api/jobs/parse-url", {
@@ -363,27 +425,54 @@ export function JobsHub({
           url: string;
           description: string;
           source: string;
+          postedAt?: string | null;
+          salary?: string | null;
+          workMode?: string | null;
+          employmentType?: string | null;
+          seniority?: string | null;
+          applyUrl?: string | null;
+          skills?: string[];
         };
         error?: string;
       };
       if (!res.ok || !data.job) {
         // Can't read it: keep the link so the user only has to type the rest.
-        setDraft((d) => ({ ...d, url: link, source: sourceFromLink(link) }));
-        setLinkNotice({ ok: false, text: data.error || "Could not read this job." });
-      } else {
-        const job = data.job;
-        // Only overwrite fields the posting actually gave; nothing is guessed.
         setDraft((d) => ({
           ...d,
-          title: job.title || d.title,
-          company: job.company || d.company,
-          location: job.location || d.location,
-          url: job.url || link,
-          description: job.description || d.description,
+          url: d.url || link,
+          sourceUrl: link,
+          source: sourceFromLink(link),
+        }));
+        setLinkNotice({
+          ok: false,
+          text: data.error || "Couldn't read that posting — fill manually.",
+        });
+      } else {
+        const job = data.job;
+        // Only fields the posting actually gave; typed fields wait for confirmation.
+        setDraft((d) => ({
+          ...d,
+          sourceUrl: link,
           source: (JOB_SOURCES as readonly string[]).includes(job.source)
             ? (job.source as JobSource)
             : "careers",
         }));
+        applyFill(
+          {
+            title: job.title,
+            company: job.company,
+            location: job.location,
+            url: job.applyUrl || job.url || link,
+            description: job.description,
+            salary: job.salary ?? "",
+            workMode: job.workMode ?? "",
+            employmentType: job.employmentType ?? "",
+            seniority: job.seniority ?? "",
+            postedAt: job.postedAt ? job.postedAt.slice(0, 10) : "",
+            skills: (job.skills ?? []).join(", "),
+          },
+          false,
+        );
         const missing = [
           !job.title && "title",
           !job.company && "company",
@@ -401,6 +490,7 @@ export function JobsHub({
     } catch {
       setLinkNotice({ ok: false, text: "Could not reach the server. Try again." });
     } finally {
+      fetchInFlight.current = false;
       setPendingAction(null);
     }
   }
@@ -421,6 +511,15 @@ export function JobsHub({
           url: draft.url || null,
           salary: draft.salary || null,
           description: draft.description,
+          sourceUrl: draft.sourceUrl || null,
+          workMode: draft.workMode || null,
+          employmentType: draft.employmentType || null,
+          seniority: draft.seniority || null,
+          postedAt: draft.postedAt || null,
+          skills: draft.skills
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
         }),
       });
       const data = (await res.json()) as { job?: JobDto; error?: string };
@@ -896,7 +995,7 @@ export function JobsHub({
 
           <div className="space-y-2">
             <Label htmlFor="add-job-link" className="text-[12px]">
-              Add from a job link
+              Job link (LinkedIn or company careers page)
             </Label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
@@ -905,13 +1004,25 @@ export function JobsHub({
                 inputMode="url"
                 value={jobLink}
                 onChange={(e) => setJobLink(e.target.value)}
+                onPaste={(e) => {
+                  const pasted = e.clipboardData.getData("text").trim();
+                  if (pasted) {
+                    e.preventDefault();
+                    setJobLink(pasted);
+                    void fetchFromLink(pasted);
+                  }
+                }}
+                onBlur={() => {
+                  const link = jobLink.trim();
+                  if (link && link !== lastFetchedLink.current) void fetchFromLink(link);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     void fetchFromLink();
                   }
                 }}
-                placeholder="https://job-boards.greenhouse.io/company/jobs/123"
+                placeholder="https://www.linkedin.com/jobs/view/…"
                 className="min-w-0 flex-1"
               />
               <Button
@@ -919,21 +1030,48 @@ export function JobsHub({
                 size="sm"
                 className="h-9 shrink-0"
                 loading={pendingAction === "parse"}
-                loadingText="Reading…"
+                loadingText="Fetching…"
                 disabled={!jobLink.trim() || pending}
                 onClick={() => void fetchFromLink()}
               >
-                Fetch details
+                Fetch
               </Button>
             </div>
             <p className="text-muted-foreground text-[11px] leading-relaxed">
-              Works with Greenhouse, Lever, Ashby, Workable and SmartRecruiters links, and company
-              career pages that publish job data. LinkedIn, Naukri and Indeed can&apos;t be read;
-              their link is kept and you fill in the rest.
+              Paste a LinkedIn job link, or one from Greenhouse, Lever, Ashby, Workable,
+              SmartRecruiters, SuccessFactors or a company careers page, and the details fill in.
+              Everything stays editable. Naukri and Indeed can&apos;t be read; their link is kept
+              and you fill in the rest.
             </p>
             {linkNotice ? (
               <Alert variant={linkNotice.ok ? "default" : "destructive"}>
                 <AlertDescription className="text-[12px]">{linkNotice.text}</AlertDescription>
+              </Alert>
+            ) : null}
+            {pendingFill ? (
+              <Alert>
+                <AlertDescription className="flex flex-wrap items-center gap-2 text-[12px]">
+                  <span className="min-w-0 flex-1">
+                    The posting has different values for fields you typed:{" "}
+                    {pendingFill.conflicts.map((f) => DRAFT_FIELD_LABELS[f]).join(", ")}. Replace
+                    them?
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPendingFill(null)}
+                  >
+                    Keep mine
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => applyFill(pendingFill.values, true)}
+                  >
+                    Replace
+                  </Button>
+                </AlertDescription>
               </Alert>
             ) : null}
           </div>
@@ -959,20 +1097,20 @@ export function JobsHub({
                   <Field
                     label="Title *"
                     value={draft.title}
-                    onChange={(v) => setDraft((d) => ({ ...d, title: v }))}
+                    onChange={(v) => editDraft("title", v)}
                   />
                   <label className="block space-y-1">
                     <span className="text-foreground text-[12px] font-medium">Company *</span>
                     <CompanySelect
                       value={draft.company}
-                      onChange={(name) => setDraft((d) => ({ ...d, company: name }))}
+                      onChange={(name) => editDraft("company", name)}
                       placeholder="e.g. Stripe"
                     />
                   </label>
                   <Field
                     label="Location *"
                     value={draft.location}
-                    onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
+                    onChange={(v) => editDraft("location", v)}
                   />
                   <label className="block space-y-1">
                     <span className="text-foreground text-[12px] font-medium">Source</span>
@@ -995,20 +1133,64 @@ export function JobsHub({
                     </Select>
                   </label>
                   <Field
-                    label="URL"
+                    label="Apply URL"
                     value={draft.url}
-                    onChange={(v) => setDraft((d) => ({ ...d, url: v }))}
+                    onChange={(v) => editDraft("url", v)}
                   />
                   <Field
                     label="Salary / CTC"
                     value={draft.salary}
-                    onChange={(v) => setDraft((d) => ({ ...d, salary: v }))}
+                    onChange={(v) => editDraft("salary", v)}
                   />
+                  <label className="block space-y-1">
+                    <span className="text-foreground text-[12px] font-medium">Work mode</span>
+                    <Select
+                      value={draft.workMode || "unset"}
+                      onValueChange={(v) => editDraft("workMode", v === "unset" ? "" : String(v))}
+                    >
+                      <SelectTrigger className="text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
+                        <SelectValue placeholder="Work mode" />
+                      </SelectTrigger>
+                      <SelectContent className="z-240">
+                        <SelectItem value="unset">Not specified</SelectItem>
+                        <SelectItem value="onsite">On-site</SelectItem>
+                        <SelectItem value="hybrid">Hybrid</SelectItem>
+                        <SelectItem value="remote">Remote</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </label>
+                  <Field
+                    label="Employment type"
+                    value={draft.employmentType}
+                    onChange={(v) => editDraft("employmentType", v)}
+                  />
+                  <Field
+                    label="Seniority"
+                    value={draft.seniority}
+                    onChange={(v) => editDraft("seniority", v)}
+                  />
+                  <label className="block space-y-1">
+                    <span className="text-foreground text-[12px] font-medium">Posted on</span>
+                    <Input
+                      type="date"
+                      value={draft.postedAt}
+                      onChange={(e) => editDraft("postedAt", e.target.value)}
+                    />
+                  </label>
+                  <label className="block space-y-1 md:col-span-2">
+                    <span className="text-foreground text-[12px] font-medium">
+                      Skills (comma-separated)
+                    </span>
+                    <Input
+                      value={draft.skills}
+                      onChange={(e) => editDraft("skills", e.target.value)}
+                    />
+                  </label>
                   <label className="block space-y-1 md:col-span-2">
                     <span className="text-foreground text-[12px] font-medium">Description</span>
                     <Textarea
                       value={draft.description}
-                      onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+                      onChange={(e) => editDraft("description", e.target.value)}
                       rows={8}
                       className="py-2"
                     />
@@ -1856,6 +2038,64 @@ function JobList({
       </ul>
     </ScrollArea>
   );
+}
+
+type DraftField =
+  | "title"
+  | "company"
+  | "location"
+  | "url"
+  | "salary"
+  | "description"
+  | "workMode"
+  | "employmentType"
+  | "seniority"
+  | "postedAt"
+  | "skills";
+
+const DRAFT_FIELD_LABELS: Record<DraftField, string> = {
+  title: "title",
+  company: "company",
+  location: "location",
+  url: "apply URL",
+  salary: "salary",
+  description: "description",
+  workMode: "work mode",
+  employmentType: "employment type",
+  seniority: "seniority",
+  postedAt: "posted date",
+  skills: "skills",
+};
+
+function pickFields(
+  values: Partial<Record<DraftField, string>>,
+  keys: DraftField[],
+): Partial<Record<DraftField, string>> {
+  return Object.fromEntries(keys.map((k) => [k, values[k]])) as Partial<Record<DraftField, string>>;
+}
+
+/** Client-side check before fetching: a valid http(s) link, and a job link if it's LinkedIn. */
+function jobLinkProblem(link: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(/^https?:\/\//i.test(link) ? link : `https://${link}`);
+  } catch {
+    return "That doesn't look like a link.";
+  }
+  const host = url.hostname.toLowerCase();
+  if (!host.includes(".")) return "That doesn't look like a link.";
+  const isLinkedIn = host === "linkedin.com" || host.endsWith(".linkedin.com");
+  if (isLinkedIn) {
+    const full = decodeURIComponent(url.href);
+    if (
+      !/\/jobs\/view\/(?:[^/?#]*-)?\d{6,}|[?&](?:currentJobId|jobId)=\d{6,}|jobPosting[:/]\d{6,}/.test(
+        full,
+      )
+    ) {
+      return "That LinkedIn link isn't a job posting. Open the job and copy its link (linkedin.com/jobs/view/…).";
+    }
+  }
+  return null;
 }
 
 function Field({

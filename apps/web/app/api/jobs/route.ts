@@ -48,6 +48,12 @@ export async function POST(request: Request) {
       url: (body.url as string | null | undefined) ?? null,
       description: typeof body.description === "string" ? body.description : "",
       salary: (body.salary as string | null | undefined) ?? null,
+      sourceUrl: typeof body.sourceUrl === "string" ? body.sourceUrl : null,
+      workMode: typeof body.workMode === "string" ? body.workMode : null,
+      employmentType: typeof body.employmentType === "string" ? body.employmentType : null,
+      seniority: typeof body.seniority === "string" ? body.seniority : null,
+      postedAt: typeof body.postedAt === "string" ? body.postedAt : null,
+      skills: body.skills,
     });
     const score = await scoreJobForUser(user.id, job);
     return NextResponse.json({ job: toJobDto(job, score) }, { status: 201 });

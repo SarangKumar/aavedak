@@ -26,6 +26,13 @@ forwards admin actions to `/svc/v1/discovery/admin/*` after its own allowlist ch
   crawling), and optional permitted JSON feeds. LinkedIn, Indeed, Glassdoor, Naukri,
   Foundit, Instahyre, Cutshort, and Wellfound have no permitted read access and are **not**
   scraped. NCS has no public listings API.
+- **Add job from a link** (`jobs/single.py`, `POST /admin/parse-job-url`) reads one posting
+  the user pasted: ATS board APIs, JSON-LD, then `page_extract.py` (SAP SuccessFactors
+  `data-careersite-propertyid` / `itemprop` markup, microdata, og/meta tags, `<h1>` and the
+  largest text block). LinkedIn job links (`jobs/linkedin.py`) are read only here, one job per
+  user action, from the signed-out guest endpoint `/jobs-guest/jobs/api/jobPosting/<id>`
+  with a fallback to the public `/jobs/view/<id>` page (top card, then JSON-LD). Scans never
+  fetch LinkedIn.
 - **The company's own careers page is the primary source of truth.** Each source tracks
   its official careers page (`company_sources.official_careers_url`, see "Official careers
   pages" below); discovery reads it on every scan and a job links to it whenever it lists

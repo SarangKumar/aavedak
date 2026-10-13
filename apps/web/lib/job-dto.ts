@@ -23,6 +23,12 @@ export type JobDtoBase = {
   minYears: number | null;
   /** Published application email from the posting (unverified; discovered jobs only). */
   applyEmail: string | null;
+  /** Link pasted in Add job, and details read from that posting (user jobs). */
+  sourceUrl: string | null;
+  workMode: JobRecord["workMode"];
+  employmentType: string | null;
+  seniority: string | null;
+  skills: string[];
   /** Discovered job that was filled / pulled from the portal (closed or expired). */
   removedFromPortal: boolean;
   createdAt: string;
@@ -82,6 +88,11 @@ export function toJobDto(
     firstSeenAt: job.firstSeenAt,
     minYears: job.minYears,
     applyEmail: job.userId === null ? job.applyEmail : null,
+    sourceUrl: job.sourceUrl,
+    workMode: job.workMode,
+    employmentType: job.employmentType,
+    seniority: job.seniority,
+    skills: job.skills,
     removedFromPortal: job.userId === null && (job.closedAt != null || job.expiredAt != null),
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,

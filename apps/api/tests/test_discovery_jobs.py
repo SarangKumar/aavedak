@@ -490,7 +490,6 @@ def test_single_blocked_sites_are_never_fetched():
 
     with httpx.Client(transport=httpx.MockTransport(fail)) as client:
         for url, source in [
-            ("https://www.linkedin.com/jobs/view/1", "linkedin"),
             ("https://in.indeed.com/viewjob?jk=1", "indeed"),
             ("https://www.naukri.com/job-listings-1", "other"),
         ]:
@@ -539,3 +538,109 @@ def test_single_greenhouse_and_jsonld_pages():
         assert page_job.company == "Acme Motors"
         assert "Pune" in page_job.location
         assert page_job.description == "Freshers welcome."
+
+
+def test_linkedin_job_ids():
+    from app.discovery.jobs import linkedin
+
+    for url in [
+        "https://www.linkedin.com/jobs/view/senior-devops-engineer-at-arbor-4455725254?trk=x",
+        "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4455725254",
+        "https://in.linkedin.com/jobs/view/4455725254/",
+        "https://www.linkedin.com/comm/jobs/view/4455725254",
+        "https://m.linkedin.com/jobs/view/4455725254",
+        "https://www.linkedin.com/jobs/search/?keywords=x&currentJobId=4455725254",
+    ]:
+        assert linkedin.job_id_from_url(url) == "4455725254", url
+    assert linkedin.job_id_from_url("https://www.linkedin.com/feed/") is None
+
+
+_LI_GUEST = """<section class="top-card-layout"><h2 class="top-card-layout__title topcard__title">
+Senior DevOps Engineer</h2><span class="topcard__flavor"><a class="topcard__org-name-link">
+Arbor Education</a></span><span class="topcard__flavor topcard__flavor--bullet">
+Pune, Maharashtra, India (Hybrid)</span><span class="posted-time-ago__text">3 days ago</span>
+<div class="compensation__salary">₹20,00,000/yr - ₹30,00,000/yr</div></section>
+<div class="show-more-less-html__markup"><p>Run AWS with Terraform and Docker.</p>
+<ul><li>CI/CD</li></ul><script>alert(1)</script></div>
+<ul><li class="description__job-criteria-item"><h3 class="description__job-criteria-subheader">
+Seniority level</h3><span class="description__job-criteria-text">Mid-Senior level</span></li>
+<li class="description__job-criteria-item"><h3 class="description__job-criteria-subheader">
+Employment type</h3><span class="description__job-criteria-text">Full-time</span></li></ul>
+<code id="applyUrl" style="display: none"><!--"https://www.linkedin.com/jobs/view/externalApply/1?url=https%3A%2F%2Fjobs.acme.com%2F1&amp;urlHash=x"--></code>"""
+
+
+def test_linkedin_guest_posting_parsed():
+    from datetime import datetime, timezone
+
+    import httpx
+
+    from app.discovery.jobs import single
+
+    seen = []
+
+    def handler(request):
+        seen.append(str(request.url))
+        assert "Chrome" in request.headers["user-agent"]
+        if "/jobs-guest/jobs/api/jobPosting/4455725254" in str(request.url):
+            return httpx.Response(200, text=_LI_GUEST)
+        return httpx.Response(404)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        job = single.fetch_job_from_url(
+            client, "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4455725254"
+        )
+    assert (job.title, job.company, job.source) == ("Senior DevOps Engineer", "Arbor Education", "linkedin")
+    assert job.location.startswith("Pune") and job.workMode == "hybrid"
+    assert (job.employmentType, job.seniority) == ("Full-time", "Mid-Senior level")
+    assert job.salary and "20,00,000" in job.salary
+    assert job.applyUrl == "https://jobs.acme.com/1"
+    assert "alert" not in job.description and "• CI/CD" in job.description
+    assert {"aws", "terraform", "docker"} <= set(job.skills)
+    assert job.url == "https://www.linkedin.com/jobs/view/4455725254/"
+    assert job.postedAt and job.postedAt <= datetime.now(timezone.utc).date().isoformat()
+
+
+def test_linkedin_failures_are_friendly():
+    import httpx
+
+    from app.discovery.jobs import single
+
+    with httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(429))) as client:
+        with pytest.raises(single.JobLinkError, match="fill manually") as err:
+            single.fetch_job_from_url(client, "https://www.linkedin.com/jobs/view/4455725254")
+        assert err.value.source == "linkedin"
+        with pytest.raises(single.JobLinkError, match="isn't a job posting"):
+            single.fetch_job_from_url(client, "https://www.linkedin.com/in/someone")
+
+
+def test_successfactors_and_generic_pages():
+    import httpx
+
+    from app.discovery.jobs import single
+
+    sf = """<html><head><title>Campus-Beginner Job Details | HCLTech</title>
+    <meta name="description" content="Campus-Beginner"/><script>var x=1;</script></head><body>
+    <nav><a>Jobs</a><a>Login</a></nav>
+    <span itemprop="title">Campus-Beginner </span>
+    <span data-careersite-propertyid="location">Noida, IN</span>
+    <span itemprop="datePosted">2026-10-01</span>
+    <span itemprop="description"><div><h2>Job Summary</h2><p>Fresher with GCP and Kubernetes basics.</p></div></span>
+    </body></html>"""
+    generic = """<html><head><meta property="og:title" content="Data Engineer"/>
+    <meta property="og:site_name" content="Acme"/></head><body><header>Menu</header><h1>Data Engineer</h1>
+    <div class="content"><p>""" + "We build pipelines with Python and SQL. " * 10 + """</p></div></body></html>"""
+
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return httpx.Response(200, text=sf if "hcltech" in request.url.host else generic)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        job = single.fetch_job_from_url(client, "https://careers.hcltech.com/job/Campus-Beginner/154180-en_US")
+        assert (job.title, job.company, job.location) == ("Campus-Beginner", "HCLTech", "Noida, IN")
+        assert job.provider == "successfactors" and job.postedAt.startswith("2026-10-01")
+        assert "Fresher with GCP" in job.description and "var x" not in job.description
+        other = single.fetch_job_from_url(client, "https://acme.example/careers/data-engineer")
+        assert (other.title, other.company) == ("Data Engineer", "Acme")
+        assert "pipelines" in other.description and "Menu" not in other.description
+        assert "python" in other.skills
