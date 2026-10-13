@@ -219,6 +219,10 @@ company's) may supply it. Never guessed from the name.
 | Apollo             | `sources/providers.py` | people search by domain: name, title, LinkedIn/GitHub/Twitter, city (locked emails ignored)                                                                                                                                                                                | `APOLLO_API_KEY`                                                                |
 | Snov.io, Proxycurl | —                      | documented only; not wired (no keys, and Proxycurl reads LinkedIn data)                                                                                                                                                                                                    | —                                                                               |
 
+Metered APIs are guarded across runs in `external_api_usage` (`people/quota.py`): Google CSE
+has a hard daily cap (`google_cse_daily_query_cap`, 90, per US-Pacific day), GitHub pauses
+until its rate-limit reset when nearly exhausted. See docs/free-tier.md.
+
 LinkedIn is **never** fetched, logged in to or scraped; only URLs/headlines that a search API
 returns are stored.
 

@@ -152,3 +152,50 @@ def test_looks_like_title_rejects_markup_and_sentences():
     assert not looks_like_title('<a class="event-link btn btn-arrow" hr')
     assert not looks_like_title("We are hiring engineers to build the future of payments.")
     assert not looks_like_title("DevOpsは開発(Development)担当者と運用(Operations) 担当者が連携")
+
+
+def test_pacific_day_follows_google_reset():
+    from datetime import datetime, timezone
+
+    from app.discovery.people.quota import pacific_day
+
+    # 07:30 UTC on 13 Oct = 00:30 PDT 13 Oct; 06:30 UTC is still 12 Oct in California.
+    assert pacific_day(datetime(2026, 10, 13, 7, 30, tzinfo=timezone.utc)) == "2026-10-13"
+    assert pacific_day(datetime(2026, 10, 13, 6, 30, tzinfo=timezone.utc)) == "2026-10-12"
+    # Winter (PST, UTC-8).
+    assert pacific_day(datetime(2026, 12, 1, 7, 59, tzinfo=timezone.utc)) == "2026-11-30"
+
+
+def test_search_skips_cse_when_quota_denies():
+    from app.discovery.people.sources import search
+
+    class NoNetwork:
+        def api(self, *a, **k):  # pragma: no cover - must not be called
+            raise AssertionError("CSE called despite exhausted quota")
+
+    provider, hits = search.discover(
+        NoNetwork(), {"google_key": "k", "google_cx": "c"}, "Acme", cse_allowed=lambda: False  # type: ignore[arg-type]
+    )
+    assert provider is None and hits == []
+    assert search.query_for("Acme").startswith("site:linkedin.com/in ")
+
+
+def test_cse_quota_stops_after_first_denial():
+    from app.discovery.people import quota
+
+    calls = []
+
+    class FakeConn:
+        def execute(self, sql, params=None):
+            calls.append(params)
+
+            class R:
+                def fetchone(self_inner):
+                    return None  # cap reached
+
+            return R()
+
+    gate = quota.CseQuota(FakeConn(), cap=90)  # type: ignore[arg-type]
+    assert gate() is False and gate() is False
+    assert len(calls) == 1 and gate.denied
+    assert quota.CseQuota(FakeConn(), cap=0)() is False  # type: ignore[arg-type]

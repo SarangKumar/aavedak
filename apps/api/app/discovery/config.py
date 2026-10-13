@@ -62,6 +62,11 @@ class DiscoveryTuning(BaseModel):
     people_site_pages: int = Field(5, ge=1, le=12)
     people_github_members: int = Field(12, ge=0, le=50)
     people_search_results: int = Field(15, ge=0, le=50)
+    # Google Custom Search JSON API: 100 queries/day free, then billed. Hard cap per Pacific day
+    # (Google's reset), shared by all cron slots and manual runs; tracked in external_api_usage.
+    google_cse_daily_query_cap: int = Field(90, ge=0, le=100)
+    # Pause GitHub (until its reset time) once fewer than this many requests remain this hour.
+    github_min_remaining: int = Field(10, ge=0, le=1000)
 
 
 class _DiscoveryEnv(BaseSettings):

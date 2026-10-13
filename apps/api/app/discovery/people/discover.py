@@ -25,7 +25,7 @@ import psycopg
 
 from app.discovery.config import DiscoverySettings
 from app.discovery.jobs.email_extractor import is_application_inbox
-from app.discovery.people import emails, targets
+from app.discovery.people import emails, quota, targets
 from app.discovery.people import store as people_store
 from app.discovery.people.candidate import SOURCE_CONFIDENCE, Candidate
 from app.discovery.people.domains import (  # re-exported for callers / tests
@@ -179,15 +179,16 @@ def discover_company(
         counts["site"] = len(site_result.candidates)
         counts["pages"] = site_result.pages
 
+    guard = quota.GitHubGuard(conn, settings.github_min_remaining)
     if not org and not fetcher.exhausted:
         found = github.find_org(fetcher, token=settings.github_token or None, domain=domain,
-                                hint=site_result.github_org, company=company_name)
+                                hint=site_result.github_org, company=company_name, guard=guard)
         if found:
             org = found[0]
             domain = domain or found[1]
     if org and not fetcher.exhausted:
         members = github.members(fetcher, token=settings.github_token or None, org=org, company=company_name,
-                                 limit=settings.people_github_members)
+                                 limit=settings.people_github_members, guard=guard)
         candidates += members
         counts["github"] = len(members)
 
@@ -198,7 +199,10 @@ def discover_company(
         "google_cx": settings.google_cse_cx or None,
     }
     if any(keys.values()) and not fetcher.exhausted:
-        _provider, hits = search.discover(fetcher, keys, company_name, limit=settings.people_search_results)
+        cse_gate = quota.CseQuota(conn, settings.google_cse_daily_query_cap)
+        _provider, hits = search.discover(fetcher, keys, company_name, limit=settings.people_search_results,
+                                          cse_allowed=cse_gate)
+        counts["cseCapReached"] = int(cse_gate.denied)
         candidates += hits
         counts["search"] = len(hits)
 
@@ -250,6 +254,7 @@ def discover_company(
         counts["inbox"] = 1
 
     counts["requests"] = fetcher.used
+    counts["githubPaused"] = int(guard.paused)
     with conn.transaction():
         person_ids: list[str] = []
         for cand in candidates:
@@ -337,6 +342,13 @@ def stats(conn: psycopg.Connection, settings: DiscoverySettings) -> dict[str, An
         "openItems": open_items,
         "lastRun": dict(last_run) if last_run else None,
         "sources": configured_sources(settings),
+        "quotas": {
+            "googleCse": {
+                "usedToday": quota.used(conn, "google_cse", quota.pacific_day()),
+                "cap": settings.google_cse_daily_query_cap,
+                "day": quota.pacific_day(),
+            },
+        },
         "limits": {
             "companiesPerRun": settings.people_companies_per_run,
             "requestsPerCompany": settings.people_requests_per_company,

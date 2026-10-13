@@ -219,6 +219,14 @@ PIPELINE_STATEMENTS: tuple[str, ...] = (
       updated_at TEXT NOT NULL
     )""",
     "CREATE INDEX IF NOT EXISTS people_discovery_state_due_idx ON people_discovery_state (next_due_at)",
+    # Metered third-party API usage per provider + period (e.g. Google CSE per Pacific day).
+    """CREATE TABLE IF NOT EXISTS external_api_usage (
+      provider TEXT NOT NULL,
+      period TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (provider, period)
+    )""",
 )
 
 BASE_TABLES = ("jobs", "companies", "applications", "user_job_state", "user_preferences", "people", "profiles")

@@ -5,12 +5,15 @@ Company | LinkedIn" headline. LinkedIn itself is never fetched, logged in to, or
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 from app.discovery.people.candidate import SOURCE_CONFIDENCE, Candidate
 from app.discovery.people.classify import clean_name
 from app.discovery.people.fetch import Fetcher
 from app.discovery.people.normalize import normalize_linkedin
 
+# The CSE engine is site-restricted to linkedin.com/in/* (add that under "Sites to search"
+# with "Search the entire web" off); the site: operator keeps other providers on the same set.
 ROLE_QUERY = '("recruiter" OR "talent acquisition" OR "hiring manager" OR "engineering manager" OR "head of engineering")'
 
 
@@ -18,7 +21,9 @@ def query_for(company: str) -> str:
     return f'site:linkedin.com/in "{company}" {ROLE_QUERY}'
 
 
-def _results(fetcher: Fetcher, keys: dict[str, str | None], query: str) -> tuple[str | None, list[tuple[str, str, str]]]:
+def _results(
+    fetcher: Fetcher, keys: dict[str, str | None], query: str, cse_allowed: Callable[[], bool] | None = None
+) -> tuple[str | None, list[tuple[str, str, str]]]:
     """(provider, [(title, url, snippet)]) from the first configured provider that answers."""
     if keys.get("brave"):
         data = fetcher.api(
@@ -33,7 +38,8 @@ def _results(fetcher: Fetcher, keys: dict[str, str | None], query: str) -> tuple
         if isinstance(data, dict):
             rows = data.get("organic_results") or []
             return "serpapi", [(r.get("title", ""), r.get("link", ""), r.get("snippet", "")) for r in rows]
-    if keys.get("google_key") and keys.get("google_cx"):
+    # Google CSE is metered (100 free/day): every query must first reserve quota.
+    if keys.get("google_key") and keys.get("google_cx") and (cse_allowed is None or cse_allowed()):
         data = fetcher.api("GET", "https://www.googleapis.com/customsearch/v1", params={"key": keys["google_key"], "cx": keys["google_cx"], "q": query, "num": 10})
         if isinstance(data, dict):
             rows = data.get("items") or []
@@ -78,8 +84,11 @@ def parse_result(title: str, url: str, snippet: str, company: str) -> Candidate 
     )
 
 
-def discover(fetcher: Fetcher, keys: dict[str, str | None], company: str, *, limit: int = 15) -> tuple[str | None, list[Candidate]]:
-    provider, rows = _results(fetcher, keys, query_for(company))
+def discover(
+    fetcher: Fetcher, keys: dict[str, str | None], company: str, *, limit: int = 15,
+    cse_allowed: Callable[[], bool] | None = None,
+) -> tuple[str | None, list[Candidate]]:
+    provider, rows = _results(fetcher, keys, query_for(company), cse_allowed)
     out: list[Candidate] = []
     seen: set[str] = set()
     for title, url, snippet in rows:

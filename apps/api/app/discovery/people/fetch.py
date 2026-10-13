@@ -30,6 +30,8 @@ class Fetcher:
         self.host_delay = host_delay
         self.blocked_hosts: set[str] = set()
         self.robots_denied = 0
+        self.last_status: int | None = None
+        self.last_headers: dict[str, str] | None = None
         self._robots: dict[str, RobotFileParser | None] = {}
         self._last_hit: dict[str, float] = {}
         self._own_client = client is None
@@ -117,6 +119,8 @@ class Fetcher:
         if host in self.blocked_hosts:
             return None
         resp = self._get(url, method=method, headers={"Accept": "application/json", **(headers or {})}, params=params, json=json)
+        self.last_status = resp.status_code if resp is not None else None
+        self.last_headers = {k.lower(): v for k, v in resp.headers.items()} if resp is not None else None
         if resp is None:
             return None
         if resp.status_code in (401, 403, 429):

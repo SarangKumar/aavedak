@@ -68,7 +68,7 @@ set reaches both. Caveats:
 | `JD_BOILERPLATE_PATH`                                                               | no          | JD boilerplate patterns, default `data/jd/boilerplate.json` (same resolution). Missing → descriptions stored as parsed.                                                              |
 | `DISCOVERY_ENABLED`                                                                 | no          | Kill switch for scans, recommendations and people discovery (default `true`).                                                                                                        |
 | `GITHUB_TOKEN`                                                                      | no          | Raises GitHub API limits for people discovery (public data only; no scopes needed).                                                                                                  |
-| `BRAVE_SEARCH_API_KEY`, `SERPAPI_KEY`, `GOOGLE_CSE_KEY` + `GOOGLE_CSE_CX`           | no          | Any one enables the search-API source for people discovery.                                                                                                                          |
+| `BRAVE_SEARCH_API_KEY`, `SERPAPI_KEY`, `GOOGLE_CSE_KEY` + `GOOGLE_CSE_CX`           | no          | Any one enables the people-discovery search source. CSE: capped at 90/Pacific day, engine restricted to `linkedin.com/in/*` (docs/free-tier.md).                                     |
 | `HUNTER_API_KEY`, `APOLLO_API_KEY`                                                  | no          | Contact-data providers for people discovery; each skipped when empty.                                                                                                                |
 | `TEST_DATABASE_URL`                                                                 | tests       | Optional Postgres for DB-backed tests (skipped when empty).                                                                                                                          |
 
@@ -76,3 +76,5 @@ Tuning (limits, timeouts, batch sizes, user agent, people-discovery budgets) is 
 `DiscoveryTuning` (`apps/api/app/discovery/config.py`), see docs/jobs-ingest.md.
 
 Platform-provided (not set by hand): `NODE_ENV`, `VERCEL_URL`, `VERCEL_ENV`.
+
+Free-tier limits and the guards that keep usage inside them: [free-tier.md](free-tier.md).
