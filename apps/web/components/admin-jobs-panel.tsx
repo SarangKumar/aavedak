@@ -19,7 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import {
   Pagination,
   PaginationContent,
@@ -268,25 +268,27 @@ export function AdminJobsPanel() {
             ))}
           </SelectContent>
         </Select>
-        <DatePicker
-          value={filters.from ? parseISO(filters.from) : undefined}
-          onValueChange={(d) =>
-            setFilters((f) => ({ ...f, from: d ? format(d, "yyyy-MM-dd") : "", page: 1 }))
+        <DateRangePicker
+          value={
+            filters.from || filters.to
+              ? {
+                  from: filters.from ? parseISO(filters.from) : undefined,
+                  to: filters.to ? parseISO(filters.to) : undefined,
+                }
+              : undefined
           }
-          placeholder="Posted from"
-          aria-label="Posted from"
-          formatString="d MMM yyyy"
-          className="h-8 w-36 text-[12px]"
-        />
-        <DatePicker
-          value={filters.to ? parseISO(filters.to) : undefined}
-          onValueChange={(d) =>
-            setFilters((f) => ({ ...f, to: d ? format(d, "yyyy-MM-dd") : "", page: 1 }))
+          onValueChange={(range) =>
+            setFilters((f) => ({
+              ...f,
+              from: range?.from ? format(range.from, "yyyy-MM-dd") : "",
+              to: range?.to ? format(range.to, "yyyy-MM-dd") : "",
+              page: 1,
+            }))
           }
-          placeholder="Posted to"
-          aria-label="Posted to"
+          placeholder="Posted date range"
+          aria-label="Posted date range"
           formatString="d MMM yyyy"
-          className="h-8 w-36 text-[12px]"
+          className="h-8 w-64 text-[12px]"
         />
         {filters.source !== "all" || filters.from || filters.to || query ? (
           <Button
@@ -591,8 +593,7 @@ export function AdminJobsPanelSkeleton() {
       <div className="flex flex-wrap items-center gap-2">
         <Skeleton className="h-8 w-full sm:max-w-sm" />
         <Skeleton className="h-8 w-40 rounded-md" />
-        <Skeleton className="h-8 w-36 rounded-md" />
-        <Skeleton className="h-8 w-36 rounded-md" />
+        <Skeleton className="h-8 w-64 rounded-md" />
       </div>
       <div className="border-border/70 overflow-hidden rounded-xl border">
         <Table className="text-[12px]">
