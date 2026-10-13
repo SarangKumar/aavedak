@@ -1,4 +1,22 @@
+import path from "node:path";
+
+import { loadEnvConfig, updateInitialEnv } from "@next/env";
 import type { NextConfig } from "next";
+
+// One env for the whole monorepo: load the repo-root .env / .env.local (shared with FastAPI).
+// Values already in process.env (Vercel project env, shell) always win; on Vercel there are
+// no env files, so this is a no-op there.
+// forceReload: Next has already loaded (and cached) apps/web env by the time this runs.
+const rootEnv = loadEnvConfig(
+  path.resolve(__dirname, "../.."),
+  process.env.NODE_ENV !== "production",
+  undefined,
+  true,
+);
+// Next resets process.env to its startup snapshot before loading apps/web env files (and for
+// build workers); make the root values part of that snapshot so they survive.
+updateInitialEnv(rootEnv.combinedEnv);
+
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 const nextConfig: NextConfig = {

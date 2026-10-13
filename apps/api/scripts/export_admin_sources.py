@@ -3,7 +3,7 @@
 keeps pulling jobs from them.
 
 Reads `company_sources` rows with origin 'admin' (enabled only) using DATABASE_URL from
-apps/api/.env. The query is read-only. The registry only gains entries: existing ones (matched by
+the environment or the repo-root .env / .env.local. The query is read-only. The registry only gains entries: existing ones (matched by
 provider + token) are never changed or removed.
 
 Usage (from apps/api):

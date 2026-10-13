@@ -90,7 +90,7 @@ All scanning, parsing, filtering, dedupe, ingest, ranking, expiry, and bulk peop
 
 ### Env and docs
 
-- Env files are per app and must not be mixed: web uses `apps/web/.env.local` (overrides `.env`); api uses `apps/api/.env`. Scripts must read the env file of the app they serve. Keep configuration and secrets out of source code.
+- One env for the monorepo: repo-root `.env` (+ `.env.local`, which overrides it), template `.env.example`. Next loads it via `loadEnvConfig` in `apps/web/next.config.ts`; FastAPI via `ENV_FILES` in `apps/api/app/core/config.py`. Real environment variables always win (production uses only the Vercel project env). Keep secrets out of source code; tuning lives in code, not env (see docs/env.md).
 - `docs/decisions.md` holds frozen product rules (status enum, application vs. job, resume, and email rules). Read it before changing domain behavior. Also see `docs/domain-glossary.md` and `docs/api-resources.md`.
 - `scripts/wipe-all-data.mjs` destructively clears Neon app/auth tables and GCS `resumes/`. Never run it unless explicitly asked.
 

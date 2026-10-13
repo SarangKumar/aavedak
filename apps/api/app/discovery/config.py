@@ -8,6 +8,7 @@ from functools import lru_cache
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.config import ENV_FILES
 from app.core.config import settings as core_settings
 
 # Application statuses that an expired job may auto-move to `rejected` (reason
@@ -67,7 +68,7 @@ class _DiscoveryEnv(BaseSettings):
     """The only discovery values read from the environment: the deployment kill switch and
     optional third-party keys (secrets). Each source is skipped when its key is empty."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILES, env_file_encoding="utf-8", extra="ignore")
 
     discovery_enabled: bool = True
     github_token: str = ""

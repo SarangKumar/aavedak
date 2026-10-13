@@ -15,7 +15,6 @@ apps/api/
 │       └── logging.py
 ├── requirements.txt
 ├── requirements-dev.txt
-├── .env.example
 └── .venv/                # local virtualenv (gitignored)
 ```
 
@@ -26,8 +25,9 @@ cd apps/api
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
-cp .env.example .env
 ```
+
+Env comes from the repo-root `.env` / `.env.local` (shared with the web app; `cp .env.example .env` at the root). Real environment variables win, so on Vercel only the project env is used.
 
 Or: `pnpm setup` / `./scripts/setup.sh`.
 
@@ -95,7 +95,6 @@ There is no `vercel run` for Services. Use **`vercel dev`** / **`vercel dev -L`*
 | `PUBLIC_BASE_URL` | No                       | App origin (`http://localhost:3000` / prod Vercel URL)     |
 | `DATABASE_URL`    | No                       | Empty → API starts; DB features won’t work                 |
 | `CRON_SECRET`     | No                       | Protected cron routes later                                |
-| `R2_*`            | No                       | Object storage later                                       |
 
 Web clients use `NEXT_PUBLIC_API_URL` (e.g. `http://localhost:3000/svc` or `https://aavedak.vercel.app/svc`) — see `apps/web/lib/api-url.ts`.
 

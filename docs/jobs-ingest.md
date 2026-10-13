@@ -45,7 +45,7 @@ People CSV: header row; `name` required; optional `company`, `role`/`title`, `em
 
 ## Env and tuning
 
-Env (`apps/api/.env`) carries only deployment values and secrets: `DATABASE_URL`, `CRON_SECRET`
+Env (repo-root `.env`, shared with the web app) carries only deployment values and secrets: `DATABASE_URL`, `CRON_SECRET`
 (must equal the web app's), and `DISCOVERY_ENABLED` (global kill switch). See docs/env.md.
 
 Tuning is typed and lives in code: `DiscoveryTuning` in `apps/api/app/discovery/config.py`.
@@ -70,7 +70,7 @@ Change a value there (and commit); it is no longer read from env.
 | `people_batch_size`              | `100`   | Rows per people-import item                          |
 | `people_*`                       | —       | People discovery limits, see DISCOVERY.md            |
 
-Web (`apps/web/.env.local`): `CRON_SECRET` (same value), `NEXT_PUBLIC_API_URL`.
+The web app reads the same file/project env (`CRON_SECRET`, `NEXT_PUBLIC_API_URL`).
 
 ## Local
 

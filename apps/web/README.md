@@ -54,7 +54,7 @@ Three files under `apps/web/`:
 
 Shared secrets (`BETTER_AUTH_*`, `GOOGLE_CLIENT_*`, `ADMIN_EMAILS`, `DATABASE_URL`, GCS) should match in `.env` and `.env.local`; only public origins differ.
 
-Copy from the template (`cp apps/web/.env.example apps/web/.env.local`) or run `pnpm setup`. Fill secrets locally — never commit `.env` / `.env.local`.
+Env lives at the repo root, shared with the API: `cp .env.example .env` (optionally `.env.local` for overrides) or run `pnpm setup`. See docs/env.md. Fill secrets locally — never commit `.env` / `.env.local`.
 
 | Variable               | Required for local UI | Notes                                                                                            |
 | ---------------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
@@ -70,7 +70,7 @@ Copy from the template (`cp apps/web/.env.example apps/web/.env.local`) or run `
 
 Never commit secrets. Local SQLite paths are unused; auth + app data are on Neon.
 
-API env (separate): `apps/api/.env.example` → `apps/api/.env` (also gitignored). See repo root README.
+The API reads the same repo-root env (see docs/env.md).
 
 ## Auth (Better Auth + Google)
 
@@ -82,7 +82,7 @@ App data + auth tables: **Neon Postgres** via `DATABASE_URL`. Resume PDFs: **GCS
    - `http://localhost:3000/api/auth/callback/google`
    - `https://aavedak.vercel.app/api/auth/callback/google`
 3. Authorized JavaScript origins: `http://localhost:3000` and `https://aavedak.vercel.app`.
-4. Put Client ID / Secret in `apps/web/.env` and `apps/web/.env.local` (same values) as `GOOGLE_CLIENT_*`.
+4. Put Client ID / Secret in the repo-root `.env` as `GOOGLE_CLIENT_*`.
 5. Local: `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL` = `http://localhost:3000` in `.env.local`.
    Prod: `https://aavedak.vercel.app` in `.env` / Vercel.
 6. From `apps/web` (first time / schema change): `pnpm dlx @better-auth/cli@latest migrate`

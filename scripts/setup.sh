@@ -161,54 +161,31 @@ fi
 ok "API Python packages installed"
 deactivate 2>/dev/null || true
 
-# Env files
+# Env files: one repo-root env shared by web (next.config loads it) and API (pydantic env_file).
 section "Environment files"
-WEB_DIR="$ROOT/apps/web"
-copy_env_if_missing "$WEB_DIR/.env.example" "$WEB_DIR/.env.local" "Web env"
-# Prefer .env.local; also allow .env if user created it instead
-WEB_ENV=""
-if [[ -f "$WEB_DIR/.env.local" ]]; then
-  WEB_ENV="$WEB_DIR/.env.local"
-elif [[ -f "$WEB_DIR/.env" ]]; then
-  WEB_ENV="$WEB_DIR/.env"
-fi
-if [[ -n "$WEB_ENV" ]]; then
-  ensure_env_key "$WEB_ENV" "NEXT_PUBLIC_APP_URL"
-  ensure_env_key "$WEB_ENV" "NEXT_PUBLIC_API_URL"
-  ensure_env_key "$WEB_ENV" "DATABASE_URL"
-  ensure_env_key "$WEB_ENV" "BETTER_AUTH_SECRET"
-  ensure_env_key "$WEB_ENV" "BETTER_AUTH_URL"
-  ensure_env_key "$WEB_ENV" "GOOGLE_CLIENT_ID"
-  ensure_env_key "$WEB_ENV" "GOOGLE_CLIENT_SECRET"
-  ensure_env_key "$WEB_ENV" "ADMIN_EMAILS"
-  ensure_env_key "$WEB_ENV" "GCS_BUCKET"
-
+copy_env_if_missing "$ROOT/.env.example" "$ROOT/.env" "Root env"
+ROOT_ENV="$ROOT/.env"
+if [[ -f "$ROOT_ENV" ]]; then
+  for key in NEXT_PUBLIC_APP_URL NEXT_PUBLIC_API_URL DATABASE_URL BETTER_AUTH_SECRET BETTER_AUTH_URL \
+    GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET ADMIN_EMAILS GCS_BUCKET CRON_SECRET LOG_LEVEL API_PREFIX PUBLIC_BASE_URL; do
+    ensure_env_key "$ROOT_ENV" "$key"
+  done
   # Generate BETTER_AUTH_SECRET if empty
-  if grep -qE '^BETTER_AUTH_SECRET=$' "$WEB_ENV" 2>/dev/null; then
-    SECRET="$(openssl rand -base64 32 | tr -d '
-')"
+  if grep -qE '^BETTER_AUTH_SECRET=$' "$ROOT_ENV" 2>/dev/null; then
+    SECRET="$(openssl rand -base64 32 | tr -d '\n')"
     tmp="$(mktemp)"
-    sed "s/^BETTER_AUTH_SECRET=$/BETTER_AUTH_SECRET=${SECRET}/" "$WEB_ENV" >"$tmp" && mv "$tmp" "$WEB_ENV"
+    sed "s|^BETTER_AUTH_SECRET=$|BETTER_AUTH_SECRET=${SECRET}|" "$ROOT_ENV" >"$tmp" && mv "$tmp" "$ROOT_ENV"
     ok "Generated BETTER_AUTH_SECRET for Better Auth"
   fi
-  warn "Set DATABASE_URL, GOOGLE_CLIENT_ID/SECRET, GCS_* (see apps/web/README.md)"
-fi
-
-copy_env_if_missing "$API_DIR/.env.example" "$API_DIR/.env" "API env"
-if [[ -f "$API_DIR/.env" ]]; then
-  ensure_env_key "$API_DIR/.env" "LOG_LEVEL"
-  ensure_env_key "$API_DIR/.env" "CRON_SECRET"
-  ensure_env_key "$API_DIR/.env" "DATABASE_URL"
-  ensure_env_key "$API_DIR/.env" "R2_ACCOUNT_ID"
-  ensure_env_key "$API_DIR/.env" "R2_ACCESS_KEY_ID"
-  ensure_env_key "$API_DIR/.env" "R2_SECRET_ACCESS_KEY"
-  ensure_env_key "$API_DIR/.env" "R2_BUCKET"
-  if grep -qE '^DATABASE_URL=.+' "$API_DIR/.env"; then
+  if grep -qE '^DATABASE_URL=.+' "$ROOT_ENV"; then
     ok "DATABASE_URL is set"
   else
-    warn "DATABASE_URL is empty — API will start, but DB features will not work until you set it"
+    warn "DATABASE_URL is empty: set it (and GOOGLE_CLIENT_ID/SECRET, GCS_*) in .env, see docs/env.md"
   fi
 fi
+for legacy in "$ROOT/apps/web/.env" "$ROOT/apps/web/.env.local" "$ROOT/apps/api/.env"; do
+  [[ -f "$legacy" ]] && warn "$legacy is no longer read; move its values to the repo-root .env / .env.local"
+done
 
 # Sanity
 section "Sanity checks"
@@ -242,6 +219,6 @@ Next steps:
        cd apps/api && uvicorn app.main:app --reload --port 8000
        → http://127.0.0.1:8000/health
 
-Fill secrets in apps/web/.env.local and apps/api/.env as you enable auth/DB.
+Fill secrets in the repo-root .env (or .env.local) as you enable auth/DB.
 See README.md and docs/ for product context.
 EOF

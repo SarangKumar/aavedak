@@ -43,13 +43,11 @@ If you prefer not to use the script:
 # 1. Install JS workspace
 pnpm install
 
-# 2. Web env (see apps/web/README.md → Env)
-cp apps/web/.env.example apps/web/.env.local
-# Optional prod-oriented defaults: cp apps/web/.env.example apps/web/.env
-# .env.local overrides with localhost; .env uses https://aavedak.vercel.app
+# 2. One env for web + API, at the repo root (see docs/env.md)
+cp .env.example .env
+# Optional: .env.local overrides .env (e.g. localhost URLs while .env keeps production URLs)
 
-# 3. API env + venv
-cp apps/api/.env.example apps/api/.env
+# 3. API venv
 cd apps/api
 python3.12 -m venv .venv   # prefer 3.12; setup.sh recreates if < 3.11
 source .venv/bin/activate
@@ -106,17 +104,17 @@ aavedak/
 
 ## Environment files
 
-| App | File(s)                                        | Notes                                                        |
-| --- | ---------------------------------------------- | ------------------------------------------------------------ |
-| Web | `apps/web/.env.local` (preferred), then `.env` | Copy from `apps/web/.env.example`. **Never commit secrets.** |
-| API | `apps/api/.env`                                | Copy from `apps/api/.env.example`.                           |
+| Scope      | File(s)                                         | Notes                                                                       |
+| ---------- | ----------------------------------------------- | --------------------------------------------------------------------------- |
+| Web + API  | repo-root `.env`, then `.env.local` (overrides) | Copy from root `.env.example`. **Never commit secrets.** See `docs/env.md`. |
+| Production | Vercel project env vars                         | One set for the whole project reaches both Next and FastAPI functions.      |
 
 **Local scaffold**
 
 - Auth: **Better Auth** (session framework on Neon) + **Google OAuth** (only sign-in provider). Keys: `BETTER_AUTH_*`, `GOOGLE_CLIENT_*`, `DATABASE_URL` — see Auth section / `apps/web/README.md`.
 - API starts with an empty `DATABASE_URL`; DB-backed features won’t work until you set it. `CRON_SECRET` is optional for cron stubs.
 
-Generators and scripts must read the **app-specific** env file — never mix web and API keys.
+Scripts read the repo-root `.env.local` / `.env` (real environment variables win).
 
 ## Auth (web)
 
@@ -124,7 +122,7 @@ Generators and scripts must read the **app-specific** env file — never mix web
 
 1. Create a Google OAuth Web client; redirect URI:
    `http://localhost:3000/api/auth/callback/google`
-2. Set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` in `apps/web/.env.local`.
+2. Set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` in the repo-root `.env` (or `.env.local`).
 3. `pnpm --filter web dev` → `/sign-in`
 
 Without Google keys the app still builds; `/sign-in` shows setup help. Details: `apps/web/README.md`.

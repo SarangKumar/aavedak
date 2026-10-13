@@ -15,6 +15,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@google-cloud/storage": "^8.2.0",
     "@neondatabase/serverless": "^1.2.0",
+    "@next/env": "15.5.27",
     "@reduxjs/toolkit": "^2.13.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",

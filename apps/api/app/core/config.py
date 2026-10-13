@@ -1,8 +1,16 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# One env for the whole monorepo: the repo-root .env, then .env.local (later wins). Real
+# environment variables (Vercel project env, shell) always take precedence over the files,
+# and missing files are ignored, so production relies on process env only.
+REPO_ROOT = Path(__file__).resolve().parents[4]
+ENV_FILES = (REPO_ROOT / ".env", REPO_ROOT / ".env.local")
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILES, env_file_encoding="utf-8", extra="ignore")
 
     log_level: str = "INFO"
     cron_secret: str = ""

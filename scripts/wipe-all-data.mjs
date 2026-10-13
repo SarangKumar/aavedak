@@ -40,8 +40,9 @@ function loadEnvFile(path) {
   }
 }
 
-loadEnvFile(resolve(webRoot, ".env"));
-loadEnvFile(resolve(webRoot, ".env.local"));
+// Repo-root env (shared by web + API); first file wins, so .env.local overrides .env.
+loadEnvFile(resolve(webRoot, "../../.env.local"));
+loadEnvFile(resolve(webRoot, "../../.env"));
 
 function normalizePrivateKey(raw) {
   let s = raw.trim();

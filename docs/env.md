@@ -1,10 +1,44 @@
 # Environment variables
 
-Env files carry no comments; this page documents them. Templates: `apps/web/.env.example` and
-`apps/api/.env.example` (committed). Real values go in `apps/web/.env` / `.env.local` and
-`apps/api/.env` (git-ignored). On Vercel, both services share one project environment.
+## Layout (one env for web + API)
 
-## Web (`apps/web`)
+| Where           | File                                                           | Committed        |
+| --------------- | -------------------------------------------------------------- | ---------------- |
+| Template        | repo-root `.env.example`                                       | yes              |
+| Local values    | repo-root `.env`                                               | no (git-ignored) |
+| Local overrides | repo-root `.env.local` (wins over `.env`, e.g. localhost URLs) | no               |
+| Production      | Vercel project env vars (one set for the project)              | —                |
+
+- **Next** (`apps/web`) loads the root files with `loadEnvConfig` at the top of `next.config.ts`
+  (it would otherwise only read `apps/web/.env*`).
+- **FastAPI** (`apps/api`) loads them through pydantic `env_file=ENV_FILES`
+  (`app/core/config.py`: root `.env`, then `.env.local`).
+- In both, **real environment variables win** over the files, and missing files are ignored,
+  so production uses only process env. A variable exported in your shell (even empty) also
+  shadows the file value.
+- Per-app `apps/web/.env*` and `apps/api/.env` are no longer read; `pnpm setup` warns if
+  they exist. Env files carry no comments; this page documents them.
+
+## One Vercel project for both runtimes
+
+`vercel.json` deploys `apps/web` (Next.js) and `apps/api` (FastAPI, `main:app`) as Vercel
+**services** of one project, with `/svc/*` rewritten to the API and everything else to web.
+Project env vars are injected into every function of the project, Python included, so one
+set reaches both. Caveats:
+
+- `NEXT_PUBLIC_*` are inlined into the browser bundle **at build time**: change one, then
+  redeploy. Never put secrets in them.
+- Vercel limits all environment variables of a deployment to **64 KB in total** (Edge: 5 KB
+  per variable). Every function, Node and Python alike, gets
+  every project variable, so keep large blobs (e.g. `GCS_PRIVATE_KEY`, ~1.7 KB) to a minimum
+  and prefer one of `GCS_PRIVATE_KEY` or `GCS_CREDENTIALS_JSON`, not both.
+- `GCS_PRIVATE_KEY`: store it on one line with literal `\n` escapes (the code converts
+  them); in the Vercel UI paste it as-is (real newlines are fine there).
+- Scope variables per environment (Production / Preview / Development) in Vercel;
+  `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `PUBLIC_BASE_URL` differ per environment.
+- `vercel env pull` writes a `.env.local`; run it at the repo root so both apps see it.
+
+## Web keys (`apps/web`)
 
 | Variable                                                  | Required    | Notes                                                                                                                                                     |
 | --------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,7 +54,7 @@ Env files carry no comments; this page documents them. Templates: `apps/web/.env
 | `GCS_CREDENTIALS_JSON` / `GOOGLE_APPLICATION_CREDENTIALS` | no          | Alternatives to the three GCS vars (the latter for local ADC only).                                                                                       |
 | `CRON_SECRET`                                             | yes         | Same value as the API's; bearer for crons and web → API admin calls.                                                                                      |
 
-## API (`apps/api`)
+## API keys (`apps/api`)
 
 | Variable                                                                            | Required    | Notes                                                                                                                                                                                |
 | ----------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -37,7 +71,6 @@ Env files carry no comments; this page documents them. Templates: `apps/web/.env
 | `BRAVE_SEARCH_API_KEY`, `SERPAPI_KEY`, `GOOGLE_CSE_KEY` + `GOOGLE_CSE_CX`           | no          | Any one enables the search-API source for people discovery.                                                                                                                          |
 | `HUNTER_API_KEY`, `APOLLO_API_KEY`                                                  | no          | Contact-data providers for people discovery; each skipped when empty.                                                                                                                |
 | `TEST_DATABASE_URL`                                                                 | tests       | Optional Postgres for DB-backed tests (skipped when empty).                                                                                                                          |
-| `R2_*`                                                                              | no          | Present in older env files; not read by the current code.                                                                                                                            |
 
 Tuning (limits, timeouts, batch sizes, user agent, people-discovery budgets) is not env: it is typed in
 `DiscoveryTuning` (`apps/api/app/discovery/config.py`), see docs/jobs-ingest.md.
