@@ -55,12 +55,12 @@ class DiscoveryTuning(BaseModel):
     # Rows per people-import run item.
     people_batch_size: int = Field(100, ge=10, le=1000)
     # People discovery v2 (see DISCOVERY.md): per-run and per-company limits.
-    people_companies_per_run: int = Field(12, ge=1, le=200)
-    people_requests_per_company: int = Field(40, ge=5, le=200)
+    people_companies_per_run: int = Field(25, ge=1, le=200)
+    people_requests_per_company: int = Field(60, ge=5, le=200)
     people_host_delay_seconds: float = Field(1.0, ge=0, le=10)
     people_refresh_days: int = Field(14, ge=1, le=180)
-    people_site_pages: int = Field(5, ge=1, le=12)
-    people_github_members: int = Field(12, ge=0, le=50)
+    people_site_pages: int = Field(8, ge=1, le=12)
+    people_github_members: int = Field(30, ge=0, le=50)
     people_search_results: int = Field(15, ge=0, le=50)
     # Google Custom Search JSON API: 100 queries/day free, then billed. Hard cap per Pacific day
     # (Google's reset), shared by all cron slots and manual runs; tracked in external_api_usage.
