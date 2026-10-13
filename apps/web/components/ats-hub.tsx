@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip } from "@/components/ui/tooltip";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -88,18 +88,24 @@ type AtsHubProps = {
   defaultYearsExperience?: number | null;
 };
 
-/** `?` icon that reveals helper text in a Vinyaas tooltip instead of taking a full line. */
+/** `?` icon that reveals helper text in a Vinyaas hover card instead of taking a full line. */
 function FieldHelp({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <Tooltip content={<span className="block max-w-72 text-pretty">{children}</span>}>
-      <button
-        type="button"
-        aria-label={label}
-        className="text-muted-foreground hover:text-foreground inline-flex size-4 cursor-pointer items-center justify-center rounded-full border text-[10px] font-semibold leading-none"
-      >
-        ?
-      </button>
-    </Tooltip>
+    <HoverCard>
+      <HoverCardTrigger>
+        <button
+          type="button"
+          aria-label={label}
+          className="text-muted-foreground hover:text-foreground inline-flex size-4 cursor-pointer items-center justify-center rounded-full border text-[10px] font-semibold leading-none"
+        >
+          ?
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent side="top" className="w-72">
+        <p className="mb-1 text-sm font-medium">{label}</p>
+        <div className="text-muted-foreground text-pretty text-xs">{children}</div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
