@@ -116,6 +116,7 @@ export function DesktopNavMenu() {
       <NavigationMenuList className="flex-none justify-start gap-0.5">
         {directLink("/dashboard", "Dashboard")}
         {directLink("/jobs", "Jobs")}
+        {directLink("/job-tracker", "Tracker")}
 
         <NavigationMenuItem value="documents">
           <NavigationMenuTrigger

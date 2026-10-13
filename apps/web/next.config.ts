@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      { source: "/jobs-tracker", destination: "/job-tracker", permanent: true },
+      { source: "/jobs-tracker/:path*", destination: "/job-tracker/:path*", permanent: true },
       {
         source: "/follow-ups",
         destination: "/outreach",
