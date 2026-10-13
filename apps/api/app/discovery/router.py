@@ -57,9 +57,10 @@ Auth = Depends(require_secret)
 Conn = Depends(db)
 
 
-def _seed_if_empty(conn: psycopg.Connection) -> None:
-    if conn.execute("SELECT 1 FROM company_sources LIMIT 1").fetchone() is None:
-        registry.import_seed(conn)
+def _sync_seed(conn: psycopg.Connection) -> None:
+    """Insert seed companies missing from the registry (idempotent; new seed entries reach an
+    existing database on the next scan)."""
+    registry.import_seed(conn)
 
 
 # --- Cron -------------------------------------------------------------------------------
@@ -74,7 +75,7 @@ def cron_scan(shard: int, conn: psycopg.Connection = Conn) -> dict[str, Any]:
         return {"skipped": "discovery disabled"}
     if not 0 <= shard < settings.discovery_shards:
         raise HTTPException(status_code=400, detail=f"shard must be 0..{settings.discovery_shards - 1}")
-    _seed_if_empty(conn)
+    _sync_seed(conn)
     ids = registry.scheduled_source_ids(
         conn, shard=shard, shard_count=settings.discovery_shards, max_failures=settings.discovery_max_failures
     )
@@ -85,14 +86,16 @@ def cron_scan(shard: int, conn: psycopg.Connection = Conn) -> dict[str, Any]:
         items=[(scan.ITEM_KIND, source_id, {}) for source_id in ids],
         created_by="cron",
     )
-    return {"runId": run["id"], "created": created, "sources": len(ids), "tick": process_tick(conn, settings)}
+    tick = process_tick(conn, settings, budget_seconds=settings.discovery_cron_tick_budget_seconds)
+    return {"runId": run["id"], "created": created, "sources": len(ids), "tick": tick}
 
 
 @router.get("/cron/drain/{slot}", dependencies=[Auth])
 def cron_drain(slot: int, conn: psycopg.Connection = Conn) -> dict[str, Any]:
     """Process leftover/retrying items from any run (scans and people imports). `slot` only
     keeps each scheduled cron path unique in vercel.json."""
-    return {"tick": process_tick(conn, get_settings())}
+    settings = get_settings()
+    return {"tick": process_tick(conn, settings, budget_seconds=settings.discovery_cron_tick_budget_seconds)}
 
 
 @router.get("/cron/people-discovery", dependencies=[Auth])
@@ -241,7 +244,7 @@ def admin_scan_run(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[s
     ).fetchone()
     if open_run and not body.sourceIds:
         return {"runId": open_run["id"], "sources": open_run["total_items"], "resumed": True}
-    _seed_if_empty(conn)
+    _sync_seed(conn)
     ids = body.sourceIds or registry.scheduled_source_ids(
         conn, shard=None, shard_count=settings.discovery_shards, max_failures=settings.discovery_max_failures
     )

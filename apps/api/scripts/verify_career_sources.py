@@ -20,6 +20,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -69,8 +70,14 @@ def token_variants(name: str) -> list[str]:
     return out
 
 
-def check(client: httpx.Client, provider: str, token: str, name: str) -> tuple[int, int] | None:
+KEEP = "india"  # "india": ≥1 India-eligible posting; "live": any board with ≥1 posting
+DELAY = 0.0  # seconds slept before each request (per worker), to stay polite
+
+
+def check(client: httpx.Client, provider: str, token: str, name: str) -> tuple[int, int, int] | None:
     url, params = LIGHT_URLS[provider]
+    if DELAY:
+        time.sleep(DELAY)
     try:
         response = client.get(url.format(t=token), params=params)
     except httpx.HTTPError:
@@ -90,7 +97,23 @@ def check(client: httpx.Client, provider: str, token: str, name: str) -> tuple[i
     engineering = [
         p for p in india if filters.is_engineering_title(p.title) and not filters.is_senior_title(p.title)
     ]
-    return len(india), len(engineering)
+    return len(india), len(engineering), len(postings)
+
+
+def keep(india: int, total: int) -> bool:
+    return india > 0 or (KEEP == "live" and total > 0)
+
+
+def reverify(row: dict, client: httpx.Client) -> dict | None:
+    """Re-check an existing seed row on its own token; None when the board is dead/empty."""
+    if row["provider"] not in LIGHT_URLS:
+        return row  # jsonld / json_feed rows are career pages, not ATS boards
+    result = check(client, row["provider"], row["token"], row["name"])
+    if result is None or not keep(result[0], result[2]):
+        return None
+    india, engineering, total = result
+    return {**row, "verifiedIndiaPostings": india, "verifiedIndiaEngineering": engineering,
+            "verifiedTotalPostings": total}
 
 
 def verify(entry: tuple[str, str], client: httpx.Client) -> list[dict]:
@@ -101,8 +124,8 @@ def verify(entry: tuple[str, str], client: httpx.Client) -> list[dict]:
             result = check(client, provider, token, name)
             if result is None:
                 continue
-            india, engineering = result
-            if india > 0:
+            india, engineering, total = result
+            if keep(india, total):
                 found.append(
                     {
                         "name": name,
@@ -112,6 +135,7 @@ def verify(entry: tuple[str, str], client: httpx.Client) -> list[dict]:
                         "sector": sector,
                         "verifiedIndiaPostings": india,
                         "verifiedIndiaEngineering": engineering,
+                        "verifiedTotalPostings": total,
                     }
                 )
             break  # first token that resolves for this provider wins
@@ -128,7 +152,14 @@ def main() -> None:
         action="store_true",
         help="Skip candidates already in the output file (a fast run that only looks for new boards).",
     )
+    parser.add_argument("--keep", choices=("india", "live"), default="india",
+                        help="india: keep boards with India-eligible postings; live: any live board with postings.")
+    parser.add_argument("--reverify", action="store_true",
+                        help="Re-check existing seed rows too and drop boards that are dead or empty.")
+    parser.add_argument("--delay", type=float, default=0.0, help="Seconds slept before each request per worker.")
     args = parser.parse_args()
+    global KEEP, DELAY
+    KEEP, DELAY = args.keep, args.delay
 
     entries, seen = [], set()
     for line in Path(args.candidates).read_text(encoding="utf-8").splitlines():
@@ -142,13 +173,21 @@ def main() -> None:
 
     out_path = Path(args.out)
     existing = json.loads(out_path.read_text(encoding="utf-8")) if out_path.exists() else []
+    headers = {"User-Agent": "AavedakSeedVerifier/1.0", "Accept": "application/json"}
+    rejected = 0
+    if args.reverify and existing:
+        with httpx.Client(timeout=httpx.Timeout(60, connect=15), headers=headers, follow_redirects=True) as client:
+            with ThreadPoolExecutor(max_workers=args.workers) as pool:
+                checked = list(pool.map(lambda r: reverify(r, client), existing))
+        rejected = sum(1 for r in checked if r is None)
+        print(f"re-verified {len(existing)} existing rows, dropped {rejected}", flush=True)
+        existing = [r for r in checked if r is not None]
     by_key = {(e["provider"], e["token"].lower()): e for e in existing}
     if args.skip_known:
         known = {e["name"].lower() for e in existing}
         entries = [e for e in entries if e[0].lower() not in known]
         print(f"{len(entries)} candidates not in {out_path.name} yet", flush=True)
 
-    headers = {"User-Agent": "AavedakSeedVerifier/1.0", "Accept": "application/json"}
     with httpx.Client(timeout=httpx.Timeout(60, connect=15), headers=headers, follow_redirects=True) as client:
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
             for index, found in enumerate(pool.map(lambda e: verify(e, client), entries)):
@@ -157,7 +196,15 @@ def main() -> None:
                 if index % 50 == 0:
                     print(f"{index}/{len(entries)} checked, {len(by_key)} boards", flush=True)
 
-    merged = sorted(by_key.values(), key=lambda r: (r["name"].lower(), r["provider"]))
+    # One board per company name: prefer the board with the most India-eligible postings.
+    by_name: dict[str, dict] = {}
+    for row in by_key.values():
+        key = re.sub(r"[^a-z0-9]", "", row["name"].lower())
+        best = by_name.get(key)
+        if best is None or (row.get("verifiedIndiaPostings", 0), row.get("verifiedTotalPostings", 0)) > (
+            best.get("verifiedIndiaPostings", 0), best.get("verifiedTotalPostings", 0)):
+            by_name[key] = row
+    merged = sorted(by_name.values(), key=lambda r: (r["name"].lower(), r["provider"]))
     out_path.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"wrote {len(merged)} boards to {out_path}")
 

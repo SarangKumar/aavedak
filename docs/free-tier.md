@@ -4,13 +4,13 @@ Checked against the providers' docs on 2026-10-13. Limits change: re-check befor
 
 ## Vercel (Hobby)
 
-| Limit                           | Hobby                                                                                    | This app                                                                                                             |
-| ------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Function max duration           | 300 s (default and max, Fluid compute)                                                   | Web routes set `maxDuration = 60`; a discovery tick stops claiming work after `discovery_tick_budget_seconds` (45 s) |
-| Cron jobs                       | 100 per project, **each at most once per day**; fires anywhere within the scheduled hour | 25 daily crons in `vercel.json` (people discovery = six separate daily entries `?slot=0..5`)                         |
-| Function invocations            | 1M / month                                                                               | ~25 cron calls/day plus traffic                                                                                      |
-| Active CPU / provisioned memory | 4 CPU-h, 360 GB-h / month                                                                | Ticks are I/O-bound (network waits are not active CPU)                                                               |
-| Env vars                        | 64 KB total per deployment                                                               | See docs/env.md                                                                                                      |
+| Limit                           | Hobby                                                                                    | This app                                                                                                                                                                            |
+| ------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Function max duration           | 300 s (default and max, Fluid compute)                                                   | Web routes set `maxDuration = 60`; proxied discovery ticks use `discovery_tick_budget_seconds` (45 s); the direct scan/drain crons use `discovery_cron_tick_budget_seconds` (240 s) |
+| Cron jobs                       | 100 per project, **each at most once per day**; fires anywhere within the scheduled hour | 25 daily crons in `vercel.json` (people discovery = six separate daily entries `?slot=0..5`)                                                                                        |
+| Function invocations            | 1M / month                                                                               | ~25 cron calls/day plus traffic                                                                                                                                                     |
+| Active CPU / provisioned memory | 4 CPU-h, 360 GB-h / month                                                                | Ticks are I/O-bound (network waits are not active CPU)                                                                                                                              |
+| Env vars                        | 64 KB total per deployment                                                               | See docs/env.md                                                                                                                                                                     |
 
 Hobby cannot buy extra usage: going over pauses the project until the next cycle; **no charges**.
 

@@ -362,6 +362,23 @@ def test_seed_import_is_batched_and_idempotent(conn):
     assert again == {"added": 0, "existing": seed_size}
 
 
+def test_seed_import_skips_company_already_present_under_another_board(conn):
+    row = registry.load_seed()[0]
+    conn.execute(
+        """INSERT INTO company_sources (id, company_name, provider, token, careers_url, origin,
+             enabled, shard_seed, created_at, updated_at)
+           VALUES ('cs_admin', %s, 'lever', 'admin-token', 'https://jobs.lever.co/admin-token',
+                   'admin', 1, 1, '2026-01-01', '2026-01-01')""",
+        (row["name"].upper() + "!",),
+    )
+    registry.import_seed(conn)
+    same_name = conn.execute(
+        "SELECT COUNT(*) AS n FROM company_sources WHERE provider = %s AND token = %s",
+        (row["provider"], row["token"]),
+    ).fetchone()["n"]
+    assert same_name == 0
+
+
 def test_manual_scan_resumes_instead_of_duplicating(conn):
     from app.discovery import router
 

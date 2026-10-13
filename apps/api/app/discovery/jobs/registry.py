@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -68,35 +69,60 @@ def _insert(
     return bool(cur.rowcount)
 
 
+def _name_key(name: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
 def import_seed(conn: psycopg.Connection) -> dict[str, int]:
-    """Idempotent: existing rows (and admin edits to them) are left untouched, except that a
-    seed `officialCareersUrl` fills an official careers page that is still empty. One
-    batched statement (pipeline) instead of a round trip per row — the API region may be far
-    from the database."""
+    """Idempotent sync of the seed into `company_sources`, safe to run on every scan cron so
+    entries added to the seed reach an existing database. A seed row is skipped when its
+    (provider, token) or its company name (case/punctuation-insensitive) is already present;
+    existing rows (and admin edits) are left untouched, except that a seed
+    `officialCareersUrl` fills an official careers page that is still empty. One batched
+    statement (pipeline) instead of a round trip per row."""
     seed = load_seed()
-    before = conn.execute("SELECT COUNT(*) AS n FROM company_sources").fetchone()["n"]
+    existing = conn.execute("SELECT provider, token, company_name FROM company_sources").fetchall()
+    keys = {(r["provider"], r["token"].lower()) for r in existing}
+    names = {_name_key(r["company_name"]) for r in existing}
+    fresh, fill_official = [], []
+    for row in seed:
+        key = (row["provider"], row["token"].lower())
+        if key in keys:
+            if row.get("officialCareersUrl"):
+                fill_official.append(row)
+            continue
+        if _name_key(row["name"]) in names:
+            continue
+        keys.add(key)
+        names.add(_name_key(row["name"]))
+        fresh.append(row)
     now = now_iso()
     with conn.transaction(), conn.cursor() as cur:
-        cur.executemany(
-            """INSERT INTO company_sources
-                 (id, company_name, provider, token, careers_url, sector, origin, enabled,
-                  shard_seed, created_at, updated_at, official_careers_url,
-                  official_careers_origin)
-               VALUES (%s, %s, %s, %s, %s, %s, 'seed', 1, %s, %s, %s, %s,
-                       CASE WHEN %s::text IS NULL THEN NULL ELSE 'seed' END)
-               ON CONFLICT (provider, token) DO UPDATE SET
-                 official_careers_url = EXCLUDED.official_careers_url,
-                 official_careers_origin = 'seed'
-               WHERE company_sources.official_careers_url IS NULL
-                 AND EXCLUDED.official_careers_url IS NOT NULL""",
-            [
-                (new_id(), row["name"][:200], row["provider"], row["token"], row["careersUrl"],
-                 row.get("sector"), shard_seed(row["provider"], row["token"]), now, now,
-                 row.get("officialCareersUrl"), row.get("officialCareersUrl"))
-                for row in seed
-            ],
-        )
-    added = conn.execute("SELECT COUNT(*) AS n FROM company_sources").fetchone()["n"] - before
+        if fresh:
+            cur.executemany(
+                """INSERT INTO company_sources
+                     (id, company_name, provider, token, careers_url, sector, origin, enabled,
+                      shard_seed, created_at, updated_at, official_careers_url,
+                      official_careers_origin)
+                   VALUES (%s, %s, %s, %s, %s, %s, 'seed', 1, %s, %s, %s, %s,
+                           CASE WHEN %s::text IS NULL THEN NULL ELSE 'seed' END)
+                   ON CONFLICT (provider, token) DO NOTHING""",
+                [
+                    (new_id(), row["name"][:200], row["provider"], row["token"], row["careersUrl"],
+                     row.get("sector"), shard_seed(row["provider"], row["token"]), now, now,
+                     row.get("officialCareersUrl"), row.get("officialCareersUrl"))
+                    for row in fresh
+                ],
+            )
+        if fill_official:
+            cur.executemany(
+                """UPDATE company_sources SET official_careers_url = %s,
+                     official_careers_origin = 'seed'
+                   WHERE provider = %s AND lower(token) = lower(%s)
+                     AND official_careers_url IS NULL""",
+                [(row["officialCareersUrl"], row["provider"], row["token"]) for row in fill_official],
+            )
+    added = len(fresh)
     return {"added": added, "existing": len(seed) - added}
 
 

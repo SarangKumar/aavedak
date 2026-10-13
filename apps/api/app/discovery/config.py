@@ -39,9 +39,14 @@ class DiscoveryTuning(BaseModel):
     # Staggered daily scan crons the registry is split across (vercel.json has one per shard).
     discovery_shards: int = Field(6, ge=1, le=24)
     # Company sources fetched in parallel inside one tick.
-    discovery_fetch_concurrency: int = Field(6, ge=1, le=16)
-    # Wall-clock budget for one tick; leftover items wait for the next tick/drain cron.
+    discovery_fetch_concurrency: int = Field(10, ge=1, le=16)
+    # Wall-clock budget for one tick; leftover items wait for the next tick/drain cron. Kept
+    # under the 60 s maxDuration of the web routes that proxy a tick (admin, people cron).
     discovery_tick_budget_seconds: float = Field(45.0, ge=5, le=280)
+    # Budget for the scan/drain crons Vercel calls on the API service directly (300 s max
+    # function duration on Hobby): 6 scan + 7 drain ticks/day x ~215 s of claiming at
+    # concurrency 10 covers a ~1,500-company registry with room for retries.
+    discovery_cron_tick_budget_seconds: float = Field(240.0, ge=5, le=280)
     discovery_lease_seconds: int = Field(180, ge=30, le=900)
     discovery_max_attempts: int = Field(3, ge=1, le=10)
     # Minimum match score for a recommendation when the user has skills/resume text.

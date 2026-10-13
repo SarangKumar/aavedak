@@ -1370,3 +1370,719 @@ Tata Capital|mixed
 Aditya Birla Capital|mixed
 Piramal Finance|mixed
 Poonawalla Fincorp|mixed
+# Added 2026-10-13: remote-friendly product startups and scale-ups (mostly Greenhouse/Lever/Ashby boards).
+Mercury|software
+Watershed|software
+Navan|software
+TripActions|software
+Airwallex|software
+Pleo|software
+Personio|software
+HiBob|software
+Lattice|software
+Culture Amp|software
+Leapsome|software
+Remote.com|software
+Papaya Global|software
+Omnipresent|software
+Pilot|software
+Justworks|software
+Zenefits|software
+BambooHR|software
+Greenhouse|software
+Ashby|software
+Lever|software
+Gem|software
+Hightouch|software
+Census|software
+Snowplow|software
+Statsig|software
+Eppo|software
+GrowthBook|software
+Split|software
+Unleash|software
+Flagsmith|software
+ConfigCat|software
+Honeycomb|software
+Lightstep|software
+Cribl|software
+Observe Inc|software
+Coralogix|software
+Logz.io|software
+Mezmo|software
+Axiom|software
+Better Stack|software
+Checkly|software
+Incident.io|software
+FireHydrant|software
+Rootly|software
+OpsLevel|software
+Cortex|software
+Port|software
+Spacelift|software
+env0|software
+Pulumi|software
+Env0|software
+Render|software
+Railway|software
+Fly.io|software
+Koyeb|software
+Northflank|software
+Porter Run|software
+Zeet|software
+Coder|software
+Gitpod|software
+Codeium|software
+Tabnine|software
+Sourcery|software
+CodeRabbit|software
+Graphite|software
+Warp|software
+Raycast|software
+Zed|software
+Fig|software
+Tuple|software
+Vimeo|software
+Mux|software
+Daily|software
+LiveKit|software
+Agora|software
+100ms|software
+Dyte|software
+Stream|software
+GetStream|software
+Sendbird|software
+Ably|software
+Pusher|software
+Knock|software
+Courier|software
+Novu|software
+Resend|software
+Loops|software
+Customer.io|software
+Klaviyo|software
+Attentive|software
+Postscript|software
+Yotpo|software
+Gorgias|software
+Recharge|software
+Bolt|software
+Fast|software
+Rapyd|software
+Paddle|software
+Lemon Squeezy|software
+Chargify|software
+Maxio|software
+Recurly|software
+Stigg|software
+Orb|software
+Metronome|software
+Lago|software
+Amberflo|software
+Modern Treasury|software
+Unit|software
+Treasury Prime|software
+Synctera|software
+Column|software
+Increase|software
+Lithic|software
+Highnote|software
+Moov|software
+Dwolla|software
+Alloy|software
+Persona|software
+Socure|software
+Sardine|software
+Unit21|software
+Hummingbird|software
+ComplyAdvantage|software
+Chainalysis|software
+TRM Labs|software
+Elliptic|software
+Fireblocks|software
+Anchorage Digital|software
+BitGo|software
+Circle|software
+Ripple|software
+Consensys|software
+Alchemy|software
+Uniswap Labs|software
+OpenSea|software
+Phantom|software
+Solana Labs|software
+Aptos Labs|software
+Mysten Labs|software
+Offchain Labs|software
+Optimism|software
+StarkWare|software
+Matter Labs|software
+Gemini|software
+Bitpanda|software
+Crypto.com|software
+OKX|software
+Bybit|software
+Kucoin|software
+Figure|software
+Carta|software
+Pulley|software
+AngelList|software
+Wealthfront|software
+Betterment|software
+Public|software
+Stash|software
+Acorns|software
+Current|software
+Dave|software
+MoneyLion|software
+Varo|software
+Aspiration|software
+Upgrade|software
+Upstart|software
+LendingClub|software
+Prosper|software
+Avant|software
+Oportun|software
+Petal|software
+Tally App|software
+Earnin|software
+Branch|software
+Even|software
+Payfit|software
+Qonto|software
+Spendesk|software
+Payhawk|software
+Soldo|software
+Yapily|software
+TrueLayer|software
+Tink|software
+GoCardless|software
+Mollie|software
+SumUp|software
+Zilch|software
+Tide|software
+Starling Bank|software
+Curve|software
+Vivid Money|software
+Trade Republic|software
+Scalable Capital|software
+eToro|software
+Plus500|software
+Nubank|software
+Rappi|software
+Kavak|software
+Mercado Libre|software
+dLocal|software
+Clip|software
+Konfio|software
+Ualá|software
+Xendit|software
+Ajaib|software
+Akulaku|software
+Kredivo|software
+Tokopedia|software
+Traveloka|software
+Shopee|software
+Sea|software
+Lazada|software
+Carousell|software
+PropertyGuru|software
+Ninja Van|software
+Carro|software
+Funding Societies|software
+Thunes|software
+Nium|software
+Instarem|software
+Aspire|software
+Endowus|software
+StashAway|software
+Syfe|software
+Glints|software
+Kopi Kenangan|software
+Hepmil|software
+GoTo|software
+Halodoc|software
+Zilingo|software
+Swiggy Tech|software
+Verloop.io|software
+Exotel Techcom|software
+Freshworks Inc|software
+Zluri Tech|software
+Gupshup Inc|software
+Uniphore Software|software
+Mad Street Den Systems|software
+Hasura Technologies|software
+Postman Inc|software
+BrowserStack Inc|software
+InMobi Technologies|software
+Glean Technologies|software
+Clootrack|software
+Haptik AI|software
+Eightfold|software
+Eightfold AI|software
+Gan.ai|software
+Rephrase.ai|software
+Murf|software
+Murf AI|software
+Pixis|software
+Vymo|software
+Mindtickle Inc|software
+Zeta Tech|software
+Fyle|software
+Fynd|software
+Shopflo|software
+Plum HQ|software
+Simpl Tech|software
+Toplyne|software
+Neysa|software
+E2E Networks|software
+Yotta|software
+Ola Cabs|software
+Cleartax|software
+Clear Tax|software
+Zeni|software
+Pilot.com|software
+Digits|software
+Rho|software
+Mesh Payments|software
+Center|software
+Tipalti|software
+Bill.com|software
+BILL|software
+Melio|software
+Routable|software
+Payoneer|software
+Remitly|software
+Wise Payments|software
+WorldRemit|software
+Zepz|software
+Flywire|software
+Paysafe|software
+Nuvei|software
+Shift4|software
+Worldline|software
+Fiserv India|software
+Coursera India|software
+Khan Academy|software
+Brilliant|software
+Codecademy|software
+DataCamp|software
+Pluralsight|software
+Skillsoft|software
+Go1|software
+Docebo|software
+Degreed|software
+360Learning|software
+Articulate|software
+Kahoot|software
+Quizizz|software
+Nearpod|software
+Newsela|software
+ClassDojo|software
+Outschool|software
+Preply|software
+Cambly|software
+Babbel|software
+Busuu|software
+Memrise|software
+Speak|software
+Elsa|software
+Photomath|software
+Socratic|software
+Course Hero|software
+Scribd|software
+Medium|software
+Substack|software
+Patreon|software
+Kajabi|software
+Teachable|software
+Thinkific|software
+Podia|software
+Gumroad|software
+Circle.so|software
+Mighty Networks|software
+Discord Inc|software
+Slack|software
+Zoom|software
+Calendly Inc|software
+Doodle|software
+Cal.com|software
+Clockwise|software
+Reclaim|software
+Motion|software
+Superhuman|software
+Front|software
+Missive|software
+Help Scout|software
+Kustomer|software
+Gladly|software
+Dixa|software
+Ada|software
+Forethought|software
+Ultimate|software
+Kore.ai|software
+Cresta|software
+ASAPP|software
+Level AI|software
+Observe AI|software
+Balto|software
+Dialpad|software
+Aircall|software
+RingCentral|software
+Talkdesk|software
+Five9|software
+Genesys|software
+NICE|software
+Twilio Segment|software
+Heap Analytics|software
+Pendo.io|software
+WalkMe|software
+Appcues|software
+Userpilot|software
+Chameleon|software
+UserTesting|software
+Maze|software
+Dovetail|software
+Productboard|software
+Aha|software
+Canny|software
+Sprig|software
+Qualtrics|software
+SurveyMonkey|software
+Momentive|software
+Typeform|software
+Jotform|software
+Tally Forms|software
+Airtable Inc|software
+Coda Project|software
+Smartsheet Inc|software
+Wrike|software
+Teamwork|software
+Basecamp|software
+37signals|software
+Height|software
+Shortcut|software
+Jira|software
+Plane|software
+Tability|software
+Ally.io|software
+Quantive|software
+Workboard|software
+15Five|software
+Betterworks|software
+Workleap|software
+Officevibe|software
+Glint|software
+Peakon|software
+Workday|software
+SAP|software
+Oracle|software
+UKG|software
+Ceridian|software
+Dayforce|software
+Paylocity|software
+Paycom|software
+Paychex|software
+ADP|software
+Namely|software
+Sequoia One|software
+TriNet|software
+Insperity|software
+Velocity Global|software
+G-P|software
+Globalization Partners|software
+Atlas HXM|software
+Safeguard Global|software
+Boundless|software
+Rippling India|software
+Factorial|software
+Kenjo|software
+Sesame HR|software
+Workable Software|software
+SmartRecruiters Inc|software
+Jobvite|software
+iCIMS|software
+Phenom|software
+Beamery|software
+Paradox|software
+HireVue|software
+Codility|software
+CodeSignal|software
+Karat|software
+Triplebyte|software
+Hired|software
+Wellfound|software
+Otta|software
+Welcome to the Jungle|software
+Dover|software
+Juicebox|software
+Findem|software
+SeekOut|software
+hireEZ|software
+Fetcher|software
+Gem Software|software
+Ashby HQ|software
+Rippling HQ|software
+Retool Inc|software
+Bubble|software
+Glide|software
+Softr|software
+Adalo|software
+Draftbit|software
+FlutterFlow|software
+Xano|software
+Appwrite|software
+Convex|software
+Nhost|software
+PlanetScale|software
+Neon|software
+Turso|software
+Xata|software
+Fauna|software
+Upstash|software
+Momento|software
+Aiven|software
+Timescale|software
+Tiger Data|software
+QuestDB|software
+InfluxData|software
+Materialize|software
+RisingWave|software
+Redpanda|software
+StreamNative|software
+Decodable|software
+Estuary|software
+Striim|software
+Matillion|software
+Rivery|software
+Meltano|software
+Monte Carlo|software
+Bigeye|software
+Anomalo|software
+Soda|software
+Great Expectations|software
+Atlan Technologies|software
+Alation|software
+Collibra|software
+data.world|software
+Select Star|software
+Secoda|software
+MotherDuck|software
+DuckDB Labs|software
+Tobiko|software
+SQLMesh|software
+Lightdash|software
+Preset|software
+Cube|software
+Omni|software
+Hex Technologies|software
+Deepnote|software
+Observable|software
+Count|software
+Equals|software
+Causal|software
+Pigment|software
+Mosaic|software
+Runway Financial|software
+Cube Software|software
+Vareto|software
+Abacum|software
+Jirav|software
+Fathom|software
+Brex India|software
+Ramp Business|software
+Navan Inc|software
+Spotnana|software
+Hopper|software
+Kiwi.com|software
+Skyscanner|software
+GetYourGuide|software
+Klook|software
+Viator|software
+Tripadvisor|software
+Airalo|software
+Holafly|software
+Turo|software
+Getaround|software
+Vacasa|software
+Sonder|software
+Hostaway|software
+Guesty|software
+Mews|software
+Cloudbeds|software
+SiteMinder|software
+Duetto|software
+Lodgify|software
+Hostfully|software
+OwnerRez|software
+Zillow|software
+Redfin|software
+Opendoor|software
+Compass|software
+Offerpad|software
+Divvy Homes|software
+Pacaso|software
+Roofstock|software
+Arrived|software
+Fundrise|software
+Better.com|software
+Rocket Mortgage|software
+Blend|software
+Snapdocs|software
+Qualia|software
+Doma|software
+Bilt|software
+Bilt Rewards|software
+Flex Rent|software
+Esusu|software
+Rhino|software
+TheGuarantors|software
+Lemonade|software
+Root Insurance|software
+Hippo|software
+Kin Insurance|software
+Next Insurance|software
+Coalition|software
+At-Bay|software
+Cowbell|software
+Corvus|software
+Vouch|software
+Newfront|software
+Embroker|software
+Pie Insurance|software
+Clearcover|software
+Openly|software
+Branch Insurance|software
+Oscar Health|software
+Clover Health|software
+Devoted Health|software
+Bright Health|software
+Alignment Healthcare|software
+Ro|software
+Hims & Hers|software
+Hims|software
+Noom|software
+Calm|software
+Headspace|software
+BetterHelp|software
+Talkspace|software
+Spring Health|software
+Lyra Health|software
+Modern Health|software
+Ginger|software
+Cerebral|software
+Done|software
+Teladoc|software
+Amwell|software
+Doctor on Demand|software
+One Medical|software
+Forward|software
+Carbon Health|software
+Cityblock|software
+Oak Street Health|software
+Iora|software
+ChenMed|software
+Zocdoc|software
+Doximity|software
+Hinge Health|software
+Sword Health|software
+Omada|software
+Virta|software
+Livongo|software
+Vida|software
+Color|software
+Invitae|software
+23andMe|software
+GRAIL|software
+Freenome|software
+Guardant|software
+Natera|software
+Illumina|software
+10x Genomics|software
+Ginkgo Bioworks|software
+Zymergen|software
+Asimov|software
+Generate Biomedicines|software
+Isomorphic Labs|software
+Xaira|software
+EvolutionaryScale|software
+Chai Discovery|software
+Inceptive|software
+Cradle|software
+Dyno Therapeutics|software
+Atomwise|software
+Exscientia|software
+BenevolentAI|software
+Owkin|software
+PathAI|software
+Paige|software
+Viz.ai|software
+Aidoc|software
+Rad AI|software
+Nuance|software
+Ambience|software
+Nabla|software
+DeepScribe|software
+Augmedix|software
+Notable|software
+Olive|software
+Infinitus|software
+Cohere Health|software
+Akasa|software
+AKASA|software
+Waystar|software
+Change Healthcare|software
+Availity|software
+Zelis|software
+Collective Health|software
+Garner Health|software
+Included Health|software
+Accolade|software
+Quantum Health|software
+Transcarent|software
+Firefly Health|software
+Ribbon Health|software
+Turquoise Health|software
+Healthie|software
+Canvas Medical|software
+Elation Health|software
+Medplum|software
+Redox|software
+Health Gorilla|software
+Particle Health|software
+Zus Health|software
+Metriport|software
+Datavant|software
+Komodo|software
+Arcadia|software
+Innovaccer Inc|software
+Lightbeam|software
+Signify Health|software
+Vim|software
+Honor|software
+Papa|software
+Cera|software
+Kindbody|software
+Maven Clinic|software
+Carrot Fertility|software
+Progyny|software
+Tia|software
+Elektra Health|software
+Midi Health|software
+Allara|software
+Nurx|software
+Thirty Madison|software
+Curology|software
+Function Health|software
+Levels|software
+Oura|software
+Whoop|software
+Eight Sleep|software
+Tonal|software
+Peloton|software
+Strava|software
+AllTrails|software
+Komoot|software
+Zwift|software
+Future|software
+Ladder|software
+Fitbod|software

@@ -119,7 +119,11 @@ Per company source (one run item):
 ## Runs, ticks, crons (Vercel Hobby)
 
 - A run = items with leases. A tick claims up to `discovery_fetch_concurrency` items,
-  processes them, and repeats until `discovery_tick_budget_seconds` (default 45) is used.
+  processes them, and repeats until its budget is used: `discovery_cron_tick_budget_seconds`
+  (240 s) for the scan/drain crons Vercel calls on the API directly (300 s Hobby limit), and
+  `discovery_tick_budget_seconds` (45 s) for ticks proxied by web routes (`maxDuration = 60`).
+  A tick stops claiming once less than `http_timeout + 5` s remain. With concurrency 10 the
+  6 scan + 7 drain ticks/day cover a ~1,500-company registry with room for retries.
   Failed items retry up to `discovery_max_attempts`; 404 boards / unsupported pages fail
   immediately. A crashed tick's items become claimable when their lease expires.
 - `vercel.json` crons (each once/day, ±59 min on Hobby), all UTC. The repetitive job scan is
@@ -286,15 +290,22 @@ exported admin sources (`"origin": "admin"`, no `verified*` counts).
 
 `scripts/verify_career_sources.py` tries likely board tokens for each candidate (name,
 hyphenated, first word, then name + `careers`/`jobs`/`hq`/`inc`/`india`/`tech`) on each
-public ATS API and keeps boards with at least one current India-eligible posting (Indian
-location or remote open to India). Re-run it to grow or refresh the list; admins can also
+public ATS API. `--keep india` (default) keeps boards with at least one current
+India-eligible posting (Indian location or remote open to India); `--keep live` keeps any live
+board with at least one posting (the scan still stores only India-eligible junior roles).
+`--reverify` re-checks every existing row on its own token and drops dead or empty boards;
+`--delay` throttles each worker. One board per company name is kept (most India postings
+wins). Re-run it to grow or refresh the list; admins can also
 bulk-import career URLs from the Admin page. `--skip-known` re-checks only candidates not
 yet in the file. Admin imports live in the database only until
 `scripts/export_admin_sources.py` (read-only query; `--dry-run` to preview) copies them
 into the registry. It only adds; existing entries are never changed. The web `/how-it-works` page lists the seed
-companies (imported at build time via `apps/web/lib/career-sources.ts`). The seed only auto-loads into an empty
-`company_sources`; on an existing database, new seed boards arrive via the Admin page's
-seed import (`POST /admin/sources/import` with `seed: true`, which inserts missing rows only).
+companies (imported at build time via `apps/web/lib/career-sources.ts`). Every scan cron
+(and the manual scan) syncs the seed first: rows whose (provider, token) or company name
+(case/punctuation-insensitive) is already in `company_sources` are skipped, so new seed
+boards reach an existing database on the next scan without duplicates and admin edits are
+kept. The Admin seed import (`POST /admin/sources/import` with `seed: true`) does the same on
+demand.
 
 ## Tests
 
