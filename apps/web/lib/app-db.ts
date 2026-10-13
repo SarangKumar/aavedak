@@ -337,6 +337,25 @@ async function runSchema() {
   await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS extracted_text TEXT`;
   await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS ats_score INTEGER`;
   await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS ats_inputs TEXT`;
+  // Resume Improver: a saved revision points at the resume it came from (original untouched).
+  await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS source_resume_id TEXT`;
+  await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS origin TEXT NOT NULL DEFAULT 'upload'`;
+  await db`
+    CREATE TABLE IF NOT EXISTS resume_improvements (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      source_resume_id TEXT NOT NULL,
+      result_resume_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      jd_text TEXT NOT NULL DEFAULT '',
+      years_experience REAL,
+      snapshot JSONB NOT NULL,
+      before_scores JSONB NOT NULL,
+      after_scores JSONB NOT NULL,
+      changes JSONB NOT NULL,
+      created_at TEXT NOT NULL
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS resume_improvements_user_idx ON resume_improvements (user_id, created_at DESC)`;
 
   // Friendships (invite link → confirm; accepted pairs for dashboard competition graphs)
   await db`

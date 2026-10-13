@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Better Auth).
 
+### Added
+
+- **Resume Improver** (`/resume-improver`, nav **Resume → Improve**) — pick a resume, enter a job title, optionally paste a JD.
+  - Deterministic rules only (no LLMs, no paid APIs): rewords weak openers ("Responsible for", "Worked on", "I …"), weak verbs and wrong tense in past roles; groups skills by category ordered by relevance; reorders bullets within a job and sections for the role (hand-written guidance for the 7 roles + a generic fallback).
+  - Fact guard: a change is dropped if it would add or alter a number, date, email/URL/phone, skill or named entity. Missing requirements are listed as gaps, never written in.
+  - Before/after scores from every applicable engine plus the Final weighted score, with one identical request (role, years, JD, mode, engine version) for both; deltas shown as computed, including drops.
+  - Accept/reject each change; toggling re-scores with the same request.
+  - Download a plain single-column PDF or DOCX, or save it as a new **inactive** resume linked to the original (`resumes.source_resume_id`, `origin = 'improver'`, plus a `resume_improvements` record with the scores). The original is untouched.
+- **Navigation** — the top-level **ATS** link is now a **Resume** menu with **Score** (`/ats`) and **Improve**; same in the mobile nav and Cmd+K. The `/ats` page title is "Resume score".
+
 ### Fixed
 
 - **People table** — Rebuilt on the Vinyaas DataTable.
