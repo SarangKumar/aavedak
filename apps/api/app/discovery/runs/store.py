@@ -8,15 +8,18 @@ up to `discovery_max_attempts`; a failed item never fails the whole run.
 
 from __future__ import annotations
 
+import calendar
 import json
 from collections import Counter
 from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import psycopg
 
 from app.discovery.db import new_id
-from app.discovery.timeutil import iso_minus, iso_plus, now_iso
+from app.discovery.timeutil import iso_plus, now_iso
 
 OPEN_STATUSES = ("pending", "running")
 
@@ -222,14 +225,34 @@ def list_runs(conn: psycopg.Connection, *, limit: int = 20) -> list[dict[str, An
     return [_run_dto(r, totals.get(r["id"])) for r in runs]
 
 
-def run_history(conn: psycopg.Connection, *, months: int) -> list[dict[str, Any]]:
-    """How many jobs / people were *discovered* per IST day per kind over the last `months`
-    (≈31-day) window, for the admin activity chart — not how many times the cron ran.
+def history_window(
+    *, months: int | None = None, days: int | None = None, today: date | None = None
+) -> tuple[date, date]:
+    """(first, last) India-time dates for the admin chart: the last `days` days, or the last
+    `months` calendar months, both ending today (IST) and inclusive."""
+    last: date = today or datetime.now(ZoneInfo("Asia/Kolkata")).date()
+    if days:
+        return last - timedelta(days=max(1, days) - 1), last
+    m = max(1, months or 3)
+    year, month = divmod(last.month - 1 - m, 12)
+    year += last.year
+    month += 1
+    day = min(last.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day) + timedelta(days=1), last
+
+
+def run_history(
+    conn: psycopg.Connection, *, months: int | None = None, days: int | None = None
+) -> dict[str, Any]:
+    """How many jobs / people were *discovered* per IST day per kind over the window (see
+    `history_window`), for the admin activity chart — not how many times the cron ran.
+    Returns the window (`from` / `to`, IST dates) and only the non-zero points; the chart
+    zero-fills every other day in the window.
 
     The per-item outcome is in `discovery_run_items.result_json`: a job scan reports
     `inserted` (new canonical jobs), while people discovery / import report `created` (new
     people). created_at is ISO-UTC TEXT, bucketed on India-time days."""
-    cutoff = iso_minus(max(1, months) * 31 * 86_400)
+    first, last = history_window(months=months, days=days)
     rows = conn.execute(
         """SELECT r.kind,
                   to_char((r.created_at::timestamptz AT TIME ZONE 'Asia/Kolkata')::date,
@@ -242,12 +265,18 @@ def run_history(conn: psycopg.Connection, *, months: int) -> list[dict[str, Any]
                   ), 0)::int AS discovered
            FROM discovery_runs r
            JOIN discovery_run_items i ON i.run_id = r.id
-           WHERE r.created_at >= %s AND i.result_json IS NOT NULL
+           WHERE (r.created_at::timestamptz AT TIME ZONE 'Asia/Kolkata')::date
+                   BETWEEN %s AND %s
+             AND i.result_json IS NOT NULL
            GROUP BY r.kind, day
            ORDER BY day""",
-        (cutoff,),
+        (first, last),
     ).fetchall()
-    return [{"kind": r["kind"], "day": r["day"], "count": r["discovered"]} for r in rows]
+    return {
+        "from": first.isoformat(),
+        "to": last.isoformat(),
+        "points": [{"kind": r["kind"], "day": r["day"], "count": r["discovered"]} for r in rows],
+    }
 
 
 def get_run(conn: psycopg.Connection, run_id: str) -> dict[str, Any] | None:

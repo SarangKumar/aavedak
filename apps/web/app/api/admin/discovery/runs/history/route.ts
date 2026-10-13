@@ -7,11 +7,12 @@ import { DiscoveryApiError, discoveryAdmin } from "@/lib/discovery-api";
 export async function GET(request: Request) {
   const auth = await requireApiAdmin();
   if (auth.error) return auth.error;
-  const months = new URL(request.url).searchParams.get("months") ?? "3";
+  const params = new URL(request.url).searchParams;
+  const qs = new URLSearchParams({ months: params.get("months") ?? "3" });
+  const days = params.get("days");
+  if (days) qs.set("days", days);
   try {
-    return NextResponse.json(
-      await discoveryAdmin(`/runs/history?months=${encodeURIComponent(months)}`),
-    );
+    return NextResponse.json(await discoveryAdmin(`/runs/history?${qs.toString()}`));
   } catch (err) {
     const status = err instanceof DiscoveryApiError ? err.status : 500;
     return NextResponse.json(

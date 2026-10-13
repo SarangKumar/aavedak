@@ -708,3 +708,15 @@ def test_jd_boilerplate_is_stripped_with_shared_patterns():
     )
     plain = "Responsibilities\n• Build APIs.\n\nRequirements\n• Python."
     assert jd_clean.strip_boilerplate(plain) == plain
+
+
+def test_run_history_window_is_inclusive_ist_days():
+    from datetime import date
+
+    from app.discovery.runs.store import history_window
+
+    today = date(2026, 10, 13)
+    assert history_window(days=7, today=today) == (date(2026, 10, 7), today)
+    assert history_window(months=1, today=today) == (date(2026, 9, 14), today)
+    assert history_window(months=3, today=today) == (date(2026, 7, 14), today)
+    assert history_window(months=1, today=date(2026, 3, 31)) == (date(2026, 3, 1), date(2026, 3, 31))

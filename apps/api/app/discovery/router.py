@@ -277,10 +277,14 @@ def admin_people_import(body: PeopleImportBody, conn: psycopg.Connection = Conn)
 
 @router.get("/admin/runs/history", dependencies=[Auth])
 def admin_run_history(
-    months: int = Query(3, ge=1, le=24), conn: psycopg.Connection = Conn
+    months: int = Query(3, ge=1, le=24),
+    days: int | None = Query(None, ge=1, le=731),
+    conn: psycopg.Connection = Conn,
 ) -> dict[str, Any]:
-    """Daily run counts per kind (India time) for the admin activity chart."""
-    return {"months": months, "points": runs.run_history(conn, months=months)}
+    """Daily discovered counts per kind (India-time days) for the admin activity chart.
+    `days` (e.g. 7 for one week) wins over `months`."""
+    history = runs.run_history(conn, months=months, days=days)
+    return {"months": months, "days": days, **history}
 
 
 @router.get("/admin/runs/{run_id}", dependencies=[Auth])
