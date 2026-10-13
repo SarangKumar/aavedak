@@ -234,7 +234,7 @@ export function Tooltip({
                 left: point?.left ?? -9999,
               }}
               className={cn(
-                "bg-foreground text-background vinyaas-tooltip-in pointer-events-none z-50 max-w-xs rounded-md px-2 py-1 text-sm",
+                "bg-foreground text-background vinyaas-tooltip-in z-100 pointer-events-none max-w-xs rounded-md px-2 py-1 text-sm",
                 className,
               )}
             >

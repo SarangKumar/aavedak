@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Better Auth).
 
+### Fixed
+
+- **Pickers inside dialogs** — Date pickers, location and company lists, dropdowns, tooltips and hover cards now open on top of dialogs and side drawers (such as Add job and the admin job editor), not behind them. Pressing Escape in an open picker now closes just the picker, not the whole dialog.
+
 ### Added
 
 - **Admin — Jobs** — The admin page has a Jobs section for searching every job by title, company, location, source link or id. You can filter by source and by a posted-date range, and results come in pages of 25. Edit opens a drawer with the same fields as Add job. Delete asks for confirmation and shows how many applications, cover letters and analyses refer to the job. Those keep their own details and history and only lose the link to the job. Saved and hidden states and scores for the job are removed. The posting is still remembered, so discovery won't add it again. Only admins can use these pages and routes.

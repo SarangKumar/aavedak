@@ -536,7 +536,9 @@ export function SelectContent({
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        // Capture + stop so an enclosing dialog/sheet doesn't also close on this Escape.
         event.preventDefault();
+        event.stopPropagation();
         select.setOpen(false);
         return;
       }
@@ -610,11 +612,11 @@ export function SelectContent({
       select.setOpen(false);
     }
 
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, true);
     document.addEventListener("pointerdown", onPointerDown);
 
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown, true);
       document.removeEventListener("pointerdown", onPointerDown);
     };
   }, [select]);
@@ -636,7 +638,7 @@ export function SelectContent({
         minWidth: point?.width,
       }}
       className={cn(
-        "border-border/80 bg-popover text-popover-foreground z-50 flex max-h-[min(20rem,calc(100dvh-2rem))] flex-col overflow-hidden rounded-md border p-0 text-sm shadow-md motion-reduce:transition-none",
+        "border-border/80 bg-popover text-popover-foreground z-100 flex max-h-[min(20rem,calc(100dvh-2rem))] flex-col overflow-hidden rounded-md border p-0 text-sm shadow-md motion-reduce:transition-none",
         className,
       )}
       tabIndex={-1}

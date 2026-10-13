@@ -237,6 +237,8 @@ export function DropdownMenuContent({
 
       if (event.key === "Escape" || event.key === "Tab") {
         event.preventDefault();
+        // Capture + stop so an enclosing dialog/sheet doesn't also close on this Escape.
+        if (event.key === "Escape") event.stopPropagation();
         setOpen(false);
         return;
       }
@@ -280,12 +282,12 @@ export function DropdownMenuContent({
       setOpen(false);
     }
 
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, true);
     document.addEventListener("pointerdown", onPointerDown);
 
     return () => {
       window.clearTimeout(timeout);
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown, true);
       document.removeEventListener("pointerdown", onPointerDown);
     };
   }, [open, setOpen, triggerRef]);
@@ -308,7 +310,7 @@ export function DropdownMenuContent({
         left: point?.left ?? -9999,
       }}
       className={cn(
-        "border-border bg-popover text-popover-foreground z-50 min-w-44 rounded-md border p-1 text-sm shadow-md motion-reduce:transition-none",
+        "border-border bg-popover text-popover-foreground z-100 min-w-44 rounded-md border p-1 text-sm shadow-md motion-reduce:transition-none",
         className,
       )}
     >

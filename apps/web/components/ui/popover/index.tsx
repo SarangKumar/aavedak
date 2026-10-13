@@ -254,7 +254,9 @@ export function PopoverContent({
         return;
       }
 
+      // Capture + stop so an enclosing dialog/sheet doesn't also close on this Escape.
       event.preventDefault();
+      event.stopPropagation();
       setOpen(false);
     }
 
@@ -272,11 +274,11 @@ export function PopoverContent({
       setOpen(false);
     }
 
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, true);
     document.addEventListener("pointerdown", onPointerDown);
 
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown, true);
       document.removeEventListener("pointerdown", onPointerDown);
     };
   }, [open, setOpen, triggerRef]);
@@ -299,7 +301,7 @@ export function PopoverContent({
         left: point?.left ?? -9999,
       }}
       className={cn(
-        "border-border bg-muted text-foreground z-50 max-h-[min(24rem,calc(100dvh-2rem))] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto overflow-x-hidden rounded-md border p-4 text-sm shadow-sm focus-visible:outline-none",
+        "border-border bg-muted text-foreground z-100 max-h-[min(24rem,calc(100dvh-2rem))] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto overflow-x-hidden rounded-md border p-4 text-sm shadow-sm focus-visible:outline-none",
         className,
       )}
     >
