@@ -157,7 +157,7 @@ def discover_company(
     conn: psycopg.Connection, settings: DiscoverySettings, fetcher: Fetcher, company_id: str, company_name: str
 ) -> tuple[dict[str, Any], str | None, str | None]:
     """Collect and merge people for one company. Returns (counts, domain, github org)."""
-    counts: dict[str, Any] = {
+    counts: dict[str, Any] = {"skippedNoEmail": 0,
         "created": 0, "enriched": 0, "unchanged": 0, "ambiguous": 0,
         "site": 0, "github": 0, "search": 0, "hunter": 0, "apollo": 0,
         "emailsPublished": 0, "emailsInferred": 0, "inbox": 0, "pages": 0, "requests": 0, "relevanceLinks": 0,
@@ -258,6 +258,9 @@ def discover_company(
     with conn.transaction():
         person_ids: list[str] = []
         for cand in candidates:
+            if not (cand.email or "").strip():
+                counts["skippedNoEmail"] += 1  # a person without an email is useless for outreach
+                continue
             outcome = upsert_candidate(conn, cand, company_id=company_id, company_name=company_name, domain=domain)
             counts[outcome.action] += 1
             counts["ambiguous"] += int(outcome.ambiguous)

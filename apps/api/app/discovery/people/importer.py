@@ -52,13 +52,16 @@ def process_items(conn: psycopg.Connection, items: list[ClaimedItem]) -> dict[st
     outcomes: dict[str, ItemOutcome] = {}
     company_cache: dict[str, str] = {}
     for item in items:
-        counts = {"created": 0, "enriched": 0, "unchanged": 0, "ambiguous": 0, "relevanceLinks": 0}
+        counts = {"skippedNoEmail": 0, "created": 0, "enriched": 0, "unchanged": 0, "ambiguous": 0, "relevanceLinks": 0}
         try:
             with conn.transaction():
                 touched: list[str] = []
                 source = str(item.payload.get("source") or "admin_import")
                 for raw in item.payload.get("rows", []):
                     row = PersonRow(**{k: raw.get(k) for k in PersonRow.__dataclass_fields__})
+                    if not (row.email or "").strip():
+                        counts["skippedNoEmail"] += 1  # never store people without an email
+                        continue
                     outcome = store.upsert_person(conn, row, source=source, company_cache=company_cache)
                     counts[outcome.action] += 1
                     counts["ambiguous"] += int(outcome.ambiguous)
