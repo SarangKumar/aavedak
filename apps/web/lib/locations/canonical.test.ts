@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 
-import { CANONICAL_LOCATIONS, canonicalLocation, isCanonicalLocation, locationCityKeys } from ".";
+import {
+  CANONICAL_LOCATIONS,
+  LOCATION_ENTRIES,
+  canonicalLocation,
+  isCanonicalLocation,
+  locationCityKeys,
+} from ".";
 
 const cases: Array<[string, string | null]> = [
   ["Bangalore", "Bengaluru, India"],
@@ -16,8 +22,13 @@ const cases: Array<[string, string | null]> = [
   ["remote", "Remote"],
   ["bengaluru, india", "Bengaluru, India"],
   ["London, United Kingdom", "London, United Kingdom"],
-  ["Hyderabad, Pakistan", null],
   ["Bengaluru · Hyderabad", null],
+  ["Hyderabad", "Hyderabad, India"],
+  ["Hyderabad, Sindh, Pakistan", "Hyderabad, Pakistan"],
+  ["São Paulo", "São Paulo, Brazil"],
+  ["Sao Paulo, SP", "São Paulo, Brazil"],
+  ["New York, NY", "New York, United States"],
+  ["Berlin, Germany", "Berlin, Germany"],
   ["India", null],
   ["Magrahat-II, West Bengal, India", null],
   ["", null],
@@ -30,6 +41,11 @@ assert.equal(new Set(CANONICAL_LOCATIONS).size, CANONICAL_LOCATIONS.length);
 assert.ok(isCanonicalLocation("Gurugram, India"));
 assert.ok(!isCanonicalLocation("Gurgaon"));
 assert.deepEqual(locationCityKeys("Bangalore · Gurgaon"), ["bengaluru, india", "gurugram, india"]);
+for (const entry of LOCATION_ENTRIES) {
+  assert.ok(Math.abs(entry.lat) <= 90 && Math.abs(entry.lng) <= 180, entry.name);
+  assert.match(entry.countryCode, /^[A-Z]{2}$/);
+}
+assert.ok(LOCATION_ENTRIES.length > 500);
 console.log("locations tests: ok");
 
 // Stored-data migration helpers (lib/locations/migrate.ts).

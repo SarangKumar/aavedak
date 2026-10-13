@@ -1,25 +1,40 @@
 """Canonical job locations ("City, Country" or "Remote"), shared with the web app.
 
-`canonical_locations.json` is a copy of `apps/web/lib/locations/canonical-locations.json`
-(test_canonical_locations_match_web keeps them equal). Same rules as the web
-`canonicalLocation`: exactly one known city (any alias) → that city; only a remote phrase →
-"Remote"; several cities, unknown places, a bare country, or a city with a different
-country → None.
+Both apps read the one file `data/locations/canonical-locations.json` at the repo root
+(GeoNames-built by `scripts/build-locations.py`). Same rules as the web `canonicalLocation`:
+exactly one known city (any alias) → that city; an alias several cities share resolves to the
+one in a country the text names, else the most populous if at least twice the next; only a
+remote phrase → "Remote"; several cities, unknown places, a bare country, or a city with a
+different country → None. If the file is missing (e.g. a deploy bundle without the repo
+root), nothing is canonicalized and raw text is kept.
 """
 
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
 from functools import lru_cache
 from pathlib import Path
 
-DATA_PATH = Path(__file__).with_name("canonical_locations.json")
+log = logging.getLogger(__name__)
+
+DATA_PATH = Path(__file__).resolve().parents[5] / "data" / "locations" / "canonical-locations.json"
+
+
+def _candidates() -> list[Path]:
+    env = os.environ.get("CANONICAL_LOCATIONS_PATH")
+    return ([Path(env)] if env else []) + [DATA_PATH]
 
 
 @lru_cache(maxsize=1)
 def _data() -> dict:
-    return json.loads(DATA_PATH.read_text(encoding="utf-8"))
+    for path in _candidates():
+        if path.is_file():
+            return json.loads(path.read_text(encoding="utf-8"))
+    log.warning("canonical locations file not found; locations stay as raw text")
+    return {"remote": "Remote", "remoteAliases": [], "countries": {}, "cities": []}
 
 
 def _word(phrase: str) -> re.Pattern[str]:
@@ -27,19 +42,38 @@ def _word(phrase: str) -> re.Pattern[str]:
     return re.compile(rf"(?<![^\W_]){escaped}(?![^\W_])", re.I)
 
 
+def _label(city: dict) -> str:
+    return f"{city['name']}, {city['country']}"
+
+
 @lru_cache(maxsize=1)
 def _patterns():
     data = _data()
-    aliases = sorted(
-        ((alias, city) for city in data["cities"] for alias in city["aliases"]),
-        key=lambda item: -len(item[0]),
-    )
-    cities = [(_word(alias), f"{city['name']}, {city['country']}", city["country"]) for alias, city in aliases]
-    countries = [(country, [_word(a) for a in names]) for country, names in data["countries"].items()]
+    by_alias: dict[str, list[dict]] = {}
+    for city in data["cities"]:
+        for alias in city["aliases"]:
+            group = by_alias.setdefault(alias, [])
+            if city not in group:
+                group.append(city)
+    cities = [
+        (_word(alias), sorted(group, key=lambda c: -c["population"]))
+        for alias, group in sorted(by_alias.items(), key=lambda item: -len(item[0]))
+    ]
+    countries = [(code, [_word(a) for a in names]) for code, names in data["countries"].items()]
     remote = [_word(a) for a in data["remoteAliases"]]
-    canonical = {f"{c['name']}, {c['country']}".lower(): f"{c['name']}, {c['country']}" for c in data["cities"]}
+    canonical = {_label(c).lower(): _label(c) for c in data["cities"]}
     canonical[data["remote"].lower()] = data["remote"]
     return cities, countries, remote, canonical
+
+
+def _resolve(group: list[dict], named: list[str]) -> dict | None:
+    if len(group) == 1:
+        return group[0]
+    in_named = [c for c in group if c["countryCode"] in named]
+    if len(in_named) == 1:
+        return in_named[0]
+    first, second = group[0], group[1]
+    return first if first["population"] >= 2 * second["population"] else None
 
 
 def canonical_location(raw: str | None) -> str | None:
@@ -50,17 +84,22 @@ def canonical_location(raw: str | None) -> str | None:
     if text.lower() in canonical:
         return canonical[text.lower()]
     work = f" {re.sub(r'\((?:hybrid|on-?site|remote)\)', ' ', text.lower())} "
-    found: dict[str, str] = {}
-    for rx, label, country in cities:
+    named = [code for code, rxs in countries if any(r.search(work) for r in rxs)]
+    found: dict[str, dict] = {}
+    for rx, group in cities:
         if rx.search(work):
-            found[label] = country
+            city = _resolve(group, named)
+            if city:
+                found[_label(city)] = city
             work = rx.sub(lambda m: " " * len(m.group(0)), work)
     if len(found) == 1:
-        label, country = next(iter(found.items()))
-        named = [c for c, rxs in countries if any(r.search(work) for r in rxs)]
-        if named and country not in named:
-            return None
-        return label
+        label, city = next(iter(found.items()))
+        return label if not named or city["countryCode"] in named else None
     if found:
         return None
-    return _data()["remote"] if any(r.search(work) for r in remote) else None
+    return remote_or_none(text, remote)
+
+
+def remote_or_none(text: str, remote=None) -> str | None:
+    patterns = remote if remote is not None else _patterns()[2]
+    return _data()["remote"] if any(r.search(text) for r in patterns) else None

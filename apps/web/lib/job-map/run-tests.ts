@@ -19,7 +19,9 @@ function testMatchCities() {
   assert.deepEqual(matchCities("Bengaluru, KA, India"), ["bengaluru"]);
   assert.deepEqual(matchCities("IN-Pune"), ["pune"]);
   assert.deepEqual(matchCities("Bengaluru · Bengaluru, Karnataka, India"), ["bengaluru"]);
-  assert.deepEqual(matchCities("Bengaluru · New Delhi · Mumbai"), ["bengaluru", "mumbai", "delhi"]);
+  assert.deepEqual(matchCities("Bengaluru · New Delhi · Mumbai"), ["mumbai", "delhi", "bengaluru"]);
+  assert.deepEqual(matchCities("London, UK · Berlin"), ["london", "berlin"]);
+  assert.deepEqual(matchCities("Hyderabad, Sindh, Pakistan"), ["hyderabad-pk"]);
   assert.deepEqual(matchCities("India · Hyderabad, Telangana, India"), ["hyderabad"]);
   assert.deepEqual(matchCities("Bangalore, India; Remote, Poland · India"), ["bengaluru"]);
   // "hosur road" is a Bengaluru road, not the town of Hosur.

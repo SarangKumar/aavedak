@@ -1,11 +1,13 @@
 /**
- * Maps the free-text `jobs.location` of open shared jobs to known Indian cities for the
+ * Maps the free-text `jobs.location` of open shared jobs to known cities (the shared canonical locations) for the
  * homepage openings globe. Pure (no DB) so it can be tested with plain node:assert.
  *
  * Location strings come straight from career sources and are messy ("hosur road bangalore,
  * India", "IN-Pune", "Bengaluru, KA, India · Bengaluru"). Only cities in the gazetteer below
  * are plotted; anything else is counted as remote or "elsewhere" rather than guessed.
  */
+
+import { LOCATION_ENTRIES, findCities, isRemoteText } from "@/lib/locations";
 
 /** Open roles sharing one location string (and, optionally, one company). */
 export type JobLocationCount = { location: string; count: number; company?: string | null };
@@ -38,196 +40,36 @@ export type JobMapSummary = {
   companyCount: number;
 };
 
-type CityDef = { id: string; name: string; lat: number; lng: number; aliases: string[] };
+type CityDef = { id: string; name: string; lat: number; lng: number };
 
-// Aliases are matched as whole words on the lowercased string. Neighbourhoods and tech
-// parks that are inside a city map to that city ("hosur road" is in Bengaluru, while the
-// town of Hosur is listed separately — the longer alias is matched first).
-const CITIES: CityDef[] = [
-  {
-    id: "bengaluru",
-    name: "Bengaluru",
-    lat: 12.9716,
-    lng: 77.5946,
-    aliases: [
-      "bengaluru",
-      "bangalore",
-      "banglore",
-      "bengalore",
-      "whitefield",
-      "electronic city",
-      "manyata",
-      "hosur road",
-    ],
-  },
-  { id: "hosur", name: "Hosur", lat: 12.7409, lng: 77.8253, aliases: ["hosur"] },
-  { id: "mysuru", name: "Mysuru", lat: 12.2958, lng: 76.6394, aliases: ["mysuru", "mysore"] },
-  {
-    id: "mangaluru",
-    name: "Mangaluru",
-    lat: 12.9141,
-    lng: 74.856,
-    aliases: ["mangaluru", "mangalore"],
-  },
-  { id: "manipal", name: "Manipal", lat: 13.3525, lng: 74.7928, aliases: ["manipal"] },
-  {
-    id: "hyderabad",
-    name: "Hyderabad",
-    lat: 17.385,
-    lng: 78.4867,
-    aliases: ["hyderabad", "hyderbad", "secunderabad"],
-  },
-  {
-    id: "chennai",
-    name: "Chennai",
-    lat: 13.0827,
-    lng: 80.2707,
-    aliases: ["chennai", "madras", "chenai"],
-  },
-  { id: "coimbatore", name: "Coimbatore", lat: 11.0168, lng: 76.9558, aliases: ["coimbatore"] },
-  { id: "madurai", name: "Madurai", lat: 9.9252, lng: 78.1198, aliases: ["madurai"] },
-  {
-    id: "tiruchirappalli",
-    name: "Tiruchirappalli",
-    lat: 10.7905,
-    lng: 78.7047,
-    aliases: ["tiruchirappalli", "trichy"],
-  },
-  {
-    id: "puducherry",
-    name: "Puducherry",
-    lat: 11.9416,
-    lng: 79.8083,
-    aliases: ["puducherry", "pondicherry"],
-  },
-  {
-    id: "kochi",
-    name: "Kochi",
-    lat: 9.9312,
-    lng: 76.2673,
-    aliases: ["kochi", "cochin", "infopark"],
-  },
-  {
-    id: "thiruvananthapuram",
-    name: "Thiruvananthapuram",
-    lat: 8.5241,
-    lng: 76.9366,
-    aliases: ["thiruvananthapuram", "trivandrum", "technopark"],
-  },
-  {
-    id: "mumbai",
-    name: "Mumbai",
-    lat: 19.076,
-    lng: 72.8777,
-    aliases: ["mumbai", "bombay", "navi mumbai", "powai", "vikhroli", "airoli"],
-  },
-  { id: "thane", name: "Thane", lat: 19.2183, lng: 72.9781, aliases: ["thane"] },
-  {
-    id: "pune",
-    name: "Pune",
-    lat: 18.5204,
-    lng: 73.8567,
-    aliases: ["pune", "hinjewadi", "hinjawadi", "magarpatta", "kharadi", "pimpri", "chinchwad"],
-  },
-  { id: "nashik", name: "Nashik", lat: 19.9975, lng: 73.7898, aliases: ["nashik"] },
-  { id: "nagpur", name: "Nagpur", lat: 21.1458, lng: 79.0882, aliases: ["nagpur"] },
-  { id: "goa", name: "Goa", lat: 15.4909, lng: 73.8278, aliases: ["goa", "panaji"] },
-  { id: "ahmedabad", name: "Ahmedabad", lat: 23.0225, lng: 72.5714, aliases: ["ahmedabad"] },
-  {
-    id: "gandhinagar",
-    name: "Gandhinagar",
-    lat: 23.2156,
-    lng: 72.6369,
-    aliases: ["gandhinagar", "gift city"],
-  },
-  { id: "vadodara", name: "Vadodara", lat: 22.3072, lng: 73.1812, aliases: ["vadodara", "baroda"] },
-  { id: "surat", name: "Surat", lat: 21.1702, lng: 72.8311, aliases: ["surat"] },
-  { id: "jaipur", name: "Jaipur", lat: 26.9124, lng: 75.7873, aliases: ["jaipur"] },
-  { id: "indore", name: "Indore", lat: 22.7196, lng: 75.8577, aliases: ["indore"] },
-  { id: "bhopal", name: "Bhopal", lat: 23.2599, lng: 77.4126, aliases: ["bhopal"] },
-  {
-    id: "delhi",
-    name: "Delhi",
-    lat: 28.6139,
-    lng: 77.209,
-    aliases: ["delhi", "new delhi", "delhi ncr", "ncr"],
-  },
-  {
-    id: "gurugram",
-    name: "Gurugram",
-    lat: 28.4595,
-    lng: 77.0266,
-    aliases: ["gurugram", "gurgaon", "gurgoan"],
-  },
-  { id: "noida", name: "Noida", lat: 28.5355, lng: 77.391, aliases: ["noida", "greater noida"] },
-  { id: "faridabad", name: "Faridabad", lat: 28.4089, lng: 77.3178, aliases: ["faridabad"] },
-  { id: "ghaziabad", name: "Ghaziabad", lat: 28.6692, lng: 77.4538, aliases: ["ghaziabad"] },
-  { id: "chandigarh", name: "Chandigarh", lat: 30.7333, lng: 76.7794, aliases: ["chandigarh"] },
-  { id: "mohali", name: "Mohali", lat: 30.7046, lng: 76.7179, aliases: ["mohali"] },
-  { id: "dehradun", name: "Dehradun", lat: 30.3165, lng: 78.0322, aliases: ["dehradun"] },
-  { id: "lucknow", name: "Lucknow", lat: 26.8467, lng: 80.9462, aliases: ["lucknow"] },
-  { id: "kanpur", name: "Kanpur", lat: 26.4499, lng: 80.3319, aliases: ["kanpur"] },
-  {
-    id: "shahjahanpur",
-    name: "Shahjahanpur",
-    lat: 27.8826,
-    lng: 79.909,
-    aliases: ["shahjahanpur"],
-  },
-  { id: "patna", name: "Patna", lat: 25.5941, lng: 85.1376, aliases: ["patna"] },
-  { id: "ranchi", name: "Ranchi", lat: 23.3441, lng: 85.3096, aliases: ["ranchi"] },
-  { id: "jamshedpur", name: "Jamshedpur", lat: 22.8046, lng: 86.2029, aliases: ["jamshedpur"] },
-  { id: "kolkata", name: "Kolkata", lat: 22.5726, lng: 88.3639, aliases: ["kolkata", "calcutta"] },
-  {
-    id: "bhubaneswar",
-    name: "Bhubaneswar",
-    lat: 20.2961,
-    lng: 85.8245,
-    aliases: ["bhubaneswar"],
-  },
-  { id: "raipur", name: "Raipur", lat: 21.2514, lng: 81.6296, aliases: ["raipur"] },
-  {
-    id: "visakhapatnam",
-    name: "Visakhapatnam",
-    lat: 17.6868,
-    lng: 83.2185,
-    aliases: ["visakhapatnam", "vizag"],
-  },
-  { id: "vijayawada", name: "Vijayawada", lat: 16.5062, lng: 80.648, aliases: ["vijayawada"] },
-  { id: "guwahati", name: "Guwahati", lat: 26.1445, lng: 91.7362, aliases: ["guwahati"] },
-];
-
-const CITY_BY_ID = new Map(CITIES.map((c) => [c.id, c]));
-
-// Longest alias first, so "hosur road" claims its span before "hosur" can.
-const ALIASES = CITIES.flatMap((city) =>
-  city.aliases.map((alias) => ({ alias, id: city.id })),
-).sort((a, b) => b.alias.length - a.alias.length);
-
-function aliasRegex(alias: string): RegExp {
-  const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+");
-  return new RegExp(`\\b${escaped}\\b`, "g");
+// The gazetteer is the shared canonical locations file (GeoNames coordinates); aliases,
+// neighbourhoods ("hosur road" → Bengaluru) and shared names ("Hyderabad") are resolved
+// by `findCities`. Ids are the city's slug, with the country code added on a name clash.
+function slug(text: string): string {
+  return text
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
-const ALIAS_PATTERNS = ALIASES.map(({ alias, id }) => ({ id, re: aliasRegex(alias) }));
 
-const REMOTE_RE = /\b(?:remote|anywhere|worldwide|work from home|wfh)\b/i;
+const ID_BY_GEONAME = new Map<number, string>();
+const CITY_BY_ID = new Map<string, CityDef>();
+for (const city of [...LOCATION_ENTRIES].sort((x, y) => y.population - x.population)) {
+  let id = slug(city.name);
+  if (CITY_BY_ID.has(id)) id = `${id}-${city.countryCode.toLowerCase()}`;
+  ID_BY_GEONAME.set(city.id, id);
+  CITY_BY_ID.set(id, { id, name: city.name, lat: city.lat, lng: city.lng });
+}
 
-/** City ids mentioned in one location string, in gazetteer order, without duplicates. */
+/** City ids mentioned in one location string, most populous first, without duplicates. */
 export function matchCities(location: string): string[] {
-  let text = ` ${location.toLowerCase()} `;
-  const found = new Set<string>();
-  for (const { id, re } of ALIAS_PATTERNS) {
-    re.lastIndex = 0;
-    if (!re.test(text)) continue;
-    found.add(id);
-    // Blank out the matched span so a shorter alias inside it can't match again.
-    text = text.replace(re, (m) => " ".repeat(m.length));
-  }
-  return CITIES.filter((c) => found.has(c.id)).map((c) => c.id);
+  return findCities(location).map((c) => ID_BY_GEONAME.get(c.id)!);
 }
 
 export function isRemoteLocation(location: string): boolean {
-  return REMOTE_RE.test(location);
+  return isRemoteText(location);
 }
 
 /** Great-circle distance in degrees of arc. */

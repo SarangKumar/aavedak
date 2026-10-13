@@ -648,25 +648,36 @@ def test_successfactors_and_generic_pages():
         assert "python" in other.skills
 
 
-def test_canonical_locations_match_web_and_map_aliases():
+def test_canonical_locations_shared_file_and_aliases():
+    import json
     from pathlib import Path
 
     from app.discovery.jobs import locations
 
-    web = Path(__file__).resolve().parents[2] / "web/lib/locations/canonical-locations.json"
-    if web.exists():
-        import json
-
-        assert json.loads(web.read_text(encoding="utf-8")) == json.loads(
-            locations.DATA_PATH.read_text(encoding="utf-8")
-        )
+    root = Path(__file__).resolve().parents[3]
+    shared = root / "data/locations/canonical-locations.json"
+    assert locations.DATA_PATH == shared
+    # The web module imports the same file (no per-app copies).
+    web_index = (root / "apps/web/lib/locations/index.ts").read_text(encoding="utf-8")
+    assert '"../../../../data/locations/canonical-locations.json"' in web_index
+    assert not list(root.glob("apps/**/canonical[-_]locations.json"))
+    data = json.loads(shared.read_text(encoding="utf-8"))
+    assert locations._data() == data
+    assert len(data["cities"]) > 500
+    for city in data["cities"]:
+        assert -90 <= city["lat"] <= 90 and -180 <= city["lng"] <= 180
+        assert len(city["countryCode"]) == 2
     cases = {
         "Bangalore": "Bengaluru, India",
         "Gurgaon, Haryana, India": "Gurugram, India",
         "Bombay": "Mumbai, India",
         "Pune (Hybrid)": "Pune, India",
         "Remote - India": "Remote",
-        "Hyderabad, Pakistan": None,
+        "Hyderabad": "Hyderabad, India",
+        "Hyderabad, Pakistan": "Hyderabad, Pakistan",
+        "Sao Paulo": "São Paulo, Brazil",
+        "London, UK": "London, United Kingdom",
+        "Bengaluru, Germany": None,
         "Bengaluru · Hyderabad": None,
         "India": None,
     }
