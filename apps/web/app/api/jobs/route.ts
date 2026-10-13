@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/api-session";
 import { toJobDto } from "@/lib/job-dto";
 import { listJobScores, scoreJobForUser } from "@/lib/job-scoring";
+import { parsePostedWindow, postedCutoffIso } from "@/lib/job-posted-window";
 import { createJob, listAppliedJobs, listDiscoverJobs, type JobSource } from "@/lib/jobs";
 
 async function requireUser() {
@@ -11,14 +12,20 @@ async function requireUser() {
   return { user: result.user };
 }
 
-/** Jobs page data: Discover (recommendations + manual jobs) and Applied tabs. */
-export async function GET() {
+/**
+ * Jobs page data: Discover (recommendations + manual jobs) and Applied tabs, limited to
+ * `?posted=24h|3d|1w|2w|1m` (default 24h; never older than a month).
+ */
+export async function GET(request: Request) {
   const authResult = await requireUser();
   if ("error" in authResult) return authResult.error;
   const user = authResult.user;
+  const postedSince = postedCutoffIso(
+    parsePostedWindow(new URL(request.url).searchParams.get("posted")),
+  );
   const [discover, applied, scores] = await Promise.all([
-    listDiscoverJobs(user.id),
-    listAppliedJobs(user.id),
+    listDiscoverJobs(user.id, { postedSince }),
+    listAppliedJobs(user.id, { postedSince }),
     listJobScores(user.id),
   ]);
   const byJob = new Map(scores.map((s) => [s.jobId, s]));

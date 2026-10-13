@@ -4,6 +4,7 @@ import { JobsHub, type JobsSort, type JobsTab } from "@/components/jobs-hub";
 import { requireOnboarded } from "@/lib/app-access";
 import { toJobDto } from "@/lib/job-dto";
 import { listJobScores } from "@/lib/job-scoring";
+import { parsePostedWindow, postedCutoffIso } from "@/lib/job-posted-window";
 import { listAppliedJobs, listDiscoverJobs } from "@/lib/jobs";
 import { locationFilterLabel } from "@/lib/job-map/locations";
 import { getPreferences } from "@/lib/preferences";
@@ -16,6 +17,7 @@ export type JobsSearchParams = Promise<{
   sort?: string | string[];
   location?: string | string[];
   q?: string | string[];
+  posted?: string | string[];
 }>;
 
 function first(value: string | string[] | undefined): string | undefined {
@@ -33,10 +35,12 @@ export async function JobsBoard({
   const { user, profile } = await requireOnboarded();
   const params = await searchParams;
   const listWidth = parseJobsListWidth((await cookies()).get(JOBS_LIST_WIDTH_COOKIE)?.value);
+  const initialPosted = parsePostedWindow(first(params.posted));
+  const postedSince = postedCutoffIso(initialPosted);
   // Scores are written by discovery (FastAPI) and on manual job create — never computed here.
   const [discover, applied, scores, prefs, resumes] = await Promise.all([
-    listDiscoverJobs(user.id),
-    listAppliedJobs(user.id),
+    listDiscoverJobs(user.id, { postedSince }),
+    listAppliedJobs(user.id, { postedSince }),
     listJobScores(user.id),
     getPreferences(user.id),
     listResumes(user.id),
@@ -59,6 +63,7 @@ export async function JobsBoard({
       initialListWidth={listWidth}
       initialTab={initialTab}
       initialSort={initialSort}
+      initialPosted={initialPosted}
       initialJobId={initialJobId}
       initialLocation={initialLocation}
       initialQuery={(first(params.q) ?? "").slice(0, 200)}

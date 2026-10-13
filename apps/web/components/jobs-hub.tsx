@@ -63,6 +63,17 @@ import type { AtsEngineId } from "@/lib/ats-engines/types";
 import { saveAtsPrefill } from "@/lib/ats-prefill";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
 import type { JobDtoBase } from "@/lib/job-dto";
+import { format, parseISO } from "date-fns";
+
+import { Combobox, ComboboxContent, ComboboxItem, ComboboxTrigger } from "@/components/ui/combobox";
+import { DatePicker } from "@/components/ui/date-picker";
+import { CANONICAL_LOCATIONS, canonicalLocation, locationKeywords } from "@/lib/locations";
+import {
+  DEFAULT_POSTED_WINDOW,
+  POSTED_WINDOWS,
+  parsePostedWindow,
+  type PostedWindow,
+} from "@/lib/job-posted-window";
 import { locationFilterKeys, locationFilterLabel, matchCities } from "@/lib/job-map/locations";
 import { cn } from "@/lib/utils";
 import {
@@ -88,6 +99,8 @@ type JobsHubProps = {
   initialListWidth?: number;
   initialTab?: JobsTab;
   initialSort?: JobsSort;
+  /** Posted filter from `?posted=` (server already filtered the initial lists by it). */
+  initialPosted?: PostedWindow;
   initialJobId?: string | null;
   /** Location filter: a city id from lib/job-map/locations, "remote", or "all". */
   initialLocation?: string;
@@ -162,6 +175,7 @@ export function JobsHub({
   initialListWidth = JOBS_LIST_WIDTH_DEFAULT,
   initialTab = "discover",
   initialSort = "newest",
+  initialPosted = DEFAULT_POSTED_WINDOW,
   initialJobId = null,
   initialLocation = "all",
   initialQuery = "",
@@ -183,6 +197,8 @@ export function JobsHub({
   const [locationFilter, setLocationFilter] = useState<string>(initialLocation);
   // Newest posting first by default; the toggle beside the tabs flips it.
   const [postedSort, setPostedSort] = useState<JobsSort>(initialSort);
+  const [postedWindow, setPostedWindow] = useState<PostedWindow>(initialPosted);
+  const [postedLoading, setPostedLoading] = useState(false);
   const [query, setQuery] = useState(initialQuery);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const listPanelRef = useRef<PanelImperativeHandle | null>(null);
@@ -204,6 +220,7 @@ export function JobsHub({
   const typedFields = useRef(new Set<DraftField>());
   const lastFetchedLink = useRef("");
   const fetchInFlight = useRef(false);
+  const [locationHint, setLocationHint] = useState<string | null>(null);
   const [pendingFill, setPendingFill] = useState<{
     values: Partial<Record<DraftField, string>>;
     conflicts: DraftField[];
@@ -301,6 +318,7 @@ export function JobsHub({
       const url = new URL(window.location.href);
       url.searchParams.set("tab", tab);
       url.searchParams.set("sort", postedSort);
+      url.searchParams.set("posted", postedWindow);
       const q = query.trim();
       if (q) url.searchParams.set("q", q);
       else url.searchParams.delete("q");
@@ -312,7 +330,7 @@ export function JobsHub({
     } catch {
       // URL sync is a convenience; the board works without it.
     }
-  }, [tab, postedSort, query, locationFilter, selectedJobId]);
+  }, [tab, postedSort, postedWindow, query, locationFilter, selectedJobId]);
 
   function switchTab(next: string) {
     const value: JobsTab = next === "applied" ? "applied" : "discover";
@@ -350,6 +368,7 @@ export function JobsHub({
     setLinkNotice(null);
     setAddSection(undefined);
     setPendingFill(null);
+    setLocationHint(null);
     typedFields.current.clear();
     lastFetchedLink.current = "";
   }
@@ -457,11 +476,14 @@ export function JobsHub({
             ? (job.source as JobSource)
             : "careers",
         }));
+        // Only a confident canonical match fills Location; otherwise show what the posting said.
+        const canonical = canonicalLocation(job.location);
+        setLocationHint(!canonical && job.location ? job.location : null);
         applyFill(
           {
             title: job.title,
             company: job.company,
-            location: job.location,
+            location: canonical ?? "",
             url: job.applyUrl || job.url || link,
             description: job.description,
             salary: job.salary ?? "",
@@ -543,13 +565,26 @@ export function JobsHub({
   const [refreshProgress, setRefreshProgress] = useState("");
 
   /** Reload both tabs from the server; returns the Discover ids now listed. */
-  async function reloadJobs(): Promise<string[] | null> {
-    const res = await fetch("/api/jobs", { cache: "no-store" });
+  async function reloadJobs(window: PostedWindow = postedWindow): Promise<string[] | null> {
+    const res = await fetch(`/api/jobs?posted=${window}`, { cache: "no-store" });
     if (!res.ok) return null;
     const data = (await res.json()) as { discover: JobDto[]; applied: JobDto[] };
     setDiscover(data.discover);
     setApplied(data.applied);
     return data.discover.map((j) => j.id);
+  }
+
+  /** Posted filter: the server re-filters both tabs; keep the selection if it's still listed. */
+  async function changePostedWindow(next: PostedWindow) {
+    if (next === postedWindow) return;
+    setPostedWindow(next);
+    setPostedLoading(true);
+    try {
+      const ids = await reloadJobs(next);
+      if (ids === null) setError("Could not load jobs for that date range.");
+    } finally {
+      setPostedLoading(false);
+    }
   }
 
   /**
@@ -731,7 +766,7 @@ export function JobsHub({
     }
   }
 
-  const boardQuery = `tab=${tab}&sort=${postedSort}${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}${locationFilter !== "all" ? `&location=${encodeURIComponent(locationFilter)}` : ""}${selected ? `&job=${encodeURIComponent(selected.id)}` : ""}`;
+  const boardQuery = `tab=${tab}&sort=${postedSort}&posted=${postedWindow}${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}${locationFilter !== "all" ? `&location=${encodeURIComponent(locationFilter)}` : ""}${selected ? `&job=${encodeURIComponent(selected.id)}` : ""}`;
 
   const listPane = (
     <>
@@ -881,6 +916,25 @@ export function JobsHub({
             {sourceOptions.map((key) => (
               <SelectItem key={key} value={key} className="text-[12px]">
                 {key} ({sourceCounts[key] ?? 0})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={postedWindow}
+          onValueChange={(v) => void changePostedWindow(parsePostedWindow(v))}
+          disabled={postedLoading}
+        >
+          <SelectTrigger
+            className="h-8 w-36 rounded-md border px-2.5 text-[12px]"
+            aria-label="Filter by posted date"
+          >
+            <SelectValue placeholder="Posted" />
+          </SelectTrigger>
+          <SelectContent className="z-240">
+            {POSTED_WINDOWS.map((w) => (
+              <SelectItem key={w.value} value={w.value} className="text-[12px]">
+                {w.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -1107,11 +1161,38 @@ export function JobsHub({
                       placeholder="e.g. Stripe"
                     />
                   </label>
-                  <Field
-                    label="Location *"
-                    value={draft.location}
-                    onChange={(v) => editDraft("location", v)}
-                  />
+                  <div className="block space-y-1">
+                    <span className="text-foreground text-[12px] font-medium">Location *</span>
+                    <Combobox
+                      value={draft.location || undefined}
+                      onValueChange={(v) => {
+                        setLocationHint(null);
+                        editDraft("location", v ?? "");
+                      }}
+                    >
+                      <ComboboxTrigger
+                        placeholder="Pick a city or Remote"
+                        aria-label="Location"
+                        className="h-9 text-[13px]"
+                      />
+                      <ComboboxContent
+                        className="z-240"
+                        searchPlaceholder="Search cities…"
+                        emptyMessage="No matching location."
+                      >
+                        {CANONICAL_LOCATIONS.map((loc) => (
+                          <ComboboxItem key={loc} value={loc} keywords={locationKeywords(loc)}>
+                            {loc}
+                          </ComboboxItem>
+                        ))}
+                      </ComboboxContent>
+                    </Combobox>
+                    {locationHint ? (
+                      <p className="text-muted-foreground text-[11px]">
+                        The posting says &ldquo;{locationHint}&rdquo;. Pick the closest location.
+                      </p>
+                    ) : null}
+                  </div>
                   <label className="block space-y-1">
                     <span className="text-foreground text-[12px] font-medium">Source</span>
                     <Select
@@ -1169,14 +1250,17 @@ export function JobsHub({
                     value={draft.seniority}
                     onChange={(v) => editDraft("seniority", v)}
                   />
-                  <label className="block space-y-1">
+                  <div className="block space-y-1">
                     <span className="text-foreground text-[12px] font-medium">Posted on</span>
-                    <Input
-                      type="date"
-                      value={draft.postedAt}
-                      onChange={(e) => editDraft("postedAt", e.target.value)}
+                    <DatePicker
+                      value={draft.postedAt ? parseISO(draft.postedAt) : undefined}
+                      onValueChange={(d) => editDraft("postedAt", d ? format(d, "yyyy-MM-dd") : "")}
+                      disabledDates={{ after: new Date() }}
+                      placeholder="Pick a date"
+                      aria-label="Posted on"
+                      className="h-9 w-full text-[13px]"
                     />
-                  </label>
+                  </div>
                   <label className="block space-y-1 md:col-span-2">
                     <span className="text-foreground text-[12px] font-medium">
                       Skills (comma-separated)

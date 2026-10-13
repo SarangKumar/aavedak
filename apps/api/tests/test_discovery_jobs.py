@@ -206,7 +206,9 @@ def test_html_to_text_handles_escaped_greenhouse_html():
 def test_display_location_drops_empty_parts():
     from app.discovery.jobs.normalize import display_location
 
-    assert display_location(["coimbatore, , India", "Coimbatore, India"]) == "coimbatore, India"
+    # Known cities also come out canonical, which merges the two spellings.
+    assert display_location(["coimbatore, , India", "Coimbatore, India"]) == "Coimbatore, India"
+    assert display_location(["Foo Town, , India"]) == "Foo Town, India"
 
 
 def test_dedupe_key_uses_first_location_token():
@@ -644,3 +646,36 @@ def test_successfactors_and_generic_pages():
         assert (other.title, other.company) == ("Data Engineer", "Acme")
         assert "pipelines" in other.description and "Menu" not in other.description
         assert "python" in other.skills
+
+
+def test_canonical_locations_match_web_and_map_aliases():
+    from pathlib import Path
+
+    from app.discovery.jobs import locations
+
+    web = Path(__file__).resolve().parents[2] / "web/lib/locations/canonical-locations.json"
+    if web.exists():
+        import json
+
+        assert json.loads(web.read_text(encoding="utf-8")) == json.loads(
+            locations.DATA_PATH.read_text(encoding="utf-8")
+        )
+    cases = {
+        "Bangalore": "Bengaluru, India",
+        "Gurgaon, Haryana, India": "Gurugram, India",
+        "Bombay": "Mumbai, India",
+        "Pune (Hybrid)": "Pune, India",
+        "Remote - India": "Remote",
+        "Hyderabad, Pakistan": None,
+        "Bengaluru · Hyderabad": None,
+        "India": None,
+    }
+    for raw, want in cases.items():
+        assert locations.canonical_location(raw) == want, raw
+
+
+def test_ingest_display_location_is_canonical():
+    from app.discovery.jobs.normalize import display_location
+
+    assert display_location(["Bangalore, Karnataka, India", "Gurgaon"]) == "Bengaluru, India · Gurugram, India"
+    assert display_location(["Magrahat-II, West Bengal, India"]) == "Magrahat-II, West Bengal, India"

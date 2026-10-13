@@ -417,6 +417,9 @@ export function JobsBoardSkeleton({ listWidth = 360 }: { listWidth?: number }) {
       <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2 sm:flex-nowrap">
         <Skeleton className="h-8 w-full sm:max-w-md" />
         <Skeleton className="h-8 w-56 rounded-md" />
+        {/* Posted and location filters. */}
+        <Skeleton className="h-8 w-36 rounded-md" />
+        <Skeleton className="h-8 w-44 rounded-md" />
         <Skeleton className="h-8 w-28 rounded-md" />
         <Skeleton className="size-8 rounded-md" />
       </Card>

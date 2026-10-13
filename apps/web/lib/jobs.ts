@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 import { ensureCompany } from "@/lib/companies";
+import { canonicalLocation } from "@/lib/locations";
 import { JOB_SOURCES, isJobSource, type JobSource, type JobStatus } from "@/lib/job-constants";
 
 export { JOB_SOURCES, isJobSource, type JobSource, type JobStatus };
@@ -141,6 +142,12 @@ export function mapJobRow(row: Row): JobRecord {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function requireCanonicalLocation(value: unknown): string {
+  const canonical = canonicalLocation(typeof value === "string" ? value : "");
+  if (!canonical) throw new Error("Pick a location from the list (a city or Remote).");
+  return canonical;
 }
 
 function requireText(value: unknown, label: string): string {
@@ -296,8 +303,12 @@ function parseReasons(raw: string | null | undefined): DiscoverJob["reasons"] {
  * the user's own manual jobs that have no application yet. Recommendations accumulate
  * until acted on; expiry/closure removes them.
  */
-export async function listDiscoverJobs(userId: string): Promise<DiscoverJob[]> {
+export async function listDiscoverJobs(
+  userId: string,
+  opts?: { postedSince?: string | null },
+): Promise<DiscoverJob[]> {
   await ensureAppSchema();
+  const postedSince = opts?.postedSince ?? null;
   const rows = (await getSql()`
     SELECT j.*, s.recommended_at, s.score AS recommendation_score, s.reasons_json
     FROM jobs j
@@ -311,6 +322,9 @@ export async function listDiscoverJobs(userId: string): Promise<DiscoverJob[]> {
           AND j.expired_at IS NULL AND j.closed_at IS NULL)
         OR j.user_id = ${userId}
       )
+      -- Posted filter (Jobs page): posting date, else first seen / created.
+      AND (${postedSince}::text IS NULL
+        OR COALESCE(j.posted_at, j.first_seen_at, j.created_at) >= ${postedSince})
     -- Best match first; the newest recommendation breaks ties (and orders un-scored jobs).
     ORDER BY s.score DESC NULLS LAST, COALESCE(s.recommended_at, j.created_at) DESC
   `) as Array<
@@ -333,8 +347,12 @@ export async function listDiscoverJobs(userId: string): Promise<DiscoverJob[]> {
  * application first. Expired shared jobs drop out; the application itself stays in the
  * tracker with its history.
  */
-export async function listAppliedJobs(userId: string): Promise<AppliedJob[]> {
+export async function listAppliedJobs(
+  userId: string,
+  opts?: { postedSince?: string | null },
+): Promise<AppliedJob[]> {
   await ensureAppSchema();
+  const postedSince = opts?.postedSince ?? null;
   const rows = (await getSql()`
     SELECT DISTINCT ON (j.id) j.*, a.id AS app_id, a.status AS app_status, a.updated_at AS app_updated_at
     FROM applications a
@@ -343,6 +361,8 @@ export async function listAppliedJobs(userId: string): Promise<AppliedJob[]> {
       AND a.status != 'archived'
       AND (j.user_id IS NULL OR j.user_id = ${userId})
       AND j.expired_at IS NULL
+      AND (${postedSince}::text IS NULL
+        OR COALESCE(j.posted_at, j.first_seen_at, j.created_at) >= ${postedSince})
     ORDER BY j.id, a.updated_at DESC
   `) as Array<Row & { app_id: string; app_status: string; app_updated_at: string }>;
   return rows
@@ -391,7 +411,11 @@ export async function createJob(
   await ensureAppSchema();
   const title = requireText(input.title, "Title");
   const companyName = requireText(input.company, "Company");
-  const location = requireText(input.location, "Location");
+  // The user's own jobs store a canonical location only (see lib/locations).
+  const location =
+    userId === null
+      ? requireText(input.location, "Location")
+      : requireCanonicalLocation(input.location);
   const source = parseSource(input.source);
   const url = optional(input.url);
   const description = typeof input.description === "string" ? input.description : "";
@@ -461,7 +485,7 @@ export async function updateJob(
     companyId = c.id;
   }
   const location =
-    patch.location !== undefined ? requireText(patch.location, "Location") : existing.location;
+    patch.location !== undefined ? requireCanonicalLocation(patch.location) : existing.location;
   const source = patch.source !== undefined ? parseSource(patch.source) : existing.source;
   const url = patch.url !== undefined ? optional(patch.url) : existing.url;
   const description = patch.description !== undefined ? patch.description : existing.description;

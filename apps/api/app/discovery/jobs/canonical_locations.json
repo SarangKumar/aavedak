@@ -1,0 +1,377 @@
+{
+  "_comment": "Canonical job locations. Source of truth for apps/web (lib/locations) and apps/api (app/discovery/jobs/locations.py, a copy that a test keeps in sync).",
+  "remote": "Remote",
+  "remoteAliases": ["remote", "anywhere", "worldwide", "work from home", "wfh", "fully remote"],
+  "cities": [
+    {
+      "name": "Bengaluru",
+      "country": "India",
+      "aliases": [
+        "bengaluru",
+        "bangalore",
+        "banglore",
+        "bengalore",
+        "whitefield",
+        "electronic city",
+        "manyata",
+        "hosur road",
+        "bengaluru urban",
+        "bangalore urban"
+      ]
+    },
+    {
+      "name": "Hosur",
+      "country": "India",
+      "aliases": ["hosur"]
+    },
+    {
+      "name": "Mysuru",
+      "country": "India",
+      "aliases": ["mysuru", "mysore"]
+    },
+    {
+      "name": "Mangaluru",
+      "country": "India",
+      "aliases": ["mangaluru", "mangalore"]
+    },
+    {
+      "name": "Manipal",
+      "country": "India",
+      "aliases": ["manipal"]
+    },
+    {
+      "name": "Hyderabad",
+      "country": "India",
+      "aliases": ["hyderabad", "hyderbad", "secunderabad"]
+    },
+    {
+      "name": "Chennai",
+      "country": "India",
+      "aliases": ["chennai", "madras", "chenai"]
+    },
+    {
+      "name": "Coimbatore",
+      "country": "India",
+      "aliases": ["coimbatore"]
+    },
+    {
+      "name": "Madurai",
+      "country": "India",
+      "aliases": ["madurai"]
+    },
+    {
+      "name": "Tiruchirappalli",
+      "country": "India",
+      "aliases": ["tiruchirappalli", "trichy"]
+    },
+    {
+      "name": "Puducherry",
+      "country": "India",
+      "aliases": ["puducherry", "pondicherry"]
+    },
+    {
+      "name": "Kochi",
+      "country": "India",
+      "aliases": ["kochi", "cochin", "infopark"]
+    },
+    {
+      "name": "Thiruvananthapuram",
+      "country": "India",
+      "aliases": ["thiruvananthapuram", "trivandrum", "technopark"]
+    },
+    {
+      "name": "Mumbai",
+      "country": "India",
+      "aliases": [
+        "mumbai",
+        "bombay",
+        "navi mumbai",
+        "powai",
+        "vikhroli",
+        "airoli",
+        "greater mumbai",
+        "mumbai metropolitan region"
+      ]
+    },
+    {
+      "name": "Thane",
+      "country": "India",
+      "aliases": ["thane"]
+    },
+    {
+      "name": "Pune",
+      "country": "India",
+      "aliases": ["pune", "hinjewadi", "hinjawadi", "magarpatta", "kharadi", "pimpri", "chinchwad"]
+    },
+    {
+      "name": "Nashik",
+      "country": "India",
+      "aliases": ["nashik"]
+    },
+    {
+      "name": "Nagpur",
+      "country": "India",
+      "aliases": ["nagpur"]
+    },
+    {
+      "name": "Goa",
+      "country": "India",
+      "aliases": ["goa", "panaji"]
+    },
+    {
+      "name": "Ahmedabad",
+      "country": "India",
+      "aliases": ["ahmedabad"]
+    },
+    {
+      "name": "Gandhinagar",
+      "country": "India",
+      "aliases": ["gandhinagar", "gift city"]
+    },
+    {
+      "name": "Vadodara",
+      "country": "India",
+      "aliases": ["vadodara", "baroda"]
+    },
+    {
+      "name": "Surat",
+      "country": "India",
+      "aliases": ["surat"]
+    },
+    {
+      "name": "Jaipur",
+      "country": "India",
+      "aliases": ["jaipur"]
+    },
+    {
+      "name": "Indore",
+      "country": "India",
+      "aliases": ["indore"]
+    },
+    {
+      "name": "Bhopal",
+      "country": "India",
+      "aliases": ["bhopal"]
+    },
+    {
+      "name": "Delhi",
+      "country": "India",
+      "aliases": ["delhi", "new delhi", "delhi ncr", "ncr"]
+    },
+    {
+      "name": "Gurugram",
+      "country": "India",
+      "aliases": ["gurugram", "gurgaon", "gurgoan"]
+    },
+    {
+      "name": "Noida",
+      "country": "India",
+      "aliases": ["noida", "greater noida"]
+    },
+    {
+      "name": "Faridabad",
+      "country": "India",
+      "aliases": ["faridabad"]
+    },
+    {
+      "name": "Ghaziabad",
+      "country": "India",
+      "aliases": ["ghaziabad"]
+    },
+    {
+      "name": "Chandigarh",
+      "country": "India",
+      "aliases": ["chandigarh"]
+    },
+    {
+      "name": "Mohali",
+      "country": "India",
+      "aliases": ["mohali"]
+    },
+    {
+      "name": "Dehradun",
+      "country": "India",
+      "aliases": ["dehradun"]
+    },
+    {
+      "name": "Lucknow",
+      "country": "India",
+      "aliases": ["lucknow"]
+    },
+    {
+      "name": "Kanpur",
+      "country": "India",
+      "aliases": ["kanpur"]
+    },
+    {
+      "name": "Shahjahanpur",
+      "country": "India",
+      "aliases": ["shahjahanpur"]
+    },
+    {
+      "name": "Patna",
+      "country": "India",
+      "aliases": ["patna"]
+    },
+    {
+      "name": "Ranchi",
+      "country": "India",
+      "aliases": ["ranchi"]
+    },
+    {
+      "name": "Jamshedpur",
+      "country": "India",
+      "aliases": ["jamshedpur"]
+    },
+    {
+      "name": "Kolkata",
+      "country": "India",
+      "aliases": ["kolkata", "calcutta"]
+    },
+    {
+      "name": "Bhubaneswar",
+      "country": "India",
+      "aliases": ["bhubaneswar"]
+    },
+    {
+      "name": "Raipur",
+      "country": "India",
+      "aliases": ["raipur"]
+    },
+    {
+      "name": "Visakhapatnam",
+      "country": "India",
+      "aliases": ["visakhapatnam", "vizag"]
+    },
+    {
+      "name": "Vijayawada",
+      "country": "India",
+      "aliases": ["vijayawada"]
+    },
+    {
+      "name": "Guwahati",
+      "country": "India",
+      "aliases": ["guwahati"]
+    },
+    {
+      "name": "Singapore",
+      "country": "Singapore",
+      "aliases": ["singapore"]
+    },
+    {
+      "name": "Dubai",
+      "country": "United Arab Emirates",
+      "aliases": ["dubai"]
+    },
+    {
+      "name": "Abu Dhabi",
+      "country": "United Arab Emirates",
+      "aliases": ["abu dhabi"]
+    },
+    {
+      "name": "London",
+      "country": "United Kingdom",
+      "aliases": ["london"]
+    },
+    {
+      "name": "Dublin",
+      "country": "Ireland",
+      "aliases": ["dublin"]
+    },
+    {
+      "name": "Berlin",
+      "country": "Germany",
+      "aliases": ["berlin"]
+    },
+    {
+      "name": "Munich",
+      "country": "Germany",
+      "aliases": ["munich", "münchen"]
+    },
+    {
+      "name": "Amsterdam",
+      "country": "Netherlands",
+      "aliases": ["amsterdam"]
+    },
+    {
+      "name": "Paris",
+      "country": "France",
+      "aliases": ["paris"]
+    },
+    {
+      "name": "Toronto",
+      "country": "Canada",
+      "aliases": ["toronto"]
+    },
+    {
+      "name": "Vancouver",
+      "country": "Canada",
+      "aliases": ["vancouver"]
+    },
+    {
+      "name": "New York",
+      "country": "United States",
+      "aliases": ["new york", "new york city", "nyc"]
+    },
+    {
+      "name": "San Francisco",
+      "country": "United States",
+      "aliases": ["san francisco", "san francisco bay area"]
+    },
+    {
+      "name": "Seattle",
+      "country": "United States",
+      "aliases": ["seattle"]
+    },
+    {
+      "name": "Austin",
+      "country": "United States",
+      "aliases": ["austin"]
+    },
+    {
+      "name": "Boston",
+      "country": "United States",
+      "aliases": ["boston"]
+    },
+    {
+      "name": "Sydney",
+      "country": "Australia",
+      "aliases": ["sydney"]
+    },
+    {
+      "name": "Melbourne",
+      "country": "Australia",
+      "aliases": ["melbourne"]
+    },
+    {
+      "name": "Tokyo",
+      "country": "Japan",
+      "aliases": ["tokyo"]
+    },
+    {
+      "name": "Kuala Lumpur",
+      "country": "Malaysia",
+      "aliases": ["kuala lumpur"]
+    }
+  ],
+  "countries": {
+    "India": ["india"],
+    "Singapore": ["singapore"],
+    "United Arab Emirates": ["united arab emirates", "uae"],
+    "United Kingdom": ["united kingdom", "uk", "england"],
+    "Ireland": ["ireland"],
+    "Germany": ["germany", "deutschland"],
+    "Netherlands": ["netherlands"],
+    "France": ["france"],
+    "Canada": ["canada"],
+    "United States": ["united states", "usa", "united states of america"],
+    "Australia": ["australia"],
+    "Japan": ["japan"],
+    "Malaysia": ["malaysia"],
+    "Pakistan": ["pakistan"],
+    "Bangladesh": ["bangladesh"],
+    "Sri Lanka": ["sri lanka"],
+    "Nepal": ["nepal"],
+    "Philippines": ["philippines"]
+  }
+}

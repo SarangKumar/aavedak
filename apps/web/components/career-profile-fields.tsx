@@ -9,6 +9,8 @@ import {
   WORK_AUTHORIZATIONS,
   type CareerProfile,
 } from "@/lib/career-profile";
+import { Badge } from "@/components/ui/badge";
+import { Combobox, ComboboxContent, ComboboxItem, ComboboxTrigger } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -18,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CANONICAL_LOCATIONS, locationKeywords } from "@/lib/locations";
 import { cn } from "@/lib/utils";
 
 export type CareerFormState = {
@@ -26,7 +29,8 @@ export type CareerFormState = {
   expectedSalaryMin: string;
   expectedSalaryMax: string;
   salaryCurrency: string;
-  preferredLocations: string;
+  /** Canonical values from lib/locations ("Bengaluru, India", "Remote"). */
+  preferredLocations: string[];
   remotePreference: string;
   workAuthorization: string;
   skills: string;
@@ -42,7 +46,7 @@ export function careerToFormState(career: CareerProfile): CareerFormState {
     expectedSalaryMin: career.expectedSalaryMin != null ? String(career.expectedSalaryMin) : "",
     expectedSalaryMax: career.expectedSalaryMax != null ? String(career.expectedSalaryMax) : "",
     salaryCurrency: career.salaryCurrency || "INR",
-    preferredLocations: career.preferredLocations.join(", "),
+    preferredLocations: [...career.preferredLocations],
     remotePreference: career.remotePreference ?? "",
     workAuthorization: career.workAuthorization ?? "",
     skills: career.skills.join(", "),
@@ -64,10 +68,7 @@ export function formStateToCareerPatch(state: CareerFormState) {
     expectedSalaryMin: minRaw ? Number(minRaw.replace(/[,_\s]/g, "")) : null,
     expectedSalaryMax: maxRaw ? Number(maxRaw.replace(/[,_\s]/g, "")) : null,
     salaryCurrency: (state.salaryCurrency || "INR") as CareerProfile["salaryCurrency"],
-    preferredLocations: state.preferredLocations
-      .split(/[,;\n]/)
-      .map((s) => s.trim())
-      .filter(Boolean),
+    preferredLocations: state.preferredLocations,
     remotePreference: (state.remotePreference || null) as CareerProfile["remotePreference"],
     workAuthorization: (state.workAuthorization || null) as CareerProfile["workAuthorization"],
     skills: state.skills
@@ -248,13 +249,62 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
 
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-locations`}>Preferred locations</Label>
-        <Input
-          id={`${idPrefix}-locations`}
-          value={value.preferredLocations}
-          onChange={(e) => set("preferredLocations", e.target.value)}
-          placeholder="Bengaluru, Remote, Hyderabad"
-          className="h-9 rounded-lg text-[13px]"
-        />
+        {value.preferredLocations.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {value.preferredLocations.map((loc) => (
+              <Badge key={loc} variant="secondary" className="gap-1 text-[12px]">
+                {loc}
+                <button
+                  type="button"
+                  aria-label={`Remove ${loc}`}
+                  className="hover:text-foreground text-muted-foreground -mr-0.5 leading-none"
+                  onClick={() =>
+                    set(
+                      "preferredLocations",
+                      value.preferredLocations.filter((l) => l !== loc),
+                    )
+                  }
+                >
+                  ×
+                </button>
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+        {/* Value stays empty: picking an option adds it to the list above. */}
+        <Combobox
+          value=""
+          onValueChange={(v) => {
+            if (
+              v &&
+              !value.preferredLocations.includes(v) &&
+              value.preferredLocations.length < 12
+            ) {
+              set("preferredLocations", [...value.preferredLocations, v]);
+            }
+          }}
+        >
+          <ComboboxTrigger
+            id={`${idPrefix}-locations`}
+            placeholder={
+              value.preferredLocations.length ? "Add another location" : "Add a city or Remote"
+            }
+            className="h-9 rounded-lg text-[13px]"
+          />
+          <ComboboxContent
+            className="z-[240]"
+            searchPlaceholder="Search cities…"
+            emptyMessage="No matching location."
+          >
+            {CANONICAL_LOCATIONS.filter((loc) => !value.preferredLocations.includes(loc)).map(
+              (loc) => (
+                <ComboboxItem key={loc} value={loc} keywords={locationKeywords(loc)}>
+                  {loc}
+                </ComboboxItem>
+              ),
+            )}
+          </ComboboxContent>
+        </Combobox>
       </div>
 
       <div className={grid}>

@@ -89,8 +89,11 @@ def compatibility_score(job: dict[str, Any], career: Career, resume_text: str) -
     role_hits = [
         r for r in career.preferred_roles if any(p in jd_tokens for p in tokenize(r)) or r.lower() in title.lower()
     ]
+    # Preferences are canonical ("Bengaluru, India"): match on the city part.
     location_hits = [
-        loc for loc in career.preferred_locations if loc.lower() in location.lower() or loc.lower() == "remote"
+        loc
+        for loc in career.preferred_locations
+        if loc.split(",")[0].strip().lower() in location.lower() or loc.lower() == "remote"
     ]
     if career.remote_preference == "remote" and re.search(r"remote", location, re.I):
         location_hits.append("remote")

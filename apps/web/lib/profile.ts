@@ -1,5 +1,6 @@
 import "server-only";
 
+import { canonicalLocationList } from "@/lib/locations";
 import { PROFILE_BIO_MAX } from "@/lib/profile-limits";
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 import {
@@ -102,7 +103,7 @@ function mapCareer(row: ProfileRow): CareerProfile {
     expectedSalaryMin: row.expected_salary_min == null ? null : Number(row.expected_salary_min),
     expectedSalaryMax: row.expected_salary_max == null ? null : Number(row.expected_salary_max),
     salaryCurrency: (row.salary_currency as SalaryCurrency | null) || base.salaryCurrency,
-    preferredLocations: parseStringList(row.preferred_locations_json),
+    preferredLocations: canonicalLocationList(parseStringList(row.preferred_locations_json)),
     remotePreference: (row.remote_preference as RemotePreference | null) ?? null,
     workAuthorization: (row.work_authorization as WorkAuthorization | null) ?? null,
     skills: parseStringList(row.skills_json),

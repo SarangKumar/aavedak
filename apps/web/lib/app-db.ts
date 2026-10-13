@@ -1,5 +1,6 @@
 import "server-only";
 
+import { normalizeStoredLocations } from "@/lib/locations/migrate";
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
 /**
@@ -286,6 +287,8 @@ async function runSchema() {
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS employment_type TEXT`;
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS seniority TEXT`;
   await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS skills_json TEXT NOT NULL DEFAULT '[]'`;
+  // Text a job's location had before it was mapped to a canonical value (lib/locations).
+  await db`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS location_raw TEXT`;
   await db`CREATE UNIQUE INDEX IF NOT EXISTS jobs_feed_external_uidx
     ON jobs (feed_source, external_id) WHERE external_id IS NOT NULL`;
 
@@ -360,6 +363,14 @@ async function runSchema() {
     )`;
 
   await runDiscoverySchema(db);
+
+  // One-off data migrations, each recorded once in app_migrations.
+  await db`
+    CREATE TABLE IF NOT EXISTS app_migrations (
+      id TEXT PRIMARY KEY NOT NULL,
+      applied_at TEXT NOT NULL
+    )`;
+  await normalizeStoredLocations(db);
 }
 
 /**

@@ -1,5 +1,7 @@
 /** YC-style career preferences for onboarding, profile, and future job matching. */
 
+import { canonicalLocationList } from "@/lib/locations";
+
 export const EXPERIENCE_LEVELS = [
   { value: "0-1", label: "0–1 years" },
   { value: "1-3", label: "1–3 years" },
@@ -207,9 +209,10 @@ export function normalizeCareerPatch(input: CareerProfilePatch): CareerProfilePa
   }
 
   if (input.preferredLocations !== undefined) {
-    out.preferredLocations = tagsFromInput(
+    // Canonical values only (see lib/locations); unknown places are dropped.
+    out.preferredLocations = canonicalLocationList(
       Array.isArray(input.preferredLocations)
-        ? input.preferredLocations.join(", ")
+        ? input.preferredLocations.map(String)
         : String(input.preferredLocations),
       12,
     );

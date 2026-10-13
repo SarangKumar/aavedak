@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from app.discovery.jobs.locations import canonical_location
 from app.discovery.jobs import filters, salary
 from app.discovery.jobs.email_extractor import best_application_email
 from app.discovery.jobs.models import NormalizedJob, RawPosting
@@ -40,6 +41,8 @@ def display_location(locations: list[str]) -> str:
     for loc in locations:
         # Drop empty comma parts ("Coimbatore, , India" → "Coimbatore, India").
         loc = ", ".join(p for p in (clean_line(part) for part in str(loc).split(",")) if p)
+        # Known cities get their canonical "City, Country" form (Bangalore → Bengaluru, India).
+        loc = canonical_location(loc) or loc
         if loc and loc.lower() not in (s.lower() for s in seen):
             seen.append(loc)
     return " · ".join(seen[:3])[:MAX_LOCATION] or "India"

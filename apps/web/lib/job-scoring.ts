@@ -1,5 +1,6 @@
 import "server-only";
 
+import { locationCityKeys } from "@/lib/locations";
 import { randomUUID } from "node:crypto";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
@@ -222,9 +223,13 @@ export function computeCompatibilityScore(input: {
     }
   }
 
+  // Preferences are canonical ("Bengaluru, India"); job text may say "Bangalore, Karnataka".
+  const jobCityKeys = locationCityKeys(input.job.location);
   for (const loc of career?.preferredLocations ?? []) {
+    const city = loc.split(",")[0]!.trim().toLowerCase();
     if (
-      input.job.location.toLowerCase().includes(loc.toLowerCase()) ||
+      jobCityKeys.includes(loc.toLowerCase()) ||
+      input.job.location.toLowerCase().includes(city) ||
       loc.toLowerCase() === "remote"
     ) {
       locationHits.push(loc);
