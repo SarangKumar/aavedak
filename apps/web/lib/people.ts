@@ -27,6 +27,16 @@ export type PersonRecord = {
   companyId: string | null;
   /** Normalized `linkedin.com/in/<slug>` when known. */
   linkedin: string | null;
+  /** People discovery: first source that found this person, and confidence (0–100). */
+  discoverySource: string | null;
+  confidence: number | null;
+  seniority: string | null;
+  department: string | null;
+  location: string | null;
+  githubUrl: string | null;
+  /** Best pattern-inferred address (never verified); only when `email` is empty. */
+  inferredEmail: string | null;
+  inferredEmailConfidence: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -44,6 +54,14 @@ type Row = {
   origin?: string | null;
   company_id?: string | null;
   linkedin_url_normalized?: string | null;
+  discovery_source?: string | null;
+  confidence?: number | null;
+  seniority?: string | null;
+  department?: string | null;
+  location?: string | null;
+  github_url?: string | null;
+  inferred_email?: string | null;
+  inferred_email_confidence?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -62,6 +80,14 @@ function mapRow(row: Row): PersonRecord {
     origin: row.origin === "system" ? "system" : "user",
     companyId: row.company_id ?? null,
     linkedin: row.linkedin_url_normalized ?? null,
+    discoverySource: row.discovery_source ?? null,
+    confidence: row.confidence ?? null,
+    seniority: row.seniority ?? null,
+    department: row.department ?? null,
+    location: row.location ?? null,
+    githubUrl: row.github_url ?? null,
+    inferredEmail: row.email ? null : (row.inferred_email ?? null),
+    inferredEmailConfidence: row.email ? null : (row.inferred_email_confidence ?? null),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -111,11 +137,25 @@ export async function listPeople(opts?: { includeArchived?: boolean }): Promise<
   const includeArchived = opts?.includeArchived ?? false;
   const rows = includeArchived
     ? ((await getSql()`
-        SELECT * FROM people ORDER BY updated_at DESC
+        SELECT p.*, ie.value AS inferred_email, ie.confidence AS inferred_email_confidence
+        FROM people p
+        LEFT JOIN LATERAL (
+          SELECT c.value, c.confidence FROM person_contacts c
+          WHERE c.person_id = p.id AND c.kind = 'email' AND c.verification = 'inferred'
+          ORDER BY c.confidence DESC NULLS LAST LIMIT 1
+        ) ie ON true
+        ORDER BY p.updated_at DESC
       `) as Row[])
     : ((await getSql()`
-        SELECT * FROM people WHERE status != 'archived'
-        ORDER BY updated_at DESC
+        SELECT p.*, ie.value AS inferred_email, ie.confidence AS inferred_email_confidence
+        FROM people p
+        LEFT JOIN LATERAL (
+          SELECT c.value, c.confidence FROM person_contacts c
+          WHERE c.person_id = p.id AND c.kind = 'email' AND c.verification = 'inferred'
+          ORDER BY c.confidence DESC NULLS LAST LIMIT 1
+        ) ie ON true
+        WHERE p.status != 'archived'
+        ORDER BY p.updated_at DESC
       `) as Row[]);
   return rows.map(mapRow);
 }

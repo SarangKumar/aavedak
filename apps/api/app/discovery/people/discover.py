@@ -1,149 +1,83 @@
-"""Automatic people discovery: find a company's *published* recruiting inbox and keep it
-as a shared contact, so users have an email to reach out to without any CSV.
+"""People discovery v2: find real people (recruiters, hiring managers, engineering leads,
+founders) at the companies users apply to, from lawful public sources, and merge them into
+the global `people` directory with field-level provenance. See DISCOVERY.md.
 
-Published-only, by policy (see DISCOVERY.md): the email must actually appear in a public
-source. Sources, in order, all already public:
+Per target company (one run item):
+  1. Resolve its domain from stored evidence (never guessed from the name).
+  2. Company website: team / about / leadership pages (JSON-LD Person + name/title cards),
+     robots.txt respected; also the published careers inbox and the GitHub org it links.
+  3. GitHub API: the org's *public* members and their public profiles.
+  4. Search API (if a key is set): LinkedIn profile URLs + headlines from result titles only.
+  5. Providers (if keys are set): Hunter domain search, Apollo people search.
+  6. Email pattern from evidence → `inferred` addresses (with MX check), never `verified`.
+  7. Merge (LinkedIn → email → GitHub → name+company), record provenance, link to jobs.
 
-  * the application emails already extracted from that company's job postings
-    (`jobs.apply_email`);
-  * the company's job board page (`company_sources.careers_url`), one fetch;
-  * the company's own website: its official careers page when known, else the site the job
-    board / postings link to (`company_site_hint`). At most two pages there — that page, then
-    one same-site careers / jobs / contact page linked from it — with robots.txt respected.
-    An address found on the site must be on the company's own domain.
-
-An address is kept only when its local part marks it as an application / recruiting inbox
-(`careers@`, `jobs@`, `hr@`, …); a personal-looking address is never captured. The inbox is
-stored as a clearly-labelled company contact ("<Company> — Careers"), never as a real named
-person, and always `unverified`. Emails are never inferred or guessed, and no third-party or
-social site is scraped.
+Every company has a request budget; items run only under `kinds=[ITEM_KIND]` ticks from the
+people cron so the jobs-scan backlog cannot starve them.
 """
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-import re
-from collections import Counter
-from html import unescape
-from urllib.parse import urljoin, urlparse
-
-import httpx
 import psycopg
 
 from app.discovery.config import DiscoverySettings
-from app.discovery.jobs import registry
-from app.discovery.jobs.email_extractor import best_application_email, is_application_inbox
-from app.discovery.jobs.providers.base import make_client
-from app.discovery.jobs.providers.jsonld import robots_allows
-from app.discovery.jobs.text import html_to_text
+from app.discovery.jobs.email_extractor import is_application_inbox
+from app.discovery.people import emails, targets
 from app.discovery.people import store as people_store
-from app.discovery.people.normalize import PersonRow
-from app.discovery.runs.store import ClaimedItem, ItemOutcome, create_run
+from app.discovery.people.candidate import SOURCE_CONFIDENCE, Candidate
+from app.discovery.people.domains import (  # re-exported for callers / tests
+    company_site_hint,
+    follow_link,
+    registrable_domain,
+    resolve_domain,
+    site_inbox,
+)
+from app.discovery.people.fetch import Fetcher
+from app.discovery.people.merge import upsert_candidate
+from app.discovery.people.sources import github, providers, search, site
+from app.discovery.runs.store import ClaimedItem, ItemOutcome, create_run, refresh_run
+from app.discovery.timeutil import now_iso
+
+__all__ = ["company_site_hint", "follow_link", "registrable_domain", "site_inbox"]
+
+logger = logging.getLogger("aavedak.discovery.people")
 
 RUN_KIND = "people_discovery"
-ITEM_KIND = "people_discover_company"
-
-# A careers page is HTML/text; skip anything else (PDFs, redirects to apps) outright.
-_TEXT_TYPES = ("text/html", "application/xhtml", "text/plain")
-
-# Company-site pages get a short timeout so one slow site can't eat a worker tick.
-_SITE_TIMEOUT = httpx.Timeout(8.0, connect=5.0)
-
-# Hosts that are never the company's own site: hiring platforms, social networks, and the
-# trackers / CDNs / consent tools that show up as links on board pages.
-_NOT_COMPANY_HOST = re.compile(
-    r"(^|\.)(greenhouse\.io|greenhouse\.com|ashbyhq\.com|lever\.co|smartrecruiters\.com|"
-    r"workable\.com|linkedin\.com|twitter\.com|x\.com|facebook\.com|instagram\.com|"
-    r"youtube\.com|tiktok\.com|medium\.com|github\.com|glassdoor\.[a-z.]+|indeed\.[a-z.]+|"
-    r"google\.[a-z.]+|googleapis\.com|gstatic\.com|cloudfront\.net|amazonaws\.com|"
-    r"cloudflare\.com|jsdelivr\.net|unpkg\.com|w3\.org|schema\.org|apple\.com|"
-    r"microsoft\.com|onetrust\.com|cookielaw\.org|hotjar\.com|sentry\.io|segment\.com|"
-    r"eeoc\.gov|dol\.gov|bit\.ly|wikipedia\.org|crunchbase\.com)$",
-    re.I,
-)
-_HREF = re.compile(r"""<a\b[^>]*?href\s*=\s*["']([^"']+)["'][^>]*>(.*?)</a>""", re.I | re.S)
-_ABS_URL = re.compile(r"https?://[^\s\"'<>)]+", re.I)
-_MAILTO = re.compile(r"""mailto:([^"'?\s>]+)""", re.I)
-_TAG = re.compile(r"<[^>]+>")
-# Same-site pages worth one more fetch, best first.
-_FOLLOW_PRIORITY = (
-    re.compile(r"career|jobs?\b|join|work[-_ ]?with|hiring|vacanc", re.I),
-    re.compile(r"contact", re.I),
-)
-# Second-level labels under a two-letter country TLD (company.co.in, company.com.au).
-_SECOND_LEVEL = {"co", "com", "org", "net", "ac", "gov", "edu"}
+ITEM_KIND = "people_discover_target"
+LEGACY_ITEM_KIND = "people_discover_company"
 
 
-def registrable_domain(host: str) -> str:
-    """`careers.withwaymo.com` → `withwaymo.com`; `www.zeta.co.in` → `zeta.co.in`."""
-    labels = host.lower().strip(".").split(":")[0].split(".")
-    if len(labels) >= 3 and len(labels[-1]) == 2 and labels[-2] in _SECOND_LEVEL:
-        return ".".join(labels[-3:])
-    return ".".join(labels[-2:])
+def configured_sources(settings: DiscoverySettings) -> dict[str, bool]:
+    """Which optional sources have keys (booleans only — never the values)."""
+    return {
+        "companySite": True,
+        "github": True,
+        "githubToken": bool(settings.github_token),
+        "brave": bool(settings.brave_search_api_key),
+        "serpapi": bool(settings.serpapi_key),
+        "googleCse": bool(settings.google_cse_key and settings.google_cse_cx),
+        "hunter": bool(settings.hunter_api_key),
+        "apollo": bool(settings.apollo_api_key),
+    }
 
 
-def _company_host(url: str) -> str | None:
-    parsed = urlparse(url)
-    host = parsed.netloc.lower().split(":")[0]
-    if parsed.scheme not in ("http", "https") or "." not in host:
-        return None
-    return None if _NOT_COMPANY_HOST.search(host) else host
-
-
-def company_site_hint(
-    *, board_html: str | None, job_urls: list[str], descriptions: list[str]
-) -> str | None:
-    """The company's own website, or None — never guessed from the name. Pure.
-
-    Order: where its postings live (when most link off the hiring platform), then the site the
-    job board page links to most, then the site most linked from its job descriptions.
-    """
-    hosts = Counter(h for h in (_company_host(u) for u in job_urls) if h)
-    if hosts and job_urls:
-        host, count = hosts.most_common(1)[0]
-        if count >= 0.5 * len(job_urls):
-            return f"https://{host}/"
-    # Board page: real links only (<a href>), not <meta>/<script> URLs such as ogp.me.
-    board_links = [href for href, _ in _HREF.findall(board_html or "")]
-    description_links = _ABS_URL.findall("\n".join(descriptions))
-    for links in (board_links, description_links):
-        found = Counter(h for h in (_company_host(unescape(u)) for u in links) if h)
-        if found:
-            return f"https://{found.most_common(1)[0][0]}/"
-    return None
-
-
-def follow_link(html: str, base_url: str) -> str | None:
-    """One same-site careers / jobs (else contact) page linked from `html`, or None. Pure."""
-    domain = registrable_domain(urlparse(base_url).netloc)
-    current = base_url.rstrip("/")
-    for pattern in _FOLLOW_PRIORITY:
-        matches: list[str] = []
-        for href, label in _HREF.findall(html):
-            url = urljoin(base_url, unescape(href.strip())).split("#")[0]
-            parsed = urlparse(url)
-            if parsed.scheme not in ("http", "https") or url.rstrip("/") == current:
-                continue
-            if registrable_domain(parsed.netloc) != domain:
-                continue
-            if pattern.search(parsed.path) or pattern.search(_TAG.sub(" ", label)):
-                matches.append(url)
-        if matches:
-            # A plain page beats a filtered search URL (`/jobs/search?page=1&…`).
-            return next((u for u in matches if not urlparse(u).query), matches[0])
-    return None
-
-
-def site_inbox(html: str, site_url: str) -> str | None:
-    """A published application inbox on a company-site page, on the company's own domain.
-    Reads visible text and `mailto:` links. Pure."""
-    domain = registrable_domain(urlparse(site_url).netloc)
-    mailtos = " ".join(unescape(m) for m in _MAILTO.findall(html))
-    email = best_application_email(f"{html_to_text(html)}\n{mailtos}")
-    if not email or not is_application_inbox(email):
-        return None
-    return email if registrable_domain(email.rsplit("@", 1)[1]) == domain else None
+def retire_legacy_items(conn: psycopg.Connection) -> int:
+    """v1 items (one per scan-registry source) never got processed behind the scan backlog;
+    close them so their runs finish instead of sitting at "running" forever."""
+    rows = conn.execute(
+        """UPDATE discovery_run_items SET status = 'failed', last_error = 'superseded by people discovery v2',
+             lease_until = NULL, updated_at = %s
+           WHERE kind = %s AND status IN ('pending', 'running')
+           RETURNING run_id""",
+        (now_iso(), LEGACY_ITEM_KIND),
+    ).fetchall()
+    run_ids = {r["run_id"] for r in rows}
+    for run_id in run_ids:
+        refresh_run(conn, run_id)
+    return len(rows)
 
 
 def create_discovery_run(
@@ -152,95 +86,53 @@ def create_discovery_run(
     *,
     created_by: str | None,
     run_key: str | None = None,
-    source_ids: list[str] | None = None,
+    company_ids: list[str] | None = None,
+    limit: int | None = None,
 ) -> dict[str, Any]:
-    """One run item per enabled company source. Idempotent per `run_key` (daily cron)."""
-    ids = source_ids or registry.scheduled_source_ids(
-        conn,
-        shard=None,
-        shard_count=settings.discovery_shards,
-        max_failures=settings.discovery_max_failures,
-    )
+    """Queue the due target companies (or the given ones). Idempotent per `run_key`."""
+    retired = retire_legacy_items(conn)
+    if run_key:
+        existing = conn.execute("SELECT * FROM discovery_runs WHERE run_key = %s", (run_key,)).fetchone()
+        if existing:
+            return {"runId": existing["id"], "created": False, "companies": existing["total_items"], "retired": retired}
+    rows = targets.due_targets(conn, limit=limit or settings.people_companies_per_run, company_ids=company_ids)
     run, created = create_run(
         conn,
         kind=RUN_KIND,
         run_key=run_key,
-        items=[(ITEM_KIND, source_id, {}) for source_id in ids],
+        items=[(ITEM_KIND, r["id"], {"name": r["name"]}) for r in rows],
         created_by=created_by,
     )
-    return {"runId": run["id"], "created": created, "companies": len(ids)}
+    if created and rows:
+        targets.claim(conn, [r["id"] for r in rows])
+    return {"runId": run["id"], "created": created, "companies": len(rows), "retired": retired}
 
 
-def _get_page(client: httpx.Client, url: str, *, timeout: httpx.Timeout | None = None) -> str | None:
-    """HTML/text of one page, or None on any failure. Never raises."""
-    try:
-        resp = client.get(
-            url,
-            follow_redirects=True,
-            headers={"Accept": "text/html,application/xhtml+xml"},
-            **({"timeout": timeout} if timeout else {}),
-        )
-        resp.raise_for_status()
-    except (httpx.HTTPError, ValueError):
-        return None
-    ctype = resp.headers.get("content-type", "").lower()
-    if ctype and not any(t in ctype for t in _TEXT_TYPES):
-        return None
-    return resp.text
-
-
-def _company_site_email(client: httpx.Client, site_url: str) -> tuple[str | None, str | None, int]:
-    """Read the company site page, then at most one linked careers / contact page.
-    Returns (inbox, page it was on, pages read)."""
-    pages = 0
-    url: str | None = site_url
-    for _ in range(2):
-        if not url or not robots_allows(client, url):
-            break
-        html = _get_page(client, url, timeout=_SITE_TIMEOUT)
-        pages += 1
-        if html is None:
-            break
-        email = site_inbox(html, url)
-        if email:
-            return email, url, pages
-        url = follow_link(html, url)
-    return None, None, pages
-
-
-def _company_job_links(
-    conn: psycopg.Connection, company_id: str | None
-) -> tuple[list[str], list[str]]:
-    """Posting URLs and descriptions already stored for the company (for the site hint)."""
-    if not company_id:
-        return [], []
+def _known_evidence(conn: psycopg.Connection, company_id: str, domain: str) -> list[tuple[str, str]]:
+    """(name, email) pairs already stored for this company that are not inferred."""
     rows = conn.execute(
-        """SELECT url, description FROM jobs
-           WHERE company_id = %s AND user_id IS NULL
-           ORDER BY created_at DESC LIMIT 40""",
-        (company_id,),
+        """SELECT p.name, c.value_key AS email FROM people p
+           JOIN person_contacts c ON c.person_id = p.id AND c.kind = 'email'
+           WHERE p.company_id = %s AND c.verification <> 'inferred' AND c.value_key LIKE %s""",
+        (company_id, f"%@{domain}"),
     ).fetchall()
-    return (
-        [r["url"] for r in rows if r["url"]],
-        [r["description"] for r in rows if r["description"]],
+    return [(r["name"], r["email"]) for r in rows]
+
+
+def _store_pattern(conn: psycopg.Connection, domain: str, pattern: str, count: int, confidence: int, source: str, mx_ok: bool | None) -> None:
+    conn.execute(
+        """INSERT INTO company_email_patterns (domain, pattern, evidence_count, confidence, source, mx_ok, updated_at)
+           VALUES (%s, %s, %s, %s, %s, %s, %s)
+           ON CONFLICT (domain) DO UPDATE SET pattern = EXCLUDED.pattern, evidence_count = EXCLUDED.evidence_count,
+             confidence = EXCLUDED.confidence, source = EXCLUDED.source, mx_ok = EXCLUDED.mx_ok,
+             updated_at = EXCLUDED.updated_at""",
+        (domain, pattern, count, confidence, source, None if mx_ok is None else int(mx_ok), now_iso()),
     )
-
-
-def _published_job_emails(conn: psycopg.Connection, company_id: str | None) -> list[str]:
-    if not company_id:
-        return []
-    rows = conn.execute(
-        """SELECT DISTINCT apply_email FROM jobs
-           WHERE company_id = %s AND user_id IS NULL AND apply_email IS NOT NULL
-             AND expired_at IS NULL AND closed_at IS NULL""",
-        (company_id,),
-    ).fetchall()
-    return [r["apply_email"] for r in rows if r["apply_email"]]
 
 
 def _choose(candidates: list[tuple[str, str, str | None]]) -> tuple[str, str, str | None] | None:
-    """Pick one `(email, source, provenance_url)`: prefer a clear application inbox, and
-    never pick an address that is not one (we don't capture personal mailboxes here)."""
+    """Pick one `(email, source, provenance_url)` recruiting inbox: the first clear
+    application inbox; a personal-looking address is never chosen here."""
     seen: set[str] = set()
     for email, source, prov in candidates:
         key = email.lower()
@@ -251,72 +143,209 @@ def _choose(candidates: list[tuple[str, str, str | None]]) -> tuple[str, str, st
     return None
 
 
+def _published_job_emails(conn: psycopg.Connection, company_id: str) -> list[str]:
+    rows = conn.execute(
+        """SELECT DISTINCT apply_email FROM jobs
+           WHERE company_id = %s AND user_id IS NULL AND apply_email IS NOT NULL
+             AND expired_at IS NULL AND closed_at IS NULL""",
+        (company_id,),
+    ).fetchall()
+    return [r["apply_email"] for r in rows if r["apply_email"]]
+
+
+def discover_company(
+    conn: psycopg.Connection, settings: DiscoverySettings, fetcher: Fetcher, company_id: str, company_name: str
+) -> tuple[dict[str, Any], str | None, str | None]:
+    """Collect and merge people for one company. Returns (counts, domain, github org)."""
+    counts: dict[str, Any] = {
+        "created": 0, "enriched": 0, "unchanged": 0, "ambiguous": 0,
+        "site": 0, "github": 0, "search": 0, "hunter": 0, "apollo": 0,
+        "emailsPublished": 0, "emailsInferred": 0, "inbox": 0, "pages": 0, "requests": 0, "relevanceLinks": 0,
+    }
+    state = targets.cached_state(conn, company_id) or {}
+    domain = state.get("domain")
+    if not domain:
+        domain, _how = resolve_domain(conn, company_id)
+    org = state.get("github_org")
+    candidates: list[Candidate] = []
+    evidence: list[tuple[str, str]] = []
+    hunter_pattern: str | None = None
+
+    site_result = site.SiteResult()
+    if domain:
+        site_result = site.discover(fetcher, domain, max_pages=settings.people_site_pages)
+        candidates += site_result.candidates
+        evidence += site_result.evidence
+        counts["site"] = len(site_result.candidates)
+        counts["pages"] = site_result.pages
+
+    if not org and not fetcher.exhausted:
+        found = github.find_org(fetcher, token=settings.github_token or None, domain=domain,
+                                hint=site_result.github_org, company=company_name)
+        if found:
+            org = found[0]
+            domain = domain or found[1]
+    if org and not fetcher.exhausted:
+        members = github.members(fetcher, token=settings.github_token or None, org=org, company=company_name,
+                                 limit=settings.people_github_members)
+        candidates += members
+        counts["github"] = len(members)
+
+    keys = {
+        "brave": settings.brave_search_api_key or None,
+        "serpapi": settings.serpapi_key or None,
+        "google_key": settings.google_cse_key or None,
+        "google_cx": settings.google_cse_cx or None,
+    }
+    if any(keys.values()) and not fetcher.exhausted:
+        _provider, hits = search.discover(fetcher, keys, company_name, limit=settings.people_search_results)
+        candidates += hits
+        counts["search"] = len(hits)
+
+    if domain and settings.hunter_api_key and not fetcher.exhausted:
+        hunter_pattern, hunter_people = providers.hunter(fetcher, settings.hunter_api_key, domain)
+        candidates += hunter_people
+        counts["hunter"] = len(hunter_people)
+    if domain and settings.apollo_api_key and not fetcher.exhausted:
+        apollo_people = providers.apollo(fetcher, settings.apollo_api_key, domain)
+        candidates += apollo_people
+        counts["apollo"] = len(apollo_people)
+
+    # Email pattern: published pairs (site, GitHub profiles, providers, already stored).
+    pattern = None
+    if domain:
+        evidence += [(c.name, c.email) for c in candidates if c.email and c.email_status in ("published", "provider")]
+        evidence += _known_evidence(conn, company_id, domain)
+        inferred = emails.infer_pattern(evidence, domain)
+        if inferred is None and hunter_pattern:
+            inferred = (hunter_pattern, 0, 60)
+            pattern_source = "hunter"
+        else:
+            pattern_source = "evidence"
+        if inferred:
+            pattern, count, pattern_conf = inferred
+            mx_ok = emails.mx_lookup(fetcher, domain) if not fetcher.exhausted else None
+            if mx_ok is not False:
+                for cand in candidates:
+                    if cand.email or cand.is_inbox:
+                        continue
+                    address = emails.render(pattern, cand.name, domain)
+                    if address:
+                        cand.email, cand.email_status = address, "inferred"
+                        cand.email_confidence = emails.inferred_confidence(pattern_conf, mx_ok)
+            _store_pattern(conn, domain, pattern, count, pattern_conf, pattern_source, mx_ok)
+
+    inbox_options = [(e, "job_posting", None) for e in _published_job_emails(conn, company_id)]
+    if site_result.inbox:
+        inbox_options.append((site_result.inbox[0], "company_site", site_result.inbox[1]))
+    chosen = _choose(inbox_options)
+    if chosen:
+        inbox, _src, page = chosen
+        candidates.append(Candidate(
+            name=f"{company_name} — Careers", source="careers_inbox", source_url=page,
+            title="Careers / recruiting inbox", email=inbox, email_status="published",
+            email_confidence=SOURCE_CONFIDENCE["careers_inbox"], confidence=SOURCE_CONFIDENCE["careers_inbox"],
+            is_inbox=True,
+        ))
+        counts["inbox"] = 1
+
+    counts["requests"] = fetcher.used
+    with conn.transaction():
+        person_ids: list[str] = []
+        for cand in candidates:
+            outcome = upsert_candidate(conn, cand, company_id=company_id, company_name=company_name, domain=domain)
+            counts[outcome.action] += 1
+            counts["ambiguous"] += int(outcome.ambiguous)
+            if cand.email:
+                counts["emailsInferred" if cand.email_status == "inferred" else "emailsPublished"] += 1
+            person_ids.append(outcome.person_id)
+        counts["relevanceLinks"] = people_store.link_person_to_company_jobs(conn, sorted(set(person_ids)))
+    counts["pattern"] = pattern
+    return counts, domain, org
+
+
 def process_items(
     conn: psycopg.Connection, settings: DiscoverySettings, items: list[ClaimedItem]
 ) -> dict[str, ItemOutcome]:
     outcomes: dict[str, ItemOutcome] = {}
-    with make_client() as client:
-        for item in items:
-            target = registry.load_target(conn, item.ref_id or "")
-            if target is None:
-                outcomes[item.id] = ItemOutcome(True, {"skipped": 1, "reason": "source_removed"})
-                continue
-            counts = {
-                "jobEmails": 0,
-                "pageEmail": 0,
-                "siteEmail": 0,
-                "sitePages": 0,
-                "created": 0,
-                "enriched": 0,
-                "unchanged": 0,
-                "relevanceLinks": 0,
-            }
-            # Network I/O happens outside the DB transaction so it never holds a lock.
-            board_html = _get_page(client, target.careers_url)
-            page_email = best_application_email(html_to_text(board_html)) if board_html else None
-            site_email: str | None = None
-            site_page: str | None = None
-            if not page_email:
-                job_urls, descriptions = _company_job_links(conn, target.company_id)
-                site = target.official_careers_url or company_site_hint(
-                    board_html=board_html, job_urls=job_urls, descriptions=descriptions
-                )
-                if site:
-                    site_email, site_page, counts["sitePages"] = _company_site_email(client, site)
+    for item in items:
+        company = conn.execute("SELECT id, name FROM companies WHERE id = %s", (item.ref_id,)).fetchone()
+        if company is None:
+            outcomes[item.id] = ItemOutcome(True, {"skipped": 1, "reason": "company_removed"})
+            continue
+        with Fetcher(
+            user_agent=settings.discovery_user_agent,
+            budget=settings.people_requests_per_company,
+            host_delay=settings.people_host_delay_seconds,
+        ) as fetcher:
             try:
-                with conn.transaction():
-                    candidates: list[tuple[str, str, str | None]] = []
-                    for email in _published_job_emails(conn, target.company_id):
-                        candidates.append((email, "job_posting", None))
-                    counts["jobEmails"] = len(candidates)
-                    if page_email:
-                        counts["pageEmail"] = 1
-                        candidates.append((page_email, "career_page", target.careers_url))
-                    if site_email:
-                        counts["siteEmail"] = 1
-                        candidates.append((site_email, "company_site", site_page))
-
-                    chosen = _choose(candidates)
-                    if chosen:
-                        email, source, prov = chosen
-                        row = PersonRow(
-                            name=f"{target.company_name} — Careers",
-                            company=target.company_name,
-                            role_title="Careers / recruiting inbox",
-                            email=email,
-                            source_url=prov,
-                        )
-                        outcome = people_store.upsert_person(
-                            conn, row, source=source, company_cache={}
-                        )
-                        counts[outcome.action] += 1
-                        counts["relevanceLinks"] = people_store.link_person_to_company_jobs(
-                            conn, [outcome.person_id]
-                        )
+                counts, domain, org = discover_company(conn, settings, fetcher, company["id"], company["name"])
             except psycopg.Error as exc:
-                outcomes[item.id] = ItemOutcome(
-                    False, {}, f"Database error: {exc.__class__.__name__}: {exc}"[:300]
-                )
+                outcomes[item.id] = ItemOutcome(False, {}, f"Database error: {exc.__class__.__name__}: {exc}"[:300])
                 continue
-            outcomes[item.id] = ItemOutcome(True, counts)
+            except Exception as exc:  # noqa: BLE001 - one bad company never stops the run
+                logger.exception("people discovery failed for %s", company["name"])
+                targets.finish(conn, company["id"], domain=None, github_org=None, counts={},
+                               refresh_days=settings.people_refresh_days, error=str(exc)[:300])
+                outcomes[item.id] = ItemOutcome(False, {}, f"{exc.__class__.__name__}: {exc}"[:300])
+                continue
+        targets.finish(conn, company["id"], domain=domain, github_org=org, counts=counts,
+                       refresh_days=settings.people_refresh_days)
+        result = {k: v for k, v in counts.items() if isinstance(v, (int, float))}
+        outcomes[item.id] = ItemOutcome(True, result)
     return outcomes
+
+
+def stats(conn: psycopg.Connection, settings: DiscoverySettings) -> dict[str, Any]:
+    people = conn.execute(
+        """SELECT COUNT(*)::int AS total,
+                  COUNT(*) FILTER (WHERE origin = 'system')::int AS discovered,
+                  COUNT(*) FILTER (WHERE linkedin_url_normalized IS NOT NULL)::int AS with_linkedin,
+                  COUNT(*) FILTER (WHERE github_login IS NOT NULL)::int AS with_github,
+                  COUNT(*) FILTER (WHERE email IS NOT NULL)::int AS with_email,
+                  COUNT(*) FILTER (WHERE role_title IS NOT NULL)::int AS with_title,
+                  COUNT(*) FILTER (WHERE location IS NOT NULL)::int AS with_location,
+                  COUNT(*) FILTER (WHERE last_seen_at >= %s)::int AS seen_last_7d
+           FROM people WHERE status = 'active'""",
+        (_days_ago(7),),
+    ).fetchone()
+    by_source = conn.execute(
+        """SELECT source, COUNT(DISTINCT person_id)::int AS n FROM person_field_sources GROUP BY source ORDER BY n DESC"""
+    ).fetchall()
+    emails_by = conn.execute(
+        """SELECT verification, COUNT(*)::int AS n FROM person_contacts WHERE kind = 'email' GROUP BY verification"""
+    ).fetchall()
+    patterns = conn.execute("SELECT COUNT(*)::int AS n FROM company_email_patterns").fetchone()["n"]
+    last_run = conn.execute(
+        "SELECT id, status, created_at, finished_at, total_items, done_items, failed_items FROM discovery_runs WHERE kind = %s ORDER BY created_at DESC LIMIT 1",
+        (RUN_KIND,),
+    ).fetchone()
+    open_items = conn.execute(
+        "SELECT COUNT(*)::int AS n FROM discovery_run_items WHERE kind = %s AND status IN ('pending', 'running')",
+        (ITEM_KIND,),
+    ).fetchone()["n"]
+    return {
+        "people": {
+            "total": people["total"], "discovered": people["discovered"], "withLinkedin": people["with_linkedin"],
+            "withGithub": people["with_github"], "withEmail": people["with_email"], "withTitle": people["with_title"],
+            "withLocation": people["with_location"], "seenLast7Days": people["seen_last_7d"],
+        },
+        "bySource": {r["source"]: r["n"] for r in by_source},
+        "emails": {r["verification"]: r["n"] for r in emails_by},
+        "emailPatterns": patterns,
+        "targets": targets.target_counts(conn),
+        "openItems": open_items,
+        "lastRun": dict(last_run) if last_run else None,
+        "sources": configured_sources(settings),
+        "limits": {
+            "companiesPerRun": settings.people_companies_per_run,
+            "requestsPerCompany": settings.people_requests_per_company,
+            "refreshDays": settings.people_refresh_days,
+        },
+    }
+
+
+def _days_ago(days: int) -> str:
+    from app.discovery.timeutil import iso_plus
+
+    return iso_plus(-days * 86400)

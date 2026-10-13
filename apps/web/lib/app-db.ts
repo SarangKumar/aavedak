@@ -439,6 +439,20 @@ async function runDiscoverySchema(db: NeonQueryFunction<false, false>) {
     ON people (linkedin_url_normalized) WHERE linkedin_url_normalized IS NOT NULL`;
   await db`CREATE INDEX IF NOT EXISTS people_dedupe_key_idx ON people (dedupe_key)`;
   await db`CREATE INDEX IF NOT EXISTS people_company_id_idx ON people (company_id)`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS seniority TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS department TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS company_domain TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS location TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS github_url TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS website_url TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS twitter_url TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS phone TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS confidence INTEGER`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS last_seen_at TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS discovery_source TEXT`;
+  await db`ALTER TABLE people ADD COLUMN IF NOT EXISTS github_login TEXT`;
+  await db`CREATE UNIQUE INDEX IF NOT EXISTS people_github_login_uidx
+    ON people (github_login) WHERE github_login IS NOT NULL`;
   await db`
     CREATE TABLE IF NOT EXISTS job_person_relevance (
       job_id TEXT NOT NULL,

@@ -67,6 +67,30 @@
       "schedule": "15 20 * * *"
     },
     {
+      "path": "/api/cron/people-discovery?slot=0",
+      "schedule": "17 0 * * *"
+    },
+    {
+      "path": "/api/cron/people-discovery?slot=1",
+      "schedule": "17 4 * * *"
+    },
+    {
+      "path": "/api/cron/people-discovery?slot=2",
+      "schedule": "17 8 * * *"
+    },
+    {
+      "path": "/api/cron/people-discovery?slot=3",
+      "schedule": "17 12 * * *"
+    },
+    {
+      "path": "/api/cron/people-discovery?slot=4",
+      "schedule": "17 16 * * *"
+    },
+    {
+      "path": "/api/cron/people-discovery?slot=5",
+      "schedule": "17 20 * * *"
+    },
+    {
       "path": "/svc/v1/discovery/cron/people-discovery",
       "schedule": "15 2 * * *"
     },

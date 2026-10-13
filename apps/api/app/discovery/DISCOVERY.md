@@ -129,7 +129,7 @@ Per company source (one run item):
   `/cron/people-discovery` 02:15, `/cron/drain/0..6` spread through the day. Scan and
   people-discovery runs are idempotent
   per IST day (`run_key`), so a retried cron resumes instead of duplicating.
-- Sources split into shards by `shard_seed % DISCOVERY_SHARDS`. Sources with
+- Sources split into shards by `shard_seed % discovery_shards`. Sources with
   `discovery_max_failures` consecutive failures are retried weekly only.
 - The admin page drives ticks while open (`POST /admin/tick`); closing it is safe.
 
@@ -187,31 +187,78 @@ provenance URL, and `unverified`. Votes (`person_votes`) are written by the web 
 a community signal separate from job relevance. The web app also adds a system credit (`person_reply_credits`, +1 per user a person replied to) to
 the displayed score; discovery does not read it.
 
-**Automatic people discovery (`discover.py`, free, published-only).** Besides CSV import and
-manual entry, a daily run (admin button `POST /admin/runs/people-discovery`, cron
-`/cron/people-discovery`) captures each company's **published recruiting inbox**. Per company
-source it gathers candidate emails from (a) `jobs.apply_email` already extracted from that
-company's postings, (b) one fetch of `company_sources.careers_url` (the job board page), and
-(c) when neither yields an inbox, the company's **own website**: `official_careers_url` when
-known, else the site found by `company_site_hint` (where most of its postings link, else the
-site its board page links to most via `<a href>`, else the site most linked from its job
-descriptions — never guessed from the name; hiring platforms, social networks and trackers are
-excluded). At most **two pages** are read there — that page, then one same-site careers / jobs
-(else contact) page linked from it (`follow_link`) — with robots.txt respected and an 8 s
-timeout per page. An address found on the site must be on the company's own registrable domain
-(`site_inbox`). Item counts: `jobEmails`, `pageEmail`, `siteEmail`, `sitePages`. Most large
-companies publish no recruiting inbox at all, so expect contacts mainly from smaller companies. It keeps an address only when the local part marks it an
-application inbox (`careers@`, `jobs@`, `hr@`, …) via `is_application_inbox`, then upserts it
-through `upsert_person` as a clearly-labelled company contact (`"<Company> — Careers"`, role
-`Careers / recruiting inbox`, `unverified`) — never a real named person. No emails are
-guessed/inferred, no LinkedIn or social profiles are scraped, and no paid/third-party API is
-used; richer named-contact data would require a licensed enrichment API, which is not
-integrated.
+### People discovery v2 (`people/`)
+
+**Why v1 found almost nothing.** v1 only captured generic `careers@`/`jobs@` inboxes (never a
+named person), worked from the scan registry instead of the companies users apply to, ran once
+a day, and its items sat in the shared FIFO queue behind the jobs-scan backlog (330 items
+pending for days, runs stuck "running"). Result: 3 inboxes from 330 items.
+
+**Targets** (`targets.py`): companies with user applications (matched by name key) or live
+shared jobs, most-applied first. `people_discovery_state` is the incremental cursor
+(`next_due_at`): a company is claimed when queued, then re-checked after `people_refresh_days`
+(double that when nothing was found and no domain is known). Per run at most
+`people_companies_per_run` companies; per company at most `people_requests_per_company`
+requests (`fetch.Fetcher`, identified User-Agent, robots.txt for every web page, ≥
+`people_host_delay_seconds` between hits to one host, 401/403/429 stop that API for the item).
+All limits are typed in `config.py` (`DiscoveryTuning`), not env.
+
+**Domain** (`domains.resolve_domain`): official careers URL → where postings live / links in
+descriptions → users' application links; hiring platforms (Workday, Greenhouse, Naukri, …)
+are excluded. A GitHub org whose website is the domain (or whose display name is exactly the
+company's) may supply it. Never guessed from the name.
+
+**Sources** (each lawful/public; each optional source runs only with its key):
+
+| Source             | Module                 | Gives                                                                                                                                                                                                                                                                      | Key                                                                             |
+| ------------------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Company website    | `sources/site.py`      | team / about / leadership pages (≤ `people_site_pages`): schema.org `Person` JSON-LD and "name heading + role line" cards → name, title, published email on the company domain, phone only if in JSON-LD, LinkedIn/Twitter/GitHub links; the careers inbox; the GitHub org | —                                                                               |
+| GitHub REST        | `sources/github.py`    | org public members → name, login, location, blog, Twitter, public profile email, short role bio                                                                                                                                                                            | `GITHUB_TOKEN` optional (60 → 5,000 req/h)                                      |
+| Search APIs        | `sources/search.py`    | LinkedIn profile URL + "Name - Title - Company" from result titles/snippets only                                                                                                                                                                                           | `BRAVE_SEARCH_API_KEY`, or `SERPAPI_KEY`, or `GOOGLE_CSE_KEY` + `GOOGLE_CSE_CX` |
+| Hunter             | `sources/providers.py` | domain search: personal emails with source URLs, position, LinkedIn, phone (as published), the domain pattern                                                                                                                                                              | `HUNTER_API_KEY`                                                                |
+| Apollo             | `sources/providers.py` | people search by domain: name, title, LinkedIn/GitHub/Twitter, city (locked emails ignored)                                                                                                                                                                                | `APOLLO_API_KEY`                                                                |
+| Snov.io, Proxycurl | —                      | documented only; not wired (no keys, and Proxycurl reads LinkedIn data)                                                                                                                                                                                                    | —                                                                               |
+
+LinkedIn is **never** fetched, logged in to or scraped; only URLs/headlines that a search API
+returns are stored.
+
+**Emails** (`emails.py`): a company pattern (`first.last`, `flast`, …) is inferred only from
+evidence — (name, address) pairs published on the site/GitHub/provider or already stored —
+or from Hunter's reported pattern; one pair counts only if it fits a single pattern. The
+domain must have MX records (DNS-over-HTTPS via dns.google; no SMTP probing). Inferred
+addresses are stored only in `person_contacts` with `verification = 'inferred'` and a
+confidence (≤ 70), never in `people.email` (so outreach never sends to a guess) and never
+`verified` (`merge.add_contact` refuses it). Personal email/phone are kept only when published
+by the person/company or reported by a provider. Patterns live in `company_email_patterns`.
+
+**Merge** (`merge.py`): LinkedIn → email → GitHub login → name + company (conflicting
+identifiers are never merged; counted `ambiguous`). Fill-empty only, so user-entered data
+wins. Every reported value goes to `person_field_sources` (field, value, source, source URL,
+confidence, first/last seen). People columns added: `seniority`, `department` (from title,
+`classify.py`), `company_domain`, `location` (canonical when known), `github_login`/`github_url`,
+`website_url`, `twitter_url`, `phone`, `confidence`, `last_seen_at`, `discovery_source`. The
+careers inbox is still kept as `"<Company> — Careers"`. People stays one global table.
+
+**Scheduling**: six once-daily Vercel crons (Hobby-compatible) call the web route
+`/api/cron/people-discovery?slot=0..5` at 00:17, 04:17, 08:17, 12:17, 16:17 and 20:17 UTC
+(Hobby may fire each anywhere within its hour) with `Authorization: Bearer $CRON_SECRET`; the
+route calls `POST /admin/people/scheduled`. The daily API cron `/cron/people-discovery`
+(02:15 UTC) is an extra fallback. Overlap/retries are safe: each call creates or resumes the
+one run for its IST 4-hour slot (`run_key`; the six UTC times land in six different IST
+slots even with Hobby drift, and the fallback just resumes slot 1), companies are claimed on
+the cursor when queued, and items are leased (`FOR UPDATE SKIP LOCKED`). Ticks use
+`kinds=["people_discover_target"]`, so the scan backlog can't starve people work. Creating a
+run also closes leftover v1 `people_discover_company` items. Admin: "Discover people now"
+(queues due companies + a 40 s people-only tick), the runs chart (people per IST day),
+`GET /admin/people/stats` (coverage, sources configured as booleans, targets, limits).
+Item counts: `created`, `enriched`, `unchanged`, `ambiguous`, per-source counts,
+`emailsPublished`, `emailsInferred`, `pages`, `requests`.
 
 ## Schema
 
 Pipeline tables (`company_sources`, `job_sources`, `discovery_runs`,
-`discovery_run_items`, `person_contacts`) live only in `schema.py`. Columns on web-owned
+`discovery_run_items`, `person_contacts`, `person_field_sources`, `company_email_patterns`,
+`people_discovery_state`) live only in `schema.py`. Columns on web-owned
 tables (jobs, user_job_state, user_preferences, applications, application_events, people,
 job_person_relevance) are defined in `apps/web/lib/app-db.ts` and mirrored in
 `SHARED_STATEMENTS`; `tests/test_discovery_people.py` fails if the mirror drifts. If the

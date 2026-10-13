@@ -19,10 +19,13 @@ function errorResponse(err: unknown) {
 }
 
 /** Overview: settings, registry summary, recent runs, open items. */
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await requireApiAdmin();
   if (auth.error) return auth.error;
   try {
+    if (new URL(request.url).searchParams.get("view") === "people-stats") {
+      return NextResponse.json(await discoveryAdmin("/people/stats"));
+    }
     return NextResponse.json(await discoveryAdmin("/overview"));
   } catch (err) {
     return errorResponse(err);

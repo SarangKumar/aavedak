@@ -8,6 +8,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { DiscoveryRunsChart } from "@/components/discovery-runs-chart";
+import { PeopleDiscoveryStats } from "@/components/people-discovery-stats";
 import {
   formatDuration,
   istRunTimes,
@@ -124,7 +125,7 @@ const RUN_UNITS: Record<string, { label: string; help: string }> = {
   },
   people_discovery: {
     label: "companies checked",
-    help: "Companies checked for a published recruiting inbox, of all companies in this run.",
+    help: "Target companies processed (site, GitHub, search, providers), of all companies in this run.",
   },
   people_import: {
     label: "batches imported",
@@ -274,23 +275,30 @@ export function AdminDiscoveryPanel() {
             </>
           ) : null}
           {r.kind === "people_discovery" && r.totals.created !== undefined ? (
-            // Each company that yields an inbox is created, enriched or unchanged exactly once.
             <>
               <Badge
                 variant="outline"
                 className="text-[10px] tabular-nums"
-                title="Companies where a published recruiting inbox (careers@, jobs@, …) was found in their postings, job board or own website."
+                title="New people added to the shared directory in this run."
               >
-                {(r.totals.created ?? 0) + (r.totals.enriched ?? 0) + (r.totals.unchanged ?? 0)}{" "}
-                inboxes found
+                {r.totals.created} new people
               </Badge>
               <Badge
                 variant="outline"
                 className="text-[10px] tabular-nums"
-                title="New contacts added to People in this run (inboxes already in People aren't counted again)."
+                title="Existing people that gained new fields (title, LinkedIn, GitHub, location…)."
               >
-                {r.totals.created} new contacts
+                {r.totals.enriched ?? 0} enriched
               </Badge>
+              {r.totals.emailsInferred ? (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] tabular-nums"
+                  title="Addresses built from the company's email pattern; stored as inferred, never verified."
+                >
+                  {r.totals.emailsInferred} inferred emails
+                </Badge>
+              ) : null}
             </>
           ) : null}
           {r.kind === "people_import" && r.totals.created !== undefined ? (
@@ -423,7 +431,7 @@ export function AdminDiscoveryPanel() {
     const data = await run("People discovery queued", { action: "people_discovery" }, (d) =>
       d.resumed
         ? `Discovery already in progress (${d.companies ?? 0} companies) — resuming it.`
-        : `${d.companies ?? 0} companies queued for published-email discovery.`,
+        : `${d.companies ?? 0} due companies queued for people discovery.`,
     );
     if (data) void processQueue();
   }
@@ -519,7 +527,7 @@ export function AdminDiscoveryPanel() {
               void startPeopleDiscovery();
             }}
             onUndo={() => setPeopleLit(false)}
-            title="Capture published recruiting inboxes (careers@, jobs@…) from career pages and postings"
+            title="Find people at the next due companies (from applications and jobs) using public sources"
           >
             Discover people now
           </FuseButton>
@@ -663,6 +671,8 @@ export function AdminDiscoveryPanel() {
                 </div>
               </CardContent>
             </Card>
+
+            <PeopleDiscoveryStats />
 
             <Card size="sm">
               <CardHeader>

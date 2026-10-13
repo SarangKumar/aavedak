@@ -53,6 +53,11 @@ export async function ReferralsBoard({ variant }: { variant: "page" | "board" })
             notes: p.notes,
             applicationId: p.applicationId,
             status: p.status,
+            origin: p.origin,
+            discoverySource: p.discoverySource,
+            confidence: p.confidence,
+            inferredEmail: p.inferredEmail,
+            inferredEmailConfidence: p.inferredEmailConfidence,
             createdAt: p.createdAt,
             updatedAt: p.updatedAt,
           }))}

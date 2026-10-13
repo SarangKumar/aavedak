@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { PersonEmail, PersonSourceBadges } from "@/components/person-source-badges";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FuseButton } from "@/components/ui/fuse-button";
 import { Input } from "@/components/ui/input";
@@ -106,6 +107,11 @@ export type PersonDto = {
   notes: string | null;
   applicationId: string | null;
   status: "active" | "archived";
+  origin?: "system" | "user";
+  discoverySource?: string | null;
+  confidence?: number | null;
+  inferredEmail?: string | null;
+  inferredEmailConfidence?: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -910,9 +916,14 @@ export function ReferralsComposer({
                             ) : null}
                           </span>
                           <span className="text-muted-foreground block truncate text-[11px]">
-                            {person.email ?? "No email"}
+                            <PersonEmail email={person.email} person={person} empty="No email" />
                             {person.company ? ` · ${person.company}` : ""}
                           </span>
+                          {person.origin === "system" ? (
+                            <span className="mt-1 block">
+                              <PersonSourceBadges person={person} />
+                            </span>
+                          ) : null}
                           {appReferralTab === "needs" && outreachBlocked ? (
                             <span className="mt-1 block">
                               <Badge variant="outline" className="h-5 text-[10px]">

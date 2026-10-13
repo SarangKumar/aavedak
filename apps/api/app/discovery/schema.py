@@ -63,6 +63,20 @@ SHARED_STATEMENTS: tuple[str, ...] = (
        ON people (linkedin_url_normalized) WHERE linkedin_url_normalized IS NOT NULL""",
     "CREATE INDEX IF NOT EXISTS people_dedupe_key_idx ON people (dedupe_key)",
     "CREATE INDEX IF NOT EXISTS people_company_id_idx ON people (company_id)",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS seniority TEXT",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS department TEXT",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS company_domain TEXT",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS location TEXT",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS github_url TEXT",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS website_url TEXT",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS twitter_url TEXT",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS phone TEXT",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS confidence INTEGER",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS last_seen_at TEXT",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS discovery_source TEXT",
+    "ALTER TABLE people ADD COLUMN IF NOT EXISTS github_login TEXT",
+    """CREATE UNIQUE INDEX IF NOT EXISTS people_github_login_uidx
+       ON people (github_login) WHERE github_login IS NOT NULL""",
     """CREATE TABLE IF NOT EXISTS job_person_relevance (
       job_id TEXT NOT NULL,
       person_id TEXT NOT NULL,
@@ -169,6 +183,42 @@ PIPELINE_STATEMENTS: tuple[str, ...] = (
       UNIQUE (person_id, kind, value_key)
     )""",
     "CREATE INDEX IF NOT EXISTS person_contacts_value_idx ON person_contacts (kind, value_key)",
+    "ALTER TABLE person_contacts ADD COLUMN IF NOT EXISTS confidence INTEGER",
+    # Field-level provenance: which source said what about a person, and when.
+    """CREATE TABLE IF NOT EXISTS person_field_sources (
+      person_id TEXT NOT NULL,
+      field TEXT NOT NULL,
+      value TEXT NOT NULL,
+      source TEXT NOT NULL,
+      source_url TEXT,
+      confidence INTEGER NOT NULL DEFAULT 50,
+      first_seen_at TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      PRIMARY KEY (person_id, field, source, value)
+    )""",
+    "CREATE INDEX IF NOT EXISTS person_field_sources_person_idx ON person_field_sources (person_id)",
+    # Email format per company domain, inferred only from published evidence.
+    """CREATE TABLE IF NOT EXISTS company_email_patterns (
+      domain TEXT PRIMARY KEY NOT NULL,
+      pattern TEXT NOT NULL,
+      evidence_count INTEGER NOT NULL DEFAULT 0,
+      confidence INTEGER NOT NULL DEFAULT 0,
+      source TEXT NOT NULL,
+      mx_ok INTEGER,
+      updated_at TEXT NOT NULL
+    )""",
+    # Incremental cursor: one row per target company (from applications + jobs).
+    """CREATE TABLE IF NOT EXISTS people_discovery_state (
+      company_id TEXT PRIMARY KEY NOT NULL,
+      domain TEXT,
+      github_org TEXT,
+      last_run_at TEXT,
+      next_due_at TEXT,
+      last_counts_json TEXT NOT NULL DEFAULT '{}',
+      last_error TEXT,
+      updated_at TEXT NOT NULL
+    )""",
+    "CREATE INDEX IF NOT EXISTS people_discovery_state_due_idx ON people_discovery_state (next_due_at)",
 )
 
 BASE_TABLES = ("jobs", "companies", "applications", "user_job_state", "user_preferences", "people", "profiles")

@@ -26,6 +26,8 @@ from app.discovery.runs import store as runs
 from app.discovery.runs.worker import process_tick
 from app.discovery.schema import BaseSchemaMissing, ensure_schema
 from app.discovery.timeutil import ist_date_key
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 router = APIRouter(prefix="/svc/v1/discovery", tags=["discovery"])
 
@@ -95,16 +97,22 @@ def cron_drain(slot: int, conn: psycopg.Connection = Conn) -> dict[str, Any]:
 
 @router.get("/cron/people-discovery", dependencies=[Auth])
 def cron_people_discovery(conn: psycopg.Connection = Conn) -> dict[str, Any]:
-    """Daily: capture each company's published recruiting inbox (career page + postings).
-    Idempotent per IST day; the run drains across later ticks like scans do."""
+    """Daily fallback for the six `/api/cron/people-discovery` Vercel crons (same code)."""
+    return _scheduled_people_run(conn, created_by="cron")
+
+
+def _scheduled_people_run(conn: psycopg.Connection, *, created_by: str) -> dict[str, Any]:
+    """Queue the next due companies (one run per IST 4-hour slot, so retries resume it) and
+    work only people items in this tick — the jobs-scan backlog can never starve them."""
     settings = get_settings()
     if not settings.discovery_enabled:
         return {"skipped": "discovery disabled"}
-    _seed_if_empty(conn)
+    slot = datetime.now(ZoneInfo("Asia/Kolkata")).hour // 4
     result = discover.create_discovery_run(
-        conn, settings, created_by="cron", run_key=f"people-discovery:{ist_date_key()}"
+        conn, settings, created_by=created_by, run_key=f"people-discovery:{ist_date_key()}:{slot}"
     )
-    return {**result, "tick": process_tick(conn, settings)}
+    tick = process_tick(conn, settings, kinds=[discover.ITEM_KIND])
+    return {**result, "tick": tick}
 
 
 @router.get("/cron/expire", dependencies=[Auth])
@@ -156,6 +164,7 @@ class PeopleImportBody(BaseModel):
 
 class TickBody(BaseModel):
     budgetSeconds: float | None = Field(default=None, ge=5, le=280)
+    kinds: list[str] | None = None
 
 
 @router.get("/admin/overview", dependencies=[Auth])
@@ -244,25 +253,36 @@ def admin_scan_run(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[s
 
 @router.post("/admin/runs/people-discovery", dependencies=[Auth])
 def admin_people_discovery(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[str, Any]:
-    """Manual people discovery over all enabled sources (or the given ones). Returns
-    immediately; the admin page drives `/admin/tick` and drain crons finish the rest.
-    A still-running manual run is resumed, never duplicated."""
+    """Run now: queue the due target companies (a still-open manual run is resumed, never
+    duplicated) and work people items for a short tick. The admin page keeps ticking."""
     settings = get_settings()
     open_run = conn.execute(
         """SELECT r.id, r.total_items FROM discovery_runs r
            WHERE r.kind = %s AND r.run_key IS NULL AND r.status = 'running'
              AND EXISTS (SELECT 1 FROM discovery_run_items i
-                         WHERE i.run_id = r.id AND i.status IN ('pending', 'running'))
+                         WHERE i.run_id = r.id AND i.kind = %s AND i.status IN ('pending', 'running'))
            ORDER BY r.created_at DESC LIMIT 1""",
-        (discover.RUN_KIND,),
+        (discover.RUN_KIND, discover.ITEM_KIND),
     ).fetchone()
     if open_run and not body.sourceIds:
         return {"runId": open_run["id"], "companies": open_run["total_items"], "resumed": True}
-    _seed_if_empty(conn)
     result = discover.create_discovery_run(
-        conn, settings, created_by=body.createdBy, source_ids=body.sourceIds
+        conn, settings, created_by=body.createdBy, company_ids=body.sourceIds
     )
-    return {**result, "resumed": False}
+    # Start right away on people items only (the jobs-scan backlog can't hold them up).
+    tick = process_tick(conn, settings, budget_seconds=40, kinds=[discover.ITEM_KIND])
+    return {**result, "resumed": False, "tick": tick}
+
+
+@router.post("/admin/people/scheduled", dependencies=[Auth])
+def admin_people_scheduled(conn: psycopg.Connection = Conn) -> dict[str, Any]:
+    """Called by the web cron route `/api/cron/people-discovery` (six daily Vercel crons)."""
+    return _scheduled_people_run(conn, created_by="cron-4h")
+
+
+@router.get("/admin/people/stats", dependencies=[Auth])
+def admin_people_stats(conn: psycopg.Connection = Conn) -> dict[str, Any]:
+    return discover.stats(conn, get_settings())
 
 
 @router.post("/admin/runs/people-import", dependencies=[Auth])
@@ -302,7 +322,7 @@ def admin_retry(run_id: str, conn: psycopg.Connection = Conn) -> dict[str, Any]:
 
 @router.post("/admin/tick", dependencies=[Auth])
 def admin_tick(body: TickBody, conn: psycopg.Connection = Conn) -> dict[str, Any]:
-    return process_tick(conn, get_settings(), budget_seconds=body.budgetSeconds)
+    return process_tick(conn, get_settings(), budget_seconds=body.budgetSeconds, kinds=body.kinds or None)
 
 
 @router.post("/admin/expire", dependencies=[Auth])

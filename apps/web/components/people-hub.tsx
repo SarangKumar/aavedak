@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import { ShellWidth } from "@/components/shell-width";
 import { Badge } from "@/components/ui/badge";
+import { PersonEmail, PersonSourceBadges } from "@/components/person-source-badges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,6 +44,10 @@ export type PersonDto = {
   /** `system` = added by admin bulk discovery. */
   origin?: "system" | "user";
   linkedin?: string | null;
+  discoverySource?: string | null;
+  confidence?: number | null;
+  inferredEmail?: string | null;
+  inferredEmailConfidence?: number | null;
   /** Absent on single-person API responses; merged from the existing row. */
   votes?: VoteSummaryDto;
   createdAt: string;
@@ -303,11 +308,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                         >
                           {person.name}
                         </button>
-                        {person.origin === "system" ? (
-                          <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                            Discovered
-                          </Badge>
-                        ) : null}
+                        <PersonSourceBadges person={person} />
                         {person.linkedin ? (
                           <a
                             href={person.linkedin}
@@ -321,7 +322,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-[12px]">
-                      {person.email ?? "—"}
+                      <PersonEmail email={person.email} person={person} />
                     </TableCell>
                     <TableCell className="text-muted-foreground text-[12px]">
                       {person.company ?? "—"}

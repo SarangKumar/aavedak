@@ -25,7 +25,8 @@ export const RUN_KIND_META: Record<string, RunKindMeta> = {
   people_discovery: {
     label: "People discovery",
     color: "oklch(0.58 0.14 210)",
-    scheduleUtcMinutes: [2 * 60 + 15], // 02:15 UTC daily
+    // Six daily Vercel crons at 00:17, 04:17 … 20:17 UTC (00:17, 04:17 … UTC) + the daily Vercel fallback 02:15 UTC.
+    scheduleUtcMinutes: [...[0, 4, 8, 12, 16, 20].map((h) => h * 60 + 17), 2 * 60 + 15],
   },
   people_import: {
     label: "People import",
