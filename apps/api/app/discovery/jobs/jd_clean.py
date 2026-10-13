@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from functools import lru_cache
 from pathlib import Path
+
+from app.discovery.data_path import resolve_data_file
 
 log = logging.getLogger(__name__)
 
@@ -29,8 +30,8 @@ _MULTI_BLANK = re.compile(r"\n\s*\n\s*\n+")
 
 @lru_cache(maxsize=1)
 def _rules():
-    path = Path(os.environ.get("JD_BOILERPLATE_PATH") or DATA_PATH)
-    if not path.is_file():
+    path = resolve_data_file("JD_BOILERPLATE_PATH", "data/jd/boilerplate.json")
+    if path is None:
         log.warning("JD boilerplate patterns not found; descriptions are stored as parsed")
         return None
     data = json.loads(path.read_text(encoding="utf-8"))

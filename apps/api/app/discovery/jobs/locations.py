@@ -13,26 +13,22 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from functools import lru_cache
 from pathlib import Path
+
+from app.discovery.data_path import resolve_data_file
 
 log = logging.getLogger(__name__)
 
 DATA_PATH = Path(__file__).resolve().parents[5] / "data" / "locations" / "canonical-locations.json"
 
 
-def _candidates() -> list[Path]:
-    env = os.environ.get("CANONICAL_LOCATIONS_PATH")
-    return ([Path(env)] if env else []) + [DATA_PATH]
-
-
 @lru_cache(maxsize=1)
 def _data() -> dict:
-    for path in _candidates():
-        if path.is_file():
-            return json.loads(path.read_text(encoding="utf-8"))
+    path = resolve_data_file("CANONICAL_LOCATIONS_PATH", "data/locations/canonical-locations.json")
+    if path is not None:
+        return json.loads(path.read_text(encoding="utf-8"))
     log.warning("canonical locations file not found; locations stay as raw text")
     return {"remote": "Remote", "remoteAliases": [], "countries": {}, "cities": []}
 

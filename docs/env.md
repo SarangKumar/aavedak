@@ -1,0 +1,39 @@
+# Environment variables
+
+Env files carry no comments; this page documents them. Templates: `apps/web/.env.example` and
+`apps/api/.env.example` (committed). Real values go in `apps/web/.env` / `.env.local` and
+`apps/api/.env` (git-ignored). On Vercel, both services share one project environment.
+
+## Web (`apps/web`)
+
+| Variable                                                  | Required    | Notes                                                                                                                                                     |
+| --------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_URL`                                     | yes         | Public origin, e.g. `http://localhost:3000`.                                                                                                              |
+| `NEXT_PUBLIC_API_URL`                                     | yes         | FastAPI base. Same origin via Vercel Services: `/svc` (local `vercel dev` → `http://localhost:3000/svc`; API-only uvicorn → `http://127.0.0.1:8000/svc`). |
+| `API_DEV_PROXY_URL`                                       | no          | `pnpm dev` proxies `/svc/*` here (default `http://127.0.0.1:8000`).                                                                                       |
+| `DATABASE_URL`, `DATABASE_URL_UNPOOLED`                   | yes         | Neon Postgres (app data + Better Auth tables).                                                                                                            |
+| `BETTER_AUTH_SECRET`                                      | yes         | ≥32 chars, e.g. `openssl rand -base64 32`.                                                                                                                |
+| `BETTER_AUTH_URL`                                         | yes         | Same as the app origin.                                                                                                                                   |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                | yes         | Google sign-in (only provider). Gmail send needs the Gmail API + `gmail.send` scope (docs/gmail-oauth.md).                                                |
+| `ADMIN_EMAILS`                                            | yes         | Comma-separated admin emails (/admin, approvals). New Google sign-ins need admin approval.                                                                |
+| `GCS_BUCKET`, `GCS_CLIENT_EMAIL`, `GCS_PRIVATE_KEY`       | for resumes | Resume PDFs. Keep the key in double quotes with literal `\n` escapes on one line.                                                                         |
+| `GCS_CREDENTIALS_JSON` / `GOOGLE_APPLICATION_CREDENTIALS` | no          | Alternatives to the three GCS vars (the latter for local ADC only).                                                                                       |
+| `CRON_SECRET`                                             | yes         | Same value as the API's; bearer for crons and web → API admin calls.                                                                                      |
+
+## API (`apps/api`)
+
+| Variable                                                                                                                                   | Required    | Notes                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                                                                                                                             | yes         | Same Neon database as the web app.                                                                                                                                                   |
+| `CRON_SECRET`                                                                                                                              | yes         | Must equal the web app's.                                                                                                                                                            |
+| `API_PREFIX`                                                                                                                               | yes         | `/svc` (matches FastAPI routes + the vercel.json rewrite).                                                                                                                           |
+| `PUBLIC_BASE_URL`                                                                                                                          | yes         | App origin that fronts the API.                                                                                                                                                      |
+| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                                                        | health only | Shared with the web app; reported by `GET /svc/health`.                                                                                                                              |
+| `LOG_LEVEL`                                                                                                                                | no          | Default `INFO`.                                                                                                                                                                      |
+| `CANONICAL_LOCATIONS_PATH`                                                                                                                 | no          | Shared location list. Default `data/locations/canonical-locations.json`; absolute, or relative to the repo root / working directory / `apps/api`. Missing file → locations stay raw. |
+| `JD_BOILERPLATE_PATH`                                                                                                                      | no          | JD boilerplate patterns, default `data/jd/boilerplate.json` (same resolution). Missing → descriptions stored as parsed.                                                              |
+| `DISCOVERY_*`, `JOB_EXPIRY_DAYS`, `JUNIOR_MAX_YEARS_EXCLUSIVE`, `INCLUDE_INTERNSHIPS`, `SMARTRECRUITERS_DETAIL_LIMIT`, `PEOPLE_BATCH_SIZE` | no          | Discovery tuning; defaults in `app/discovery/config.py` (see docs/jobs-ingest.md).                                                                                                   |
+| `TEST_DATABASE_URL`                                                                                                                        | tests       | Optional Postgres for DB-backed tests (skipped when empty).                                                                                                                          |
+| `R2_*`                                                                                                                                     | no          | Present in older env files; not read by the current code.                                                                                                                            |
+
+Platform-provided (not set by hand): `NODE_ENV`, `VERCEL_URL`, `VERCEL_ENV`.
