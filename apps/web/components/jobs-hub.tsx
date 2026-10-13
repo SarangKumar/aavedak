@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { CompanySelect } from "@/components/company-select";
+import { JobFormFields } from "@/components/job-form-fields";
 import { ResumePreviewDialog } from "@/components/resume-preview";
 import { EngineKindBadge } from "@/components/ats-engine-badge";
 import { AtsScoreMatrix } from "@/components/ats-score-matrix";
@@ -63,11 +63,8 @@ import type { AtsEngineId } from "@/lib/ats-engines/types";
 import { saveAtsPrefill } from "@/lib/ats-prefill";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
 import type { JobDtoBase } from "@/lib/job-dto";
-import { format, parseISO } from "date-fns";
 
-import { Combobox, ComboboxContent, ComboboxItem, ComboboxTrigger } from "@/components/ui/combobox";
-import { DatePicker } from "@/components/ui/date-picker";
-import { CANONICAL_LOCATIONS, canonicalLocation, locationKeywords } from "@/lib/locations";
+import { canonicalLocation } from "@/lib/locations";
 import {
   DEFAULT_POSTED_WINDOW,
   POSTED_WINDOWS,
@@ -126,14 +123,6 @@ type JobPersonDto = {
 
 /** Must match JOB_EXPIRY_DAYS in the API (default 30). Display only. */
 const EXPIRY_DAYS = 30;
-
-const SOURCE_LABELS: Record<JobSource, string> = {
-  manual: "Manual",
-  linkedin: "LinkedIn",
-  careers: "Careers",
-  indeed: "Indeed",
-  other: "Other",
-};
 
 function daysSince(iso: string | null): number | null {
   if (!iso) return null;
@@ -1146,140 +1135,14 @@ export function JobsHub({
                 Add manually
               </AccordionTrigger>
               <AccordionContent>
-                {/* Two columns on wider screens; the description spans both. */}
-                <div className="grid grid-cols-1 gap-3 px-3 pb-1 md:grid-cols-2">
-                  <Field
-                    label="Title *"
-                    value={draft.title}
-                    onChange={(v) => editDraft("title", v)}
-                  />
-                  <label className="block space-y-1">
-                    <span className="text-foreground text-[12px] font-medium">Company *</span>
-                    <CompanySelect
-                      value={draft.company}
-                      onChange={(name) => editDraft("company", name)}
-                      placeholder="e.g. Stripe"
-                    />
-                  </label>
-                  <div className="block space-y-1">
-                    <span className="text-foreground text-[12px] font-medium">Location *</span>
-                    <Combobox
-                      value={draft.location || undefined}
-                      onValueChange={(v) => {
-                        setLocationHint(null);
-                        editDraft("location", v ?? "");
-                      }}
-                    >
-                      <ComboboxTrigger
-                        placeholder="Pick a city or Remote"
-                        aria-label="Location"
-                        className="h-9 text-[13px]"
-                      />
-                      <ComboboxContent
-                        className="z-240"
-                        searchPlaceholder="Search cities…"
-                        emptyMessage="No matching location."
-                      >
-                        {CANONICAL_LOCATIONS.map((loc) => (
-                          <ComboboxItem key={loc} value={loc} keywords={locationKeywords(loc)}>
-                            {loc}
-                          </ComboboxItem>
-                        ))}
-                      </ComboboxContent>
-                    </Combobox>
-                    {locationHint ? (
-                      <p className="text-muted-foreground text-[11px]">
-                        The posting says &ldquo;{locationHint}&rdquo;. Pick the closest location.
-                      </p>
-                    ) : null}
-                  </div>
-                  <label className="block space-y-1">
-                    <span className="text-foreground text-[12px] font-medium">Source</span>
-                    <Select
-                      value={draft.source}
-                      onValueChange={(v) =>
-                        setDraft((d) => ({ ...d, source: (v as JobSource) || d.source }))
-                      }
-                    >
-                      <SelectTrigger className="text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
-                        <SelectValue placeholder="Source" />
-                      </SelectTrigger>
-                      <SelectContent className="z-240">
-                        {JOB_SOURCES.map((src) => (
-                          <SelectItem key={src} value={src}>
-                            {SOURCE_LABELS[src]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </label>
-                  <Field
-                    label="Apply URL"
-                    value={draft.url}
-                    onChange={(v) => editDraft("url", v)}
-                  />
-                  <Field
-                    label="Salary / CTC"
-                    value={draft.salary}
-                    onChange={(v) => editDraft("salary", v)}
-                  />
-                  <label className="block space-y-1">
-                    <span className="text-foreground text-[12px] font-medium">Work mode</span>
-                    <Select
-                      value={draft.workMode || "unset"}
-                      onValueChange={(v) => editDraft("workMode", v === "unset" ? "" : String(v))}
-                    >
-                      <SelectTrigger className="text-foreground h-9 w-full rounded-md border px-2.5 text-[13px]">
-                        <SelectValue placeholder="Work mode" />
-                      </SelectTrigger>
-                      <SelectContent className="z-240">
-                        <SelectItem value="unset">Not specified</SelectItem>
-                        <SelectItem value="onsite">On-site</SelectItem>
-                        <SelectItem value="hybrid">Hybrid</SelectItem>
-                        <SelectItem value="remote">Remote</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </label>
-                  <Field
-                    label="Employment type"
-                    value={draft.employmentType}
-                    onChange={(v) => editDraft("employmentType", v)}
-                  />
-                  <Field
-                    label="Seniority"
-                    value={draft.seniority}
-                    onChange={(v) => editDraft("seniority", v)}
-                  />
-                  <div className="block space-y-1">
-                    <span className="text-foreground text-[12px] font-medium">Posted on</span>
-                    <DatePicker
-                      value={draft.postedAt ? parseISO(draft.postedAt) : undefined}
-                      onValueChange={(d) => editDraft("postedAt", d ? format(d, "yyyy-MM-dd") : "")}
-                      disabledDates={{ after: new Date() }}
-                      placeholder="Pick a date"
-                      aria-label="Posted on"
-                      className="h-9 w-full text-[13px]"
-                    />
-                  </div>
-                  <label className="block space-y-1 md:col-span-2">
-                    <span className="text-foreground text-[12px] font-medium">
-                      Skills (comma-separated)
-                    </span>
-                    <Input
-                      value={draft.skills}
-                      onChange={(e) => editDraft("skills", e.target.value)}
-                    />
-                  </label>
-                  <label className="block space-y-1 md:col-span-2">
-                    <span className="text-foreground text-[12px] font-medium">Description</span>
-                    <Textarea
-                      value={draft.description}
-                      onChange={(e) => editDraft("description", e.target.value)}
-                      rows={8}
-                      className="py-2"
-                    />
-                  </label>
-                </div>
+                <JobFormFields
+                  value={draft}
+                  onFieldChange={editDraft}
+                  onSourceChange={(src) => setDraft((d) => ({ ...d, source: src }))}
+                  locationHint={locationHint}
+                  onLocationPicked={() => setLocationHint(null)}
+                  className="px-3 pb-1"
+                />
               </AccordionContent>
             </AccordionItem>
           </Accordion>
@@ -2180,21 +2043,4 @@ function jobLinkProblem(link: string): string | null {
     }
   }
   return null;
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block space-y-1">
-      <span className="text-foreground text-[12px] font-medium">{label}</span>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} />
-    </label>
-  );
 }

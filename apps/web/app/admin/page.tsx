@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { PendingRegistrations } from "@/components/pending-registrations";
 import { RecentResumesTable } from "@/components/recent-resumes-table";
 import { AdminDiscoveryPanel } from "@/components/admin-discovery-panel";
+import { AdminJobsPanel } from "@/components/admin-jobs-panel";
 import { ShellWidth } from "@/components/shell-width";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -113,7 +114,7 @@ export default async function AdminPage() {
           Ops overview
         </h1>
         <p className="text-muted-foreground max-w-2xl text-[12px] leading-relaxed">
-          Approve new registrations, review resumes, and manage allowlisted admins.
+          Approve new registrations, review resumes, manage jobs, and see allowlisted admins.
         </p>
       </header>
 
@@ -128,6 +129,8 @@ export default async function AdminPage() {
       <Suspense fallback={<CardSkeleton rows={5} />}>
         <ResumesSection />
       </Suspense>
+
+      <AdminJobsPanel />
 
       <AdminDiscoveryPanel />
 

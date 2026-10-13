@@ -1,4 +1,5 @@
 import { ShellWidth } from "@/components/shell-width";
+import { AdminJobsPanelSkeleton } from "@/components/admin-jobs-panel";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -823,6 +824,9 @@ function AdminSkeleton() {
           ))}
         </div>
       </section>
+
+      {/* Admin → Jobs (search, filters, table). */}
+      <AdminJobsPanelSkeleton />
     </SkeletonPage>
   );
 }
