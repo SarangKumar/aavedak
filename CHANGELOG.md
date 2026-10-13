@@ -16,6 +16,8 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Added
 
+- **Company registry: 170 → 804 companies** — The jobs scan now covers 804 companies with public job boards (Greenhouse 365, Ashby 317, Lever 88, SmartRecruiters 34), every board checked live against the provider's public API on 2026-10-13; dead or empty boards were dropped. New seed companies are added to the existing database automatically on the next scan, with no duplicates by board or company name. Scan and drain crons now get a 240 s budget (under Vercel's 300 s) and fetch 10 companies at a time, so the full list is still scanned every day with the existing crons.
+
 - **/health** — aavedak.vercel.app/health returns JSON health for the web app, backend API, database (Neon version), GCS bucket, GitHub (token and remaining rate limit), Google search (today's usage against the cap, no search spent), Brave, SerpAPI, Hunter, Apollo, people discovery (last run, queued companies, email patterns) and the cron secret. Each check reports ok, degraded, down or not_configured with a time in ms. No keys or secrets are shown. The API's own report is at /svc/health.
 - **Jobs — company email format** — When a job's company has a known email format, the People section of the job details shows it (for example first.last@example.com) with a confidence badge and a copy button, so you can find people on LinkedIn and build their addresses yourself. Unknown formats show "Unknown". A weaker guess never replaces a stronger format.
 - **People discovery — emails from GitHub commits** — GitHub members without a public email now get one from their recent public commits (noreply addresses skipped), which also helps learn company email formats.
