@@ -6,7 +6,7 @@
     "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
     "built": "2026-10-13",
     "builder": "scripts/build-locations.py",
-    "selection": "population >= 1,000,000 worldwide, India >= 500,000, plus curated cities"
+    "selection": "population >= 1,000,000 worldwide, India >= 500,000, plus curated cities and global tech hubs"
   },
   "remote": "Remote",
   "remoteAliases": ["remote", "anywhere", "worldwide", "work from home", "wfh", "fully remote"],
@@ -351,6 +351,17 @@
       "aliases": ["brisbane"]
     },
     {
+      "id": 2172517,
+      "name": "Canberra",
+      "country": "Australia",
+      "countryCode": "AU",
+      "region": "Australian Capital Territory",
+      "lat": -35.28346,
+      "lng": 149.12807,
+      "population": 367752,
+      "aliases": ["canberra"]
+    },
+    {
       "id": 2158177,
       "name": "Melbourne",
       "country": "Australia",
@@ -480,7 +491,7 @@
       "lat": 50.85045,
       "lng": 4.34878,
       "population": 1019022,
-      "aliases": ["brussels"]
+      "aliases": ["brussels", "bruxelles"]
     },
     {
       "id": 3911925,
@@ -789,6 +800,17 @@
       "lng": -123.11934,
       "population": 662248,
       "aliases": ["vancouver"]
+    },
+    {
+      "id": 6176823,
+      "name": "Waterloo",
+      "country": "Canada",
+      "countryCode": "CA",
+      "region": "Ontario",
+      "lat": 43.4668,
+      "lng": -80.51639,
+      "population": 104986,
+      "aliases": ["kitchener-waterloo", "waterloo"]
     },
     {
       "id": 2427123,
@@ -2848,6 +2870,17 @@
       "aliases": ["havana"]
     },
     {
+      "id": 3078610,
+      "name": "Brno",
+      "country": "Czechia",
+      "countryCode": "CZ",
+      "region": "South Moravian",
+      "lat": 49.19522,
+      "lng": 16.60796,
+      "population": 404296,
+      "aliases": ["brno"]
+    },
+    {
       "id": 3067696,
       "name": "Prague",
       "country": "Czechia",
@@ -2922,7 +2955,7 @@
       "lat": 55.67594,
       "lng": 12.56553,
       "population": 1153615,
-      "aliases": ["copenhagen"]
+      "aliases": ["copenhagen", "kobenhavn"]
     },
     {
       "id": 3492914,
@@ -3013,6 +3046,17 @@
       "aliases": ["shubra al khaymah", "shubrā al khaymah"]
     },
     {
+      "id": 588409,
+      "name": "Tallinn",
+      "country": "Estonia",
+      "countryCode": "EE",
+      "region": "Harjumaa",
+      "lat": 59.43696,
+      "lng": 24.75353,
+      "population": 394024,
+      "aliases": ["tallinn"]
+    },
+    {
       "id": 344979,
       "name": "Addis Ababa",
       "country": "Ethiopia",
@@ -3022,6 +3066,17 @@
       "lng": 38.74689,
       "population": 3860000,
       "aliases": ["addis ababa"]
+    },
+    {
+      "id": 658225,
+      "name": "Helsinki",
+      "country": "Finland",
+      "countryCode": "FI",
+      "region": "Uusimaa",
+      "lat": 60.16952,
+      "lng": 24.93545,
+      "population": 658864,
+      "aliases": ["helsinki"]
     },
     {
       "id": 2988507,
@@ -3057,6 +3112,28 @@
       "aliases": ["berlin"]
     },
     {
+      "id": 2934246,
+      "name": "Dusseldorf",
+      "country": "Germany",
+      "countryCode": "DE",
+      "region": "North Rhine-Westphalia",
+      "lat": 51.22319,
+      "lng": 6.77927,
+      "population": 618685,
+      "aliases": ["duesseldorf", "dusseldorf", "düsseldorf"]
+    },
+    {
+      "id": 2925533,
+      "name": "Frankfurt",
+      "country": "Germany",
+      "countryCode": "DE",
+      "region": "Hesse",
+      "lat": 50.11552,
+      "lng": 8.68417,
+      "population": 650000,
+      "aliases": ["frankfurt", "frankfurt am main"]
+    },
+    {
       "id": 2911298,
       "name": "Hamburg",
       "country": "Germany",
@@ -3088,6 +3165,17 @@
       "lng": 11.57549,
       "population": 1505005,
       "aliases": ["muenchen", "munich", "münchen"]
+    },
+    {
+      "id": 2825297,
+      "name": "Stuttgart",
+      "country": "Germany",
+      "countryCode": "DE",
+      "region": "Baden-Wurttemberg",
+      "lat": 48.78232,
+      "lng": 9.17702,
+      "population": 612663,
+      "aliases": ["stuttgart"]
     },
     {
       "id": 2306104,
@@ -4704,6 +4792,17 @@
       "aliases": ["sadr city"]
     },
     {
+      "id": 2965140,
+      "name": "Cork",
+      "country": "Ireland",
+      "countryCode": "IE",
+      "region": "Munster",
+      "lat": 51.89797,
+      "lng": -8.47061,
+      "population": 224004,
+      "aliases": ["cork"]
+    },
+    {
       "id": 2964574,
       "name": "Dublin",
       "country": "Ireland",
@@ -4713,6 +4812,28 @@
       "lng": -6.24889,
       "population": 1024027,
       "aliases": ["dublin"]
+    },
+    {
+      "id": 294801,
+      "name": "Haifa",
+      "country": "Israel",
+      "countryCode": "IL",
+      "region": "Haifa",
+      "lat": 32.81303,
+      "lng": 34.99928,
+      "population": 285316,
+      "aliases": ["haifa"]
+    },
+    {
+      "id": 293397,
+      "name": "Tel Aviv",
+      "country": "Israel",
+      "countryCode": "IL",
+      "region": "Tel Aviv",
+      "lat": 32.08088,
+      "lng": 34.78057,
+      "population": 432892,
+      "aliases": ["tel aviv", "tel aviv-yafo", "tel-aviv"]
     },
     {
       "id": 3173435,
@@ -4968,6 +5089,17 @@
       "aliases": ["nairobi"]
     },
     {
+      "id": 456172,
+      "name": "Riga",
+      "country": "Latvia",
+      "countryCode": "LV",
+      "region": "Riga",
+      "lat": 56.946,
+      "lng": 24.10589,
+      "population": 742572,
+      "aliases": ["riga"]
+    },
+    {
       "id": 276781,
       "name": "Beirut",
       "country": "Lebanon",
@@ -4999,6 +5131,28 @@
       "lng": 13.18733,
       "population": 1302947,
       "aliases": ["tripoli"]
+    },
+    {
+      "id": 593116,
+      "name": "Vilnius",
+      "country": "Lithuania",
+      "countryCode": "LT",
+      "region": "Vilnius",
+      "lat": 54.68916,
+      "lng": 25.2798,
+      "population": 542366,
+      "aliases": ["vilnius"]
+    },
+    {
+      "id": 2960316,
+      "name": "Luxembourg",
+      "country": "Luxembourg",
+      "countryCode": "LU",
+      "region": "Luxembourg",
+      "lat": 49.60982,
+      "lng": 6.13268,
+      "population": 76684,
+      "aliases": ["luxembourg"]
     },
     {
       "id": 1070940,
@@ -5329,6 +5483,17 @@
       "lng": 174.76349,
       "population": 1547200,
       "aliases": ["auckland"]
+    },
+    {
+      "id": 2179537,
+      "name": "Wellington",
+      "country": "New Zealand",
+      "countryCode": "NZ",
+      "region": "Wellington Region",
+      "lat": -41.28664,
+      "lng": 174.77557,
+      "population": 381900,
+      "aliases": ["wellington"]
     },
     {
       "id": 2440485,
@@ -5760,6 +5925,28 @@
       "aliases": ["zamboanga"]
     },
     {
+      "id": 3099434,
+      "name": "Gdansk",
+      "country": "Poland",
+      "countryCode": "PL",
+      "region": "Pomerania",
+      "lat": 54.35227,
+      "lng": 18.64912,
+      "population": 487371,
+      "aliases": ["gdansk", "gdańsk"]
+    },
+    {
+      "id": 3094802,
+      "name": "Krakow",
+      "country": "Poland",
+      "countryCode": "PL",
+      "region": "Lesser Poland",
+      "lat": 50.06143,
+      "lng": 19.93658,
+      "population": 816614,
+      "aliases": ["cracow", "krakow", "kraków"]
+    },
+    {
       "id": 756135,
       "name": "Warsaw",
       "country": "Poland",
@@ -5769,6 +5956,50 @@
       "lng": 21.01178,
       "population": 1702139,
       "aliases": ["warsaw"]
+    },
+    {
+      "id": 3081368,
+      "name": "Wroclaw",
+      "country": "Poland",
+      "countryCode": "PL",
+      "region": "Lower Silesia",
+      "lat": 51.10286,
+      "lng": 17.03006,
+      "population": 672545,
+      "aliases": ["wroclaw", "wrocław"]
+    },
+    {
+      "id": 2267057,
+      "name": "Lisbon",
+      "country": "Portugal",
+      "countryCode": "PT",
+      "region": "Lisbon",
+      "lat": 38.72509,
+      "lng": -9.1498,
+      "population": 517802,
+      "aliases": ["lisboa", "lisbon"]
+    },
+    {
+      "id": 2735943,
+      "name": "Porto",
+      "country": "Portugal",
+      "countryCode": "PT",
+      "region": "Porto",
+      "lat": 41.1485,
+      "lng": -8.61097,
+      "population": 252687,
+      "aliases": ["porto"]
+    },
+    {
+      "id": 290030,
+      "name": "Doha",
+      "country": "Qatar",
+      "countryCode": "QA",
+      "region": "Baladiyat ad Dawhah",
+      "lat": 25.28545,
+      "lng": 51.53096,
+      "population": 344939,
+      "aliases": ["doha"]
     },
     {
       "id": 2260535,
@@ -5802,6 +6033,17 @@
       "lng": 26.10626,
       "population": 1877155,
       "aliases": ["bucharest"]
+    },
+    {
+      "id": 681290,
+      "name": "Cluj-Napoca",
+      "country": "Romania",
+      "countryCode": "RO",
+      "region": "Cluj County",
+      "lat": 46.76667,
+      "lng": 23.6,
+      "population": 286598,
+      "aliases": ["cluj", "cluj-napoca"]
     },
     {
       "id": 1508291,
@@ -6288,6 +6530,28 @@
       "aliases": ["madrid"]
     },
     {
+      "id": 2509954,
+      "name": "Valencia",
+      "country": "Spain",
+      "countryCode": "ES",
+      "region": "Valencia",
+      "lat": 39.47391,
+      "lng": -0.37966,
+      "population": 824340,
+      "aliases": ["valencia"]
+    },
+    {
+      "id": 1248991,
+      "name": "Colombo",
+      "country": "Sri Lanka",
+      "countryCode": "LK",
+      "region": "Western Province",
+      "lat": 6.93548,
+      "lng": 79.84868,
+      "population": 648034,
+      "aliases": ["colombo"]
+    },
+    {
       "id": 379252,
       "name": "Khartoum",
       "country": "Sudan",
@@ -6321,6 +6585,17 @@
       "aliases": ["omdurman"]
     },
     {
+      "id": 2711537,
+      "name": "Gothenburg",
+      "country": "Sweden",
+      "countryCode": "SE",
+      "region": "Vaestra Goetaland",
+      "lat": 57.70716,
+      "lng": 11.96679,
+      "population": 608462,
+      "aliases": ["goteborg", "gothenburg"]
+    },
+    {
       "id": 2673730,
       "name": "Stockholm",
       "country": "Sweden",
@@ -6330,6 +6605,39 @@
       "lng": 18.06871,
       "population": 1515017,
       "aliases": ["stockholm"]
+    },
+    {
+      "id": 2660646,
+      "name": "Geneva",
+      "country": "Switzerland",
+      "countryCode": "CH",
+      "region": "Geneva",
+      "lat": 46.20222,
+      "lng": 6.14569,
+      "population": 201741,
+      "aliases": ["geneva", "geneve"]
+    },
+    {
+      "id": 2659994,
+      "name": "Lausanne",
+      "country": "Switzerland",
+      "countryCode": "CH",
+      "region": "Vaud",
+      "lat": 46.516,
+      "lng": 6.63282,
+      "population": 139111,
+      "aliases": ["lausanne"]
+    },
+    {
+      "id": 2657896,
+      "name": "Zurich",
+      "country": "Switzerland",
+      "countryCode": "CH",
+      "region": "Zurich",
+      "lat": 47.36667,
+      "lng": 8.55,
+      "population": 415367,
+      "aliases": ["zuerich", "zurich", "zürich"]
     },
     {
       "id": 170063,
@@ -6451,6 +6759,39 @@
       "lng": 4.88969,
       "population": 741636,
       "aliases": ["amsterdam"]
+    },
+    {
+      "id": 2756253,
+      "name": "Eindhoven",
+      "country": "The Netherlands",
+      "countryCode": "NL",
+      "region": "North Brabant",
+      "lat": 51.44083,
+      "lng": 5.47778,
+      "population": 235691,
+      "aliases": ["eindhoven"]
+    },
+    {
+      "id": 2747891,
+      "name": "Rotterdam",
+      "country": "The Netherlands",
+      "countryCode": "NL",
+      "region": "South Holland",
+      "lat": 51.9225,
+      "lng": 4.47917,
+      "population": 868135,
+      "aliases": ["rotterdam"]
+    },
+    {
+      "id": 2745912,
+      "name": "Utrecht",
+      "country": "The Netherlands",
+      "countryCode": "NL",
+      "region": "Utrecht",
+      "lat": 52.09083,
+      "lng": 5.12222,
+      "population": 376435,
+      "aliases": ["utrecht"]
     },
     {
       "id": 2365267,
@@ -6662,6 +7003,17 @@
       "aliases": ["sharjah"]
     },
     {
+      "id": 2655984,
+      "name": "Belfast",
+      "country": "United Kingdom",
+      "countryCode": "GB",
+      "region": "Northern Ireland",
+      "lat": 54.59682,
+      "lng": -5.92541,
+      "population": 348005,
+      "aliases": ["belfast"]
+    },
+    {
       "id": 2655603,
       "name": "Birmingham",
       "country": "United Kingdom",
@@ -6671,6 +7023,39 @@
       "lng": -1.89983,
       "population": 1157603,
       "aliases": ["birmingham"]
+    },
+    {
+      "id": 2654675,
+      "name": "Bristol",
+      "country": "United Kingdom",
+      "countryCode": "GB",
+      "region": "England",
+      "lat": 51.45523,
+      "lng": -2.59665,
+      "population": 479024,
+      "aliases": ["bristol"]
+    },
+    {
+      "id": 2653941,
+      "name": "Cambridge",
+      "country": "United Kingdom",
+      "countryCode": "GB",
+      "region": "England",
+      "lat": 52.2,
+      "lng": 0.11667,
+      "population": 145674,
+      "aliases": ["cambridge"]
+    },
+    {
+      "id": 2650225,
+      "name": "Edinburgh",
+      "country": "United Kingdom",
+      "countryCode": "GB",
+      "region": "Scotland",
+      "lat": 55.95206,
+      "lng": -3.19648,
+      "population": 514990,
+      "aliases": ["edinburgh"]
     },
     {
       "id": 2643743,
@@ -6684,6 +7069,39 @@
       "aliases": ["london"]
     },
     {
+      "id": 2643123,
+      "name": "Manchester",
+      "country": "United Kingdom",
+      "countryCode": "GB",
+      "region": "England",
+      "lat": 53.48095,
+      "lng": -2.23743,
+      "population": 568996,
+      "aliases": ["manchester"]
+    },
+    {
+      "id": 2640729,
+      "name": "Oxford",
+      "country": "United Kingdom",
+      "countryCode": "GB",
+      "region": "England",
+      "lat": 51.75222,
+      "lng": -1.25596,
+      "population": 162100,
+      "aliases": ["oxford"]
+    },
+    {
+      "id": 4180439,
+      "name": "Atlanta",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Georgia",
+      "lat": 33.749,
+      "lng": -84.38798,
+      "population": 510823,
+      "aliases": ["atlanta"]
+    },
+    {
       "id": 4671654,
       "name": "Austin",
       "country": "United States",
@@ -6695,6 +7113,28 @@
       "aliases": ["austin"]
     },
     {
+      "id": 4347778,
+      "name": "Baltimore",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Maryland",
+      "lat": 39.29038,
+      "lng": -76.61219,
+      "population": 585708,
+      "aliases": ["baltimore"]
+    },
+    {
+      "id": 5786882,
+      "name": "Bellevue",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Washington",
+      "lat": 47.61038,
+      "lng": -122.20068,
+      "population": 139820,
+      "aliases": ["bellevue"]
+    },
+    {
       "id": 4930956,
       "name": "Boston",
       "country": "United States",
@@ -6703,7 +7143,18 @@
       "lat": 42.35843,
       "lng": -71.05977,
       "population": 653833,
-      "aliases": ["boston"]
+      "aliases": ["boston", "greater boston"]
+    },
+    {
+      "id": 5574991,
+      "name": "Boulder",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Colorado",
+      "lat": 40.01499,
+      "lng": -105.27055,
+      "population": 106803,
+      "aliases": ["boulder"]
     },
     {
       "id": 5110302,
@@ -6717,6 +7168,17 @@
       "aliases": ["brooklyn"]
     },
     {
+      "id": 4931972,
+      "name": "Cambridge",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Massachusetts",
+      "lat": 42.3751,
+      "lng": -71.10561,
+      "population": 110402,
+      "aliases": ["cambridge"]
+    },
+    {
       "id": 4887398,
       "name": "Chicago",
       "country": "United States",
@@ -6728,6 +7190,17 @@
       "aliases": ["chicago"]
     },
     {
+      "id": 5341145,
+      "name": "Cupertino",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "California",
+      "lat": 37.323,
+      "lng": -122.03218,
+      "population": 60572,
+      "aliases": ["cupertino"]
+    },
+    {
       "id": 4684888,
       "name": "Dallas",
       "country": "United States",
@@ -6737,6 +7210,28 @@
       "lng": -96.80667,
       "population": 1326087,
       "aliases": ["dallas"]
+    },
+    {
+      "id": 5419384,
+      "name": "Denver",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Colorado",
+      "lat": 39.73915,
+      "lng": -104.9847,
+      "population": 729019,
+      "aliases": ["denver"]
+    },
+    {
+      "id": 4990729,
+      "name": "Detroit",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Michigan",
+      "lat": 42.33143,
+      "lng": -83.04575,
+      "population": 645705,
+      "aliases": ["detroit"]
     },
     {
       "id": 4691930,
@@ -6759,6 +7254,17 @@
       "lng": -95.36327,
       "population": 2314157,
       "aliases": ["houston"]
+    },
+    {
+      "id": 5359777,
+      "name": "Irvine",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "California",
+      "lat": 33.66946,
+      "lng": -117.82311,
+      "population": 256927,
+      "aliases": ["irvine"]
     },
     {
       "id": 4160021,
@@ -6794,6 +7300,61 @@
       "aliases": ["manhattan"]
     },
     {
+      "id": 5372223,
+      "name": "Menlo Park",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "California",
+      "lat": 37.45383,
+      "lng": -122.18219,
+      "population": 33449,
+      "aliases": ["menlo park"]
+    },
+    {
+      "id": 4164138,
+      "name": "Miami",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Florida",
+      "lat": 25.77427,
+      "lng": -80.19366,
+      "population": 487014,
+      "aliases": ["miami"]
+    },
+    {
+      "id": 5037649,
+      "name": "Minneapolis",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Minnesota",
+      "lat": 44.97997,
+      "lng": -93.26384,
+      "population": 410939,
+      "aliases": ["minneapolis"]
+    },
+    {
+      "id": 5375480,
+      "name": "Mountain View",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "California",
+      "lat": 37.38605,
+      "lng": -122.08385,
+      "population": 80435,
+      "aliases": ["mountain view"]
+    },
+    {
+      "id": 4644585,
+      "name": "Nashville",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Tennessee",
+      "lat": 36.16589,
+      "lng": -86.78444,
+      "population": 689447,
+      "aliases": ["nashville"]
+    },
+    {
       "id": 5128581,
       "name": "New York",
       "country": "United States",
@@ -6803,6 +7364,28 @@
       "lng": -74.00597,
       "population": 8804190,
       "aliases": ["new york", "new york city", "nyc"]
+    },
+    {
+      "id": 5378538,
+      "name": "Oakland",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "California",
+      "lat": 37.80437,
+      "lng": -122.2708,
+      "population": 419267,
+      "aliases": ["oakland"]
+    },
+    {
+      "id": 5380748,
+      "name": "Palo Alto",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "California",
+      "lat": 37.44188,
+      "lng": -122.14302,
+      "population": 66853,
+      "aliases": ["palo alto"]
     },
     {
       "id": 4560349,
@@ -6827,6 +7410,28 @@
       "aliases": ["phoenix"]
     },
     {
+      "id": 5206379,
+      "name": "Pittsburgh",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Pennsylvania",
+      "lat": 40.44062,
+      "lng": -79.99589,
+      "population": 304391,
+      "aliases": ["pittsburgh"]
+    },
+    {
+      "id": 5746545,
+      "name": "Portland",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Oregon",
+      "lat": 45.52345,
+      "lng": -122.67621,
+      "population": 652503,
+      "aliases": ["portland"]
+    },
+    {
       "id": 5133273,
       "name": "Queens",
       "country": "United States",
@@ -6836,6 +7441,50 @@
       "lng": -73.83652,
       "population": 2316841,
       "aliases": ["queens"]
+    },
+    {
+      "id": 4487042,
+      "name": "Raleigh",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "North Carolina",
+      "lat": 35.7721,
+      "lng": -78.63861,
+      "population": 482295,
+      "aliases": ["raleigh", "research triangle"]
+    },
+    {
+      "id": 5808079,
+      "name": "Redmond",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Washington",
+      "lat": 47.67399,
+      "lng": -122.12151,
+      "population": 60598,
+      "aliases": ["redmond"]
+    },
+    {
+      "id": 5386834,
+      "name": "Redwood City",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "California",
+      "lat": 37.48522,
+      "lng": -122.23635,
+      "population": 85288,
+      "aliases": ["redwood city"]
+    },
+    {
+      "id": 5780993,
+      "name": "Salt Lake City",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "Utah",
+      "lat": 40.76078,
+      "lng": -111.89105,
+      "population": 215548,
+      "aliases": ["salt lake city"]
     },
     {
       "id": 4726206,
@@ -6868,7 +7517,29 @@
       "lat": 37.77493,
       "lng": -122.41942,
       "population": 827526,
-      "aliases": ["san francisco", "san francisco bay area"]
+      "aliases": ["bay area", "san francisco", "san francisco bay area", "sf bay area"]
+    },
+    {
+      "id": 5392423,
+      "name": "San Mateo",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "California",
+      "lat": 37.56299,
+      "lng": -122.32553,
+      "population": 103536,
+      "aliases": ["san mateo"]
+    },
+    {
+      "id": 5393015,
+      "name": "Santa Clara",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "California",
+      "lat": 37.35411,
+      "lng": -121.95524,
+      "population": 126215,
+      "aliases": ["santa clara"]
     },
     {
       "id": 5809844,
@@ -6879,7 +7550,18 @@
       "lat": 47.60621,
       "lng": -122.33207,
       "population": 780995,
-      "aliases": ["seattle"]
+      "aliases": ["greater seattle", "seattle"]
+    },
+    {
+      "id": 5400075,
+      "name": "Sunnyvale",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "California",
+      "lat": 37.36883,
+      "lng": -122.03635,
+      "population": 155805,
+      "aliases": ["sunnyvale"]
     },
     {
       "id": 5110266,
@@ -6891,6 +7573,17 @@
       "lng": -73.86641,
       "population": 1385108,
       "aliases": ["the bronx"]
+    },
+    {
+      "id": 4140963,
+      "name": "Washington",
+      "country": "United States",
+      "countryCode": "US",
+      "region": "District of Columbia",
+      "lat": 38.89511,
+      "lng": -77.03637,
+      "population": 689545,
+      "aliases": ["district of columbia", "washington", "washington d.c.", "washington dc"]
     },
     {
       "id": 3441575,

@@ -45,8 +45,9 @@ const THETA = 0.36;
 // Slightly zoomed so India reads well while the whole sphere and its glowing rim stay in
 // frame, as on cobe.vercel.app (cobe's sphere spans 80% of the canvas at scale 1).
 const SCALE = 1.15;
-const SWAY = 0.22; // radians either side of India — keeps the subcontinent in view
-const SWAY_SPEED = 0.004;
+// Openings are worldwide: start facing India, then turn slowly all the way round (drag to
+// spin it by hand). Reduced motion keeps it still on India.
+const ROTATE_SPEED = 0.0015;
 
 const CULL_EVERY_FRAMES = 12;
 
@@ -155,8 +156,8 @@ export function OpeningsGlobe({
     });
 
     const frame = () => {
-      if (!reducedMotion && dragStartX === null) t += SWAY_SPEED;
-      globe.update({ phi: FOCUS_PHI + Math.sin(t) * SWAY + dragPhi });
+      if (!reducedMotion && dragStartX === null) t += ROTATE_SPEED;
+      globe.update({ phi: FOCUS_PHI + t + dragPhi });
       if (frameCount++ % CULL_EVERY_FRAMES === 0) cullOverlappingLabels(root);
       raf = visible ? requestAnimationFrame(frame) : 0;
     };
