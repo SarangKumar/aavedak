@@ -26,6 +26,8 @@ export async function GET(_request: Request, ctx: Ctx) {
       origin: p.origin,
       relevanceScore: p.relevanceScore,
       relevanceReason: p.relevanceReason,
+      location: p.location,
+      proximity: p.proximity.label,
       votes: p.votes,
     })),
   });

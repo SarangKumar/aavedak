@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { ensureAppSchema, getSql } from "@/lib/app-db";
 import { ensureCompany } from "@/lib/companies";
+import { personProximity, type Proximity } from "@/lib/people-proximity";
 
 export type PersonStatus = "active" | "archived";
 
@@ -33,6 +34,8 @@ export type PersonRecord = {
   seniority: string | null;
   department: string | null;
   location: string | null;
+  /** ISO country parsed from `location` by discovery (null when unknown). */
+  countryCode: string | null;
   githubUrl: string | null;
   /** Best pattern-inferred address (never verified); only when `email` is empty. */
   inferredEmail: string | null;
@@ -59,6 +62,7 @@ type Row = {
   seniority?: string | null;
   department?: string | null;
   location?: string | null;
+  country_code?: string | null;
   github_url?: string | null;
   inferred_email?: string | null;
   inferred_email_confidence?: number | null;
@@ -85,6 +89,7 @@ function mapRow(row: Row): PersonRecord {
     seniority: row.seniority ?? null,
     department: row.department ?? null,
     location: row.location ?? null,
+    countryCode: row.country_code ?? null,
     githubUrl: row.github_url ?? null,
     inferredEmail: row.email ? null : (row.inferred_email ?? null),
     inferredEmailConfidence: row.email ? null : (row.inferred_email_confidence ?? null),
@@ -373,6 +378,8 @@ export type JobPerson = PersonRecord & {
   relevanceScore: number;
   relevanceReason: string;
   votes: VoteSummary;
+  /** Where the person is relative to the job (same city / country / elsewhere). */
+  proximity: Proximity;
 };
 
 /**
@@ -388,7 +395,8 @@ export async function listPeopleForJob(
   await ensureAppSchema();
   const rows = (await getSql()`
     SELECT p.*, COALESCE(r.score, 20) AS relevance_score,
-           COALESCE(r.reason, 'Works at this company') AS relevance_reason
+           COALESCE(r.reason, 'Works at this company') AS relevance_reason,
+           j.location AS job_location, j.country_code AS job_country_code
     FROM jobs j
     JOIN people p ON p.status = 'active' AND (
       p.company_id = j.company_id
@@ -397,21 +405,40 @@ export async function listPeopleForJob(
     LEFT JOIN job_person_relevance r ON r.job_id = j.id AND r.person_id = p.id
     WHERE j.id = ${jobId} AND (j.user_id IS NULL OR j.user_id = ${userId})
     ORDER BY relevance_score DESC, p.updated_at DESC
-    LIMIT ${limit * 2}
-  `) as Array<Row & { relevance_score: number; relevance_reason: string }>;
+    LIMIT ${limit * 4}
+  `) as Array<
+    Row & {
+      relevance_score: number;
+      relevance_reason: string;
+      job_location: string | null;
+      job_country_code: string | null;
+    }
+  >;
   const votes = await getVoteSummaries(
     userId,
     rows.map((r) => r.id),
   );
-  return rows
-    .map((row) => ({
-      ...mapRow(row),
-      relevanceScore: Number(row.relevance_score),
-      relevanceReason: row.relevance_reason,
-      votes: votes.get(row.id) ?? NO_VOTES,
-    }))
-    .sort((a, b) => b.relevanceScore - a.relevanceScore || voteScore(b.votes) - voteScore(a.votes))
-    .slice(0, limit);
+  return (
+    rows
+      .map((row) => ({
+        ...mapRow(row),
+        relevanceScore: Number(row.relevance_score),
+        relevanceReason: row.relevance_reason,
+        votes: votes.get(row.id) ?? NO_VOTES,
+        proximity: personProximity(
+          { location: row.location, countryCode: row.country_code },
+          { location: row.job_location, countryCode: row.job_country_code },
+        ),
+      }))
+      // Same city, then same country, then unknown, other countries last; then relevance.
+      .sort(
+        (a, b) =>
+          a.proximity.rank - b.proximity.rank ||
+          b.relevanceScore - a.relevanceScore ||
+          voteScore(b.votes) - voteScore(a.votes),
+      )
+      .slice(0, limit)
+  );
 }
 
 export type CompanyEmailPattern = {

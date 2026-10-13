@@ -58,6 +58,8 @@ export async function ReferralsBoard({ variant }: { variant: "page" | "board" })
             confidence: p.confidence,
             inferredEmail: p.inferredEmail,
             inferredEmailConfidence: p.inferredEmailConfidence,
+            location: p.location,
+            countryCode: p.countryCode,
             createdAt: p.createdAt,
             updatedAt: p.updatedAt,
           }))}

@@ -50,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/search-input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { personProximity } from "@/lib/people-proximity";
 
 export type ApplicationDto = {
   id: string;
@@ -112,6 +113,8 @@ export type PersonDto = {
   confidence?: number | null;
   inferredEmail?: string | null;
   inferredEmailConfidence?: number | null;
+  location?: string | null;
+  countryCode?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -375,11 +378,17 @@ export function ReferralsComposer({
   const companyPeople = useMemo(() => {
     if (!selectedApp) return [] as PersonDto[];
     const company = selectedApp.companyName.trim().toLowerCase();
-    return people.filter((person) => {
+    const matches = people.filter((person) => {
       if (person.applicationId === selectedApp.id) return true;
       const personCompany = person.company?.trim().toLowerCase() ?? "";
       return Boolean(company) && personCompany === company;
     });
+    // Same city as the job first, then same country; other countries last (still listed).
+    const rank = (p: PersonDto) => personProximity(p, { location: selectedApp.location }).rank;
+    return matches
+      .map((person, index) => ({ person, index, rank: rank(person) }))
+      .sort((a, b) => a.rank - b.rank || a.index - b.index)
+      .map((entry) => entry.person);
   }, [people, selectedApp]);
 
   const appFollowUps = useMemo(() => {
@@ -857,6 +866,16 @@ export function ReferralsComposer({
                           <span className="flex items-center justify-between gap-2">
                             <span className="text-foreground min-w-0 truncate text-[12px] font-medium">
                               {person.name}
+                              {person.location ? (
+                                <span className="text-muted-foreground ml-1.5 text-[10px] font-normal">
+                                  {person.location}
+                                  {selectedApp &&
+                                  personProximity(person, { location: selectedApp.location })
+                                    .rank === 3
+                                    ? " · Other country"
+                                    : ""}
+                                </span>
+                              ) : null}
                             </span>
                             {appReferralTab === "sent" &&
                             (mailMeta.outreach || mailMeta.followup || cooldown?.blocked) ? (

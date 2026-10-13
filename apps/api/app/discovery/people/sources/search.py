@@ -48,6 +48,24 @@ def _results(
 
 
 _TAIL = re.compile(r"\s*[|·]\s*LinkedIn.*$", re.I)
+_LOCATION_LABEL = re.compile(r"\blocation:\s*([^·|\n]{2,80})", re.I)
+
+
+def snippet_location(snippet: str) -> str | None:
+    """A member's location from a LinkedIn search snippet ("Location: Pune" or a leading
+    "Bengaluru, Karnataka, India · 500+ connections"), only when it resolves to a known
+    canonical city or a single country. Pure."""
+    from app.discovery.jobs.locations import canonical_location, country_code_of
+
+    text = snippet or ""
+    candidates = [m.group(1).strip() for m in _LOCATION_LABEL.finditer(text)]
+    head = re.split(r"\s*[·|]\s*", text, maxsplit=1)[0].strip()
+    if head and len(head) <= 80:
+        candidates.append(head)
+    for raw in candidates:
+        if canonical_location(raw) not in (None, "Remote") or country_code_of(raw):
+            return raw[:120]
+    return None
 
 
 def parse_result(title: str, url: str, snippet: str, company: str) -> Candidate | None:
@@ -80,6 +98,7 @@ def parse_result(title: str, url: str, snippet: str, company: str) -> Candidate 
         source_url=f"https://www.{linkedin}",
         title=(role or None) and role[:120],
         linkedin=f"https://www.{linkedin}",
+        location=snippet_location(snippet),
         confidence=SOURCE_CONFIDENCE["search"],
     )
 

@@ -36,7 +36,7 @@ from app.discovery.people.domains import (  # re-exported for callers / tests
     site_inbox,
 )
 from app.discovery.people.fetch import Fetcher
-from app.discovery.people.merge import upsert_candidate
+from app.discovery.people.merge import backfill_locations, upsert_candidate
 from app.discovery.people.sources import github, providers, search, site
 from app.discovery.runs.store import ClaimedItem, ItemOutcome, create_run, refresh_run
 from app.discovery.timeutil import now_iso
@@ -91,6 +91,7 @@ def create_discovery_run(
 ) -> dict[str, Any]:
     """Queue the due target companies (or the given ones). Idempotent per `run_key`."""
     retired = retire_legacy_items(conn)
+    backfill_locations(conn)
     if run_key:
         existing = conn.execute("SELECT * FROM discovery_runs WHERE run_key = %s", (run_key,)).fetchone()
         if existing:

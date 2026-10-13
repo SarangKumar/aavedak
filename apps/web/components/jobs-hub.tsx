@@ -166,6 +166,9 @@ type JobPersonDto = {
   linkedin: string | null;
   origin: "system" | "user";
   relevanceReason: string;
+  location: string | null;
+  /** Same city / Same country / Other country, or null when unknown. */
+  proximity: "Same city" | "Same country" | "Other country" | null;
   votes: VoteSummaryDto;
 };
 
@@ -2040,6 +2043,19 @@ function JobPeople({ jobId, company }: { jobId: string; company: string }) {
                 <p className="text-muted-foreground truncate text-[11px]">
                   {person.roleTitle ?? "Role unknown"} · {person.relevanceReason}
                 </p>
+                {person.location || person.proximity ? (
+                  <p className="text-muted-foreground flex items-center gap-1.5 truncate text-[10px]">
+                    {person.location ? <span className="truncate">{person.location}</span> : null}
+                    {person.proximity ? (
+                      <Badge
+                        variant={person.proximity === "Other country" ? "outline" : "secondary"}
+                        className="px-1 py-0 text-[9px]"
+                      >
+                        {person.proximity}
+                      </Badge>
+                    ) : null}
+                  </p>
+                ) : null}
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 {person.linkedin ? (

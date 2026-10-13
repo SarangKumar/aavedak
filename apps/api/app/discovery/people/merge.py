@@ -18,7 +18,7 @@ from dataclasses import dataclass
 import psycopg
 
 from app.discovery.db import new_id
-from app.discovery.jobs.locations import canonical_location
+from app.discovery.jobs.locations import canonical_location, country_code_of
 from app.discovery.people.candidate import Candidate
 from app.discovery.people.classify import department, seniority
 from app.discovery.people.normalize import normalize_email, normalize_linkedin, person_dedupe_key
@@ -43,6 +43,40 @@ def _location(raw: str | None) -> str | None:
         return canonical_location(raw) or raw.strip()[:120]
     except Exception:  # noqa: BLE001 - a bad location never blocks a merge
         return raw.strip()[:120]
+
+
+def location_parts(raw: str | None) -> tuple[str | None, str | None]:
+    """(canonical "City, Country" or None, ISO country or None) for a raw location."""
+    if not raw:
+        return None, None
+    try:
+        city = canonical_location(raw)
+        return (city if city and city != "Remote" else None), country_code_of(raw)
+    except Exception:  # noqa: BLE001 - a bad location never blocks a merge
+        return None, None
+
+
+def backfill_locations(conn: psycopg.Connection, limit: int = 1000) -> int:
+    """Fill location_city / country_code for shared people that have a raw location but
+    were stored before those columns existed. Idempotent; bounded per call."""
+    rows = conn.execute(
+        """SELECT id, location FROM people
+           WHERE user_id IS NULL AND location IS NOT NULL AND country_code IS NULL
+             AND location_city IS NULL
+           LIMIT %s""",
+        (limit,),
+    ).fetchall()
+    updates = []
+    for row in rows:
+        city, country = location_parts(row["location"])
+        # '' marks "parsed, nothing known" so the row is not re-read every run.
+        updates.append((city or "", country, row["id"]))
+    if updates:
+        with conn.cursor() as cur:
+            cur.executemany(
+                "UPDATE people SET location_city = %s, country_code = %s WHERE id = %s", updates
+            )
+    return len(updates)
 
 
 def find_person(
@@ -142,6 +176,8 @@ def upsert_candidate(
         "department": department(title),
         "domain": domain,
         "location": _location(cand.location),
+        "location_city": location_parts(cand.location)[0],
+        "country_code": location_parts(cand.location)[1],
         "github_login": cand.github_login,
         "github_url": _github_url(cand.github_login),
         "website": cand.website,
@@ -161,11 +197,13 @@ def upsert_candidate(
                  (id, user_id, name, email, company, role_title, notes, application_id, status,
                   created_at, updated_at, company_id, origin, dedupe_key, linkedin_url_normalized,
                   seniority, department, company_domain, location, github_login, github_url,
-                  website_url, twitter_url, phone, confidence, last_seen_at, discovery_source)
+                  website_url, twitter_url, phone, confidence, last_seen_at, discovery_source,
+                  location_city, country_code)
                VALUES (%(id)s, NULL, %(name)s, %(email)s, %(company)s, %(role)s, NULL, NULL, 'active',
                   %(now)s, %(now)s, %(company_id)s, 'system', %(dedupe)s, %(linkedin)s,
                   %(seniority)s, %(department)s, %(domain)s, %(location)s, %(github_login)s, %(github_url)s,
-                  %(website)s, %(twitter)s, %(phone)s, %(confidence)s, %(now)s, %(source)s)""",
+                  %(website)s, %(twitter)s, %(phone)s, %(confidence)s, %(now)s, %(source)s,
+                  %(location_city)s, %(country_code)s)""",
             {**values, "id": person_id, "name": cand.name},
         )
         action = "created"
@@ -186,6 +224,8 @@ def upsert_candidate(
                  seniority = COALESCE(seniority, %(seniority)s),
                  department = COALESCE(department, %(department)s),
                  company_domain = COALESCE(company_domain, %(domain)s),
+                 location_city = COALESCE(NULLIF(location_city, ''), %(location_city)s, location_city),
+                 country_code = COALESCE(country_code, %(country_code)s),
                  location = COALESCE(location, %(location)s),
                  github_login = COALESCE(github_login, CASE WHEN NOT EXISTS
                    (SELECT 1 FROM people o WHERE lower(o.github_login) = lower(%(github_login)s::text)) THEN %(github_login)s END),

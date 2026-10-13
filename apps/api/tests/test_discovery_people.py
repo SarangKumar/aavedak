@@ -143,3 +143,17 @@ def test_site_inbox_reads_mailto_and_requires_company_domain():
     # A personal address is never captured, nor an inbox on someone else's domain.
     assert site_inbox("<p>priya@acme.com</p>", "https://acme.com/") is None
     assert site_inbox("<p>jobs@recruitco.com</p>", "https://acme.com/") is None
+
+
+def test_person_location_parts_and_snippet_location():
+    from app.discovery.people.merge import location_parts
+    from app.discovery.people.sources.search import snippet_location
+
+    assert location_parts("Bangalore") == ("Bengaluru, India", "IN")
+    assert location_parts("Berlin, Germany") == ("Berlin, Germany", "DE")
+    assert location_parts("Germany") == (None, "DE")
+    assert location_parts("Remote") == (None, None)
+    assert location_parts(None) == (None, None)
+    assert snippet_location("Bengaluru, Karnataka, India · 500+ connections on LinkedIn") is not None
+    assert snippet_location("Location: Pune · Experience: Example Inc") == "Pune"
+    assert snippet_location("Experienced engineer who loves building things") is None

@@ -106,7 +106,7 @@ function resolveShared(cities: LocationEntry[], namedCountries: string[]): Locat
   return first && second && first.population >= 2 * second.population ? first : null;
 }
 
-function namedCountryCodes(text: string): string[] {
+export function namedCountryCodes(text: string): string[] {
   return COUNTRY_PATTERNS.filter(({ res }) => res.some((re) => test(re, text))).map((c) => c.code);
 }
 
