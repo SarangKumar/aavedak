@@ -1,5 +1,5 @@
 {
-  "_doc": "Opening phrases rewritten by rule weak_phrase. Each maps to a template; {rest} is the original remainder. 'gerund_to_verb' means: if the remainder starts with a known gerund, use that verb (tense from the entry); otherwise leave the bullet unchanged.",
+  "_doc": "Opening phrases rewritten by rule weak_phrase. Each maps to a template; {rest} is the original remainder. 'gerund_to_verb' means: if the remainder starts with a known gerund, use that verb (tense from the entry); otherwise leave the bullet unchanged. 'gerund_or_contribute' (\"worked on\" only): a following known gerund becomes that verb (\"Worked on building X\" → \"Built X\"), otherwise \"Contributed to {rest}\". \"Helped with\" / \"assisted with\" always become \"Contributed to\" so a supporting role is never turned into sole credit.",
   "rules": [
     {
       "pattern": "responsible for",
@@ -15,7 +15,7 @@
     },
     {
       "pattern": "worked on",
-      "action": "contribute"
+      "action": "gerund_or_contribute"
     },
     {
       "pattern": "helped with",

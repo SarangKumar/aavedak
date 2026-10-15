@@ -1,5 +1,6 @@
 "use client";
 
+import { FeatureHeading, FeatureIcon } from "@/components/feature-heading";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -818,7 +819,7 @@ export function DocumentsHub({
         <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
           आवेदक
         </p>
-        <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Documents</h1>
+        <FeatureHeading feature="documents" />
         <p className="text-muted-foreground text-[13px] leading-relaxed">
           Resumes (PDF), cover letters, referral email templates, and follow-up email templates.
           Only one resume can be the active profile showcase.
@@ -838,15 +839,19 @@ export function DocumentsHub({
           className="border-border bg-card h-auto max-w-full flex-wrap border p-0.5"
         >
           <TabsTrigger value="resumes" className="cursor-pointer px-2.5 text-[12px]">
+            <FeatureIcon feature="resumes" className="size-3.5 text-current" />
             Resume
           </TabsTrigger>
           <TabsTrigger value="cover_letters" className="cursor-pointer px-2.5 text-[12px]">
+            <FeatureIcon feature="coverLetters" className="size-3.5 text-current" />
             Cover Letter
           </TabsTrigger>
           <TabsTrigger value="referral_email" className="cursor-pointer px-2.5 text-[12px]">
+            <FeatureIcon feature="referralEmail" className="size-3.5 text-current" />
             Referral <span className="hidden md:inline">Email</span>
           </TabsTrigger>
           <TabsTrigger value="followup_email" className="cursor-pointer px-2.5 text-[12px]">
+            <FeatureIcon feature="followUpEmail" className="size-3.5 text-current" />
             Follow-up
           </TabsTrigger>
         </TabsList>

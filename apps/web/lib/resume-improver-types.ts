@@ -4,7 +4,7 @@ export type ImproveLine = { id: string; kind: string; text: string; glyph?: stri
 
 export type ImproveChange = {
   id: string;
-  kind: "bullet" | "skills" | "bullet_order" | "section_order";
+  kind: "bullet" | "skills" | "bullet_order" | "section_order" | "date_format" | "separators";
   section: string;
   before: string[];
   after: string[];
@@ -12,6 +12,8 @@ export type ImproveChange = {
   reason: string;
   accepted: boolean;
   target: Record<string, unknown>;
+  /** First run only: how each engine's score moves when this change is added to the others. */
+  impact?: Record<string, number> | null;
 };
 
 export type AlignmentItem = {
@@ -58,7 +60,10 @@ export type ImproveResult = {
   };
   changes: ImproveChange[];
   rejected: (ImproveChange & { problems: string[] })[];
+  /** Set only when no change could be kept: why the original was returned unchanged. */
   documentProblems: string[];
+  /** Accepted changes left out because, combined with the others, they failed the fact check. */
+  dropped: { id: string; kind: ImproveChange["kind"]; before: string[]; reasons: string[] }[];
   alignment: {
     source: "jd" | "role";
     items: AlignmentItem[];

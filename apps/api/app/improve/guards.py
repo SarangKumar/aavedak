@@ -31,18 +31,42 @@ PHONE_RE = re.compile(r"\+?\d[\d\s().-]{7,}\d")
 WORD_RE = re.compile(r"[A-Za-z][A-Za-z0-9+#.&'-]*")
 
 
+def _month_norm(text: str) -> str:
+    return MONTH_RE.sub(lambda m: m.group(0).lower().rstrip(".")[:3], text)
+
+
+_SEP_RE = re.compile(r"\s+[|·]\s+")
+
+
+def _sep_norm(text: str) -> str:
+    """" | " and " · " between items are the same separator."""
+    return _SEP_RE.sub(" | ", text)
+
+
+def check_separators(before_lines: list[str], after_lines: list[str]) -> list[str]:
+    """Separator swap: same lines, each changed only from " | " to " · " between items."""
+    if len(before_lines) != len(after_lines):
+        return ["changes which lines exist"]
+    if any(_sep_norm(b) != _sep_norm(a) for b, a in zip(before_lines, after_lines)):
+        return ["changes more than the separators"]
+    return []
+
+
 def _words(text: str) -> list[str]:
     return [w.strip(".,;:'").lower() for w in WORD_RE.findall(text)]
 
 
 def _entities(text: str) -> Counter:
-    """Capitalised words other than the opener and known verb forms (orgs, products, places)."""
+    """Capitalised words other than the opener, known verb forms and month names (orgs, products,
+    places)."""
     out: Counter = Counter()
     for i, w in enumerate(WORD_RE.findall(text)):
         clean = w.strip(".,;:'")
         if i == 0 or not clean[:1].isupper():
             continue
         if clean.lower() in lemma_of():
+            continue
+        if MONTH_RE.fullmatch(clean):  # dates are checked by the "months" class
             continue
         out[clean] += 1
     return out
@@ -123,6 +147,21 @@ def check_skills_regroup(before_lines: list[str], after_lines: list[str], labels
     return problems
 
 
+def same_except_month_spelling(before: str, after: str) -> bool:
+    """True when the texts differ only in how months are spelled ("Jun" vs "June")."""
+    return _month_norm(before) == _month_norm(after)
+
+
+def check_date_format(before_lines: list[str], after_lines: list[str]) -> list[str]:
+    """Date spelling: same lines, each changed only by spelling out a month."""
+    if len(before_lines) != len(after_lines):
+        return ["changes which lines exist"]
+    problems = _class_diffs("\n".join(before_lines), "\n".join(after_lines), FACT_CLASSES[:-1])
+    if any(not same_except_month_spelling(b, a) for b, a in zip(before_lines, after_lines)):
+        problems.append("changes more than the month spelling")
+    return problems
+
+
 def check_document(before: str, after: str, *, header_before: list[str], header_after: list[str],
                    entries_before: list[str], entries_after: list[str],
                    label_words: int = 0) -> list[str]:
@@ -132,9 +171,13 @@ def check_document(before: str, after: str, *, header_before: list[str], header_
     are headings, not content, so they don't count toward the 5% growth limit.
     """
     problems = []
-    if header_before != header_after:
+    # The header may differ only in separators (the separators rule).
+    if [_sep_norm(h) for h in header_before] != [_sep_norm(h) for h in header_after]:
         problems.append("header changed")
-    if Counter(entries_before) != Counter(entries_after):
+    # Role lines may only differ by month spelling (the date_format rule).
+    if Counter(_sep_norm(_month_norm(e)) for e in entries_before) != Counter(
+        _sep_norm(_month_norm(e)) for e in entries_after
+    ):
         problems.append("a role/project line changed")
     # Skills may be de-duplicated by regrouping, so compare their set; everything else exactly.
     problems += _class_diffs(before, after, ("numbers", "months", "emails", "urls", "phones"))

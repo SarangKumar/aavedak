@@ -8,33 +8,21 @@ import { DesktopNavMenu } from "@/components/desktop-nav-menu";
 import { MobileNav, type NavGroup } from "@/components/mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SHELL_X } from "@/lib/layout";
+import { FEATURES, type FeatureKey } from "@/lib/features";
 import { cn } from "@/lib/utils";
 
+const item = (feature: FeatureKey) => ({
+  href: FEATURES[feature].href,
+  label: FEATURES[feature].label,
+  feature,
+});
+
 const mobileNav: readonly NavGroup[] = [
-  {
-    label: "Workspace",
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-      { href: "/jobs", label: "Jobs", icon: "jobs" },
-      { href: "/job-tracker", label: "Tracker", icon: "tracker" },
-    ],
-  },
-  {
-    label: "Resume",
-    items: [
-      { href: "/ats", label: "Score", icon: "ats" },
-      { href: "/resume-improver", label: "Improve", icon: "improve" },
-      { href: "/documents?tab=resumes&upload=1", label: "Upload resume", icon: "upload" },
-    ],
-  },
+  { label: "Workspace", items: [item("dashboard"), item("jobs"), item("tracker")] },
+  { label: "Resume", items: [item("resumeScore"), item("improveResume"), item("uploadResume")] },
   {
     label: "Apply & reach out",
-    items: [
-      { href: "/documents", label: "Documents", icon: "documents" },
-      { href: "/referrals", label: "Referrals", icon: "referrals" },
-      { href: "/outreach", label: "Outreach", icon: "outreach" },
-      { href: "/people", label: "People", icon: "people" },
-    ],
+    items: [item("documents"), item("referrals"), item("inbox"), item("people")],
   },
 ];
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { FeatureHeading } from "@/components/feature-heading";
 import { StatusBadge, StatusLabel } from "@/components/status-badge";
 import { JobCardContent, jobCardClassName } from "@/components/job-card";
 import { cn } from "@/lib/utils";
@@ -490,7 +491,7 @@ export function JobTrackerBoard({
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
             आवेदक
           </p>
-          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Job tracker</h1>
+          <FeatureHeading feature="tracker" />
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Status changes by dragging cards between columns only. Bookmarked means saved interest —
             not applied yet.

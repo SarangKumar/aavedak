@@ -1,5 +1,6 @@
 "use client";
 
+import { FEATURES, type FeatureKey } from "@/lib/features";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -22,6 +23,19 @@ import { Kbd } from "@/components/ui/kbd";
 import { authClient, signOutAndRedirect } from "@/lib/auth-client";
 import { useAppNavigate } from "@/lib/navigation-progress";
 import { themeCookieString, THEME_KEY, type ThemeMode } from "@/lib/theme";
+
+const PALETTE_FEATURES: FeatureKey[] = [
+  "dashboard",
+  "jobs",
+  "tracker",
+  "documents",
+  "resumeScore",
+  "improveResume",
+  "uploadResume",
+  "referrals",
+  "inbox",
+  "people",
+];
 
 export function CommandPalette() {
   const { navigate, prefetch } = useAppNavigate();
@@ -105,39 +119,15 @@ export function CommandPalette() {
             <CommandEmpty>No results.</CommandEmpty>
             {signedIn ? (
               <CommandGroup heading="Navigate">
-                <CommandItem value="dashboard" onClick={() => go("/dashboard")}>
-                  Dashboard
-                </CommandItem>
-                <CommandItem value="jobs" onClick={() => go("/jobs")}>
-                  Jobs
-                </CommandItem>
-                <CommandItem value="job tracker" onClick={() => go("/job-tracker")}>
-                  Job tracker
-                </CommandItem>
-                <CommandItem value="documents" onClick={() => go("/documents")}>
-                  Documents
-                </CommandItem>
-                <CommandItem value="referrals" onClick={() => go("/referrals")}>
-                  Referrals
-                </CommandItem>
-                <CommandItem value="resume score ats" onClick={() => go("/ats")}>
-                  Resume · Score
-                </CommandItem>
-                <CommandItem value="resume improve improver" onClick={() => go("/resume-improver")}>
-                  Resume · Improve
-                </CommandItem>
-                <CommandItem
-                  value="resume upload"
-                  onClick={() => go("/documents?tab=resumes&upload=1")}
-                >
-                  Resume · Upload
-                </CommandItem>
-                <CommandItem value="people" onClick={() => go("/people")}>
-                  People
-                </CommandItem>
-                <CommandItem value="outreach follow ups" onClick={() => go("/outreach")}>
-                  Outreach
-                </CommandItem>
+                {PALETTE_FEATURES.map((key) => {
+                  const f = FEATURES[key];
+                  return (
+                    <CommandItem key={key} value={`${f.label} ${key}`} onClick={() => go(f.href)}>
+                      <f.icon className="text-muted-foreground size-4" aria-hidden />
+                      {f.label}
+                    </CommandItem>
+                  );
+                })}
                 <CommandItem value="about" onClick={() => go("/about")}>
                   About
                 </CommandItem>

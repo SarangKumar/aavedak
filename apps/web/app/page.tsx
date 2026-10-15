@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { FEATURES } from "@/lib/features";
 import { BrandMark } from "@/components/brand-mark";
 import { HomeFaq } from "@/components/home-faq";
 import { HomeFlow } from "@/components/home-flow";
@@ -23,44 +24,18 @@ const chips = [
   { label: "Local-first · Privacy-minded" },
 ] as const;
 
-const features = [
-  {
-    href: "/dashboard",
-    title: "Dashboard",
-    label: "Focus",
-    description: "Today's priorities, application pulse, and what to do next.",
-  },
-  {
-    href: "/jobs",
-    title: "Jobs",
-    label: "Discover",
-    description: "Multi-source roles as cards — scan, shortlist, open detail.",
-  },
-  {
-    href: "/job-tracker",
-    title: "Job tracker",
-    label: "Pipeline",
-    description: "Kanban and list views for every application stage.",
-  },
-  {
-    href: "/documents",
-    title: "Documents",
-    label: "Prepare",
-    description: "Resumes, cover letters, and reusable templates ready to send.",
-  },
-  {
-    href: "/referrals",
-    title: "Referrals",
-    label: "Warm paths",
-    description: "Track asks, follow-ups, and introductions that move the needle.",
-  },
-  {
-    href: "/ats",
-    title: "ATS",
-    label: "Score",
-    description: "Check resume ATS readiness and match against a job description.",
-  },
-] as const;
+// Labels, icons and descriptions come from lib/features (shared with the nav and Cmd+K).
+const features = (
+  [
+    ["dashboard", "Focus"],
+    ["jobs", "Discover"],
+    ["tracker", "Pipeline"],
+    ["documents", "Prepare"],
+    ["referrals", "Warm paths"],
+    ["resumeScore", "Score"],
+    ["improveResume", "Refine"],
+  ] as const
+).map(([key, tag]) => ({ ...FEATURES[key], tag }));
 
 export default async function HomePage() {
   const [access, jobMap] = await Promise.all([getOptionalAccess(), getJobMapSummary()]);
@@ -195,11 +170,12 @@ export default async function HomePage() {
                 className="aavedak-card-lift aavedak-fade-up aavedak-fade-up-delay-3 border-border/80 bg-card ring-ring/5 hover:border-primary/25 group flex min-h-[6.75rem] cursor-pointer flex-col rounded-xl border p-3.5 shadow-sm ring-1 backdrop-blur-sm sm:p-4"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="aavedak-section-title text-foreground text-[13px]">
-                    {item.title}
+                  <h3 className="aavedak-section-title text-foreground flex items-center gap-1.5 text-[13px]">
+                    <item.icon className="text-primary size-4" aria-hidden />
+                    {item.label}
                   </h3>
                   <span className="text-primary/90 bg-primary/10 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide">
-                    {item.label}
+                    {item.tag}
                   </span>
                 </div>
                 <p className="aavedak-body text-muted-foreground mt-2">{item.description}</p>

@@ -1,5 +1,7 @@
 "use client";
 
+import { FeatureHeading, FeatureIcon } from "@/components/feature-heading";
+import type { FeatureKey } from "@/lib/features";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -156,15 +158,17 @@ const DEFAULT_WIDTHS: Record<ColumnId, number> = {
 };
 const FOLLOWUP_COOLDOWN_MS = 60 * 60 * 1000;
 
-const COLUMN_META: Record<ColumnId, { title: string; blurb: string }> = {
+const COLUMN_META: Record<ColumnId, { title: string; blurb: string; feature: FeatureKey }> = {
   applications: {
     title: "Active applications",
     blurb: "Open applications from your tracker and Jobs",
+    feature: "tracker",
   },
-  template: { title: "Email", blurb: "Template · From = your Gmail" },
+  template: { title: "Email", blurb: "Template · From = your Gmail", feature: "referralEmail" },
   people: {
     title: "People",
     blurb: "Select recipients · confirm & send below",
+    feature: "people",
   },
 };
 
@@ -777,7 +781,8 @@ export function ReferralsComposer({
         <Card className="border-border/80 bg-card relative flex h-full min-h-0 min-w-0 flex-col gap-0 rounded-xl border p-0 shadow-sm">
           <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
             <div className="min-w-0">
-              <p className="text-foreground text-[13px] font-semibold tracking-tight">
+              <p className="text-foreground flex items-center gap-1.5 text-[13px] font-semibold tracking-tight">
+                <FeatureIcon feature={meta.feature} />
                 {meta.title}
               </p>
               <p className="text-muted-foreground text-[11px] leading-relaxed">{meta.blurb}</p>
@@ -980,7 +985,10 @@ export function ReferralsComposer({
       >
         <header className="border-border/60 flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
           <div className="min-w-0">
-            <p className="text-foreground text-[13px] font-semibold tracking-tight">{meta.title}</p>
+            <p className="text-foreground flex items-center gap-1.5 text-[13px] font-semibold tracking-tight">
+              <FeatureIcon feature={meta.feature} />
+              {meta.title}
+            </p>
             <p className="text-muted-foreground text-[11px] leading-relaxed">{meta.blurb}</p>
           </div>
           {renderColumnDragHandle(meta.title)}
@@ -1269,7 +1277,7 @@ export function ReferralsComposer({
             className={buttonVariants({ variant: "outline", size: "icon-sm" })}
             aria-label="Open outreach inbox"
           >
-            <InboxIcon />
+            <FeatureIcon feature="inbox" className="text-current" />
           </Link>
         </Tooltip>
         <BoardToggleLink
@@ -1529,7 +1537,7 @@ export function ReferralsComposer({
           <p className="text-primary/90 font-mono text-[12px] tracking-wide" lang="hi">
             आवेदक
           </p>
-          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Referrals</h1>
+          <FeatureHeading feature="referrals" />
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Compose cold outreach against an application, pick people at that company, confirm, then
             wait 20 seconds on screen before the batch sends from {userEmail} through Gmail.
@@ -1556,7 +1564,8 @@ export function ReferralsComposer({
       </div>
 
       <Card className="border-border/80 bg-card gap-0 space-y-2 rounded-xl border p-4">
-        <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
+        <h2 className="text-foreground flex items-center gap-1.5 text-[13px] font-semibold tracking-tight">
+          <FeatureIcon feature="followUps" />
           Pending follow-ups
         </h2>
         {openFollowUps.length === 0 ? (
@@ -1638,26 +1647,5 @@ function AppTags({ app, needsReferral = false }: { app: ApplicationDto; needsRef
         </Badge>
       ) : null}
     </>
-  );
-}
-
-function InboxIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="size-4" aria-hidden>
-      <path
-        d="M22 12h-6l-2 3h-4l-2-3H2"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

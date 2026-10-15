@@ -19,12 +19,14 @@ from app.improve.rules import (
     apply_changes,
     bullet_changes,
     bullet_order_changes,
+    date_format_change,
     section_order_change,
+    separators_change,
     skills_change,
 )
 from app.improve.structure import BULLET_SECTIONS, StructuredResume, parse, render, to_json
 
-IMPROVER_VERSION = "1.0"
+IMPROVER_VERSION = "1.2"
 
 
 def _guard(change: Change) -> list[str]:
@@ -32,6 +34,10 @@ def _guard(change: Change) -> list[str]:
         return guards.check_bullet_rewrite(change.before[0], change.after[0])
     if change.kind == "skills":
         return guards.check_skills_regroup(change.before, change.after, set(change.target["labels"]))
+    if change.kind == "date_format":
+        return guards.check_date_format(change.before, change.after)
+    if change.kind == "separators":
+        return guards.check_separators(change.before, change.after)
     return guards.check_same_lines(change.before, change.after)
 
 
@@ -49,6 +55,12 @@ def candidate_changes(resume: StructuredResume, role: str, jd_text: str,
     so = section_order_change(resume, order)
     if so:
         found.append(so)
+    dates = date_format_change(resume)
+    if dates:
+        found.append(dates)
+    seps = separators_change(resume)
+    if seps:
+        found.append(seps)
     valid, rejected = [], []
     for ch in found:
         problems = _guard(ch)
@@ -233,3 +245,56 @@ def score_pair(original_text: str, revised_text: str, *, role: str, jd_text: str
         "engineVersions": {e: before[e].get("engineVersion") for e in engines if before[e]["ok"]},
     }
     return {"snapshot": snapshot, "before": before, "after": after}
+
+
+# ---------------------------------------------------------------- score-aware defaults
+
+
+def _engine_scores(resume: StructuredResume, changes: list[Change], request: dict,
+                   engines: tuple[str, ...]) -> dict[str, int | None]:
+    text = render(apply_changes(resume, changes))
+    return {e: (v.get("score") if v.get("ok") else None) for e, v in score_text(text, request, engines).items()}
+
+
+def change_impacts(resume_text: str, *, role: str, jd_text: str, years_experience: float | None,
+                   chosen_ids: set[str], engines: tuple[str, ...]) -> dict[str, dict[str, int]]:
+    """Per change, how each engine's score moves when that change is added to the others
+    (all chosen changes vs. all but this one). Engines that could not score are left out."""
+    resume = parse(resume_text)
+    valid, _ = candidate_changes(resume, role, jd_text, years_experience)
+    chosen = [c for c in valid if c.id in chosen_ids]
+    request = scoring_request(role=role, jd_text=jd_text, years_experience=years_experience)
+    full = _engine_scores(resume, chosen, request, engines)
+    out: dict[str, dict[str, int]] = {}
+    for ch in chosen:
+        without = _engine_scores(resume, [c for c in chosen if c is not ch], request, engines)
+        out[ch.id] = {
+            e: full[e] - without[e]
+            for e in engines
+            if full.get(e) is not None and without.get(e) is not None
+        }
+    return out
+
+
+def improve_and_score(resume_text: str, *, role: str, jd_text: str, years_experience: float | None,
+                      accepted: list[str] | None, engines: tuple[str, ...] = DEFAULT_ENGINES) -> dict:
+    """`improve()` plus before/after scores. On the first run (`accepted is None`) every change is
+    measured against the selected engines; one that lowers their summed score starts unticked, and
+    each change carries its per-engine `impact` so the user can still choose it."""
+    result = improve(resume_text, role=role, jd_text=jd_text, years_experience=years_experience,
+                     accepted=accepted)
+    if accepted is None:
+        chosen_ids = {c["id"] for c in result["changes"] if c["accepted"]}
+        impacts = change_impacts(resume_text, role=role, jd_text=jd_text,
+                                 years_experience=years_experience, chosen_ids=chosen_ids,
+                                 engines=engines)
+        lowers = {cid for cid, imp in impacts.items() if sum(imp.values()) < 0}
+        if lowers:
+            result = improve(resume_text, role=role, jd_text=jd_text,
+                             years_experience=years_experience,
+                             accepted=[cid for cid in chosen_ids if cid not in lowers])
+        for c in result["changes"]:
+            c["impact"] = impacts.get(c["id"])
+    result["scores"] = score_pair(result["originalText"], result["revisedText"], role=role,
+                                  jd_text=jd_text, years_experience=years_experience, engines=engines)
+    return result

@@ -19,6 +19,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { JobFormFields } from "@/components/job-form-fields";
 import { ResumePreviewDialog } from "@/components/resume-preview";
 import { EngineKindBadge } from "@/components/ats-engine-badge";
+import { FeatureIcon } from "@/components/feature-heading";
 import { AtsScoreMatrix } from "@/components/ats-score-matrix";
 import {
   companyInitials,
@@ -73,6 +74,8 @@ import { STATUS_LABELS, isApplicationStatus } from "@/lib/application-status";
 import { ATS_ENGINES } from "@/lib/ats-engines/registry";
 import type { AtsEngineId } from "@/lib/ats-engines/types";
 import { saveAtsPrefill } from "@/lib/ats-prefill";
+import { FEATURES } from "@/lib/features";
+import { saveImprovePrefill } from "@/lib/improve-prefill";
 import { JOB_SOURCES, type JobSource } from "@/lib/job-constants";
 import type { JobDtoBase } from "@/lib/job-dto";
 
@@ -1625,7 +1628,22 @@ function JobDetail({
             href={`/documents?tab=cover_letters&jobId=${job.id}`}
             className={buttonVariants({ variant: "ghost", size: "sm" })}
           >
+            <FeatureIcon feature="coverLetters" className="text-current" />
             Cover letter
+          </Link>
+          <Link
+            href={FEATURES.improveResume.href}
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+            onClick={() =>
+              saveImprovePrefill({
+                role: job.title,
+                jdText: job.description.slice(0, 40_000),
+                job: { id: job.id, title: job.title, company: job.company, url: job.url },
+              })
+            }
+          >
+            <FeatureIcon feature="improveResume" className="text-current" />
+            {FEATURES.improveResume.label}
           </Link>
         </div>
       </Card>

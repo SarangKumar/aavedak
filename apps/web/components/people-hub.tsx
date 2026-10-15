@@ -1,5 +1,6 @@
 "use client";
 
+import { FeatureHeading } from "@/components/feature-heading";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -517,7 +518,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide">CRM</p>
-          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">People</h1>
+          <FeatureHeading feature="people" />
           <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
             Shared referral directory — contacts stay available even if the person who added them
             deletes their account.

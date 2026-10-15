@@ -22,6 +22,7 @@ export function AtsScoreMatrix<R extends AtsMatrixResume>({
   renderCell,
   finalScores,
   renderResumeLeading,
+  renderRowActions,
   onPreview,
 }: {
   engines: AtsMatrixEngine[];
@@ -32,7 +33,10 @@ export function AtsScoreMatrix<R extends AtsMatrixResume>({
   finalScores: (resumeId: string) => FinalScoreEntry[] | null;
   /** Optional control shown before the resume name, such as an include checkbox. */
   renderResumeLeading?: (resume: R) => ReactNode;
-  onPreview: (resume: R) => void;
+  /** Optional controls at the end of the resume cell, such as download buttons. */
+  renderRowActions?: (resume: R) => ReactNode;
+  /** Shows a preview button on each row when set. */
+  onPreview?: (resume: R) => void;
 }) {
   return (
     <ScrollArea orientation="horizontal" className="border-border/60 rounded-lg border">
@@ -82,11 +86,15 @@ export function AtsScoreMatrix<R extends AtsMatrixResume>({
                         Active
                       </Badge>
                     ) : null}
-                    <ResumePreviewButton
-                      resumeName={resume.displayName}
-                      onClick={() => onPreview(resume)}
-                      className="ml-auto shrink-0"
-                    />
+                    <span className="ml-auto flex shrink-0 items-center gap-1">
+                      {onPreview ? (
+                        <ResumePreviewButton
+                          resumeName={resume.displayName}
+                          onClick={() => onPreview(resume)}
+                        />
+                      ) : null}
+                      {renderRowActions?.(resume)}
+                    </span>
                   </div>
                 </td>
                 {engines.map((eng) => (

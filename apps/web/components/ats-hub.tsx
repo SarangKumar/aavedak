@@ -1,5 +1,7 @@
 "use client";
 
+import { AtsEnginePicker } from "@/components/ats-engine-picker";
+import { FeatureHeading } from "@/components/feature-heading";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -45,7 +47,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CollapsibleSection as StepBlock } from "@/components/collapsible-section";
 import { ResumeListSkeleton } from "@/components/page-loading-skeleton";
 import {
@@ -243,21 +244,6 @@ function engineNames(ids: AtsEngineId[]) {
     .filter(Boolean)
     .join(", ");
 }
-
-const ENGINE_KINDS = ["native", "reference", "open_source"] as const;
-type EngineKind = (typeof ENGINE_KINDS)[number];
-const KIND_LABELS: Record<EngineKind, string> = {
-  native: "Native",
-  reference: "Reference",
-  open_source: "Open Source",
-};
-const ENGINE_IDS_BY_KIND: Record<EngineKind, AtsEngineId[]> = ENGINE_KINDS.reduce(
-  (acc, kind) => {
-    acc[kind] = ATS_ENGINES.filter((e) => e.kind === kind).map((e) => e.id);
-    return acc;
-  },
-  {} as Record<EngineKind, AtsEngineId[]>,
-);
 
 export function AtsHub({
   initialResumes,
@@ -524,29 +510,6 @@ export function AtsHub({
     setUploadOpen(false);
   }
 
-  function toggleEngine(id: AtsEngineId) {
-    if (running) return;
-    setDetailKey(null);
-    setSelectedEngineIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  const activeEngineKinds = useMemo(
-    () =>
-      ENGINE_KINDS.filter((k) => ENGINE_IDS_BY_KIND[k].every((id) => selectedEngineIds.has(id))),
-    [selectedEngineIds],
-  );
-
-  function setActiveEngineKinds(kinds: string[]) {
-    if (running) return;
-    setDetailKey(null);
-    setSelectedEngineIds(new Set(kinds.flatMap((k) => ENGINE_IDS_BY_KIND[k as EngineKind] ?? [])));
-  }
-
   async function runCombos(list: AnalysisCombination[], fresh: boolean) {
     const ready = list.filter((c) => c.status === "ready");
     if (!ready.length) return;
@@ -755,7 +718,7 @@ export function AtsHub({
   return (
     <ShellWidth className="space-y-4 py-6 sm:space-y-5 sm:py-8">
       <header className="space-y-1.5">
-        <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">ATS score</h1>
+        <FeatureHeading feature="resumeScore" />
         <p className="text-muted-foreground max-w-2xl text-pretty text-[13px] leading-relaxed">
           Follow the steps below. Results fill one cell at a time — click a score for details.
         </p>
@@ -802,109 +765,15 @@ export function AtsHub({
               : `${selectedEngineIds.size} selected · ${engineNames([...selectedEngineIds])}`
           }
         >
-          <div className="mb-2.5 flex items-center gap-2">
-            <span className="text-muted-foreground text-[11px] font-medium">Kind</span>
-            <ToggleGroup
-              aria-label="Select engines by kind"
-              variant="outline"
-              size="sm"
-              spacing={1}
-              multiple
-              value={activeEngineKinds}
-              onValueChange={setActiveEngineKinds}
-              disabled={running}
-            >
-              {ENGINE_KINDS.map((kind) => (
-                <ToggleGroupItem
-                  key={kind}
-                  value={kind}
-                  className="h-7 rounded-full px-2.5 text-[11px]"
-                >
-                  {KIND_LABELS[kind]}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
-            {ATS_ENGINES.map((eng) => {
-              const checked = selectedEngineIds.has(eng.id);
-              return (
-                <Card
-                  key={eng.id}
-                  size="sm"
-                  className={cn(
-                    "relative gap-2",
-                    checked && "border-primary/40 bg-primary/5",
-                    running && "opacity-60",
-                  )}
-                >
-                  <div className="flex items-start gap-2">
-                    <label
-                      className={cn(
-                        "flex min-w-0 flex-1 cursor-pointer flex-col gap-1",
-                        running && "pointer-events-none",
-                      )}
-                    >
-                      {/* Checkbox and title share one row so their centres line up. */}
-                      <span className="flex min-w-0 items-center gap-2">
-                        <Checkbox
-                          checked={checked}
-                          onChange={() => toggleEngine(eng.id)}
-                          disabled={running}
-                          aria-label={`Select ${eng.name}`}
-                        />
-                        <EngineLabel engineId={eng.id} />
-                      </span>
-                      <span className="text-muted-foreground block pl-6 text-[10px] leading-snug">
-                        {eng.shortDescription}
-                      </span>
-                    </label>
-                    <HoverCard>
-                      <HoverCardTrigger>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          className="text-muted-foreground hover:text-foreground mt-0.5 size-6 min-h-6 min-w-6 shrink-0"
-                          aria-label={`How ${eng.name} scores`}
-                          onClick={(e) => e.preventDefault()}
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" className="size-3.5" aria-hidden>
-                            <circle
-                              cx="12"
-                              cy="12"
-                              r="9"
-                              stroke="currentColor"
-                              strokeWidth="1.75"
-                            />
-                            <path
-                              d="M12 11v5"
-                              stroke="currentColor"
-                              strokeWidth="1.75"
-                              strokeLinecap="round"
-                            />
-                            <circle cx="12" cy="8" r="0.9" fill="currentColor" />
-                          </svg>
-                        </Button>
-                      </HoverCardTrigger>
-                      <HoverCardContent
-                        side="bottom"
-                        align="end"
-                        className="w-64 text-[11px] leading-relaxed"
-                      >
-                        <p className="text-foreground mb-1 font-medium">{eng.name} scoring</p>
-                        <p className="text-muted-foreground text-pretty">{eng.algoBlurb}</p>
-                        {eng.referenceRepo ? (
-                          <p className="text-muted-foreground mt-1.5 text-[10px]">
-                            Adapted from {eng.referenceRepo}
-                          </p>
-                        ) : null}
-                      </HoverCardContent>
-                    </HoverCard>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+          <AtsEnginePicker
+            selected={selectedEngineIds}
+            disabled={running}
+            onChange={(next) => {
+              if (running) return;
+              setDetailKey(null);
+              setSelectedEngineIds(next);
+            }}
+          />
         </StepBlock>
 
         <StepBlock

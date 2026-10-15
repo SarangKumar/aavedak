@@ -1,5 +1,6 @@
 "use client";
 
+import { FeatureHeading } from "@/components/feature-heading";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -1513,7 +1514,7 @@ export function OutreachInbox({
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
           <p className="text-primary/90 font-mono text-[12px] tracking-wide">Inbox</p>
-          <h1 className="aavedak-display text-foreground text-2xl sm:text-3xl">Outreach</h1>
+          <FeatureHeading feature="inbox" />
         </div>
       </header>
       <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">

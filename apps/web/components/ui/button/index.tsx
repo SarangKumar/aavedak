@@ -6,10 +6,11 @@ import { Spinner } from "@/components/ui/spinner";
 
 // Default height is h-9 and matches Input. xs is h-7, sm is h-8, lg is h-10.
 // Icon sizes are square. Text sizes use text-sm except xs.
+// Icons inside a button are 16px (14px in xs) unless the icon sets its own size-* class.
 // Every non-link variant shares the same height for a given size — borders
 // stay inside the box (box-border) so outline and solid buttons align.
 export const buttonVariants = cva(
-  "inline-flex box-border shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent text-sm leading-none font-medium whitespace-nowrap transition-[color,background-color,border-color,transform] duration-200 ease-[cubic-bezier(0.22,1.25,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px active:duration-75 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0",
+  "inline-flex box-border shrink-0 cursor-pointer items-center justify-center gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 rounded-md border border-transparent text-sm leading-none font-medium whitespace-nowrap transition-[color,background-color,border-color,transform] duration-200 ease-[cubic-bezier(0.22,1.25,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px active:duration-75 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0",
   {
     variants: {
       variant: {
@@ -24,7 +25,7 @@ export const buttonVariants = cva(
       },
       size: {
         default: "h-9 min-h-9 max-h-9 px-4",
-        xs: "h-7 min-h-7 max-h-7 px-2 text-xs",
+        xs: "h-7 min-h-7 max-h-7 px-2 text-xs gap-1 [&_svg:not([class*='size-'])]:size-3.5",
         sm: "h-8 min-h-8 max-h-8 px-3",
         lg: "h-10 min-h-10 max-h-10 px-6",
         icon: "size-9 min-h-9 min-w-9 max-h-9 max-w-9 p-0",

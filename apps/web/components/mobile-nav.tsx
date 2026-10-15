@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+
+import { FEATURES, type FeatureKey } from "@/lib/features";
 import { usePathname } from "next/navigation";
 
 import type { HeaderUser } from "@/components/auth-header-actions";
@@ -23,22 +25,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type IconName =
-  | "dashboard"
-  | "jobs"
-  | "tracker"
-  | "ats"
-  | "improve"
-  | "upload"
-  | "documents"
-  | "referrals"
-  | "outreach"
-  | "people";
-
 export type NavItem = {
   href: string;
   label: string;
-  icon: IconName;
+  feature: FeatureKey;
 };
 
 export type NavGroup = {
@@ -46,36 +36,9 @@ export type NavGroup = {
   items: readonly NavItem[];
 };
 
-/** Small stroke icons (the app has no icon library), 16px, following currentColor. */
-const ICON_PATHS: Record<IconName, string> = {
-  dashboard: "M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z",
-  jobs: "M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 7h18v13H3zM3 13h18",
-  tracker: "M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v6h-4z",
-  upload: "M12 15V3m0 0-4 4m4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4",
-  improve: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z",
-  ats: "M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9",
-  documents: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5",
-  referrals:
-    "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 8v6M22 11h-6",
-  outreach: "M4 4h16v12H5.2L4 17.2zM8 9h8M8 12h5",
-  people:
-    "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
-};
-
-function NavIcon({ name }: { name: IconName }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.75}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d={ICON_PATHS[name]} />
-    </svg>
-  );
+function NavIcon({ feature }: { feature: FeatureKey }) {
+  const Icon = FEATURES[feature].icon;
+  return <Icon aria-hidden strokeWidth={1.75} />;
 }
 
 function isActive(pathname: string, href: string) {
@@ -137,7 +100,7 @@ function MobileSidebar({ groups, user }: { groups: readonly NavGroup[]; user: He
                             onClick={close}
                             aria-current={active ? "page" : undefined}
                           >
-                            <NavIcon name={item.icon} />
+                            <NavIcon feature={item.feature} />
                             <span>{item.label}</span>
                           </Link>
                         </SidebarMenuButton>

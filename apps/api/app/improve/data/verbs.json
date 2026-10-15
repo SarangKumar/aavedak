@@ -357,11 +357,11 @@
       "present3": "hosts"
     }
   },
-  "_mapDoc": "Weak opener verb -> replacement base verb. Replacements never add scope or ownership (no led/owned/architected).",
+  "_mapDoc": "Weak or plain opener verb -> replacement base verb with the same meaning, chosen from verbs the ATS engines credit as strong where one fits (created, resolved). Replacements never add scope or ownership (no led/owned/managed/architected).",
   "map": {
     "make": "create",
-    "do": "perform",
-    "handle": "manage",
-    "use": "apply"
+    "write": "create",
+    "fix": "resolve",
+    "do": "perform"
   }
 }

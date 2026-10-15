@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.ats.engine_runner import VALID_ENGINES
-from app.improve.service import DEFAULT_ENGINES, improve, score_pair
+from app.improve.service import DEFAULT_ENGINES, improve, improve_and_score
 
 router = APIRouter(prefix="/svc/v1/improve", tags=["improve"])
 
@@ -30,20 +30,19 @@ def improve_resume(body: ImproveRequest):
     unknown = [e for e in engines if e not in VALID_ENGINES]
     if unknown:
         raise HTTPException(status_code=400, detail=f"Unknown engines: {', '.join(unknown)}")
-    result = improve(
+    if not body.score:
+        return improve(
+            body.resumeText,
+            role=body.role,
+            jd_text=body.jdText,
+            years_experience=body.yearsExperience,
+            accepted=body.accepted,
+        )
+    return improve_and_score(
         body.resumeText,
         role=body.role,
         jd_text=body.jdText,
         years_experience=body.yearsExperience,
         accepted=body.accepted,
+        engines=engines,
     )
-    if body.score:
-        result["scores"] = score_pair(
-            result["originalText"],
-            result["revisedText"],
-            role=body.role,
-            jd_text=body.jdText,
-            years_experience=body.yearsExperience,
-            engines=engines,
-        )
-    return result

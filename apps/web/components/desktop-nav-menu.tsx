@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, Gauge, type LucideIcon, Upload, WandSparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,62 +14,24 @@ import {
   NavigationMenuTrigger,
   NavigationMenuViewport,
 } from "@/components/ui/navigation-menu";
+import { FEATURES, type Feature } from "@/lib/features";
 import { cn } from "@/lib/utils";
 
-type MenuLink = { href: string; label: string; description: string };
+type MenuLink = { href: string; label: string; description: string; icon?: Feature["icon"] };
 
 const DOCUMENT_LINKS: MenuLink[] = [
-  {
-    href: "/documents?tab=resumes",
-    label: "Resume",
-    description: "Upload resumes and pick showcase.",
-  },
-  {
-    href: "/documents?tab=cover_letters",
-    label: "Cover Letter",
-    description: "Write and keep cover letters per job.",
-  },
-  {
-    href: "/documents?tab=referral_email",
-    label: "Referral Email",
-    description: "The template used to ask for referrals.",
-  },
-  {
-    href: "/documents?tab=followup_email",
-    label: "Follow-up Email",
-    description: "The template used for follow-ups.",
-  },
+  FEATURES.resumes,
+  FEATURES.coverLetters,
+  FEATURES.referralEmail,
+  FEATURES.followUpEmail,
 ];
 
-const REFERRAL_LINKS: MenuLink[] = [
-  {
-    href: "/referrals",
-    label: "Referrals",
-    description: "Pick a job and the people to ask for a referral.",
-  },
-  {
-    href: "/outreach",
-    label: "Inbox",
-    description: "Your sent mails, replies and follow-ups.",
-  },
-];
+const REFERRAL_LINKS: MenuLink[] = [FEATURES.referrals, FEATURES.inbox];
 
-type IconLink = MenuLink & { icon: LucideIcon };
-
-const RESUME_LINKS: IconLink[] = [
-  { href: "/ats", label: "Score", description: "ATS scores from every engine.", icon: Gauge },
-  {
-    href: "/resume-improver",
-    label: "Improve",
-    description: "Better wording and order, nothing invented.",
-    icon: WandSparkles,
-  },
-  {
-    href: "/documents?tab=resumes&upload=1",
-    label: "Upload resume",
-    description: "Add a PDF resume.",
-    icon: Upload,
-  },
+const RESUME_LINKS: MenuLink[] = [
+  FEATURES.resumeScore,
+  FEATURES.improveResume,
+  FEATURES.uploadResume,
 ];
 
 /** Name of the active resume, fetched once the Resume panel is first opened. */
@@ -104,11 +65,16 @@ function PanelLink({ link, onNavigate }: { link: MenuLink; onNavigate: () => voi
       <Link
         href={link.href}
         onClick={onNavigate}
-        className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring block rounded-md px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2"
+        className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex gap-2.5 rounded-md px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2"
       >
-        <span className="text-foreground block text-[13px] font-medium">{link.label}</span>
-        <span className="text-muted-foreground mt-0.5 block text-[12px] leading-snug">
-          {link.description}
+        {link.icon ? (
+          <link.icon className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+        ) : null}
+        <span>
+          <span className="text-foreground block text-[13px] font-medium">{link.label}</span>
+          <span className="text-muted-foreground mt-0.5 block text-[12px] leading-snug">
+            {link.description}
+          </span>
         </span>
       </Link>
     </li>
@@ -206,6 +172,7 @@ export function DesktopNavMenu() {
                     onClick={close}
                     className={cn(buttonVariants({ variant: "default", size: "xs" }), "w-full")}
                   >
+                    <FEATURES.referrals.icon aria-hidden />
                     Referrals board
                   </Link>
                   <Link
@@ -213,6 +180,7 @@ export function DesktopNavMenu() {
                     onClick={close}
                     className={cn(buttonVariants({ variant: "secondary", size: "xs" }), "w-full")}
                   >
+                    <FEATURES.inbox.icon aria-hidden />
                     Inbox board
                   </Link>
                 </div>
@@ -234,7 +202,7 @@ export function DesktopNavMenu() {
           <NavigationMenuContent>
             <div className="w-lg grid grid-cols-[13rem_1fr] gap-3">
               <div className="bg-card flex flex-col rounded-lg border p-4">
-                <FileText className="text-primary size-5" aria-hidden />
+                <FEATURES.documents.icon className="text-primary size-4" aria-hidden />
                 <p className="text-foreground mt-2 text-[13px] font-semibold">Resumes</p>
                 <p className="text-muted-foreground mt-1 text-[12px] leading-snug">
                   Score, improve and manage your resumes.
@@ -246,26 +214,7 @@ export function DesktopNavMenu() {
               </div>
               <ul className="flex flex-col gap-1">
                 {RESUME_LINKS.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      onClick={close}
-                      className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex gap-2.5 rounded-md px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2"
-                    >
-                      <link.icon
-                        className="text-muted-foreground mt-0.5 size-4 shrink-0"
-                        aria-hidden
-                      />
-                      <span>
-                        <span className="text-foreground block text-[13px] font-medium">
-                          {link.label}
-                        </span>
-                        <span className="text-muted-foreground mt-0.5 block text-[12px] leading-snug">
-                          {link.description}
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
+                  <PanelLink key={link.href} link={link} onNavigate={close} />
                 ))}
               </ul>
             </div>

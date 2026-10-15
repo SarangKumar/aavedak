@@ -7,6 +7,10 @@ Rules only reword, regroup or reorder what is already on the resume:
 - skills: group the existing skills by category and order them by relevance to the target.
 - bullet_order: inside one role, bullets that show target skills move up (none removed).
 - section_order: sections follow the role pack's order (contents untouched).
+- date_format: abbreviated months next to a year are spelled out ("Jun 2020" → "June 2020"), so
+  every date has the same full month + year shape. The month and year never change.
+- separators: in a contact or role line that joins items with two or more " | ", the pipes become
+  " · ". ATS Resume Checker and Enhancv read three pipes on one line as a table.
 """
 
 from __future__ import annotations
@@ -24,7 +28,7 @@ from app.improve.structure import BULLET_SECTIONS, Section, StructuredResume, bu
 @dataclass
 class Change:
     id: str
-    kind: str  # bullet | skills | bullet_order | section_order
+    kind: str  # bullet | skills | bullet_order | section_order | date_format | separators
     section: str
     before: list[str]
     after: list[str]
@@ -73,6 +77,14 @@ def rewrite_bullet(text: str, *, current: bool) -> tuple[str, list[str]]:
             if base and w == gerund(base):
                 out = _cap(f"{past(base)} {tail}".strip())
                 applied.append("weak_phrase")
+        elif rule["action"] == "gerund_or_contribute":
+            # "Worked on building X" → "Built X": the verb is the user's own; "worked on" adds nothing.
+            base = lemmas.get(w)
+            if base and w == gerund(base) and tail:
+                out = _cap(f"{past(base)} {tail}".strip())
+            else:
+                out = f"Contributed to {remainder}"
+            applied.append("weak_phrase")
         elif rule["action"] == "contribute":
             out = f"Contributed to {remainder}"
             applied.append("weak_phrase")
@@ -316,8 +328,93 @@ def section_order_change(resume: StructuredResume, order: list[str]) -> Change |
     )
 
 
+# ---------------------------------------------------------------- dates
+
+FULL_MONTHS = {
+    "jan": "January", "feb": "February", "mar": "March", "apr": "April", "jun": "June",
+    "jul": "July", "aug": "August", "sep": "September", "sept": "September", "oct": "October",
+    "nov": "November", "dec": "December",
+}
+# An abbreviated month directly before a year ("Jun 2020", "Sept. 2019"); "May" is already full.
+_ABBR_MONTH_RE = re.compile(
+    r"\b(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\.?(?=\s*[',]?\s*(?:19|20)\d{2}\b)", re.I
+)
+
+
+def _full_month(m: re.Match) -> str:
+    full = FULL_MONTHS[m.group(1).lower()]
+    return full.upper() if m.group(1).isupper() and len(m.group(1)) > 1 else full
+
+
+def expand_months(text: str) -> str:
+    return _ABBR_MONTH_RE.sub(_full_month, text)
+
+
+def date_format_change(resume: StructuredResume) -> Change | None:
+    """Spell out abbreviated months next to a year. Rezi asks for full month + year dates and Resume
+    Worded / Open ATS penalise mixed date shapes; the dates themselves stay the same."""
+    before, after, targets = [], [], {}
+    # Role lines and plain section text (education, certifications) carry the dates; bullets are
+    # left to the bullet rules so two changes never edit the same line.
+    for ln in (ln for s in resume.sections for ln in s.lines if ln.kind in ("entry", "text")):
+        new = expand_months(ln.text)
+        if new != ln.text:
+            before.append(ln.text)
+            after.append(new)
+            targets[ln.id] = new
+    if not targets:
+        return None
+    return Change(
+        id="dates",
+        kind="date_format",
+        section="*",
+        before=before,
+        after=after,
+        rules=["date_format"],
+        reason="Write dates as full month and year, the same way everywhere",
+        target={"lines": targets},
+    )
+
+
+# ---------------------------------------------------------------- separators
+
+PIPE_SEP_RE = re.compile(r"\s+\|\s+")
+DOT_SEP = " · "
+
+
+def separators_change(resume: StructuredResume) -> Change | None:
+    """Header, role and plain lines that join items with 2+ " | " get " · " instead. Bullets and
+    skills lines are left to their own rules so two changes never edit the same line."""
+    lines = [*resume.header, *(ln for s in resume.sections for ln in s.lines if ln.kind in ("entry", "text"))]
+    before, after, targets = [], [], {}
+    for ln in lines:
+        if len(PIPE_SEP_RE.findall(ln.text)) < 2:
+            continue
+        new = PIPE_SEP_RE.sub(DOT_SEP, ln.text)
+        before.append(ln.text)
+        after.append(new)
+        targets[ln.id] = new
+    if not targets:
+        return None
+    return Change(
+        id="separators",
+        kind="separators",
+        section="*",
+        before=before,
+        after=after,
+        rules=["separators"],
+        reason="Use “·” between contact details; three “|” on one line reads as a table to some ATS",
+        target={"lines": targets},
+    )
+
+
 def apply_changes(resume: StructuredResume, changes: list[Change]) -> StructuredResume:
     out = resume.clone()
+    for ch in changes:
+        if ch.kind in ("date_format", "separators"):
+            for ln in out.all_lines():
+                if ln.id in ch.target["lines"]:
+                    ln.text = ch.target["lines"][ln.id]
     for ch in changes:
         if ch.kind == "bullet":
             for section in out.sections:
