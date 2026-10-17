@@ -2,7 +2,7 @@
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { Button, type ButtonProps } from "../button";
 import { cn } from "@/lib/utils";
 
 export type FuseButtonProps = Omit<ButtonProps, "onClick"> & {
@@ -27,27 +27,19 @@ export type FuseButtonProps = Omit<ButtonProps, "onClick"> & {
   undoLabel?: string;
   /**
    * `rect` (default) traces the button's own corner radius. `circle` makes the button round
-   * and burns along a true circle; use it for round icon buttons (e.g. the Outreach send).
+   * and burns along a true circle; use it for round icon buttons.
    */
   shape?: "rect" | "circle";
 };
 
-/** Fuse thickness in px: a little heavier than the 1px button border so it reads clearly. */
 const FUSE_WIDTH = 2;
 
-/** Fuse colour follows the button's variant: destructive actions burn red, the rest primary. */
 function fuseColor(variant: FuseButtonProps["variant"]): string {
   return variant === "destructive" ? "var(--destructive)" : "var(--primary)";
 }
 
-/** Used when the button's corner radius can't be read. Matches `rounded-md`. */
 const FALLBACK_RADIUS = 6;
 
-/**
- * The border as a path that starts at the top middle and runs clockwise. `width` × `height` is
- * the button's border box; the stroke's centre line runs `inset` in (half the stroke width), so
- * the stroke's outer edge lies on the button's outer edge.
- */
 function fuseOutline(width: number, height: number, radius: number, inset: number): string {
   const x0 = inset;
   const y0 = inset;
@@ -69,7 +61,6 @@ function fuseOutline(width: number, height: number, radius: number, inset: numbe
   ].join(" ");
 }
 
-/** A circle centred in the box, starting at the top middle and running clockwise. */
 function fuseCircle(width: number, height: number, inset: number): string {
   const r = Math.min(width, height) / 2 - inset;
   const cx = width / 2;
@@ -77,10 +68,6 @@ function fuseCircle(width: number, height: number, inset: number): string {
   return `M${cx} ${cy - r} A${r} ${r} 0 1 1 ${cx} ${cy + r} A${r} ${r} 0 1 1 ${cx} ${cy - r}`;
 }
 
-/**
- * Radius of the border's centre line: the button's outer corner radius less half the border,
- * clamped so a pill (`rounded-full`) gets a true semicircle.
- */
 function centreRadius(button: Element, width: number, height: number, inset: number): number {
   const declared = parseFloat(getComputedStyle(button).borderTopLeftRadius);
   const outer = Number.isFinite(declared) ? declared : FALLBACK_RADIUS;
@@ -89,10 +76,9 @@ function centreRadius(button: Element, width: number, height: number, inset: num
 
 /**
  * An action button whose lit state is an undo on a burning fuse. The fire starts at the top
- * middle of the border and burns one way, clockwise, all the way round back to the top middle.
- * No toast: the button itself carries the countdown.
+ * middle of the border and burns clockwise. No toast: the button itself carries the countdown.
  *
- * Takes every Button size, including the icon sizes (`icon`, `icon-sm`, `icon-lg`).
+ * Takes every Button size, including icon sizes (`icon`, `icon-sm`, `icon-lg`).
  */
 export function FuseButton({
   active,
@@ -112,12 +98,13 @@ export function FuseButton({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
-  // The idle button's border-box size, held while lit so the Undo label never resizes it.
-  const [idleSize, setIdleSize] = useState<{ width: number; height: number } | null>(null);
+  const [idleSize, setIdleSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(Math.ceil(duration / 1000));
   const isIcon = typeof size === "string" && size.startsWith("icon");
 
-  // Read the latest `onFire` from the animation frame without restarting the fuse each render.
   const onFireRef = useRef(onFire);
   useEffect(() => {
     onFireRef.current = onFire;
@@ -146,14 +133,12 @@ export function FuseButton({
     if (!active) return;
     const start = performance.now();
     let frame = 0;
+
     const tick = (now: number) => {
       const path = pathRef.current;
       const svg = svgRef.current;
       const button = buttonRef.current;
-      // Each lit cycle mounts a fresh path, so measure the button once per cycle. The SVG covers
-      // the button's border box (absolute children are placed inside the border, so pull it out
-      // by the border width). The stroke's outer edge sits on the button's outer edge, so the
-      // fuse traces the button's own border, FUSE_WIDTH thick.
+
       if (path && svg && button && !path.getAttribute("d")) {
         const width = button.offsetWidth;
         const height = button.offsetHeight;
@@ -170,25 +155,26 @@ export function FuseButton({
             : fuseOutline(width, height, centreRadius(button, width, height, inset), inset),
         );
       }
+
       const left = Math.max(0, duration - (now - start));
-      // pathLength is 1 and starts at the top middle. The burnt part grows clockwise from 0, so
-      // the dash that is left is the last `share` of the path, ending back at the top middle.
       const share = left / duration;
       path?.style.setProperty("stroke-dasharray", `${share} 2`);
       path?.style.setProperty("stroke-dashoffset", `${share - 1}`);
       const seconds = Math.ceil(left / 1000);
       setSecondsLeft((current) => (current === seconds ? current : seconds));
+
       if (left <= 0) {
         onFireRef.current();
         return;
       }
+
       frame = requestAnimationFrame(tick);
     };
+
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [active, duration, shape]);
 
-  // Undo stays clickable even if the surrounding form changes while the fuse burns.
   return (
     <Button
       {...props}
@@ -198,8 +184,8 @@ export function FuseButton({
       disabled={active ? false : disabled}
       onClick={() => (active ? onUndo() : onActivate())}
       className={cn(
-        shape === "circle" && "aspect-square rounded-full",
-        active && "overflow-hidden tabular-nums",
+        shape === "circle" && "aspect-square overflow-hidden rounded-full",
+        active && "relative overflow-hidden tabular-nums",
         className,
       )}
       style={

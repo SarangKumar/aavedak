@@ -1136,7 +1136,7 @@ export function JobsHub({
             >
               <div className="flex h-full min-h-0 flex-col">{listPane}</div>
             </ResizablePanel>
-            <ResizableHandle aria-label="Resize panes" />
+            <ResizableHandle withHandle aria-label="Resize panes" />
             <ResizablePanel id="jobs-detail" className="bg-muted/20">
               <ScrollArea className="h-full">
                 <div className="flex min-h-full flex-col p-3 sm:p-4">{detailPane}</div>

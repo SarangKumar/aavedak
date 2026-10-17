@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Better Auth).
 
+### Changed
+
+- **Design system refresh (Vinyaas 1.5.0)** — Every UI building block (buttons, fields, menus, tables, dialogs) was updated to the latest version of the Vinyaas component library. Visible changes: tables now sit in their own rounded, bordered frame with roomier rows and small-caps column headings, and columns can be dragged wider where a page enables it; date ranges in the calendar read as one continuous band with round ends; the character counter under long text fields is pinned to the field's bottom-right corner. The animated connectors on the homepage flow and the undo countdown buttons (Referrals, Inbox, admin) are now standard library components rather than Aavedak-only ones, with the same behaviour — a 20 s fuse on referral sends, 5 s elsewhere. Aavedak's own look is unchanged: dark field surfaces, lighter table dividers, the red-to-forest-green score rings, icon sizes inside buttons, and the Save/Send button spinners all stayed as they were.
+
 ### Added
 
 - **Improve resume** (`/resume-improver`, nav **Resume → Improve resume**) — pick a reference resume, the role, your years of experience and, optionally, a job description.

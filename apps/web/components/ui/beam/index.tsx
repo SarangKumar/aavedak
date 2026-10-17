@@ -55,21 +55,16 @@ export type BeamProps = Omit<React.ComponentProps<"svg">, "ref"> & {
   pulse?: BeamPulse;
 };
 
-// `curve`: how far each control point reaches along the main axis (share of the distance;
-// lower = gentler S-curve). Nodes this close to lining up (minor/major offset) get a slight
-// bow, as a share of the distance, so the line never reads as straight.
 const CURVE_REACH = 0.3;
 const CURVE_ALIGNED = 0.25;
 const CURVE_BOW = 0.07;
 
 const TRACK_DASH: Record<BeamTrack, string | undefined> = {
-  // A zero-length dash with a round cap draws a dot.
   dotted: "0 4",
   dashed: "5 5",
   solid: undefined,
 };
 
-/** Center and radius (half the smaller side) of an element, relative to the container. */
 function circleIn(el: HTMLElement, box: DOMRect): Point & { r: number } {
   const rect = el.getBoundingClientRect();
   return {
@@ -91,22 +86,12 @@ type Geometry = { d: string; length: number; w: number; h: number };
 
 function cubicAt(p0: Point, c1: Point, c2: Point, p1: Point, t: number): Point {
   const u = 1 - t;
-  const a = u * u * u;
-  const b = 3 * u * u * t;
-  const c = 3 * u * t * t;
-  const d = t * t * t;
   return {
-    x: a * p0.x + b * c1.x + c * c2.x + d * p1.x,
-    y: a * p0.y + b * c1.y + c * c2.y + d * p1.y,
+    x: u * u * u * p0.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * p1.x,
+    y: u * u * u * p0.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * p1.y,
   };
 }
 
-/**
- * Path between two round nodes, trimmed to stop `gap` px outside each node's edge (so an
- * arrowhead stays visible), plus its approximate length in px (the pulse is sized in px).
- * `curvature` bends either shape further, perpendicular to the line (positive = left of the
- * direction of travel).
- */
 function beamPath(
   a: Point & { r: number },
   b: Point & { r: number },
@@ -117,14 +102,13 @@ function beamPath(
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = Math.hypot(dx, dy) || 1;
-  // Left-hand normal of the direction of travel (screen y points down).
   const nx = dy / len;
   const ny = -dx / len;
 
   let c1: Point;
   let c2: Point;
+
   if (shape === "curve") {
-    // Leave and enter along the main axis (an S-curve for diagonal links).
     const horizontal = Math.abs(dx) >= Math.abs(dy);
     c1 = horizontal ? { x: a.x + dx * CURVE_REACH, y: a.y } : { x: a.x, y: a.y + dy * CURVE_REACH };
     c2 = horizontal ? { x: b.x - dx * CURVE_REACH, y: b.y } : { x: b.x, y: b.y - dy * CURVE_REACH };
@@ -134,24 +118,26 @@ function beamPath(
     c1 = { x: c1.x + nx * bow, y: c1.y + ny * bow };
     c2 = { x: c2.x + nx * bow, y: c2.y + ny * bow };
   } else {
-    // Quadratic arc, written as the equivalent cubic.
-    const q = { x: (a.x + b.x) / 2 + nx * curvature, y: (a.y + b.y) / 2 + ny * curvature };
+    const q = {
+      x: (a.x + b.x) / 2 + nx * curvature,
+      y: (a.y + b.y) / 2 + ny * curvature,
+    };
     c1 = { x: a.x + ((q.x - a.x) * 2) / 3, y: a.y + ((q.y - a.y) * 2) / 3 };
     c2 = { x: b.x + ((q.x - b.x) * 2) / 3, y: b.y + ((q.y - b.y) * 2) / 3 };
   }
 
-  // The curve leaves each end toward its control point, so trim along that direction.
   const start = toward(a, c1, a.r + gap);
   const end = toward(b, c2, b.r + gap);
-
   const steps = Math.max(16, Math.ceil(len / 4));
   let length = 0;
   let prev = start;
+
   for (let i = 1; i <= steps; i++) {
     const p = cubicAt(start, c1, c2, end, i / steps);
     length += Math.hypot(p.x - prev.x, p.y - prev.y);
     prev = p;
   }
+
   return {
     d: `M ${start.x},${start.y} C ${c1.x},${c1.y} ${c2.x},${c2.y} ${end.x},${end.y}`,
     length,
@@ -159,12 +145,10 @@ function beamPath(
 }
 
 /**
- * An animated connector between two elements: a dotted track (with an arrowhead when `arrow`), with
- * a glowing pulse that travels along it. Variants: `shape` (`arc` | `curve`) and `pulse`
- * (`ray` | `dot`). Place it inside a `position: relative` container
- * next to the nodes, and pass refs to the container and both nodes; ends stop just outside
- * each node (treated as a circle). The path follows the nodes when the container resizes.
- * Decorative only (`aria-hidden`); the nodes should carry the meaning.
+ * An animated connector between two elements: a dotted track with a glowing pulse that
+ * travels along it. Place inside a `position: relative` container next to the nodes, and
+ * pass refs to the container and both nodes. Decorative only (`aria-hidden`); the nodes
+ * should carry the meaning.
  */
 export function Beam({
   containerRef,
@@ -187,7 +171,6 @@ export function Beam({
   style,
   ...props
 }: BeamProps) {
-  // useId contains characters that are not safe inside url(#…) references.
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const glowId = `beam-glow-${uid}`;
   const arrowId = `beam-arrow-${uid}`;
@@ -203,6 +186,7 @@ export function Beam({
       const path = beamPath(circleIn(from, box), circleIn(to, box), curvature, gap, shape);
       setGeometry({ ...path, w: box.width, h: box.height });
     };
+
     const ro = new ResizeObserver(measure);
     const observe = () => {
       for (const el of [containerRef.current, fromRef.current, toRef.current]) {
@@ -210,10 +194,10 @@ export function Beam({
       }
       measure();
     };
+
     observe();
-    // Layout effects run children-first, so the container (a parent) and nodes rendered
-    // after this beam may not have their refs yet. Pick them up on the next frame.
     const raf = requestAnimationFrame(observe);
+
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
@@ -222,16 +206,11 @@ export function Beam({
 
   if (!geometry) return null;
 
-  // The pulse is a dash pattern moved with stroke-dashoffset, sized in px: it starts just
-  // before the path (fully hidden) and ends just past it. The trailing gap is longer than
-  // the path so only one ray / one dot is ever visible. A dot is a zero-length dash with a
-  // round cap.
   const L = geometry.length;
   const span = pulse === "dot" ? 0 : pulseLength * L;
   const dashArray = `${span} ${L * 2}`;
   const pulseWidth = pulse === "dot" ? width + 3 : width + 0.5;
 
-  // Colors go through `style`, not presentation attributes: attributes don't resolve var().
   return (
     <svg
       aria-hidden
@@ -271,7 +250,6 @@ export function Beam({
         markerEnd={arrow ? `url(#${arrowId})` : undefined}
         style={{ stroke: pathColor }}
       />
-      {/* Blurred copy under the pulse for the glow. */}
       {[true, false].map((glow) => (
         <path
           key={glow ? "glow" : "pulse"}
@@ -280,7 +258,7 @@ export function Beam({
           strokeLinecap="round"
           filter={glow ? `url(#${glowId})` : undefined}
           opacity={glow ? (pulse === "dot" ? 0.6 : 0.7) : 1}
-          data-reverse={reverse}
+          data-reverse={reverse ? "" : undefined}
           data-pulse={pulse}
           className="vinyaas-beam-pulse"
           style={
@@ -314,8 +292,8 @@ export type BeamNodeProps = React.ComponentProps<"div"> & {
 };
 
 /**
- * A round icon node for beam diagrams. Opaque, so it sits cleanly over beam ends. Pass the
- * ref to the matching `Beam` as `fromRef` / `toRef`.
+ * A round icon node for beam diagrams. Opaque, so it sits cleanly over beam ends.
+ * Pass the ref to the matching `Beam` as `fromRef` / `toRef`.
  */
 export function BeamNode({
   size = "default",

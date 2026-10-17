@@ -1,36 +1,32 @@
-/* The pulse is a dash pattern (set inline, sized in px for the measured path) moved along
-   the path with stroke-dashoffset, from just before its start (--beam-from) to just past
-   its end (--beam-to). Works for both pulse variants: a ray, or a single dot (a
-   zero-length dash with a round cap). */
-@keyframes vinyaas-beam-travel {
+/*
+ * Beam pulse animation. The stroke-dashoffset moves from --beam-from to --beam-to
+ * over --beam-duration, repeating from --beam-delay.
+ * data-reverse reverses direction for a return path.
+ */
+
+@keyframes vinyaas-beam-pulse {
   from {
-    stroke-dashoffset: var(--beam-from, 0);
+    stroke-dashoffset: var(--beam-from);
   }
   to {
-    stroke-dashoffset: var(--beam-to, 0);
+    stroke-dashoffset: var(--beam-to);
   }
 }
 
 .vinyaas-beam-pulse {
+  /* Hold the pre-start offset during --beam-delay so a staggered beam does not
+     show a stationary ray before its first run. */
   stroke-dashoffset: var(--beam-from, 0);
-  animation: vinyaas-beam-travel var(--beam-duration, 3s) cubic-bezier(0.45, 0, 0.3, 1)
-    var(--beam-delay, 0s) infinite;
+  animation: vinyaas-beam-pulse var(--beam-duration, 3s) var(--beam-delay, 0s) linear infinite;
 }
 
-.vinyaas-beam-pulse[data-reverse="true"] {
+.vinyaas-beam-pulse[data-reverse=""] {
   animation-direction: reverse;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* No travelling pulse: a ray shows as a faint full-length line, a dot is hidden. */
   .vinyaas-beam-pulse {
     animation: none;
-    stroke-dasharray: none !important;
-    stroke-dashoffset: 0;
-    opacity: 0.35;
-  }
-
-  .vinyaas-beam-pulse[data-pulse="dot"] {
-    display: none;
+    opacity: 0;
   }
 }

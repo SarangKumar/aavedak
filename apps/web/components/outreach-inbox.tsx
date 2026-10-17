@@ -1466,7 +1466,7 @@ export function OutreachInbox({
         >
           <div className="flex h-full min-h-0 flex-col">{listPane}</div>
         </ResizablePanel>
-        <ResizableHandle aria-label="Resize inbox panes" />
+        <ResizableHandle withHandle aria-label="Resize inbox panes" />
         <ResizablePanel id="inbox-mail">
           <div className="flex h-full min-h-0 flex-col overflow-hidden">{mailPane}</div>
         </ResizablePanel>

@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils";
 import { Button } from "../button";
 import { Calendar } from "../calendar";
 import type { DateRange } from "react-day-picker";
-
 import { Popover, PopoverContent, PopoverTrigger } from "../popover";
 
+// Local: Vinyaas 1.5.0 dropped DateRangePicker; kept below for the admin jobs filters.
 export type { DateRange };
 
 export type DatePickerProps = {
