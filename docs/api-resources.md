@@ -28,6 +28,9 @@ Web (session auth):
 - `POST|DELETE /api/jobs/{id}/ignore`; `GET /api/jobs/{id}/people` (referral contacts).
 - `POST /api/people/{id}/vote` with `{ "vote": 1 | -1 | 0 }`.
 - `PATCH /api/preferences/tracker` accepts `{ "discoveryEnabled": boolean }`.
+- Admin (allowlist): `GET /api/admin/jobs?q=&source=&from=&to=&page=&pageSize=` — job search,
+  one page per query; `pageSize` must be one of `ADMIN_JOBS_PAGE_SIZES`
+  (`lib/admin-jobs-constants.ts`, default 5) and anything else falls back to the default.
 - Admin (allowlist): `GET|POST /api/admin/discovery` (`action`: `scan` | `tick` | `expire` |
   `rank` | `import_seed` | `people_import`), `GET|POST /api/admin/discovery/sources`,
   `PATCH /api/admin/discovery/sources/{id}`, `GET|POST /api/admin/discovery/runs/{id}`.

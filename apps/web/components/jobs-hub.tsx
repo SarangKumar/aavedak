@@ -1062,6 +1062,13 @@ export function JobsHub({
             className="min-w-0 flex-1 md:max-w-sm"
             aria-label="Search jobs"
           />
+          {/* Phones: the count rides in this row, so the bar stays one line. */}
+          <span
+            className="text-muted-foreground shrink-0 text-[11px] tabular-nums md:hidden"
+            aria-label={`${filtered.length} of ${jobs.length} jobs shown`}
+          >
+            {filtered.length}/{jobs.length}
+          </span>
           <Button
             type="button"
             variant="outline"
@@ -1138,23 +1145,6 @@ export function JobsHub({
               <DropdownMenuItem onClick={() => setPasteOpen(true)}>Paste JD</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-        {/* Phones: what the filters currently leave, with a way back to everything. */}
-        <div className="border-border/60 flex items-center gap-2 border-t px-2 py-1.5 md:hidden">
-          <span className="text-muted-foreground text-[11px] tabular-nums">
-            {filtered.length} of {jobs.length} jobs
-          </span>
-          {activeFilterCount > 0 ? (
-            <Button
-              type="button"
-              variant="link"
-              size="xs"
-              className="ml-auto px-0 text-[11px]"
-              onClick={clearFilters}
-            >
-              Clear filters
-            </Button>
-          ) : null}
         </div>
         <div className="border-border/60 hidden flex-wrap items-center gap-1.5 border-t p-2 md:flex">
           <JobsFilters layout="row" {...filterProps} />

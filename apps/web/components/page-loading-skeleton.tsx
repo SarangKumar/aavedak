@@ -432,6 +432,7 @@ export function JobsBoardSkeleton({ listWidth = 360 }: { listWidth?: number }) {
       <Card size="sm" className="gap-0 p-0">
         <div className="flex items-center gap-1.5 p-2">
           <Skeleton className="h-8 min-w-0 flex-1 md:max-w-sm" />
+          <Skeleton className="h-3 w-8 md:hidden" />
           <Skeleton className="h-8 w-24 rounded-md md:hidden" />
           <Skeleton className="size-8 rounded-md md:hidden" />
           <Skeleton className="size-8 rounded-md md:hidden" />
@@ -441,9 +442,6 @@ export function JobsBoardSkeleton({ listWidth = 360 }: { listWidth?: number }) {
             <Skeleton className="h-8 w-28 rounded-md" />
             <Skeleton className="size-8 rounded-md" />
           </div>
-        </div>
-        <div className="border-border/60 border-t px-2 py-1.5 md:hidden">
-          <Skeleton className="h-3 w-24" />
         </div>
         <div className="border-border/60 hidden flex-wrap items-center gap-1.5 border-t p-2 md:flex">
           <Skeleton className="h-8 w-44 rounded-md" />
