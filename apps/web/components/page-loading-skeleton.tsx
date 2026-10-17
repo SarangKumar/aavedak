@@ -427,18 +427,34 @@ function JobsSkeleton() {
 export function JobsBoardSkeleton({ listWidth = 360 }: { listWidth?: number }) {
   return (
     <>
-      <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2 sm:flex-nowrap">
-        <Skeleton className="h-8 w-full sm:max-w-md" />
-        <Skeleton className="h-8 w-56 rounded-md" />
-        {/* Posted and location filters. */}
-        <Skeleton className="h-8 w-36 rounded-md" />
-        <Skeleton className="h-8 w-44 rounded-md" />
-        <Skeleton className="h-8 w-28 rounded-md" />
-        <Skeleton className="size-8 rounded-md" />
+      {/* Mirrors the real top bar: phones get search + filters + actions in one row, md and up
+          gets the actions row and a filters row. */}
+      <Card size="sm" className="gap-0 p-0">
+        <div className="flex items-center gap-1.5 p-2">
+          <Skeleton className="h-8 min-w-0 flex-1 md:max-w-sm" />
+          <Skeleton className="h-8 w-24 rounded-md md:hidden" />
+          <Skeleton className="size-8 rounded-md md:hidden" />
+          <Skeleton className="size-8 rounded-md md:hidden" />
+          <div className="ml-auto hidden items-center gap-1.5 md:flex">
+            <Skeleton className="h-8 w-20 rounded-md" />
+            <Skeleton className="h-8 w-20 rounded-md" />
+            <Skeleton className="h-8 w-28 rounded-md" />
+            <Skeleton className="size-8 rounded-md" />
+          </div>
+        </div>
+        <div className="border-border/60 border-t px-2 py-1.5 md:hidden">
+          <Skeleton className="h-3 w-24" />
+        </div>
+        <div className="border-border/60 hidden flex-wrap items-center gap-1.5 border-t p-2 md:flex">
+          <Skeleton className="h-8 w-44 rounded-md" />
+          <Skeleton className="h-8 w-36 rounded-md" />
+          <Skeleton className="h-8 w-36 rounded-md" />
+          <Skeleton className="h-8 w-44 rounded-md" />
+        </div>
       </Card>
 
       {/* Same fixed-height wrapper and block styling as the real board, so nothing shifts. */}
-      <div className="md:min-h-128 flex flex-col gap-4 md:h-[calc(100dvh-17rem)] md:flex-row md:gap-0">
+      <div className="md:min-h-128 flex flex-col gap-4 md:h-[calc(100dvh-20rem)] md:flex-row md:gap-0">
         <Card
           className="md:w-(--jobs-list-width) border-border bg-card flex max-h-[60vh] w-full shrink-0 flex-col gap-0 overflow-hidden rounded-lg p-0 md:max-h-none"
           style={{ ["--jobs-list-width" as string]: `${listWidth}px` }}

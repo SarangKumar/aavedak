@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { JobFormFields } from "@/components/job-form-fields";
 import { ResumePreviewDialog } from "@/components/resume-preview";
@@ -62,10 +62,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -245,6 +259,8 @@ export function JobsHub({
   const [postedSort, setPostedSort] = useState<JobsSort>(initialSort);
   const [postedWindow, setPostedWindow] = useState<PostedWindow>(initialPosted);
   const [postedLoading, setPostedLoading] = useState(false);
+  // Phones show the filters in a bottom sheet instead of a row of selects.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [query, setQuery] = useState(initialQuery);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const listPanelRef = useRef<PanelImperativeHandle | null>(null);
@@ -871,6 +887,41 @@ export function JobsHub({
     }
   }
 
+  // The filters sheet is a phone affordance; leaving that width closes it.
+  useEffect(() => {
+    if (isDesktop) setFiltersOpen(false);
+  }, [isDesktop]);
+
+  // Only filters that narrow the list count as active (the posted window has a default).
+  const activeFilterCount =
+    (sourceFilter !== "all" ? 1 : 0) +
+    (postedWindow !== DEFAULT_POSTED_WINDOW ? 1 : 0) +
+    (regionView !== "india-first" ? 1 : 0) +
+    (locationFilter !== "all" ? 1 : 0);
+
+  function clearFilters() {
+    setSourceFilter("all");
+    setRegionView("india-first");
+    setLocationFilter("all");
+    void changePostedWindow(DEFAULT_POSTED_WINDOW);
+  }
+
+  const filterProps = {
+    totalJobs: jobs.length,
+    sourceFilter,
+    onSourceFilter: setSourceFilter,
+    sourceCounts,
+    sourceOptions,
+    postedWindow,
+    onPostedWindow: (next: PostedWindow) => void changePostedWindow(next),
+    postedLoading,
+    regionView,
+    onRegionView: setRegionView,
+    locationFilter,
+    onLocationFilter: setLocationFilter,
+    locationOptions,
+  };
+
   const boardQuery = `tab=${tab}&sort=${postedSort}&posted=${postedWindow}${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}${locationFilter !== "all" ? `&location=${encodeURIComponent(locationFilter)}` : ""}${regionView !== "india-first" ? `&region=${regionView}` : ""}${selected ? `&job=${encodeURIComponent(selected.id)}` : ""}`;
 
   const listPane = (
@@ -999,115 +1050,152 @@ export function JobsHub({
 
   const board = (
     <>
-      {/* Top bar: search, filter, add, expand/collapse */}
-      <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-2 sm:flex-nowrap">
-        <SearchInput
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search title, company, location, description…"
-          className="w-full sm:max-w-md"
-          aria-label="Search jobs"
-        />
-        <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v || "all")}>
-          <SelectTrigger
-            className="h-8 w-56 rounded-md border px-2.5 text-[12px]"
-            aria-label="Filter by source"
-          >
-            <SelectValue placeholder="All sources" />
-          </SelectTrigger>
-          <SelectContent className="z-240">
-            <SelectItem value="all" className="text-[12px]">
-              All sources ({sourceCounts.all ?? 0})
-            </SelectItem>
-            {sourceOptions.map((key) => (
-              <SelectItem key={key} value={key} className="text-[12px]">
-                {key} ({sourceCounts[key] ?? 0})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={postedWindow}
-          onValueChange={(v) => void changePostedWindow(parsePostedWindow(v))}
-          disabled={postedLoading}
-        >
-          <SelectTrigger
-            className="h-8 w-36 rounded-md border px-2.5 text-[12px]"
-            aria-label="Filter by posted date"
-          >
-            <SelectValue placeholder="Posted" />
-          </SelectTrigger>
-          <SelectContent className="z-240">
-            {POSTED_WINDOWS.map((w) => (
-              <SelectItem key={w.value} value={w.value} className="text-[12px]">
-                {w.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={regionView}
-          onValueChange={(v) => setRegionView((v as JobsRegionView) || "india-first")}
-        >
-          <SelectTrigger
-            className="h-8 w-36 rounded-md border px-2.5 text-[12px]"
-            aria-label="Region"
-          >
-            <SelectValue placeholder="India first" />
-          </SelectTrigger>
-          <SelectContent className="z-240">
-            {JOBS_REGION_VIEWS.map((r) => (
-              <SelectItem key={r.value} value={r.value} className="text-[12px]">
-                {r.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={locationFilter} onValueChange={(v) => setLocationFilter(v || "all")}>
-          <SelectTrigger
-            className="h-8 w-44 rounded-md border px-2.5 text-[12px]"
-            aria-label="Filter by location"
-          >
-            <SelectValue placeholder="All locations" />
-          </SelectTrigger>
-          <SelectContent className="z-240">
-            <SelectItem value="all" className="text-[12px]">
-              All locations ({jobs.length})
-            </SelectItem>
-            {locationOptions.map((option) => (
-              <SelectItem key={option.key} value={option.key} className="text-[12px]">
-                {option.label} ({option.count})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <span className="text-muted-foreground shrink-0 text-[11px] tabular-nums">
-          {filtered.length} of {jobs.length}
-        </span>
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          <Button type="button" variant="ghost" size="sm" onClick={() => setPasteOpen(true)}>
-            Paste JD
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-            Add job
-          </Button>
+      {/* Top bar. md and up: search + actions on one row, filters on a second row. Phones: one
+          compact row — search, a Filters button that opens the filters in a bottom sheet, refresh
+          and a menu for the rest — so nothing is squeezed. */}
+      <Card size="sm" className="gap-0 p-0">
+        <div className="flex items-center gap-1.5 p-2">
+          <SearchInput
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search title, company, location, description…"
+            className="min-w-0 flex-1 md:max-w-sm"
+            aria-label="Search jobs"
+          />
           <Button
             type="button"
+            variant="outline"
             size="sm"
+            className="shrink-0 gap-1.5 md:hidden"
+            onClick={() => setFiltersOpen(true)}
+            aria-label={
+              activeFilterCount > 0
+                ? `Filters, ${activeFilterCount} active`
+                : "Filters: source, posted date, region, location"
+            }
+          >
+            <FilterIcon />
+            Filters
+            {activeFilterCount > 0 ? (
+              <Badge variant="secondary" className="px-1.5 py-0 text-[10px] tabular-nums">
+                {activeFilterCount}
+              </Badge>
+            ) : null}
+          </Button>
+          {/* Actions, shown in full from md up. */}
+          <div className="ml-auto hidden shrink-0 items-center gap-1.5 md:flex">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setPasteOpen(true)}>
+              Paste JD
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+              Add job
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              loading={refreshing}
+              loadingText={refreshProgress || "Refreshing…"}
+              onClick={() => void refreshJobs()}
+              title="Scan all company career pages now and reload your matches"
+            >
+              Refresh jobs
+            </Button>
+            <BoardToggleLink
+              expanded={variant === "board"}
+              href={variant === "board" ? `/jobs?${boardQuery}` : `/jobs/board?${boardQuery}`}
+              label="jobs board"
+            />
+          </div>
+          {/* Phones: refresh stays one tap; adding a job moves into a menu. */}
+          <Button
+            type="button"
+            size="icon-sm"
+            className="shrink-0 md:hidden"
             loading={refreshing}
-            loadingText={refreshProgress || "Refreshing…"}
+            // Spinner only: a label would stretch the icon button.
+            loadingText=""
             onClick={() => void refreshJobs()}
+            aria-label="Refresh jobs"
             title="Scan all company career pages now and reload your matches"
           >
-            Refresh jobs
+            <RefreshIcon />
           </Button>
-          <BoardToggleLink
-            expanded={variant === "board"}
-            href={variant === "board" ? `/jobs?${boardQuery}` : `/jobs/board?${boardQuery}`}
-            label="jobs board"
-          />
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <button
+                type="button"
+                aria-label="More job actions"
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                  "shrink-0 md:hidden",
+                )}
+              >
+                <MoreIcon />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="z-240">
+              <DropdownMenuItem onClick={() => setAddOpen(true)}>Add job</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setPasteOpen(true)}>Paste JD</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {/* Phones: what the filters currently leave, with a way back to everything. */}
+        <div className="border-border/60 flex items-center gap-2 border-t px-2 py-1.5 md:hidden">
+          <span className="text-muted-foreground text-[11px] tabular-nums">
+            {filtered.length} of {jobs.length} jobs
+          </span>
+          {activeFilterCount > 0 ? (
+            <Button
+              type="button"
+              variant="link"
+              size="xs"
+              className="ml-auto px-0 text-[11px]"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
+        <div className="border-border/60 hidden flex-wrap items-center gap-1.5 border-t p-2 md:flex">
+          <JobsFilters layout="row" {...filterProps} />
+          <span className="text-muted-foreground ml-auto shrink-0 text-[11px] tabular-nums">
+            {filtered.length} of {jobs.length}
+          </span>
         </div>
       </Card>
+
+      {/* Phones: the same filters, from the bottom of the screen. */}
+      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SheetContent side="bottom" className="gap-4 rounded-t-xl p-4 pb-5 md:hidden">
+          <SheetHeader>
+            <SheetTitle className="text-base">Filters</SheetTitle>
+            <SheetDescription className="text-[12px]">
+              {filtered.length} of {jobs.length} jobs match.
+            </SheetDescription>
+          </SheetHeader>
+          <JobsFilters layout="stacked" {...filterProps} />
+          <SheetFooter className="flex-row gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              disabled={activeFilterCount === 0}
+              onClick={clearFilters}
+            >
+              Clear all
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="flex-1"
+              onClick={() => setFiltersOpen(false)}
+            >
+              Show {filtered.length} {filtered.length === 1 ? "job" : "jobs"}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* List | details. Desktop: resizable blocks (width saved to a cookie). Mobile: stacked cards. */}
       {isDesktop ? (
@@ -1115,7 +1203,7 @@ export function JobsHub({
         <div
           className={cn(
             "flex",
-            variant === "board" ? "min-h-0 flex-1" : "md:min-h-128 md:h-[calc(100dvh-17rem)]",
+            variant === "board" ? "min-h-0 flex-1" : "md:min-h-128 md:h-[calc(100dvh-20rem)]",
           )}
         >
           <ResizablePanelGroup
@@ -1392,6 +1480,195 @@ function EmptyState({
         </Button>
       ) : null}
     </div>
+  );
+}
+
+/** The Jobs filters, shown as a compact row (sm and up) or stacked with labels (phone sheet). */
+type JobsFiltersProps = {
+  layout: "row" | "stacked";
+  totalJobs: number;
+  sourceFilter: string;
+  onSourceFilter: (value: string) => void;
+  sourceCounts: Record<string, number>;
+  sourceOptions: string[];
+  postedWindow: PostedWindow;
+  onPostedWindow: (value: PostedWindow) => void;
+  postedLoading: boolean;
+  regionView: JobsRegionView;
+  onRegionView: (value: JobsRegionView) => void;
+  locationFilter: string;
+  onLocationFilter: (value: string) => void;
+  locationOptions: { key: string; label: string; count: number }[];
+};
+
+function JobsFilters({
+  layout,
+  totalJobs,
+  sourceFilter,
+  onSourceFilter,
+  sourceCounts,
+  sourceOptions,
+  postedWindow,
+  onPostedWindow,
+  postedLoading,
+  regionView,
+  onRegionView,
+  locationFilter,
+  onLocationFilter,
+  locationOptions,
+}: JobsFiltersProps) {
+  const stacked = layout === "stacked";
+  // Stacked: a labelled, full-width field per filter. Row: fixed widths that wrap as a group.
+  const field = (id: string, label: string, control: React.ReactNode) =>
+    stacked ? (
+      <div key={id} className="space-y-1">
+        <Label htmlFor={id} className="text-muted-foreground text-[11px] font-medium">
+          {label}
+        </Label>
+        {control}
+      </div>
+    ) : (
+      <Fragment key={id}>{control}</Fragment>
+    );
+  const triggerClass = (width: string) =>
+    cn("h-8 min-w-0 rounded-md border px-2.5 text-[12px]", stacked ? "w-full" : width);
+
+  return (
+    <div
+      // Row layout: `contents` lets each select sit directly in the top bar's flex row.
+      className={stacked ? "space-y-3" : "contents"}
+    >
+      {field(
+        "jobs-filter-source",
+        "Source",
+        <Select value={sourceFilter} onValueChange={(v) => onSourceFilter(v || "all")}>
+          <SelectTrigger
+            id="jobs-filter-source"
+            className={triggerClass("w-44")}
+            aria-label="Filter by source"
+          >
+            <SelectValue placeholder="All sources" />
+          </SelectTrigger>
+          <SelectContent className="z-240">
+            <SelectItem value="all" className="text-[12px]">
+              All sources ({sourceCounts.all ?? 0})
+            </SelectItem>
+            {sourceOptions.map((key) => (
+              <SelectItem key={key} value={key} className="text-[12px]">
+                {key} ({sourceCounts[key] ?? 0})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>,
+      )}
+      {field(
+        "jobs-filter-posted",
+        "Posted",
+        <Select
+          value={postedWindow}
+          onValueChange={(v) => onPostedWindow(parsePostedWindow(v))}
+          disabled={postedLoading}
+        >
+          <SelectTrigger
+            id="jobs-filter-posted"
+            className={triggerClass("w-36")}
+            aria-label="Filter by posted date"
+          >
+            <SelectValue placeholder="Posted" />
+          </SelectTrigger>
+          <SelectContent className="z-240">
+            {POSTED_WINDOWS.map((w) => (
+              <SelectItem key={w.value} value={w.value} className="text-[12px]">
+                {w.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>,
+      )}
+      {field(
+        "jobs-filter-region",
+        "Region",
+        <Select
+          value={regionView}
+          onValueChange={(v) => onRegionView((v as JobsRegionView) || "india-first")}
+        >
+          <SelectTrigger
+            id="jobs-filter-region"
+            className={triggerClass("w-36")}
+            aria-label="Region"
+          >
+            <SelectValue placeholder="India first" />
+          </SelectTrigger>
+          <SelectContent className="z-240">
+            {JOBS_REGION_VIEWS.map((r) => (
+              <SelectItem key={r.value} value={r.value} className="text-[12px]">
+                {r.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>,
+      )}
+      {field(
+        "jobs-filter-location",
+        "Location",
+        <Select value={locationFilter} onValueChange={(v) => onLocationFilter(v || "all")}>
+          <SelectTrigger
+            id="jobs-filter-location"
+            className={triggerClass("w-44")}
+            aria-label="Filter by location"
+          >
+            <SelectValue placeholder="All locations" />
+          </SelectTrigger>
+          <SelectContent className="z-240">
+            <SelectItem value="all" className="text-[12px]">
+              All locations ({totalJobs})
+            </SelectItem>
+            {locationOptions.map((option) => (
+              <SelectItem key={option.key} value={option.key} className="text-[12px]">
+                {option.label} ({option.count})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>,
+      )}
+    </div>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-3.5" aria-hidden>
+      <path
+        d="M4 6h16M7 12h10M10 18h4"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-3.5" aria-hidden>
+      <path
+        d="M20 11a8 8 0 1 0-2.6 5.9M20 5v6h-6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="size-3.5" aria-hidden>
+      <circle cx="5" cy="12" r="1.75" />
+      <circle cx="12" cy="12" r="1.75" />
+      <circle cx="19" cy="12" r="1.75" />
+    </svg>
   );
 }
 
