@@ -153,6 +153,7 @@ export function RecentResumesTable({ resumes }: { resumes: AdminResumeRow[] }) {
           searchable
           searchPlaceholder="Search display name or owner…"
           pagination={10}
+          pageSizeOptions={[10, 25, 50]}
           columnVisibility
           emptyMessage="No resumes match this filter."
           renderRowActions={(row) =>

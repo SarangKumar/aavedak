@@ -7,8 +7,13 @@ import { jobSourceLabel } from "@/lib/job-dto";
 import { getJobById, mapJobRow, type JobRecord } from "@/lib/jobs";
 import { isJobSource } from "@/lib/job-constants";
 import { canonicalLocation } from "@/lib/locations";
+import { parseAdminJobsPageSize } from "@/lib/admin-jobs-constants";
 
-export const ADMIN_JOBS_PAGE_SIZE = 5;
+export {
+  ADMIN_JOBS_PAGE_SIZE,
+  ADMIN_JOBS_PAGE_SIZES,
+  parseAdminJobsPageSize,
+} from "@/lib/admin-jobs-constants";
 
 export type AdminJobRow = {
   id: string;
@@ -42,6 +47,8 @@ export type AdminJobsQuery = {
   postedFrom?: string | null;
   postedTo?: string | null;
   page?: number;
+  /** One of ADMIN_JOBS_PAGE_SIZES; anything else falls back to the default. */
+  pageSize?: number;
 };
 
 function isoDay(value: string | null | undefined, endOfDay: boolean): string | null {
@@ -66,7 +73,8 @@ export async function searchAdminJobs(query: AdminJobsQuery): Promise<{
   const from = isoDay(query.postedFrom, false);
   const to = isoDay(query.postedTo, true);
   const page = Math.max(1, Math.floor(query.page ?? 1));
-  const offset = (page - 1) * ADMIN_JOBS_PAGE_SIZE;
+  const pageSize = parseAdminJobsPageSize(query.pageSize);
+  const offset = (page - 1) * pageSize;
 
   const where = sql`
     (${like}::text IS NULL
@@ -85,7 +93,7 @@ export async function searchAdminJobs(query: AdminJobsQuery): Promise<{
       LEFT JOIN profiles p ON p.user_id = j.user_id
       WHERE ${where}
       ORDER BY COALESCE(j.posted_at, j.first_seen_at, j.created_at) DESC, j.id
-      LIMIT ${ADMIN_JOBS_PAGE_SIZE} OFFSET ${offset}
+      LIMIT ${pageSize} OFFSET ${offset}
     `,
     sql`SELECT count(*)::int AS n FROM jobs j WHERE ${where}`,
     sql`SELECT DISTINCT COALESCE(feed_source, source) AS s FROM jobs ORDER BY 1`,
@@ -119,7 +127,7 @@ export async function searchAdminJobs(query: AdminJobsQuery): Promise<{
     }),
     total: Number((counts as Array<{ n: number }>)[0]?.n ?? 0),
     page,
-    pageSize: ADMIN_JOBS_PAGE_SIZE,
+    pageSize,
     sources: (sources as Array<{ s: string | null }>).map((r) => r.s ?? "").filter(Boolean),
   };
 }

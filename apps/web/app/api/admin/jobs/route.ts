@@ -5,7 +5,7 @@ import { requireApiAdmin } from "@/lib/api-session";
 
 export const dynamic = "force-dynamic";
 
-/** Admin: search all jobs. `?q=&source=&from=yyyy-mm-dd&to=yyyy-mm-dd&page=` */
+/** Admin: search all jobs. `?q=&source=&from=yyyy-mm-dd&to=yyyy-mm-dd&page=&pageSize=` */
 export async function GET(request: Request) {
   const auth = await requireApiAdmin();
   if (auth.error) return auth.error;
@@ -17,6 +17,7 @@ export async function GET(request: Request) {
       postedFrom: params.get("from"),
       postedTo: params.get("to"),
       page: Number(params.get("page") ?? 1) || 1,
+      pageSize: Number(params.get("pageSize")) || undefined,
     });
     return NextResponse.json(data);
   } catch (err) {

@@ -563,6 +563,7 @@ export function PeopleHub({ initialPeople, applications }: Props) {
         searchable
         searchPlaceholder="Search name, company, role, email, location…"
         pagination={20}
+        pageSizeOptions={[10, 20, 50]}
         columnVisibility
         emptyMessage="No people yet. Add a contact to use in referrals."
         renderRowActions={(row) => (

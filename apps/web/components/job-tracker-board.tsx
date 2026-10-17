@@ -30,16 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  paginationPageList,
-} from "@/components/ui/pagination";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import {
   Select,
   SelectContent,
@@ -62,14 +53,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { CompanySelect } from "@/components/company-select";
 import { format } from "date-fns";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -83,7 +66,6 @@ function isoToDate(iso: string): Date | undefined {
 }
 
 const LIST_PAGE_SIZES = [10, 25, 50] as const;
-type ListPageSize = (typeof LIST_PAGE_SIZES)[number];
 
 export type ApplicationDto = {
   id: string;
@@ -212,7 +194,6 @@ export function JobTrackerBoard({
   const [importOpen, setImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [columnsOpen, setColumnsOpen] = useState(false);
-  const [listPageSize, setListPageSize] = useState<ListPageSize>(10);
   const [draft, setDraft] = useState<Draft>(() =>
     initialEdit ? draftFromApp(initialEdit) : emptyDraft(),
   );
@@ -538,30 +519,6 @@ export function JobTrackerBoard({
               <ListGlyph className="size-3.5" />
             </ToggleGroupItem>
           </ToggleGroup>
-          {prefs.trackerView === "list" ? (
-            <ToggleGroup
-              aria-label="Applications per page"
-              variant="outline"
-              size="sm"
-              value={[String(listPageSize)]}
-              onValueChange={(next) => {
-                const size = LIST_PAGE_SIZES.find((n) => String(n) === next[0]);
-                if (size) setListPageSize(size);
-              }}
-            >
-              {LIST_PAGE_SIZES.map((size) => (
-                <ToggleGroupItem
-                  key={size}
-                  value={String(size)}
-                  title={`${size} per page`}
-                  aria-label={`${size} applications per page`}
-                  className="min-w-8 px-2 text-[12px] tabular-nums"
-                >
-                  {size}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          ) : null}
           {prefs.trackerView === "kanban" ? (
             <Button variant="outline" size="sm" onClick={() => setColumnsOpen((o) => !o)}>
               Columns
@@ -751,7 +708,7 @@ export function JobTrackerBoard({
           </div>
         </Card>
       ) : (
-        <ListView applications={filteredApplications} pageSize={listPageSize} onSelect={openEdit} />
+        <ListView applications={filteredApplications} onSelect={openEdit} />
       )}
 
       {filteredApplications.length === 0 && !pending ? (
@@ -1118,31 +1075,58 @@ function Field({
 
 function ListView({
   applications,
-  pageSize,
   onSelect,
 }: {
   applications: ApplicationDto[];
-  pageSize: number;
   onSelect: (app: ApplicationDto) => void;
 }) {
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">("all");
-  const [page, setPage] = useState(1);
 
   const rows = useMemo(() => {
     if (statusFilter === "all") return applications;
     return applications.filter((a) => a.status === statusFilter);
   }, [applications, statusFilter]);
 
-  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize) || 1);
-  const currentPage = Math.min(Math.max(1, page), pageCount);
-  const pagedRows = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return rows.slice(start, start + pageSize);
-  }, [rows, currentPage, pageSize]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [statusFilter, pageSize]);
+  const columns = useMemo<DataTableColumn<ApplicationDto>[]>(
+    () => [
+      {
+        id: "company",
+        header: "Company",
+        accessorKey: "companyName",
+        sortable: true,
+        cell: (app) => <span className="text-foreground/90">{app.companyName}</span>,
+      },
+      { id: "role", header: "Role", accessorKey: "role", sortable: true },
+      { id: "location", header: "Location", accessorKey: "location" },
+      { id: "ctc", header: "CTC", cell: (app) => app.salaryCtc || "—" },
+      {
+        id: "status",
+        header: "Status",
+        accessorKey: "status",
+        sortable: true,
+        cell: (app) => (
+          <span className="inline-flex items-center gap-1.5">
+            <StatusBadge status={app.status} className="text-[10px]" />
+            {app.statusReason === "job_expired" ? (
+              <JobExpiredBadge />
+            ) : app.jobRemovedFromPortal ? (
+              <RemovedFromPortalBadge />
+            ) : null}
+          </span>
+        ),
+      },
+      {
+        id: "applied",
+        header: "Applied",
+        cell: (app) => (
+          <span className="whitespace-nowrap">
+            <ApplicationDate app={app} />
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
 
   if (applications.length === 0) return null;
 
@@ -1177,107 +1161,18 @@ function ListView({
           );
         })}
       </ToggleGroup>
-      <Table className="text-[12px] font-normal">
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="font-normal">Company</TableHead>
-            <TableHead className="font-normal">Role</TableHead>
-            <TableHead className="font-normal">Location</TableHead>
-            <TableHead className="font-normal">CTC</TableHead>
-            <TableHead className="font-normal">Status</TableHead>
-            <TableHead className="font-normal">Applied</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {pagedRows.map((app) => (
-            <TableRow
-              key={app.id}
-              className="hover:bg-muted/40 cursor-pointer"
-              onClick={() => onSelect(app)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onSelect(app);
-                }
-              }}
-              tabIndex={0}
-              role="button"
-            >
-              <TableCell className="text-foreground/90 font-normal">{app.companyName}</TableCell>
-              <TableCell className="text-muted-foreground font-normal">{app.role}</TableCell>
-              <TableCell className="text-muted-foreground font-normal">{app.location}</TableCell>
-              <TableCell className="text-muted-foreground font-normal">
-                {app.salaryCtc || "—"}
-              </TableCell>
-              <TableCell className="text-muted-foreground font-normal">
-                <span className="inline-flex items-center gap-1.5">
-                  <StatusBadge status={app.status} className="text-[10px]" />
-                  {app.statusReason === "job_expired" ? (
-                    <JobExpiredBadge />
-                  ) : app.jobRemovedFromPortal ? (
-                    <RemovedFromPortalBadge />
-                  ) : null}
-                </span>
-              </TableCell>
-              <TableCell className="text-muted-foreground whitespace-nowrap font-normal">
-                <ApplicationDate app={app} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      {rows.length === 0 ? (
-        <p className="text-muted-foreground px-1 py-2 text-[11px]">
-          No applications in this status.
-        </p>
-      ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3 px-1 pt-1">
-          <p className="text-muted-foreground text-[11px] tabular-nums">
-            Showing {(currentPage - 1) * pageSize + 1}–
-            {Math.min(currentPage * pageSize, rows.length)} of {rows.length}
-          </p>
-          <Pagination className="mx-0 w-auto justify-end">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  size="sm"
-                  disabled={currentPage <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                />
-              </PaginationItem>
-              {paginationPageList(currentPage, pageCount).map((pageNumber, index, list) => {
-                const previous = list[index - 1];
-                const showEllipsis = previous != null && pageNumber - previous > 1;
-                return (
-                  <span key={pageNumber} className="contents">
-                    {showEllipsis ? (
-                      <PaginationItem>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    ) : null}
-                    <PaginationItem>
-                      <PaginationLink
-                        size="sm"
-                        isActive={pageNumber === currentPage}
-                        onClick={() => setPage(pageNumber)}
-                      >
-                        {pageNumber}
-                      </PaginationLink>
-                    </PaginationItem>
-                  </span>
-                );
-              })}
-              <PaginationItem>
-                <PaginationNext
-                  size="sm"
-                  disabled={currentPage >= pageCount}
-                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      )}
+      {/* Paging, the rows-per-page group and sorting all come from the table itself. */}
+      <DataTable
+        columns={columns}
+        data={rows}
+        getRowId={(app) => app.id}
+        pagination={LIST_PAGE_SIZES[0]}
+        pageSizeOptions={LIST_PAGE_SIZES}
+        pageSizeLabel="Per page"
+        emptyMessage="No applications in this status."
+        onRowClick={onSelect}
+        className="text-[12px]"
+      />
     </Card>
   );
 }

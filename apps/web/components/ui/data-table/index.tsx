@@ -70,6 +70,8 @@ export type DataTableProps<TData> = {
   className?: string;
   /** When set, renders a trailing actions column. */
   renderRowActions?: (row: TData) => React.ReactNode;
+  /** When set, each row is clickable (and Enter/Space activates the focused row). */
+  onRowClick?: (row: TData) => void;
   /** Width of the trailing actions column. Defaults to 7rem. */
   actionsWidth?: string | number;
 };
@@ -211,6 +213,7 @@ export function DataTable<TData>({
   emptyMessage = "No results found.",
   className,
   renderRowActions,
+  onRowClick,
   actionsWidth = "7rem",
 }: DataTableProps<TData>) {
   const searchId = useId();
@@ -611,7 +614,24 @@ export function DataTable<TData>({
               <TableRow
                 key={id}
                 data-state={selected.has(id) ? "selected" : undefined}
-                className={selected.has(id) ? "bg-muted/50" : undefined}
+                className={cn(
+                  selected.has(id) && "bg-muted/50",
+                  onRowClick && "hover:bg-muted/40 cursor-pointer",
+                )}
+                {...(onRowClick
+                  ? {
+                      role: "button",
+                      tabIndex: 0,
+                      onClick: () => onRowClick(row),
+                      onKeyDown: (event: React.KeyboardEvent<HTMLTableRowElement>) => {
+                        // Space and Enter activate the row, like the button it behaves as.
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        if (event.target !== event.currentTarget) return;
+                        event.preventDefault();
+                        onRowClick(row);
+                      },
+                    }
+                  : {})}
               >
                 {selectable ? (
                   <TableCell>

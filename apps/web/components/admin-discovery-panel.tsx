@@ -189,6 +189,9 @@ function CronScheduleHover({ kind }: { kind: string }) {
   );
 }
 
+/** Rows-per-page choices for the recent-runs table. */
+const RUNS_PAGE_SIZES = [5, 10, 20] as const;
+
 export function AdminDiscoveryPanel() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -202,7 +205,6 @@ export function AdminDiscoveryPanel() {
   const [runDetail, setRunDetail] = useState<RunDto | null>(null);
   const [csvFiles, setCsvFiles] = useState<FileUploadFile[]>([]);
   const [runKind, setRunKind] = useState<string>("all");
-  const [runsPageSize, setRunsPageSize] = useState(5);
 
   const filteredRuns = useMemo(
     () => (overview?.runs ?? []).filter((r) => runKind === "all" || r.kind === runKind),
@@ -758,29 +760,6 @@ export function AdminDiscoveryPanel() {
                   <CardDescription className="text-[11px]">
                     Resumable: failed items retry automatically up to 3 times.
                   </CardDescription>
-                  <CardAction>
-                    <ToggleGroup
-                      aria-label="Runs per page"
-                      variant="outline"
-                      size="sm"
-                      // spacing={1}
-                      value={[String(runsPageSize)]}
-                      onValueChange={(next) => {
-                        const n = Number(next[0]);
-                        if (n) setRunsPageSize(n);
-                      }}
-                    >
-                      {[5, 10, 20].map((n) => (
-                        <ToggleGroupItem
-                          key={n}
-                          value={String(n)}
-                          className="h-7 rounded-full px-2.5 text-[11px]"
-                        >
-                          {n}
-                        </ToggleGroupItem>
-                      ))}
-                    </ToggleGroup>
-                  </CardAction>
                 </CardHeader>
                 <CardContent>
                   <DataTable
@@ -789,7 +768,9 @@ export function AdminDiscoveryPanel() {
                     getRowId={(r) => r.id}
                     searchable
                     searchPlaceholder="Search run kind…"
-                    pagination={runsPageSize}
+                    pagination={RUNS_PAGE_SIZES[0]}
+                    pageSizeOptions={RUNS_PAGE_SIZES}
+                    pageSizeLabel="Runs per page"
                     emptyMessage="No runs match this filter."
                     renderRowActions={(r) =>
                       r.failedItems > 0 ? (

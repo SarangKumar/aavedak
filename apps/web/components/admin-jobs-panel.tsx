@@ -1,7 +1,7 @@
 "use client";
 
 import { format, parseISO } from "date-fns";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { JobFormFields, type JobFormField, type JobFormValues } from "@/components/job-form-fields";
@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import {
   Pagination,
@@ -47,16 +48,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ADMIN_JOBS_PAGE_SIZE, ADMIN_JOBS_PAGE_SIZES } from "@/lib/admin-jobs-constants";
 import type { AdminJobRow } from "@/lib/admin-jobs";
 import { canonicalLocation } from "@/lib/locations";
+import { cn } from "@/lib/utils";
 
 type SearchResult = {
   rows: AdminJobRow[];
@@ -66,9 +62,23 @@ type SearchResult = {
   sources: string[];
 };
 
-type Filters = { q: string; source: string; from: string; to: string; page: number };
+type Filters = {
+  q: string;
+  source: string;
+  from: string;
+  to: string;
+  page: number;
+  pageSize: number;
+};
 
-const EMPTY_FILTERS: Filters = { q: "", source: "all", from: "", to: "", page: 1 };
+const EMPTY_FILTERS: Filters = {
+  q: "",
+  source: "all",
+  from: "",
+  to: "",
+  page: 1,
+  pageSize: ADMIN_JOBS_PAGE_SIZE,
+};
 
 function toForm(row: AdminJobRow): JobFormValues {
   return {
@@ -122,7 +132,12 @@ export function AdminJobsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ q: f.q, source: f.source, page: String(f.page) });
+      const params = new URLSearchParams({
+        q: f.q,
+        source: f.source,
+        page: String(f.page),
+        pageSize: String(f.pageSize),
+      });
       if (f.from) params.set("from", f.from);
       if (f.to) params.set("to", f.to);
       const res = await fetch(`/api/admin/jobs?${params}`, { cache: "no-store" });
@@ -227,6 +242,86 @@ export function AdminJobsPanel() {
     }
   }
 
+  const columns = useMemo<DataTableColumn<AdminJobRow>[]>(
+    () => [
+      {
+        id: "job",
+        header: "Job",
+        width: "18rem",
+        cell: (row) => (
+          <div className="min-w-0">
+            <p className="text-foreground truncate font-medium">{row.title}</p>
+            <p className="text-muted-foreground truncate">{row.company}</p>
+            <p className="text-muted-foreground truncate font-mono text-[10px]">{row.id}</p>
+          </div>
+        ),
+      },
+      {
+        id: "location",
+        header: "Location",
+        width: "12rem",
+        cell: (row) => <span className="block truncate">{row.location}</span>,
+      },
+      {
+        id: "source",
+        header: "Source",
+        cell: (row) => (
+          <div className="min-w-0">
+            <span className="text-foreground">{row.sourceLabel}</span>
+            {row.closed ? (
+              <Badge variant="secondary" className="ml-1.5 px-1.5 py-0 text-[10px]">
+                closed
+              </Badge>
+            ) : null}
+            {row.sourceUrl || row.url ? (
+              <a
+                href={row.sourceUrl ?? row.url ?? "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary block truncate text-[11px] hover:underline"
+              >
+                {row.sourceUrl ?? row.url}
+              </a>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        id: "posted",
+        header: "Posted",
+        width: "8rem",
+        cell: (row) => (
+          <span className="whitespace-nowrap tabular-nums">
+            {day(row.postedAt ?? row.postedAtFallback)}
+            {row.postedAt ? null : (
+              <span className="text-muted-foreground block text-[10px]">first seen</span>
+            )}
+          </span>
+        ),
+      },
+      {
+        id: "owner",
+        header: "Owner",
+        width: "11rem",
+        cell: (row) =>
+          row.shared ? (
+            <span className="text-muted-foreground">Shared</span>
+          ) : (
+            <span className="block truncate">{row.ownerEmail ?? "User"}</span>
+          ),
+      },
+      {
+        id: "applications",
+        header: <span className="block text-right">Applications</span>,
+        width: "7rem",
+        cell: (row) => (
+          <span className="block text-right tabular-nums">{row.applicationCount}</span>
+        ),
+      },
+    ],
+    [],
+  );
+
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const page = filters.page;
 
@@ -319,141 +414,97 @@ export function AdminJobsPanel() {
         ) : null}
         {notice ? <p className="text-primary text-[12px]">{notice}</p> : null}
 
-        <div className="border-border/70 overflow-hidden rounded-xl border">
-          <Table className="text-[12px] font-normal">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="font-normal">Job</TableHead>
-                <TableHead className="font-normal">Location</TableHead>
-                <TableHead className="font-normal">Source</TableHead>
-                <TableHead className="font-normal">Posted</TableHead>
-                <TableHead className="font-normal">Owner</TableHead>
-                <TableHead className="text-right font-normal">Applications</TableHead>
-                <TableHead className="text-right font-normal">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading && !data
-                ? Array.from({ length: 6 }, (_, i) => <AdminJobsRowSkeleton key={i} />)
-                : (data?.rows ?? []).map((row) => (
-                    <TableRow key={row.id} className={loading ? "opacity-60" : undefined}>
-                      <TableCell className="max-w-72">
-                        <p className="text-foreground truncate font-medium">{row.title}</p>
-                        <p className="text-muted-foreground truncate">{row.company}</p>
-                        <p className="text-muted-foreground truncate font-mono text-[10px]">
-                          {row.id}
-                        </p>
-                      </TableCell>
-                      <TableCell className="max-w-48 truncate">{row.location}</TableCell>
-                      <TableCell>
-                        <span className="text-foreground">{row.sourceLabel}</span>
-                        {row.closed ? (
-                          <Badge variant="secondary" className="ml-1.5 px-1.5 py-0 text-[10px]">
-                            closed
-                          </Badge>
-                        ) : null}
-                        {row.sourceUrl || row.url ? (
-                          <a
-                            href={row.sourceUrl ?? row.url ?? "#"}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-primary block max-w-48 truncate text-[11px] hover:underline"
-                          >
-                            {row.sourceUrl ?? row.url}
-                          </a>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap tabular-nums">
-                        {day(row.postedAt ?? row.postedAtFallback)}
-                        {row.postedAt ? null : (
-                          <span className="text-muted-foreground block text-[10px]">
-                            first seen
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-44 truncate">
-                        {row.shared ? (
-                          <span className="text-muted-foreground">Shared</span>
-                        ) : (
-                          (row.ownerEmail ?? "User")
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {row.applicationCount}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEdit(row)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => void askDelete(row)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              {!loading && data && data.rows.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={7} className="text-muted-foreground py-8 text-center">
-                    No jobs match.
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          columns={columns}
+          data={data?.rows ?? []}
+          getRowId={(row) => row.id}
+          loading={loading && !data}
+          emptyMessage="No jobs match."
+          className={cn("text-[12px]", loading && data ? "opacity-60" : undefined)}
+          actionsWidth="8.5rem"
+          renderRowActions={(row) => (
+            <div className="flex justify-end gap-1">
+              <Button type="button" variant="outline" size="sm" onClick={() => openEdit(row)}>
+                Edit
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-destructive"
+                onClick={() => void askDelete(row)}
+              >
+                Delete
+              </Button>
+            </div>
+          )}
+        />
 
-        {totalPages > 1 ? (
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  disabled={page <= 1}
-                  onClick={() => setFilters((f) => ({ ...f, page: Math.max(1, f.page - 1) }))}
-                />
-              </PaginationItem>
-              {paginationPageList(page, totalPages).flatMap((p, i, list) => [
-                ...(i > 0 && p - list[i - 1]! > 1
-                  ? [
-                      <PaginationItem key={`gap-${p}`}>
-                        <PaginationEllipsis />
-                      </PaginationItem>,
-                    ]
-                  : []),
-                <PaginationItem key={p}>
-                  <PaginationLink
-                    isActive={p === page}
-                    onClick={() => setFilters((f) => ({ ...f, page: p }))}
-                  >
-                    {p}
-                  </PaginationLink>
-                </PaginationItem>,
-              ])}
-              <PaginationItem>
-                <PaginationNext
-                  disabled={page >= totalPages}
-                  onClick={() =>
-                    setFilters((f) => ({ ...f, page: Math.min(totalPages, f.page + 1) }))
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        ) : null}
+        {/* Paging is server-side (one page per query), so the pager and the rows-per-page group
+            live here rather than inside the table. */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span id="admin-jobs-page-size" className="text-muted-foreground text-[11px]">
+              Rows per page
+            </span>
+            <ToggleGroup
+              size="sm"
+              spacing={0}
+              variant="outline"
+              disabled={loading}
+              aria-labelledby="admin-jobs-page-size"
+              value={[String(filters.pageSize)]}
+              onValueChange={(next) => {
+                const size = ADMIN_JOBS_PAGE_SIZES.find((n) => String(n) === next[0]);
+                // Row n of the old paging is meaningless at the new size.
+                if (size) setFilters((f) => ({ ...f, pageSize: size, page: 1 }));
+              }}
+            >
+              {ADMIN_JOBS_PAGE_SIZES.map((size) => (
+                <ToggleGroupItem key={size} value={String(size)} className="tabular-nums">
+                  {size}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+          {totalPages > 1 ? (
+            <Pagination className="mx-0 w-auto justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    disabled={page <= 1}
+                    onClick={() => setFilters((f) => ({ ...f, page: Math.max(1, f.page - 1) }))}
+                  />
+                </PaginationItem>
+                {paginationPageList(page, totalPages).flatMap((p, i, list) => [
+                  ...(i > 0 && p - list[i - 1]! > 1
+                    ? [
+                        <PaginationItem key={`gap-${p}`}>
+                          <PaginationEllipsis />
+                        </PaginationItem>,
+                      ]
+                    : []),
+                  <PaginationItem key={p}>
+                    <PaginationLink
+                      isActive={p === page}
+                      onClick={() => setFilters((f) => ({ ...f, page: p }))}
+                    >
+                      {p}
+                    </PaginationLink>
+                  </PaginationItem>,
+                ])}
+                <PaginationItem>
+                  <PaginationNext
+                    disabled={page >= totalPages}
+                    onClick={() =>
+                      setFilters((f) => ({ ...f, page: Math.min(totalPages, f.page + 1) }))
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          ) : null}
+        </div>
 
         <Sheet
           open={editing !== null}
@@ -560,34 +611,15 @@ export function AdminJobsPanel() {
   );
 }
 
-function AdminJobsRowSkeleton() {
-  return (
-    <TableRow className="hover:bg-transparent">
-      <TableCell>
-        <Skeleton className="h-3.5 w-48" />
-        <Skeleton className="mt-1 h-3 w-28" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-3 w-28" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-3 w-20" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-3 w-20" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-3 w-24" />
-      </TableCell>
-      <TableCell className="text-right">
-        <Skeleton className="ml-auto h-3 w-6" />
-      </TableCell>
-      <TableCell className="text-right">
-        <Skeleton className="ml-auto h-7 w-28" />
-      </TableCell>
-    </TableRow>
-  );
-}
+/** Header labels only: the page skeleton renders an empty, loading table with this shape. */
+const SKELETON_COLUMNS: DataTableColumn<AdminJobRow>[] = [
+  { id: "job", header: "Job" },
+  { id: "location", header: "Location" },
+  { id: "source", header: "Source" },
+  { id: "posted", header: "Posted" },
+  { id: "owner", header: "Owner" },
+  { id: "applications", header: <span className="block text-right">Applications</span> },
+];
 
 /** Same layout as the panel, for the page's loading state. */
 export function AdminJobsPanelSkeleton() {
@@ -602,15 +634,15 @@ export function AdminJobsPanelSkeleton() {
         <Skeleton className="h-8 w-40 rounded-md" />
         <Skeleton className="h-8 w-64 rounded-md" />
       </div>
-      <div className="border-border/70 overflow-hidden rounded-xl border">
-        <Table className="text-[12px]">
-          <TableBody>
-            {Array.from({ length: 5 }, (_, i) => (
-              <AdminJobsRowSkeleton key={i} />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      {/* The table draws its own row skeletons while loading. */}
+      <DataTable
+        columns={SKELETON_COLUMNS}
+        data={[]}
+        loading
+        className="text-[12px]"
+        actionsWidth="8.5rem"
+        renderRowActions={() => null}
+      />
     </Card>
   );
 }
