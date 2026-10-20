@@ -11,9 +11,14 @@ export const metadata: Metadata = {
 };
 
 export default async function ResumeImproverPage() {
-  const { user } = await requireOnboarded();
+  const { user, profile } = await requireOnboarded();
   const inputs = await cardAtsInputs(user.id);
   return (
-    <ResumeImprover defaultRole={inputs.role} defaultYearsExperience={inputs.yearsExperience} />
+    <ResumeImprover
+      defaultRole={inputs.role}
+      defaultYearsExperience={inputs.yearsExperience}
+      // Offered first in the role picker; the user can still type any other role.
+      preferredRoles={profile.career.preferredRoles}
+    />
   );
 }

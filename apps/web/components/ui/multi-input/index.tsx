@@ -23,6 +23,8 @@ export type MultiInputOption = {
   value: string;
   /** Shown in the list and on the chip. Defaults to `value`. */
   label?: string;
+  /** Extra search terms (aliases) that also match this option while typing. */
+  keywords?: readonly string[];
   disabled?: boolean;
 };
 
@@ -124,7 +126,8 @@ export function MultiInput({
 
     return (
       option.value.toLowerCase().includes(query) ||
-      (option.label ?? "").toLowerCase().includes(query)
+      (option.label ?? "").toLowerCase().includes(query) ||
+      (option.keywords ?? []).some((keyword) => keyword.toLowerCase().includes(query))
     );
   });
   const showsList = hasOptions && open && !disabled;
@@ -142,11 +145,14 @@ export function MultiInput({
       return entry;
     }
 
+    const needle = entry.toLowerCase();
     const match = allOptions.find(
       (option) =>
         !option.disabled &&
-        (option.value.toLowerCase() === entry.toLowerCase() ||
-          (option.label ?? "").toLowerCase() === entry.toLowerCase()),
+        (option.value.toLowerCase() === needle ||
+          (option.label ?? "").toLowerCase() === needle ||
+          // An alias typed in full resolves to the option, e.g. "Bangalore" → "Bengaluru, India".
+          (option.keywords ?? []).some((keyword) => keyword.toLowerCase() === needle)),
     );
 
     if (match) {
@@ -317,7 +323,7 @@ export function MultiInput({
         }
       }}
       className={cn(
-        "border-input bg-background text-foreground focus-within:ring-ring focus-within:ring-offset-background relative flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-md border px-1.5 py-1 text-sm focus-within:ring-2 focus-within:ring-offset-2",
+        "border-border bg-input text-foreground focus-within:ring-ring focus-within:ring-offset-background relative flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-md border px-1.5 py-1 text-sm focus-within:ring-2 focus-within:ring-offset-2",
         showsInvalid && "border-destructive ring-destructive/20",
         disabled && "cursor-not-allowed opacity-50",
         className,

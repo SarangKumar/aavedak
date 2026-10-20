@@ -16,6 +16,17 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox, ComboboxContent, ComboboxItem, ComboboxTrigger } from "@/components/ui/combobox";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { IMPROVE_GUIDED_ROLES } from "@/lib/improve-roles";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScoreRing } from "@/components/ui/score-ring";
@@ -44,6 +55,9 @@ type Request = {
   yearsExperience: number | null;
   engines: string[];
 };
+
+/** Sentinel for the "Other role…" item; never sent to the API. */
+const CUSTOM_ROLE = "__custom__";
 
 const KIND_LABEL: Record<ImproveChange["kind"], string> = {
   bullet: "Bullet wording",
@@ -193,14 +207,19 @@ function SkillChips({
 export function ResumeImprover({
   defaultRole,
   defaultYearsExperience,
+  preferredRoles,
 }: {
   defaultRole: string;
   defaultYearsExperience: number | null;
+  /** The profile's preferred roles, listed first in the role picker. */
+  preferredRoles: string[];
 }) {
   const [resumes, setResumes] = useState<ResumeRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [resumeId, setResumeId] = useState("");
   const [role, setRole] = useState(defaultRole);
+  // Sticky once "Other role…" is chosen, so an empty field does not snap back to the list.
+  const [customRole, setCustomRole] = useState(false);
   const [years, setYears] = useState(
     defaultYearsExperience === null ? "" : String(defaultYearsExperience),
   );
@@ -384,6 +403,18 @@ export function ResumeImprover({
   }
 
   const canRun = Boolean(resumeId && role.trim()) && selectedEngines.size > 0 && !running;
+  // The role picker lists the profile's roles and the guided ones; anything else (a job title
+  // handed over from Jobs, or "Other role…") is typed in the field under it.
+  const ownRoles = useMemo(
+    () => preferredRoles.map((r) => r.trim()).filter(Boolean),
+    [preferredRoles],
+  );
+  const roleOptions = useMemo(
+    () => [...ownRoles, ...IMPROVE_GUIDED_ROLES.filter((r) => !ownRoles.includes(r))],
+    [ownRoles],
+  );
+  const listedRole = !customRole && roleOptions.includes(role) ? role : null;
+
   const selectedResume = resumes?.find((r) => r.id === resumeId) ?? null;
   const snapshotEngines = (scores?.snapshot.engines ?? []).filter((id) => getEngine(id));
 
@@ -496,12 +527,54 @@ export function ResumeImprover({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="imp-role">Role</Label>
-              <Input
-                id="imp-role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                placeholder="e.g. Backend Engineer"
-              />
+              <Select
+                value={listedRole ?? CUSTOM_ROLE}
+                onValueChange={(v) => {
+                  // "Other role…" keeps whatever is typed and reveals the field below.
+                  if (v === CUSTOM_ROLE) {
+                    setCustomRole(true);
+                    return;
+                  }
+                  setCustomRole(false);
+                  setRole(v ?? "");
+                }}
+              >
+                <SelectTrigger id="imp-role" className="w-full" aria-label="Role">
+                  <SelectValue placeholder="Pick a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ownRoles.length > 0 ? (
+                    <SelectGroup>
+                      <SelectLabel>From your profile</SelectLabel>
+                      {ownRoles.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ) : null}
+                  <SelectGroup>
+                    <SelectLabel>Tailored guidance</SelectLabel>
+                    {IMPROVE_GUIDED_ROLES.filter((r) => !ownRoles.includes(r)).map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectItem value={CUSTOM_ROLE}>Other role…</SelectItem>
+                </SelectContent>
+              </Select>
+              {listedRole === null ? (
+                <Input
+                  id="imp-role-other"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  placeholder="e.g. Machine Learning Engineer"
+                  aria-label="Role"
+                  autoFocus={customRole}
+                />
+              ) : null}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="imp-years">Years of experience</Label>

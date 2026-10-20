@@ -153,6 +153,11 @@ function normalizeSalary(value: unknown): number | null {
 
 export const MAX_YEARS_EXPERIENCE = 50;
 
+/** List caps, shared with the career form so the chips stop where the server does. */
+export const MAX_PREFERRED_ROLES = 12;
+export const MAX_SKILLS = 30;
+export const MAX_PREFERRED_LOCATIONS = 12;
+
 function normalizeYears(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const n = typeof value === "number" ? value : Number(String(value).trim());
@@ -192,7 +197,7 @@ export function normalizeCareerPatch(input: CareerProfilePatch): CareerProfilePa
       Array.isArray(input.preferredRoles)
         ? input.preferredRoles.join(", ")
         : String(input.preferredRoles),
-      12,
+      MAX_PREFERRED_ROLES,
     );
   }
 
@@ -214,7 +219,7 @@ export function normalizeCareerPatch(input: CareerProfilePatch): CareerProfilePa
       Array.isArray(input.preferredLocations)
         ? input.preferredLocations.map(String)
         : String(input.preferredLocations),
-      12,
+      MAX_PREFERRED_LOCATIONS,
     );
   }
 
@@ -235,7 +240,7 @@ export function normalizeCareerPatch(input: CareerProfilePatch): CareerProfilePa
   if (input.skills !== undefined) {
     out.skills = tagsFromInput(
       Array.isArray(input.skills) ? input.skills.join(", ") : String(input.skills),
-      30,
+      MAX_SKILLS,
     );
   }
 

@@ -2,6 +2,9 @@
 
 import {
   COMPANY_SIZE_PREFERENCES,
+  MAX_PREFERRED_LOCATIONS,
+  MAX_PREFERRED_ROLES,
+  MAX_SKILLS,
   MAX_YEARS_EXPERIENCE,
   JOB_SEARCH_STATUSES,
   REMOTE_PREFERENCES,
@@ -9,9 +12,8 @@ import {
   WORK_AUTHORIZATIONS,
   type CareerProfile,
 } from "@/lib/career-profile";
-import { Badge } from "@/components/ui/badge";
-import { Combobox, ComboboxContent, ComboboxItem, ComboboxTrigger } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
+import { MultiInput, type MultiInputOption } from "@/components/ui/multi-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -20,12 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { IMPROVE_GUIDED_ROLES } from "@/lib/improve-roles";
 import { CANONICAL_LOCATIONS, locationKeywords } from "@/lib/locations";
 import { cn } from "@/lib/utils";
 
 export type CareerFormState = {
   yearsExperience: string;
-  preferredRoles: string;
+  /** One entry per chip; the server caps these at MAX_PREFERRED_ROLES. */
+  preferredRoles: string[];
   expectedSalaryMin: string;
   expectedSalaryMax: string;
   salaryCurrency: string;
@@ -33,7 +37,7 @@ export type CareerFormState = {
   preferredLocations: string[];
   remotePreference: string;
   workAuthorization: string;
-  skills: string;
+  skills: string[];
   jobSearchStatus: string;
   companySizePreference: string;
   industryPreference: string;
@@ -42,14 +46,14 @@ export type CareerFormState = {
 export function careerToFormState(career: CareerProfile): CareerFormState {
   return {
     yearsExperience: career.yearsExperience != null ? String(career.yearsExperience) : "",
-    preferredRoles: career.preferredRoles.join(", "),
+    preferredRoles: [...career.preferredRoles],
     expectedSalaryMin: career.expectedSalaryMin != null ? String(career.expectedSalaryMin) : "",
     expectedSalaryMax: career.expectedSalaryMax != null ? String(career.expectedSalaryMax) : "",
     salaryCurrency: career.salaryCurrency || "INR",
     preferredLocations: [...career.preferredLocations],
     remotePreference: career.remotePreference ?? "",
     workAuthorization: career.workAuthorization ?? "",
-    skills: career.skills.join(", "),
+    skills: [...career.skills],
     jobSearchStatus: career.jobSearchStatus ?? "",
     companySizePreference: career.companySizePreference ?? "",
     industryPreference: career.industryPreference ?? "",
@@ -61,20 +65,14 @@ export function formStateToCareerPatch(state: CareerFormState) {
   const maxRaw = state.expectedSalaryMax.trim();
   return {
     yearsExperience: state.yearsExperience.trim() === "" ? null : Number(state.yearsExperience),
-    preferredRoles: state.preferredRoles
-      .split(/[,;\n]/)
-      .map((s) => s.trim())
-      .filter(Boolean),
+    preferredRoles: state.preferredRoles.map((s) => s.trim()).filter(Boolean),
     expectedSalaryMin: minRaw ? Number(minRaw.replace(/[,_\s]/g, "")) : null,
     expectedSalaryMax: maxRaw ? Number(maxRaw.replace(/[,_\s]/g, "")) : null,
     salaryCurrency: (state.salaryCurrency || "INR") as CareerProfile["salaryCurrency"],
     preferredLocations: state.preferredLocations,
     remotePreference: (state.remotePreference || null) as CareerProfile["remotePreference"],
     workAuthorization: (state.workAuthorization || null) as CareerProfile["workAuthorization"],
-    skills: state.skills
-      .split(/[,;\n]/)
-      .map((s) => s.trim())
-      .filter(Boolean),
+    skills: state.skills.map((s) => s.trim()).filter(Boolean),
     jobSearchStatus: (state.jobSearchStatus || null) as CareerProfile["jobSearchStatus"],
     companySizePreference: (state.companySizePreference ||
       null) as CareerProfile["companySizePreference"],
@@ -91,6 +89,12 @@ type Props = {
 };
 
 const hintClass = "text-muted-foreground text-[11px] leading-relaxed";
+
+/** Cities (plus Remote) with their aliases, so "Bangalore" finds "Bengaluru, India". */
+const LOCATION_OPTIONS: MultiInputOption[] = CANONICAL_LOCATIONS.map((loc) => ({
+  value: loc,
+  keywords: locationKeywords(loc),
+}));
 
 export function CareerProfileFields({ value, onChange, compact, idPrefix = "career" }: Props) {
   function set<K extends keyof CareerFormState>(key: K, v: CareerFormState[K]) {
@@ -148,28 +152,37 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
 
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-roles`}>Preferred roles / titles *</Label>
-        <Input
+        {/* Chips: type a role and press Enter, or pick one of the roles Aavedak tailors for. */}
+        <MultiInput
           id={`${idPrefix}-roles`}
           value={value.preferredRoles}
-          onChange={(e) => set("preferredRoles", e.target.value)}
-          placeholder="Software Engineer, Full-Stack Engineer"
-          className="h-9 rounded-lg text-[13px]"
+          onValueChange={(next) => set("preferredRoles", next)}
+          options={IMPROVE_GUIDED_ROLES}
+          max={MAX_PREFERRED_ROLES}
+          placeholder={
+            value.preferredRoles.length === 0 ? "Software Engineer, Data Engineer…" : "Add a role"
+          }
+          className="rounded-lg text-[13px]"
         />
-        <p className={hintClass}>Comma-separated. Used for job matching next.</p>
+        <p className={hintClass}>
+          Press Enter or type a comma after each role, up to {MAX_PREFERRED_ROLES}. Used for job
+          matching next.
+        </p>
       </div>
 
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-skills`}>Skills / tech stack *</Label>
-        <Input
+        <MultiInput
           id={`${idPrefix}-skills`}
           value={value.skills}
-          onChange={(e) => set("skills", e.target.value)}
-          placeholder="e.g. Python, SQL, PySpark, Airflow, Kafka"
-          className="h-9 rounded-lg text-[13px]"
+          onValueChange={(next) => set("skills", next)}
+          max={MAX_SKILLS}
+          placeholder={value.skills.length === 0 ? "Python, SQL, PySpark, Airflow…" : "Add a skill"}
+          className="rounded-lg text-[13px]"
         />
         <p className={hintClass}>
-          Enter skills as a comma-separated list (e.g. TypeScript, React, PostgreSQL). Used for job
-          matching.
+          One skill per chip — press Enter or type a comma after each, up to {MAX_SKILLS}. Used for
+          job matching.
         </p>
       </div>
 
@@ -249,62 +262,24 @@ export function CareerProfileFields({ value, onChange, compact, idPrefix = "care
 
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-locations`}>Preferred locations</Label>
-        {value.preferredLocations.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {value.preferredLocations.map((loc) => (
-              <Badge key={loc} variant="secondary" className="gap-1 text-[12px]">
-                {loc}
-                <button
-                  type="button"
-                  aria-label={`Remove ${loc}`}
-                  className="hover:text-foreground text-muted-foreground -mr-0.5 leading-none"
-                  onClick={() =>
-                    set(
-                      "preferredLocations",
-                      value.preferredLocations.filter((l) => l !== loc),
-                    )
-                  }
-                >
-                  ×
-                </button>
-              </Badge>
-            ))}
-          </div>
-        ) : null}
-        {/* Value stays empty: picking an option adds it to the list above. */}
-        <Combobox
-          value=""
-          onValueChange={(v) => {
-            if (
-              v &&
-              !value.preferredLocations.includes(v) &&
-              value.preferredLocations.length < 12
-            ) {
-              set("preferredLocations", [...value.preferredLocations, v]);
-            }
-          }}
-        >
-          <ComboboxTrigger
-            id={`${idPrefix}-locations`}
-            placeholder={
-              value.preferredLocations.length ? "Add another location" : "Add a city or Remote"
-            }
-            className="h-9 rounded-lg text-[13px]"
-          />
-          <ComboboxContent
-            className="z-[240]"
-            searchPlaceholder="Search cities…"
-            emptyMessage="No matching location."
-          >
-            {CANONICAL_LOCATIONS.filter((loc) => !value.preferredLocations.includes(loc)).map(
-              (loc) => (
-                <ComboboxItem key={loc} value={loc} keywords={locationKeywords(loc)}>
-                  {loc}
-                </ComboboxItem>
-              ),
-            )}
-          </ComboboxContent>
-        </Combobox>
+        {/* Canonical values only (the server drops anything else), with alias search:
+            typing "Bangalore" finds "Bengaluru, India". */}
+        <MultiInput
+          id={`${idPrefix}-locations`}
+          value={value.preferredLocations}
+          onValueChange={(next) => set("preferredLocations", next)}
+          options={LOCATION_OPTIONS}
+          allowCustomValues={false}
+          max={MAX_PREFERRED_LOCATIONS}
+          emptyMessage="No matching location."
+          placeholder={
+            value.preferredLocations.length === 0 ? "Add a city or Remote" : "Add another location"
+          }
+          className="rounded-lg text-[13px]"
+        />
+        <p className={hintClass}>
+          Pick from the list — up to {MAX_PREFERRED_LOCATIONS} cities, or Remote.
+        </p>
       </div>
 
       <div className={grid}>
