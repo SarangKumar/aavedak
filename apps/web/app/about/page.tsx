@@ -105,8 +105,6 @@ export default function AboutPage() {
         </p>
       </header>
 
-      <AboutHowItWorks />
-
       <section className="space-y-3" aria-labelledby="summary-heading">
         <div className="max-w-2xl space-y-1">
           <h2
@@ -145,6 +143,8 @@ export default function AboutPage() {
           ))}
         </div>
       </section>
+
+      <AboutHowItWorks />
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Principles">
         {principles.map((item) => (
