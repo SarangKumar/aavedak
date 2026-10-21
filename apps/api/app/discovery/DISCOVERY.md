@@ -30,9 +30,10 @@ forwards admin actions to `/svc/v1/discovery/admin/*` after its own allowlist ch
   (`not_engineering`, `senior_title`, `experience`, `too_old`). Internships excluded unless
   `include_internships = True` (config.py). Filters run **before** anything is written, so the database only
   holds relevant jobs; skipped postings are only counted per reason.
-- Sources: public ATS posting APIs (Greenhouse, Lever, Ashby, SmartRecruiters, Workable),
-  career pages that embed schema.org `JobPosting` JSON-LD (robots.txt respected, no
-  crawling), and optional permitted JSON feeds. LinkedIn, Indeed, Glassdoor, Naukri,
+- Sources: **company careers pages first** (the `career_pages` registry, ~590 verified pages,
+  India-weighted — see "Careers pages registry"), then public ATS posting APIs (Greenhouse,
+  Lever, Ashby, SmartRecruiters, Workable, Workday) as a fallback, and optional permitted JSON
+  feeds. Every page fetch respects robots.txt. LinkedIn, Indeed, Glassdoor, Naukri,
   Foundit, Instahyre, Cutshort, and Wellfound have no permitted read access and are **not**
   scraped. NCS has no public listings API.
 - **Add job from a link** (`jobs/single.py`, `POST /admin/parse-job-url`) reads one posting
@@ -88,6 +89,9 @@ app/discovery/
     single.py    read one posting from its link for web "Add job" (no filters, nothing stored)
     registry.py  company_sources: seed/admin import, shards, scan status
     scan.py      fetch in threads → write per company on the main connection
+    careers_crawl.py  polite crawler for one careers page: robots, rate limit, strategies (pure-ish)
+    career_pages.py   career_pages registry: seed import, schedule, record, admin list
+    careers_scan.py   run items of kind career_page: crawl → normalize → ingest → record
   people/
     normalize.py CSV parsing, LinkedIn/email normalization, job relevance (pure)
     store.py     match → enrich (fill gaps only) or create; contacts; relevance links
@@ -99,6 +103,8 @@ app/discovery/
   data/
     career_sources.json  verified seed registry (scripts/verify_career_sources.py)
     seed_candidates.txt  candidate names for the verifier
+    careers_pages.json   verified careers-page registry (scripts/verify_careers_pages.py)
+    careers_candidates.txt  candidate `Name|focus|tier|url [alt urls]` lines for that verifier
 ```
 
 ## Pipeline
@@ -171,6 +177,53 @@ board already points at the company's site); when a `jsonld` source lists a job,
 `url` becomes that page link, and later board updates never replace it. A board's complete
 scan only closes jobs through its **own** provider's refs, so it never closes a role that
 only the careers page lists (those still expire normally).
+
+## Careers pages registry
+
+The company's own careers page is the source of truth. `career_pages` (one row per page:
+`company_name`, `careers_url`, `domain`, `country_focus` `india` | `india_office` | `global`,
+`tier`, `enabled`, `strategy`, `platform_token`, `last_checked_at`, `last_status` `ok` |
+`no_job_data` | `blocked` | `error`, `jobs_found`, `jobs_kept`, `consecutive_failures`,
+`company_source_id`) is seeded from `data/careers_pages.json` on every scan cron
+(`career_pages.import_seed`, idempotent by URL or company name; never deletes, never
+overwrites an admin's `enabled`).
+
+- **Building the list** — `scripts/verify_careers_pages.py` reads `careers_candidates.txt`,
+  fetches each URL (then its alternatives) with the crawler UA and keeps pages that answer
+  200 HTML, look like a careers page, are not a soft 404 and are allowed by robots.txt. URLs
+  are never invented; a redirect to another company's domain drops the entry. Re-run it to
+  refresh (`--workers 12 --delay 0.5 --out ... --report /tmp/report.json`).
+- **Crawling** (`careers_crawl.crawl`) — UA `AavedakJobsBot/1.0`, robots.txt per origin,
+  ≥ 0.6 s between requests to one host, 16 requests / 45 s per page. Strategies in order,
+  the first that finds jobs wins and is recorded on the row:
+  1. **ATS embed** (`greenhouse`, `lever`, `ashby`, `smartrecruiters`, `workable`,
+     `workday`) — the page (or the one "view open roles" page it links to) embeds or links a
+     hosted board; its public API is only the parsing mechanism. Complete list, so this read
+     may close jobs. Links point back to the company page (`?gh_jid=` / `?ashby_jid=` when the
+     board is embedded inline).
+  2. **`jsonld`** — schema.org `JobPosting` on the page itself.
+  3. **`embedded_json`** — job rows in `__NEXT_DATA__`, `application/json` scripts or
+     `window.X = {...}` state (title + location/id keys, largest list wins).
+  4. **`jsonld_links`** — up to 8 same-site job detail pages linked from the page.
+  5. **`jsonld_sitemap`** — job detail pages from the site's sitemap (robots `Sitemap:` lines,
+     relative ones resolved, else `/sitemap.xml`).
+     Otherwise `no_job_data` (usually a JavaScript-only page). 401/403/429 → `blocked`.
+- **Scheduling** — scan shards queue `career_page` items **before** board items
+  (`router._scan_items`). Never-checked, `ok` and `error` pages (< 5 failures) are read daily
+  in their shard; `no_job_data` / `blocked` pages weekly. Ordered by tier.
+- **Boards become a fallback** — `registry.scheduled_source_ids` skips a board while a
+  linked careers page had an `ok`, **complete** read (an ATS embed) within the last 3 days
+  (`career_pages.BOARD_COVERED_SQL`). Pages read only partially (JSON-LD, links, sitemap)
+  keep their board scanning, and dedupe merges the overlap, so JavaScript-only pages never
+  lose jobs. Boards without a careers page are scanned as before.
+- **Ingest** — source key `careers`, `SourceTarget(provider="careers", token=domain)`,
+  external ids `{page id}:{strategy}:{native id}`, company name from the board when linked so
+  roles merge. Same store rules as `jsonld`: links by dedupe key or exact URL, the page link
+  wins over a board link, only a complete read closes jobs and only through its own refs.
+- **Admin** — `GET /admin/careers-pages` (rows + summary + counts by strategy), `PATCH
+/admin/careers-pages/{id}` `{enabled}`, `POST /admin/careers-pages/import`. The web Admin
+  page's **Careers pages** section shows them; the homepage lists readable companies and the
+  platforms read (`apps/web/lib/careers-showcase.ts`, cached 1 h).
 
 ## Expiry
 
