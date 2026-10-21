@@ -467,3 +467,55 @@ def test_careers_page_postings_sharing_the_listing_url_are_not_merged(conn):
     stats = store.ingest_company(conn, target, [listed(1, "Listing Url Engineer A"), listed(2, "Listing Url Engineer B")],
                                  complete=False, scan_started_at=now_iso(), expiry_days=30)
     assert stats.inserted == 2 and stats.linked == 0
+
+
+# --- onboarding / re-ranking -------------------------------------------------------------------
+
+
+def isolate_pool(conn) -> None:
+    """Close every shared job left by earlier tests, so ranking sees only this test's jobs."""
+    conn.execute("UPDATE jobs SET closed_at = %s WHERE user_id IS NULL AND closed_at IS NULL", (now_iso(),))
+
+
+def pool_job(conn, target, ext: str, *, region: str, min_years: int | None, loc: str) -> str:
+    store.ingest_company(conn, target, [njob(ext, title=f"Python Engineer {ext}", loc=loc)], complete=False,
+                         scan_started_at=iso_minus(5), expiry_days=30)
+    job_id = conn.execute("SELECT job_id FROM job_sources WHERE external_id = %s", (ext,)).fetchone()["job_id"]
+    conn.execute("UPDATE jobs SET region = %s, min_years = %s WHERE id = %s", (region, min_years, job_id))
+    return job_id
+
+
+def recommended(conn, user: str) -> set[str]:
+    rows = conn.execute(
+        "SELECT job_id FROM user_job_state WHERE user_id = %s AND recommended_at IS NOT NULL", (user,)
+    ).fetchall()
+    return {r["job_id"] for r in rows}
+
+
+def test_onboarding_completion_ranks_existing_pool(conn):
+    isolate_pool(conn)
+    target = make_source(conn)
+    tag = uuid.uuid4().hex[:6]
+    india = pool_job(conn, target, f"ob-in-{tag}", region="india", min_years=1, loc="Bengaluru")
+    remote = pool_job(conn, target, f"ob-rm-{tag}", region="india_remote", min_years=2, loc="Remote, India")
+    world = pool_job(conn, target, f"ob-gl-{tag}", region="global", min_years=0, loc="Berlin")
+    too_senior = pool_job(conn, target, f"ob-sr-{tag}", region="india", min_years=4, loc="Pune")
+
+    user = add_user(conn)
+    conn.execute("UPDATE profiles SET onboarding_complete = 0, years_experience = 1 WHERE user_id = %s", (user,))
+    cap2 = DiscoverySettings(discovery_daily_limit=2, discovery_min_match_score=0)
+
+    # The career save during onboarding re-ranks before the flag is set: nothing yet.
+    before = ranking.rerank_user(conn, cap2, user)
+    assert before["rescored"] == before["dropped"] == before["added"] == 0
+    assert recommended(conn, user) == set()
+
+    # /api/onboarding/complete sets the flag, then re-ranks: today's list fills from the pool.
+    conn.execute("UPDATE profiles SET onboarding_complete = 1 WHERE user_id = %s", (user,))
+    result = ranking.rerank_user(conn, cap2, user)
+    assert result["added"] == 2
+    # Cap 2, India first; 4 years asked > 1 + 2 window, so never offered.
+    assert recommended(conn, user) == {india, remote}
+    assert too_senior not in recommended(conn, user) and world not in recommended(conn, user)
+    # Idempotent: a second call within the day adds nothing (cap reached).
+    assert ranking.rerank_user(conn, cap2, user)["added"] == 0

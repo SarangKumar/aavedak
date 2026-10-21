@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import { isAdminEmail } from "@/lib/admin";
 import { getServerSession } from "@/lib/auth";
+import { rerankUser } from "@/lib/rerank-user";
 import { setApprovalStatus } from "@/lib/user-approval";
 import { isApprovalStatus } from "@/lib/user-approval-shared";
 
@@ -36,6 +37,11 @@ export async function POST(request: Request, ctx: Ctx) {
   const ok = await setApprovalStatus(id, body.status);
   if (!ok) {
     return NextResponse.json({ error: "User not found." }, { status: 404 });
+  }
+  if (body.status === "approved") {
+    // A user who finished onboarding while pending had nothing ranked; rank them now, after
+    // the response, so approving is not slowed down. Not yet onboarded: ranks nothing.
+    after(() => rerankUser(id));
   }
   return NextResponse.json({ ok: true, status: body.status });
 }
