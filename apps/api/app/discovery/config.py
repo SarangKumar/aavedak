@@ -11,17 +11,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.core.config import ENV_FILES
 from app.core.config import settings as core_settings
 
-# Application statuses that an expired job may auto-move to `rejected` (reason
-# `job_expired`). Never assessment / interview / offer / withdrawn / archived.
-EXPIRY_REJECTABLE_STATUSES: tuple[str, ...] = (
-    "bookmarked",
-    "preparing",
-    "applied",
-    "under_review",
-    "ghosted",
-)
-JOB_EXPIRED_REASON = "job_expired"
-
 
 class DiscoveryTuning(BaseModel):
     """Non-secret tuning, typed and versioned here in code (not env). Change a value by

@@ -228,11 +228,11 @@ overwrites an admin's `enabled`).
 ## Expiry
 
 `COALESCE(posted_at, first_seen_at, created_at)` older than `job_expiry_days` → `expired_at`
-(never cleared). Applications linked to an expired **shared** job in `bookmarked`,
-`preparing`, `applied`, `under_review`, `ghosted` move to `rejected` with
-`status_reason = job_expired` and a system `application_events` row. A unique index on
-system (application, reason) makes it happen once — if the user reopens the application it
-is never re-rejected. Manual/pasted jobs and applications without a job never expire.
+(never cleared). Expiry only marks the job; it never changes an application's status. The
+tracker badges applications on an expired posting "Posting expired". (An earlier rule moved
+early-stage applications to `rejected` with `status_reason = job_expired` and a system
+`application_events` row; those records are left as they are.) Manual/pasted jobs and
+applications without a job never expire.
 
 **Filled / removed from portal.** A posting a company fills or pulls stops being listed, so a
 complete scan sets `jobs.closed_at`. Such jobs are already excluded from Discover (the query

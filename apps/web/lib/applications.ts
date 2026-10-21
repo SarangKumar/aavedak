@@ -26,8 +26,10 @@ export type ApplicationRecord = {
   status: ApplicationStatus;
   /** Why the status last changed when the system changed it (e.g. `job_expired`). */
   statusReason: string | null;
-  /** The linked shared job was filled / pulled from the portal (closed or expired). */
+  /** The linked shared job was filled / pulled from the portal (closed by a scan). */
   jobRemovedFromPortal: boolean;
+  /** The linked shared job's posting is past the expiry window. The status is not changed. */
+  jobPostingExpired: boolean;
   notes: string | null;
   appliedAt: string | null;
   createdAt: string;
@@ -63,6 +65,7 @@ type ApplicationRow = {
   status: string;
   status_reason?: string | null;
   job_removed_from_portal?: number | null;
+  job_posting_expired?: number | null;
   notes: string | null;
   applied_at?: string | null;
   created_at: string;
@@ -87,6 +90,7 @@ function mapRow(row: ApplicationRow): ApplicationRecord {
     status: row.status,
     statusReason: row.status_reason ?? null,
     jobRemovedFromPortal: Boolean(row.job_removed_from_portal),
+    jobPostingExpired: Boolean(row.job_posting_expired),
     notes: row.notes,
     appliedAt: row.applied_at ?? null,
     createdAt: row.created_at,
@@ -114,14 +118,17 @@ export async function listApplications(
 ): Promise<ApplicationRecord[]> {
   await ensureAppSchema();
   const sql = getSql();
-  // Flag applications whose linked shared job was filled / pulled from the portal
-  // (closed by a scan, or expired) so the tracker can badge them — the application stays.
+  // Flag applications whose linked shared job was filled / pulled from the portal (closed by a
+  // scan) or whose posting expired, so the tracker can badge them. The application and its
+  // status stay as they are.
   const rows =
     scope === "archived"
       ? ((await sql`
           SELECT a.*,
-            CASE WHEN j.user_id IS NULL AND (j.closed_at IS NOT NULL OR j.expired_at IS NOT NULL)
-                 THEN 1 ELSE 0 END AS job_removed_from_portal
+            CASE WHEN j.user_id IS NULL AND j.closed_at IS NOT NULL
+                 THEN 1 ELSE 0 END AS job_removed_from_portal,
+            CASE WHEN j.user_id IS NULL AND j.expired_at IS NOT NULL
+                 THEN 1 ELSE 0 END AS job_posting_expired
           FROM applications a
           LEFT JOIN jobs j ON j.id = a.job_id
           WHERE a.user_id = ${userId} AND a.status = 'archived'
@@ -129,8 +136,10 @@ export async function listApplications(
         `) as ApplicationRow[])
       : ((await sql`
           SELECT a.*,
-            CASE WHEN j.user_id IS NULL AND (j.closed_at IS NOT NULL OR j.expired_at IS NOT NULL)
-                 THEN 1 ELSE 0 END AS job_removed_from_portal
+            CASE WHEN j.user_id IS NULL AND j.closed_at IS NOT NULL
+                 THEN 1 ELSE 0 END AS job_removed_from_portal,
+            CASE WHEN j.user_id IS NULL AND j.expired_at IS NOT NULL
+                 THEN 1 ELSE 0 END AS job_posting_expired
           FROM applications a
           LEFT JOIN jobs j ON j.id = a.job_id
           WHERE a.user_id = ${userId} AND a.status != 'archived'
@@ -511,6 +520,7 @@ export function applicationToDto(app: ApplicationRecord) {
     status: app.status,
     statusReason: app.statusReason,
     jobRemovedFromPortal: app.jobRemovedFromPortal,
+    jobPostingExpired: app.jobPostingExpired,
     notes: app.notes,
     appliedAt: app.appliedAt,
     createdAt: app.createdAt,

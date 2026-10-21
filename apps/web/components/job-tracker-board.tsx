@@ -82,8 +82,10 @@ export type ApplicationDto = {
   status: ApplicationStatus;
   /** System reason for the last status change (`job_expired` → auto-rejected). */
   statusReason?: string | null;
-  /** The linked shared job was filled / pulled from the portal (closed or expired). */
+  /** The linked shared job was filled / pulled from the portal (closed by a scan). */
   jobRemovedFromPortal?: boolean;
+  /** The linked shared job's posting is past the expiry window; the status is unchanged. */
+  jobPostingExpired?: boolean;
   notes: string | null;
   appliedAt?: string | null;
   createdAt: string;
@@ -691,6 +693,8 @@ export function JobTrackerBoard({
                                           <JobExpiredBadge />
                                         ) : app.jobRemovedFromPortal ? (
                                           <RemovedFromPortalBadge />
+                                        ) : app.jobPostingExpired ? (
+                                          <PostingExpiredBadge />
                                         ) : null}
                                       </JobCardContent>
                                     </div>
@@ -1111,6 +1115,8 @@ function ListView({
               <JobExpiredBadge />
             ) : app.jobRemovedFromPortal ? (
               <RemovedFromPortalBadge />
+            ) : app.jobPostingExpired ? (
+              <PostingExpiredBadge />
             ) : null}
           </span>
         ),
@@ -1178,6 +1184,7 @@ function ListView({
 }
 
 /** Marks applications the system moved to Rejected because the posting expired. */
+/** An application auto-rejected by the old expiry rule (before it stopped changing statuses). */
 function JobExpiredBadge() {
   return (
     <Badge
@@ -1198,6 +1205,18 @@ function RemovedFromPortalBadge() {
       title="This posting was filled or pulled from the source. It's gone from Discover, but your application is kept here."
     >
       Removed from portal
+    </Badge>
+  );
+}
+
+function PostingExpiredBadge() {
+  return (
+    <Badge
+      variant="secondary"
+      className="px-1.5 py-0 text-[10px]"
+      title="The posting is more than 30 days old, so it has left Discover. Your application and its status are unchanged."
+    >
+      Posting expired
     </Badge>
   );
 }

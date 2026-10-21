@@ -55,6 +55,7 @@ export default async function JobTrackerPage({
       status: app.status,
       statusReason: app.statusReason,
       jobRemovedFromPortal: app.jobRemovedFromPortal,
+      jobPostingExpired: app.jobPostingExpired,
       notes: app.notes,
       appliedAt: app.appliedAt,
       createdAt: app.createdAt,

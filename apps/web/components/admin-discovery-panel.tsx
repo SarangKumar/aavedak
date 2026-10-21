@@ -535,8 +535,7 @@ export function AdminDiscoveryPanel() {
               void run(
                 "Expiry",
                 { action: "expire" },
-                (d) =>
-                  `${d.jobsExpired} jobs expired · ${d.applicationsRejected} applications marked rejected`,
+                (d) => `${d.jobsExpired} jobs expired · ${d.jobsCompacted} old jobs compacted`,
               )
             }
           >

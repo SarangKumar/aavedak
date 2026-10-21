@@ -237,14 +237,16 @@ def test_recommend_respects_cap_preference_and_is_idempotent(conn, settings):
 # --- expiry ------------------------------------------------------------------------------------
 
 
-def test_expiry_rejects_early_applications_once(conn, settings):
+def test_expiry_marks_jobs_only_and_never_changes_application_status(conn, settings):
     target = make_source(conn)
     store.ingest_company(conn, target, [njob("e:1", title="Firmware Engineer")], complete=True,
                          scan_started_at=iso_minus(5), expiry_days=30)
     job_id = conn.execute("SELECT job_id FROM job_sources WHERE external_id = 'e:1'").fetchone()["job_id"]
     conn.execute("UPDATE jobs SET posted_at = %s WHERE id = %s", (to_iso(utcnow() - timedelta(days=31)), job_id))
     now = now_iso()
-    for app_id, status in (("app_applied", "applied"), ("app_interview", "interview")):
+    statuses = {"app_bookmarked": "bookmarked", "app_applied": "applied", "app_ghosted": "ghosted",
+                "app_interview": "interview"}
+    for app_id, status in statuses.items():
         conn.execute(
             """INSERT INTO applications (id, user_id, company_name, role, location, job_id, status, created_at, updated_at)
                VALUES (%s, 'u1', 'Acme', 'Firmware Engineer', 'Pune', %s, %s, %s, %s)""",
@@ -255,17 +257,18 @@ def test_expiry_rejects_early_applications_once(conn, settings):
                     VALUES ('manual1', 'u1', 'Old manual', 'X', 'Y', %s, %s, '2020-01-01T00:00:00.000Z')""", (now, now))
 
     result = expiry.run_expiry(conn, settings)
-    assert result == {"jobsExpired": 1, "applicationsRejected": 1, "jobsCompacted": 0}
-    rows = {r["id"]: r for r in conn.execute("SELECT id, status, status_reason FROM applications").fetchall()}
-    assert rows["app_applied"]["status"] == "rejected" and rows["app_applied"]["status_reason"] == "job_expired"
-    assert rows["app_interview"]["status"] == "interview"
+    assert result["jobsExpired"] == 1 and "applicationsRejected" not in result
+    assert conn.execute("SELECT expired_at FROM jobs WHERE id = %s", (job_id,)).fetchone()["expired_at"] is not None
+    rows = {r["id"]: r for r in conn.execute(
+        "SELECT id, status, status_reason FROM applications WHERE job_id = %s", (job_id,)).fetchall()}
+    assert {k: r["status"] for k, r in rows.items()} == statuses
+    assert all(r["status_reason"] is None for r in rows.values())
+    events = conn.execute("SELECT COUNT(*) AS n FROM application_events WHERE application_id = ANY(%s)",
+                          (list(statuses),)).fetchone()
+    assert events["n"] == 0
     assert conn.execute("SELECT expired_at FROM jobs WHERE id = 'manual1'").fetchone()["expired_at"] is None
-
-    # User reopens → never re-rejected; re-running is a no-op.
-    conn.execute("UPDATE applications SET status = 'applied' WHERE id = 'app_applied'")
-    assert expiry.run_expiry(conn, settings) == {"jobsExpired": 0, "applicationsRejected": 0, "jobsCompacted": 0}
-    events = conn.execute("SELECT COUNT(*) AS n FROM application_events WHERE application_id = 'app_applied'").fetchone()
-    assert events["n"] == 1
+    # Re-running is a no-op.
+    assert expiry.run_expiry(conn, settings)["jobsExpired"] == 0
 
 
 # --- runs ---------------------------------------------------------------------------------------
