@@ -20,6 +20,7 @@ First product cut of the Aavedak web app (2026-10-07) (local SQLite + Google Bet
 
 ### Added
 
+- **About page: How Aavedak works** — a new section near the top of `/about` with an animated diagram (what Aavedak reads — company careers pages, job boards as a fallback, company sites and GitHub, your resume — flowing into Aavedak and out as matched jobs, ATS scores and an improved resume, referrals and emails, and the tracker and dashboard), followed by nine short steps from sign-in to the dashboard. The diagram stacks on phones and stays still when your system asks for reduced motion. The copy-ready summaries on the same page now say the jobs come from about 590 company careers pages, read every day.
 - **Homepage: where the jobs come from** — a new "Straight from company career pages" section lists companies whose own careers pages Aavedak reads (each links to that page) and the hiring platforms those pages run on, with counts.
 - **Admin: Careers pages** — a collapsible section on the Admin page with the full careers-page list: search, 5 or 10 rows per page, each page's link, how it is read, when it was last checked, its status, jobs found / kept, and a switch to turn a page off or on. Above the table: totals (pages, readable, blocked, no job data, jobs found) and counts per reading method.
 - **Improve resume** (`/resume-improver`, nav **Resume → Improve resume**) — pick a reference resume, the role, your years of experience and, optionally, a job description.
