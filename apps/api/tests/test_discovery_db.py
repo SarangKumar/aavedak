@@ -582,7 +582,7 @@ def test_legacy_rerank_hidden_rows_are_tagged_by_the_migration(conn):
                   (%s, 'legacy-open', 0, NULL, %s, %s)""",
         (user, now, user, now, user, now, now),
     )
-    backfill = next(s for s in schema.SHARED_STATEMENTS if s.startswith("UPDATE user_job_state SET hidden_reason"))
+    backfill = next(s for s in schema.SHARED_BACKFILLS if s.startswith("UPDATE user_job_state SET hidden_reason"))
     conn.execute(backfill)
     tags = {r["job_id"]: r["hidden_reason"] for r in conn.execute(
         "SELECT job_id, hidden_reason FROM user_job_state WHERE user_id = %s", (user,)).fetchall()}

@@ -2,7 +2,8 @@
 
 Two groups:
   * PIPELINE_STATEMENTS — tables only the API uses (registry, source refs, runs, contacts).
-  * SHARED_STATEMENTS   — columns/tables on web-owned data that the pipeline writes. They are
+  * SHARED_STATEMENTS   — columns/tables on web-owned data that the pipeline writes (DDL only;
+    one-off data fixes on those tables are SHARED_BACKFILLS, run after). They are
     defined in apps/web/lib/app-db.ts (`runDiscoverySchema`) and mirrored here so a cron that
     runs before any web request still works. `tests/test_discovery_schema.py` checks the
     mirror stays in sync.
@@ -43,11 +44,8 @@ SHARED_STATEMENTS: tuple[str, ...] = (
     "ALTER TABLE user_job_state ADD COLUMN IF NOT EXISTS score INTEGER",
     "ALTER TABLE user_job_state ADD COLUMN IF NOT EXISTS reasons_json TEXT",
     # 'rerank' = hidden by ranking (no longer fits), not by the user; re-offered once it fits
-    # again. Rows hidden before this column existed have the same shape and are tagged here.
+    # again. Rows hidden before this column existed are tagged by SHARED_BACKFILLS.
     "ALTER TABLE user_job_state ADD COLUMN IF NOT EXISTS hidden_reason TEXT",
-    """UPDATE user_job_state SET hidden_reason = 'rerank'
-       WHERE hidden_reason IS NULL AND recommended_at IS NULL AND score IS NULL
-         AND ignored = 0 AND application_id IS NULL""",
     """CREATE INDEX IF NOT EXISTS user_job_state_recommended_idx
        ON user_job_state (user_id, recommended_at)""",
     "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS discovery_enabled INTEGER NOT NULL DEFAULT 1",
@@ -294,6 +292,14 @@ PIPELINE_STATEMENTS: tuple[str, ...] = (
     )""",
 )
 
+# Idempotent data fixes on web-owned tables, run after the DDL (mirrored in app-db.ts).
+SHARED_BACKFILLS: tuple[str, ...] = (
+    # Re-rank used to hide a job by clearing recommended_at/score only; tag those rows.
+    """UPDATE user_job_state SET hidden_reason = 'rerank'
+       WHERE hidden_reason IS NULL AND recommended_at IS NULL AND score IS NULL
+         AND ignored = 0 AND application_id IS NULL""",
+)
+
 BASE_TABLES = ("jobs", "companies", "applications", "user_job_state", "user_preferences", "people", "profiles")
 
 
@@ -303,7 +309,7 @@ class BaseSchemaMissing(RuntimeError):
 
 # Hash of the DDL: a changed statement re-runs the script once, then cold starts skip it.
 SCHEMA_VERSION = "api-" + hashlib.sha256(
-    "\n".join(SHARED_STATEMENTS + PIPELINE_STATEMENTS).encode()
+    "\n".join(SHARED_STATEMENTS + PIPELINE_STATEMENTS + SHARED_BACKFILLS).encode()
 ).hexdigest()[:16]
 
 _VERSION_TABLE = """CREATE TABLE IF NOT EXISTS schema_version (
@@ -352,5 +358,7 @@ def ensure_schema(conn: psycopg.Connection) -> None:
                 "'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')) "
                 "ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version, applied_at = EXCLUDED.applied_at"
             )
-            conn.execute(";\n".join(SHARED_STATEMENTS + PIPELINE_STATEMENTS + (_VERSION_TABLE, record)))
+            conn.execute(
+                ";\n".join(SHARED_STATEMENTS + PIPELINE_STATEMENTS + SHARED_BACKFILLS + (_VERSION_TABLE, record))
+            )
         _ready = True
