@@ -13,6 +13,7 @@ import {
   Code,
   Database,
   Download,
+  Eraser,
   EyeOff,
   FileSearch,
   FileText,
@@ -214,7 +215,7 @@ const SCAN: Flow = {
     },
     {
       title: "If something goes wrong",
-      body: "A page that runs out of time is marked as an error and retried by the drain crons, up to 3 attempts. After 5 errors in a row it moves to weekly checks. Separately, the expire cron (05:45 IST) marks jobs expired 30 days after posting (and moves early-stage applications for them to rejected, once), and prune-filled (06:15 IST) hides jobs that scans closed; applications keep their records.",
+      body: "A page that runs out of time is marked as an error and retried by the drain crons, up to 3 attempts. After 5 errors in a row it moves to weekly checks. Separately, the expire cron (05:45 IST) only marks jobs expired 30 days after posting: applications linked to them keep the status you set, and the tracker shows 'Posting expired'. Prune-filled (06:15 IST) hides jobs that scans closed; applications keep their records.",
     },
   ],
 };
@@ -346,7 +347,7 @@ const SIGNUP: Flow = {
   tab: "When you register",
   title: "When you register: how your jobs appear",
   shape:
-    "A line with two exits (account cap, approval), then onboarding. Your jobs are not computed when you open the page: they are prepared in the background and the Jobs page only reads them.",
+    "A line with two exits (account cap, approval), then onboarding. Finishing onboarding ranks your jobs straight away from the jobs already found; after that the Jobs page only reads them.",
   trigger: "You sign in with Google for the first time.",
   grid: "grid-cols-3 lg:grid-cols-6",
   nodes: [
@@ -394,7 +395,7 @@ const SIGNUP: Flow = {
     },
     {
       id: "rank",
-      label: "Background ranking",
+      label: "Ranked on completion",
       icon: "brand",
       place: "col-start-2 row-start-4 lg:col-start-5 lg:row-start-1",
       highlight: true,
@@ -437,12 +438,12 @@ const SIGNUP: Flow = {
     },
     {
       title: "3. Onboarding",
-      body: "You set years of experience, preferred roles, skills and locations, and upload a PDF resume. The file goes to Google Cloud Storage and its text is extracted on the server. Onboarding is marked complete last.",
+      body: "You set years of experience, preferred roles, skills and locations, and upload a PDF resume. The file goes to Google Cloud Storage and its text is extracted on the server. Onboarding is marked complete last, and then your jobs are ranked.",
       data: "Writes profiles, user_preferences and resumes (file in Cloud Storage, text in resumes.extracted_text).",
     },
     {
-      title: "4. Ranking happens in the background",
-      body: "Recommendations are precomputed, not worked out when you open Jobs. You are only ranked once approved and onboarded. Your first jobs come from the next scan (new jobs it finds) or the daily ranking cron at 06:45 IST, which tops up from the whole pool; Jobs → Refresh jobs runs a scan straight away.",
+      title: "4. Ranked when onboarding completes",
+      body: "As soon as onboarding is marked complete, your jobs are ranked from the jobs already found, so Jobs is not empty on your first visit. The career save earlier in onboarding ranks nothing, because you are not onboarded yet at that point. If your account is still waiting for approval, nothing is ranked; when an admin approves you, you are ranked straight away (if you have finished onboarding). After that, each scan adds its new jobs and the daily ranking cron at 06:45 IST tops up from the whole pool. If ranking fails, onboarding still completes and the daily cron catches up.",
       data: "Writes user_job_state and job_scores.",
     },
     {
@@ -462,14 +463,14 @@ const RERANK: Flow = {
   tab: "When ranking runs again",
   title: "When the recommendation engine runs again",
   shape:
-    "Two entry points. Saving your career preferences re-scores what is still open and branches into kept or hidden. Both paths then top up from the unseen pool, up to what is left of today's cap.",
+    "Two kinds of entry. Saving career preferences or finishing onboarding re-scores what is still open and branches into kept or hidden; hidden jobs loop back to the pool and return once they fit. Every path then tops up from the pool, up to what is left of today's cap.",
   trigger:
-    "You save career preferences in Profile (re-rank for you), each scan (new jobs only), the daily ranking cron at 06:45 IST (whole pool), or an admin run.",
+    "You save career preferences in Profile or finish onboarding, or an admin approves you (re-rank for you); each scan (new jobs only); the daily ranking cron at 06:45 IST (whole pool); or an admin run.",
   grid: "grid-cols-3 lg:grid-cols-6",
   nodes: [
     {
       id: "prefs",
-      label: "Preferences saved",
+      label: "Preferences / onboarding",
       icon: UserCog,
       place: "col-start-1 row-start-1 lg:col-start-1 lg:row-start-1",
     },
@@ -500,13 +501,13 @@ const RERANK: Flow = {
     },
     {
       id: "drop",
-      label: "Hidden for good",
+      label: "Hidden (can return)",
       icon: EyeOff,
       place: "col-start-2 row-start-3 lg:col-start-3 lg:row-start-2",
     },
     {
       id: "pool",
-      label: "Unseen pool",
+      label: "Pool (unseen + hidden)",
       icon: Layers,
       place: "col-start-2 row-start-5 lg:col-start-5 lg:row-start-2",
     },
@@ -530,6 +531,7 @@ const RERANK: Flow = {
     { from: "rescore", to: "drop", kind: "branch" },
     { from: "keep", to: "pool" },
     { from: "cron", to: "pool" },
+    { from: "drop", to: "pool", kind: "loop" },
     { from: "pool", to: "cap" },
     { from: "cap", to: "add" },
   ],
@@ -541,17 +543,17 @@ const RERANK: Flow = {
     },
     {
       title: "2. Kept or hidden",
-      body: "A job now asking more than your years plus 2, or scoring under 30, is hidden: its row stays with no recommendation date, so it is never offered again. Others keep their place with the new score and reasons.",
-      data: "Updates user_job_state (score, reasons_json, recommended_at) and job_scores.",
+      body: "A job now asking more than your years plus 2, or scoring under 30, is hidden: its recommendation date is cleared and it is marked as hidden by ranking, not by you. Others keep their place with the new score and reasons.",
+      data: "Updates user_job_state (score, reasons_json, recommended_at, hidden_reason) and job_scores.",
     },
     {
       title: "3. What is never touched",
-      body: "Jobs you applied to or ignored, and jobs you added yourself, stay exactly as they are. Nothing already shown is shown twice, because the pool skips every job that already has a row for you.",
+      body: "Jobs you applied to, bookmarked or ignored, and jobs you added yourself, stay exactly as they are and are never offered again. A job still on your list is never added twice.",
     },
     {
       title: "4. Top up within today's cap",
-      body: "New jobs come from the unseen pool, ranked as at sign-up. The cap is 50 a day (IST): jobs already recommended today count against it, so a re-run late in the day may add few or none.",
-      data: "Inserts into user_job_state (existing rows are never overwritten) and upserts job_scores.",
+      body: "The pool is the jobs you haven't been shown plus the jobs hidden by ranking, ranked as at sign-up. A hidden job that fits your new profile (for example after you raise your years) comes back with a new score. The cap is 50 a day (IST): jobs recommended or brought back today count against it, so a re-run late in the day may add few or none.",
+      data: "Inserts into user_job_state, or reuses a row hidden by ranking (no other row is overwritten), and upserts job_scores.",
     },
     {
       title: "What you see",
@@ -565,10 +567,10 @@ const ATS: Flow = {
   tab: "ATS with many engines",
   title: "An ATS run with many engines",
   shape:
-    "A fan-out: one resume and job description go to every selected engine group, then the scores come back together into one weighted final score. Several resumes run side by side; one resume's engines run one after another.",
+    "A fan-out: the job description is cleaned, then one resume and the cleaned description go to every selected engine group, and the scores come back together into one weighted final score. Several resumes run side by side; one resume's engines run one after another.",
   trigger:
     "You press Run on the Resume score page (or an ATS check on a job), with one or more resumes and engines selected.",
-  grid: "grid-cols-3 lg:grid-cols-5",
+  grid: "grid-cols-3 lg:grid-cols-6",
   nodes: [
     {
       id: "input",
@@ -583,46 +585,53 @@ const ATS: Flow = {
       place: "col-start-3 row-start-1 lg:col-start-1 lg:row-start-3",
     },
     {
+      id: "clean",
+      label: "JD cleaned",
+      icon: Eraser,
+      place: "col-start-1 row-start-2 lg:col-start-2 lg:row-start-2",
+    },
+    {
       id: "text",
       label: "Resume text (once)",
       icon: FileSearch,
-      place: "col-start-2 row-start-2 lg:col-start-2 lg:row-start-2",
+      place: "col-start-2 row-start-2 lg:col-start-3 lg:row-start-2",
     },
     {
       id: "native",
       label: "Native ×1",
       icon: BadgeCheck,
-      place: "col-start-1 row-start-3 lg:col-start-3 lg:row-start-1",
+      place: "col-start-1 row-start-3 lg:col-start-4 lg:row-start-1",
     },
     {
       id: "reference",
       label: "Reference ×6",
       icon: Boxes,
-      place: "col-start-2 row-start-3 lg:col-start-3 lg:row-start-2",
+      place: "col-start-2 row-start-3 lg:col-start-4 lg:row-start-2",
     },
     {
       id: "oss",
       label: "Open source ×4",
       icon: Code,
-      place: "col-start-3 row-start-3 lg:col-start-3 lg:row-start-3",
+      place: "col-start-3 row-start-3 lg:col-start-4 lg:row-start-3",
     },
     {
       id: "weight",
       label: "Weighted final",
       icon: Scale,
-      place: "col-start-2 row-start-4 lg:col-start-4 lg:row-start-2",
+      place: "col-start-2 row-start-4 lg:col-start-5 lg:row-start-2",
       highlight: true,
     },
     {
       id: "table",
       label: "Results table",
       icon: Table2,
-      place: "col-start-2 row-start-5 lg:col-start-5 lg:row-start-2",
+      place: "col-start-2 row-start-5 lg:col-start-6 lg:row-start-2",
     },
   ],
   edges: [
     { from: "input", to: "skip", kind: "branch" },
-    { from: "input", to: "text" },
+    { from: "input", to: "clean" },
+    { from: "clean", to: "text" },
     { from: "text", to: "native" },
     { from: "text", to: "reference" },
     { from: "text", to: "oss" },
@@ -637,16 +646,20 @@ const ATS: Flow = {
       body: "The resumes and engines you ticked, plus an optional target role, job description and years of experience. Each resume × engine pair is one cell. Engines that need a job description are skipped (and shown as such) when there isn't one.",
     },
     {
-      title: "2. How they run",
+      title: "2. The job description is cleaned",
+      body: "Before any engine runs, the job description is cleaned with the same cleaner used for imported jobs: privacy and data-protection notices, cookie banners, equal-opportunity statements and page footers are removed, so they don't count as requirements. The box keeps your text exactly as pasted. If cleaning would leave too little, the original is used.",
+    },
+    {
+      title: "3. How they run",
       body: "The browser runs resumes side by side, and each resume's engines one after another, so its PDF text is extracted once (by the first engine) and reused. Each cell is a separate streamed request, so the table fills in live, stage by stage, and one failed cell can be retried on its own.",
       data: "Reads resumes (file from Cloud Storage only when its text isn't stored yet; then writes resumes.extracted_text).",
     },
     {
-      title: "3. The engines",
-      body: 'All 11 engines run in the FastAPI service (no browser-side scoring). If it is unreachable, the cell says "Service unavailable" rather than showing a substitute score. Parsed resume and job description are cached per exact text, so engines scoring the same text don\'t parse it again. A job description pasted here is scored as typed; one reference signal ignores its privacy and EEO boilerplate.',
+      title: "4. The engines",
+      body: 'All 11 engines run in the FastAPI service (no browser-side scoring). If it is unreachable, the cell says "Service unavailable" rather than showing a substitute score. Parsed resume and job description are cached per exact text, so engines scoring the same text don\'t parse it again.',
     },
     {
-      title: "4. Final score (fan-in)",
+      title: "5. Final score (fan-in)",
       body: "Native counts 50%, the 6 reference engines 35% and the 4 open-source engines 15%, split within each group by how well its criteria are documented. Engines that didn't run (not selected, needed a job description, failed) are left out and the rest renormalised. Hovering the final score shows each engine's share.",
     },
     {
@@ -757,7 +770,7 @@ const IMPROVE: Flow = {
   steps: [
     {
       title: "1. Inputs",
-      body: "A stored resume (its extracted text), a role, your years of experience for this run, an optional job description, and the engines to measure against. Engines that need a job description are left out when there isn't one.",
+      body: "A stored resume (its extracted text), a role, your years of experience for this run, an optional job description, and the engines to measure against. Engines that need a job description are left out when there isn't one. The job description is cleaned first, as on the ATS page; the box keeps your text as pasted.",
       data: "Reads resumes. The web app calls the FastAPI service at /svc/v1/improve.",
     },
     {
