@@ -58,7 +58,7 @@
     },
     "combobox": {
       "files": ["components/ui/combobox/index.tsx"],
-      "installedAt": "2026-10-17"
+      "installedAt": "2026-10-21"
     },
     "command": {
       "files": ["components/ui/command/index.tsx"],

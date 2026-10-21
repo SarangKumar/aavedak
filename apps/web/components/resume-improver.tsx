@@ -8,7 +8,7 @@ import { AtsEnginePicker } from "@/components/ats-engine-picker";
 import { AtsScoreMatrix } from "@/components/ats-score-matrix";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { FeatureHeading, FeatureIcon } from "@/components/feature-heading";
-import { ResumePreviewDialog } from "@/components/resume-preview";
+import { ResumePreviewButton, ResumePreviewDialog } from "@/components/resume-preview";
 import { ShellWidth } from "@/components/shell-width";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +46,20 @@ import type {
 } from "@/lib/resume-improver-types";
 import { cn } from "@/lib/utils";
 
-type ResumeRow = { id: string; displayName: string; status: string };
+type ResumeRow = {
+  id: string;
+  displayName: string;
+  status: string;
+  originalFilename?: string;
+  updatedAt?: string;
+};
+
+function formatUpdated(iso: string) {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" });
+}
 
 type Request = {
   resumeId: string;
@@ -470,15 +483,17 @@ export function ResumeImprover({
           ) : undefined
         }
       >
-        <fieldset disabled={running} className="space-y-4 disabled:opacity-60">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_9rem] md:items-end">
-            <div className="min-w-0 space-y-1.5">
-              <Label>Reference resume</Label>
+        <fieldset disabled={running} className="space-y-5 disabled:opacity-60">
+          {/* Phones: one column. Tablets: resume full width, role and years side by side.
+              Desktop: resume, role and years in one row. The job description spans below. */}
+          <div className="grid grid-cols-1 items-start gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(9rem,0.55fr)]">
+            <div className="min-w-0 space-y-1.5 text-[12px] sm:col-span-2 lg:col-span-1">
+              <Label htmlFor="imp-resume">Reference resume</Label>
               {loadError ? (
                 <p className="text-destructive text-[12px]">{loadError}</p>
               ) : resumes && resumes.length === 0 ? (
-                <p className="text-muted-foreground text-[12px]">
-                  No resumes yet.{" "}
+                <p className="text-muted-foreground flex h-9 items-center text-[12px]">
+                  No resumes yet.&nbsp;
                   <Link
                     href="/documents?tab=resumes&upload=1"
                     className="text-primary hover:underline"
@@ -489,43 +504,79 @@ export function ResumeImprover({
                 </p>
               ) : (
                 <div className="flex items-center gap-2">
-                  <div className="min-w-0 flex-1">
-                    <Combobox
-                      value={resumeId || undefined}
-                      onValueChange={(v) => setResumeId(v ?? "")}
-                      disabled={!resumes || running}
+                  <Combobox
+                    value={resumeId || undefined}
+                    // Picking the current resume again keeps it; a run always needs one.
+                    onValueChange={(v) => {
+                      if (v) setResumeId(v);
+                    }}
+                    disabled={!resumes || running}
+                  >
+                    <ComboboxTrigger
+                      id="imp-resume"
+                      placeholder={resumes ? "Pick a resume" : "Loading…"}
+                      aria-label="Reference resume"
+                      className="h-9 min-w-0 flex-1 text-[13px]"
                     >
-                      <ComboboxTrigger
-                        placeholder={resumes ? "Pick a resume" : "Loading…"}
-                        aria-label="Reference resume"
-                        className="h-9 w-full text-[13px]"
-                      />
-                      <ComboboxContent
-                        searchPlaceholder="Search resumes…"
-                        emptyMessage="No matching resume."
-                      >
-                        {(resumes ?? []).map((r) => (
-                          <ComboboxItem key={r.id} value={r.id}>
-                            {r.status === "active" ? `${r.displayName} (active)` : r.displayName}
-                          </ComboboxItem>
-                        ))}
-                      </ComboboxContent>
-                    </Combobox>
-                  </div>
+                      {selectedResume ? (
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="min-w-0 truncate">{selectedResume.displayName}</span>
+                          {selectedResume.status === "active" ? (
+                            <Badge variant="default" className="shrink-0 px-1 py-0 text-[9px]">
+                              Active
+                            </Badge>
+                          ) : null}
+                        </span>
+                      ) : undefined}
+                    </ComboboxTrigger>
+                    <ComboboxContent
+                      searchPlaceholder="Search resumes…"
+                      emptyMessage="No matching resume."
+                    >
+                      {(resumes ?? []).map((r) => (
+                        <ComboboxItem
+                          key={r.id}
+                          value={r.id}
+                          keywords={[
+                            r.originalFilename ?? "",
+                            r.status === "active" ? "active" : "",
+                          ]}
+                        >
+                          <span className="flex min-w-0 flex-col">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <span className="min-w-0 truncate">{r.displayName}</span>
+                              {r.status === "active" ? (
+                                <Badge variant="default" className="shrink-0 px-1 py-0 text-[9px]">
+                                  Active
+                                </Badge>
+                              ) : null}
+                            </span>
+                            {r.originalFilename || r.updatedAt ? (
+                              <span className="text-muted-foreground truncate text-[11px]">
+                                {[r.originalFilename, r.updatedAt ? formatUpdated(r.updatedAt) : ""]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </span>
+                            ) : null}
+                          </span>
+                        </ComboboxItem>
+                      ))}
+                    </ComboboxContent>
+                  </Combobox>
                   {selectedResume ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
+                    <ResumePreviewButton
+                      resumeName={selectedResume.displayName}
                       onClick={() => setPreviewResume(selectedResume)}
-                    >
-                      Preview
-                    </Button>
+                      size="icon-sm"
+                      className="size-9 shrink-0"
+                    />
                   ) : null}
                 </div>
               )}
+              <p className="text-muted-foreground text-[11px]">Starts on your active resume.</p>
             </div>
-            <div className="space-y-1.5">
+
+            <div className="min-w-0 space-y-1.5 text-[12px]">
               <Label htmlFor="imp-role">Role</Label>
               <Select
                 value={listedRole ?? CUSTOM_ROLE}
@@ -539,7 +590,7 @@ export function ResumeImprover({
                   setRole(v ?? "");
                 }}
               >
-                <SelectTrigger id="imp-role" className="w-full" aria-label="Role">
+                <SelectTrigger id="imp-role" className="h-9 w-full" aria-label="Role">
                   <SelectValue placeholder="Pick a role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -573,10 +624,15 @@ export function ResumeImprover({
                   placeholder="e.g. Machine Learning Engineer"
                   aria-label="Role"
                   autoFocus={customRole}
+                  className="h-9"
                 />
               ) : null}
+              <p className="text-muted-foreground text-[11px]">
+                Your profile&apos;s roles first, then roles with tailored guidance.
+              </p>
             </div>
-            <div className="space-y-1.5">
+
+            <div className="min-w-0 space-y-1.5 text-[12px]">
               <Label htmlFor="imp-years">Years of experience</Label>
               <Input
                 id="imp-years"
@@ -586,25 +642,27 @@ export function ResumeImprover({
                 step={0.5}
                 value={years}
                 onChange={(e) => setYears(e.target.value)}
+                className="h-9"
+              />
+              <p className="text-muted-foreground text-[11px]">
+                {defaultYearsExperience === null
+                  ? "Not set in your profile; this run only."
+                  : "From your profile; a change applies to this run only."}
+              </p>
+            </div>
+
+            <div className="min-w-0 space-y-1.5 text-[12px] sm:col-span-2 lg:col-span-3">
+              <Label htmlFor="imp-jd">Job description (optional)</Label>
+              <Textarea
+                id="imp-jd"
+                value={jdText}
+                onChange={(e) => setJdText(e.target.value)}
+                rows={6}
+                maxRows={18}
+                placeholder="Paste it to align with the posting's requirements. Without it, the role's usual skills are used."
+                className="min-h-36 font-sans text-[13px] leading-relaxed"
               />
             </div>
-          </div>
-          <p className="text-muted-foreground -mt-2 text-[11px]">
-            Years of experience starts from your profile
-            {defaultYearsExperience === null ? " (not set there)" : ""}; changing it here affects
-            only this run.
-          </p>
-          <div className="space-y-1.5">
-            <Label htmlFor="imp-jd">Job description (optional)</Label>
-            <Textarea
-              id="imp-jd"
-              value={jdText}
-              onChange={(e) => setJdText(e.target.value)}
-              rows={5}
-              maxRows={16}
-              placeholder="Paste it to align with the posting's requirements. Without it, the role's usual skills are used."
-              className="min-h-28 font-sans text-[13px] leading-relaxed"
-            />
           </div>
         </fieldset>
       </CollapsibleSection>
