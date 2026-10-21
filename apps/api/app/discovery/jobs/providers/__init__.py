@@ -14,6 +14,7 @@ from app.discovery.jobs.providers.jsonld import JsonLdProvider, UnsupportedPage
 from app.discovery.jobs.providers.lever import LeverProvider
 from app.discovery.jobs.providers.smartrecruiters import SmartRecruitersProvider
 from app.discovery.jobs.providers.workable import WorkableProvider
+from app.discovery.jobs.providers.workday import WorkdayProvider
 
 PROVIDERS: dict[str, Provider] = {
     p.key: p
@@ -25,6 +26,8 @@ PROVIDERS: dict[str, Provider] = {
         SmartRecruitersProvider(),
         JsonLdProvider(),
         JsonFeedProvider(),
+        # Only reached through a company's own careers page (careers_crawl.py).
+        WorkdayProvider(),
     )
 }
 

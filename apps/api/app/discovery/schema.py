@@ -142,6 +142,39 @@ PIPELINE_STATEMENTS: tuple[str, ...] = (
     "ALTER TABLE company_sources ADD COLUMN IF NOT EXISTS official_careers_origin TEXT",
     "ALTER TABLE company_sources ADD COLUMN IF NOT EXISTS official_status TEXT",
     "ALTER TABLE company_sources ADD COLUMN IF NOT EXISTS official_checked_at TEXT",
+    # Companies' own careers pages (the primary job source; seeded from
+    # data/careers_pages.json, crawled by jobs/careers_scan.py). The last crawl's outcome:
+    # strategy (jsonld | embedded_json | jsonld_links | jsonld_sitemap | greenhouse | lever |
+    # ashby | smartrecruiters | workable | workday), status (ok | no_job_data | blocked |
+    # error), postings found / kept, and whether it was the complete list.
+    """CREATE TABLE IF NOT EXISTS career_pages (
+      id TEXT PRIMARY KEY NOT NULL,
+      company_name TEXT NOT NULL,
+      careers_url TEXT NOT NULL,
+      domain TEXT NOT NULL,
+      country_focus TEXT NOT NULL DEFAULT 'global',
+      tier INTEGER NOT NULL DEFAULT 3,
+      origin TEXT NOT NULL DEFAULT 'seed',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      shard_seed INTEGER NOT NULL DEFAULT 0,
+      company_source_id TEXT,
+      strategy TEXT,
+      platform_token TEXT,
+      final_url TEXT,
+      last_checked_at TEXT,
+      last_status TEXT,
+      last_error TEXT,
+      last_complete INTEGER NOT NULL DEFAULT 0,
+      jobs_found INTEGER NOT NULL DEFAULT 0,
+      jobs_kept INTEGER NOT NULL DEFAULT 0,
+      consecutive_failures INTEGER NOT NULL DEFAULT 0,
+      last_counts_json TEXT NOT NULL DEFAULT '{}',
+      verified_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )""",
+    "CREATE UNIQUE INDEX IF NOT EXISTS career_pages_url_uidx ON career_pages (lower(careers_url))",
+    "CREATE INDEX IF NOT EXISTS career_pages_source_idx ON career_pages (company_source_id)",
     # Per-source references for a canonical job (one job may be listed by several sources).
     """CREATE TABLE IF NOT EXISTS job_sources (
       id TEXT PRIMARY KEY NOT NULL,

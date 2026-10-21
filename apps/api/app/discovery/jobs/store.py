@@ -10,7 +10,7 @@ transaction per company:
   missing from a complete fetch → closed_at set (reopened if it reappears)
 
 The company's own careers page is the primary source of truth: when a career-page source
-(`jsonld`) lists a job, the job links there, and board updates never replace that link.
+(`jsonld`, or `careers` from the careers-page registry) lists a job, the job links there, and board updates never replace that link.
 
 Expiry itself is handled by jobs/expiry.py.
 """
@@ -27,6 +27,10 @@ from app.discovery.db import new_id
 from app.discovery.jobs.models import NormalizedJob, SourceTarget
 from app.discovery.jobs.text import name_key
 from app.discovery.timeutil import expiry_cutoff_iso, iso_minus, now_iso
+
+# Sources that are the company's own careers page: their links win over board links.
+# `jsonld` = a board's official page read; `careers` = the careers-page registry crawl.
+CAREER_PAGE_KEYS = ("jsonld", "careers")
 
 # Another source must have listed the job this recently to keep it open.
 OTHER_SOURCE_RECENT_SECONDS = 36 * 3600
@@ -144,13 +148,16 @@ def ingest_company(
             # hosted on the company's own site) is the same role, however its title or city
             # is spelled on the page.
             by_url: dict[str, str] = {}
-            if provider == "jsonld":
+            if provider in CAREER_PAGE_KEYS:
+                # Only URLs unique in this batch: postings that fall back to the listing
+                # page's URL must not all link to one job.
+                url_counts = Counter(j.url for j in new_jobs if j.url)
                 by_url = {
                     r["url"]: r["id"]
                     for r in conn.execute(
                         """SELECT url, id FROM jobs
                            WHERE user_id IS NULL AND expired_at IS NULL AND url = ANY(%s)""",
-                        ([j.url for j in new_jobs if j.url],),
+                        ([u for u, n in url_counts.items() if n == 1],),
                     ).fetchall()
                 }
             job_rows, source_rows, link_dates, link_salaries = [], [], [], []
@@ -244,9 +251,10 @@ def ingest_company(
                          location = %(location)s,
                          -- A link to the company's own careers page (jsonld source) wins
                          -- over board links.
-                         url = CASE WHEN %(provider)s <> 'jsonld' AND EXISTS (
+                         url = CASE WHEN %(provider)s NOT IN ('jsonld', 'careers') AND EXISTS (
                                       SELECT 1 FROM job_sources s
-                                      WHERE s.job_id = jobs.id AND s.source_key = 'jsonld')
+                                      WHERE s.job_id = jobs.id
+                                        AND s.source_key IN ('jsonld', 'careers'))
                                     THEN url ELSE %(url)s END,
                          description = CASE WHEN %(description)s::text = '' THEN description
                                             ELSE %(description)s::text END,
@@ -303,15 +311,15 @@ def ingest_company(
             )
             stats.reopened = reopened.rowcount or 0
 
-            if provider == "jsonld":
+            if provider in CAREER_PAGE_KEYS:
                 # Listed on the company's own careers page: link the job there.
                 preferred = conn.execute(
                     """UPDATE jobs j SET url = s.url, updated_at = %s
                        FROM job_sources s
-                       WHERE s.job_id = j.id AND s.source_key = 'jsonld'
+                       WHERE s.job_id = j.id AND s.source_key = %s
                          AND s.external_id = ANY(%s) AND s.url IS NOT NULL
                          AND j.user_id IS NULL AND j.url IS DISTINCT FROM s.url""",
-                    (now, ids),
+                    (now, provider, ids),
                 )
                 stats.official_links = preferred.rowcount or 0
 

@@ -239,15 +239,21 @@ def scheduled_source_ids(
     conn: psycopg.Connection, *, shard: int | None, shard_count: int, max_failures: int
 ) -> list[str]:
     """Enabled sources for a shard (None = all). Sources failing repeatedly are only
-    retried once a week until they succeed again."""
+    retried once a week until they succeed again. A board is only a fallback: it is left
+    out while its company's own careers page (`career_pages`) returned the complete list
+    within the last few days (the page crawl then reads the same jobs)."""
+    from app.discovery.jobs import career_pages
+
     params: dict[str, Any] = {
         "max_failures": max_failures,
         "retry_before": iso_minus(RETRY_FAILING_AFTER_SECONDS),
+        "covered_after": career_pages.board_cover_cutoff(),
     }
-    sql = """SELECT id FROM company_sources
+    sql = f"""SELECT id FROM company_sources
              WHERE enabled = 1
                AND (consecutive_failures < %(max_failures)s
-                    OR last_run_at IS NULL OR last_run_at < %(retry_before)s)"""
+                    OR last_run_at IS NULL OR last_run_at < %(retry_before)s)
+               AND NOT {career_pages.BOARD_COVERED_SQL}"""
     if shard is not None:
         sql += " AND shard_seed %% %(count)s = %(shard)s"
         params.update(count=shard_count, shard=shard)

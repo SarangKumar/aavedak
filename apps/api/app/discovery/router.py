@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from app.discovery.config import get_settings
 from app.discovery.db import DatabaseNotConfigured, connect
-from app.discovery.jobs import expiry, ranking, registry, scan, single
+from app.discovery.jobs import career_pages, careers_scan, expiry, ranking, registry, scan, single
 from app.discovery.jobs.providers.base import make_client
 from app.discovery.people import discover, importer
 from app.discovery.people import store as people_store
@@ -58,9 +58,22 @@ Conn = Depends(db)
 
 
 def _sync_seed(conn: psycopg.Connection) -> None:
-    """Insert seed companies missing from the registry (idempotent; new seed entries reach an
-    existing database on the next scan)."""
+    """Insert seed companies and careers pages missing from the registries (idempotent; new
+    seed entries reach an existing database on the next scan)."""
     registry.import_seed(conn)
+    career_pages.import_seed(conn)
+
+
+def _scan_items(conn: psycopg.Connection, shard: int | None) -> tuple[list[tuple[str, str, dict]], int, int]:
+    """Careers pages first (the primary source; their result decides which boards are only
+    a fallback next time), then the boards not covered by a careers page."""
+    settings = get_settings()
+    page_ids = career_pages.scheduled_ids(conn, shard=shard, shard_count=settings.discovery_shards)
+    source_ids = registry.scheduled_source_ids(
+        conn, shard=shard, shard_count=settings.discovery_shards, max_failures=settings.discovery_max_failures
+    )
+    items = [(careers_scan.ITEM_KIND, i, {}) for i in page_ids] + [(scan.ITEM_KIND, i, {}) for i in source_ids]
+    return items, len(page_ids), len(source_ids)
 
 
 # --- Cron -------------------------------------------------------------------------------
@@ -76,18 +89,18 @@ def cron_scan(shard: int, conn: psycopg.Connection = Conn) -> dict[str, Any]:
     if not 0 <= shard < settings.discovery_shards:
         raise HTTPException(status_code=400, detail=f"shard must be 0..{settings.discovery_shards - 1}")
     _sync_seed(conn)
-    ids = registry.scheduled_source_ids(
-        conn, shard=shard, shard_count=settings.discovery_shards, max_failures=settings.discovery_max_failures
-    )
+    items, pages, boards = _scan_items(conn, shard)
     run, created = runs.create_run(
         conn,
         kind="jobs_scan",
         run_key=f"jobs-scan:{ist_date_key()}:shard-{shard}",
-        items=[(scan.ITEM_KIND, source_id, {}) for source_id in ids],
+        items=items,
         created_by="cron",
     )
     tick = process_tick(conn, settings, budget_seconds=settings.discovery_cron_tick_budget_seconds)
-    return {"runId": run["id"], "created": created, "sources": len(ids), "tick": tick}
+    return {
+        "runId": run["id"], "created": created, "careersPages": pages, "sources": boards, "tick": tick,
+    }
 
 
 @router.get("/cron/drain/{slot}", dependencies=[Auth])
@@ -229,6 +242,34 @@ def admin_patch_source(source_id: str, body: SourcePatch, conn: psycopg.Connecti
     return {"ok": True}
 
 
+class CareerPagePatch(BaseModel):
+    enabled: bool
+
+
+@router.get("/admin/careers-pages", dependencies=[Auth])
+def admin_careers_pages(
+    q: str = "",
+    limit: int = Query(1000, ge=1, le=2000),
+    offset: int = Query(0, ge=0),
+    conn: psycopg.Connection = Conn,
+) -> dict[str, Any]:
+    """Every careers page with its last crawl (strategy, status, jobs) and summary counts."""
+    return career_pages.list_pages(conn, query=q, limit=limit, offset=offset)
+
+
+@router.patch("/admin/careers-pages/{page_id}", dependencies=[Auth])
+def admin_patch_careers_page(page_id: str, body: CareerPagePatch, conn: psycopg.Connection = Conn) -> dict[str, Any]:
+    if not career_pages.set_enabled(conn, page_id, body.enabled):
+        raise HTTPException(status_code=404, detail="Careers page not found.")
+    return {"ok": True}
+
+
+@router.post("/admin/careers-pages/import", dependencies=[Auth])
+def admin_import_careers_pages(conn: psycopg.Connection = Conn) -> dict[str, Any]:
+    """Sync the verified seed (data/careers_pages.json) into the table (idempotent)."""
+    return career_pages.import_seed(conn)
+
+
 @router.post("/admin/runs/jobs-scan", dependencies=[Auth])
 def admin_scan_run(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[str, Any]:
     """Manual scan of all enabled sources (or the given ones). Returns immediately; the
@@ -246,13 +287,13 @@ def admin_scan_run(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[s
     if open_run and not body.sourceIds:
         return {"runId": open_run["id"], "sources": open_run["total_items"], "resumed": True}
     _sync_seed(conn)
-    ids = body.sourceIds or registry.scheduled_source_ids(
-        conn, shard=None, shard_count=settings.discovery_shards, max_failures=settings.discovery_max_failures
-    )
-    run, _ = runs.create_run(
-        conn, kind="jobs_scan", items=[(scan.ITEM_KIND, i, {}) for i in ids], created_by=body.createdBy
-    )
-    return {"runId": run["id"], "sources": len(ids), "resumed": False}
+    if body.sourceIds:
+        items, pages, boards = [(scan.ITEM_KIND, i, {}) for i in body.sourceIds], 0, len(body.sourceIds)
+    else:
+        items, pages, boards = _scan_items(conn, None)
+    run, _ = runs.create_run(conn, kind="jobs_scan", items=items, created_by=body.createdBy)
+    # `sources` = everything queued (as a resumed run reports it); the split is informational.
+    return {"runId": run["id"], "sources": len(items), "careersPages": pages, "boards": boards, "resumed": False}
 
 
 @router.post("/admin/runs/people-discovery", dependencies=[Auth])

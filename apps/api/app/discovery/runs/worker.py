@@ -11,17 +11,22 @@ from typing import Any
 import psycopg
 
 from app.discovery.config import DiscoverySettings
-from app.discovery.jobs import scan
+from app.discovery.jobs import careers_scan, scan
 from app.discovery.people import discover, importer
 from app.discovery.runs import store
 from app.discovery.runs.store import ClaimedItem, ItemOutcome
 
 logger = logging.getLogger("aavedak.discovery.worker")
 
+# Each handler gets the tick's monotonic deadline; only the careers crawl needs it (its
+# pages are slower than one board API call, so it sizes and hard-caps its batch to fit).
 HANDLERS = {
-    scan.ITEM_KIND: lambda conn, settings, items: scan.scan_items(conn, settings, items),
-    importer.ITEM_KIND: lambda conn, settings, items: importer.process_items(conn, items),
-    discover.ITEM_KIND: lambda conn, settings, items: discover.process_items(conn, settings, items),
+    scan.ITEM_KIND: lambda conn, settings, items, deadline: scan.scan_items(conn, settings, items),
+    careers_scan.ITEM_KIND: lambda conn, settings, items, deadline: careers_scan.process_items(
+        conn, settings, items, deadline=deadline
+    ),
+    importer.ITEM_KIND: lambda conn, settings, items, deadline: importer.process_items(conn, items),
+    discover.ITEM_KIND: lambda conn, settings, items, deadline: discover.process_items(conn, settings, items),
 }
 
 
@@ -39,13 +44,20 @@ def process_tick(
     processed = succeeded = failed = 0
     touched_runs: set[str] = set(store.sweep_exhausted(conn, max_attempts=settings.discovery_max_attempts))
 
+    deadline = started + budget
     while time.monotonic() - started < max(budget - reserve, 1):
+        claim_kinds = kinds
+        if deadline - time.monotonic() < careers_scan.MIN_TICK_SECONDS:
+            # Too little time left for a careers-page batch: claim the other kinds only.
+            claim_kinds = [k for k in (kinds or list(HANDLERS)) if k != careers_scan.ITEM_KIND]
+            if not claim_kinds:
+                break
         items = store.claim_items(
             conn,
             limit=settings.discovery_fetch_concurrency,
             lease_seconds=settings.discovery_lease_seconds,
             max_attempts=settings.discovery_max_attempts,
-            kinds=kinds,
+            kinds=claim_kinds,
         )
         if not items:
             break
@@ -58,7 +70,7 @@ def process_tick(
             if handler is None:
                 outcomes = {i.id: ItemOutcome(False, {}, f"No handler for {kind}", retryable=False) for i in group}
             else:
-                outcomes = handler(conn, settings, group)
+                outcomes = handler(conn, settings, group, deadline)
             for item in group:
                 outcome = outcomes.get(item.id) or ItemOutcome(False, {}, "Handler returned no outcome")
                 processed += 1

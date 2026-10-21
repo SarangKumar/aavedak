@@ -6,7 +6,9 @@ from dataclasses import dataclass, field
 
 from app.discovery.jobs.salary import SalaryInfo
 
-PROVIDERS = ("greenhouse", "lever", "ashby", "workable", "smartrecruiters", "jsonld", "json_feed")
+PROVIDERS = (
+    "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "jsonld", "json_feed", "workday",
+)
 
 
 @dataclass(frozen=True)

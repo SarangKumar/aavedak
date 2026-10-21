@@ -386,3 +386,83 @@ def test_manual_scan_resumes_instead_of_duplicating(conn):
     second = router.admin_scan_run(router.ScanRunBody(createdBy="admin@x"), conn)
     assert first["resumed"] is False and first["sources"] > 0
     assert second == {"runId": first["runId"], "sources": first["sources"], "resumed": True}
+
+
+# --- careers pages (company's own site as the primary source) --------------------------------
+
+
+def test_careers_seed_import_is_idempotent_and_links_board_by_name(conn):
+    from app.discovery.jobs import career_pages
+
+    career_pages.import_seed(conn)  # earlier tests may have synced it already (scan crons do)
+    total = conn.execute("SELECT COUNT(*) AS n FROM career_pages WHERE origin = 'seed'").fetchone()["n"]
+    assert total == len(career_pages.load_seed()) > 500
+    assert career_pages.import_seed(conn)["added"] == 0
+    assert conn.execute("SELECT COUNT(*) AS n FROM career_pages WHERE origin = 'seed'").fetchone()["n"] == total
+
+
+def test_careers_page_job_links_to_board_job_and_wins_the_link(conn):
+    from app.discovery.jobs import career_pages, careers_scan
+    from app.discovery.jobs.careers_crawl import CareerPage, CrawlResult, Embed
+
+    board = make_source(conn)
+    board_job = njob("acme:900", title="Careers Path Engineer")
+    store.ingest_company(conn, board, [board_job], complete=True, scan_started_at=now_iso(), expiry_days=30)
+    page_id = f"pg_{uuid.uuid4().hex[:6]}"
+    now = now_iso()
+    conn.execute(
+        """INSERT INTO career_pages (id, company_name, careers_url, domain, created_at, updated_at, company_source_id)
+           VALUES (%s, 'Acme', %s, 'acme.example', %s, %s, %s)""",
+        (page_id, f"https://acme.example/careers/{page_id}", now, now, board.id),
+    )
+    page = CareerPage(page_id, "Acme", f"https://acme.example/careers/{page_id}", "acme.example")
+    # Same role (title + city) on the company's page, linking to the company's own site.
+    page_job = NormalizedJob(**{**board_job.__dict__, "external_id": f"{page_id}:jsonld:9",
+                                "url": "https://acme.example/careers/careers-path-engineer-9"})
+    target = careers_scan.page_target(page, "Acme", page.careers_url)
+    stats = store.ingest_company(conn, target, [page_job], complete=False, scan_started_at=now_iso(), expiry_days=30)
+    assert stats.inserted == 0 and stats.linked == 1
+    rows = conn.execute(
+        "SELECT id, url, feed_source FROM jobs WHERE dedupe_key = %s", (board_job.dedupe_key,)
+    ).fetchall()
+    assert len(rows) == 1  # stored once
+    assert rows[0]["url"] == "https://acme.example/careers/careers-path-engineer-9"
+    assert rows[0]["feed_source"] == "greenhouse"
+    keys = {r["source_key"] for r in conn.execute("SELECT source_key FROM job_sources WHERE job_id = %s", (rows[0]["id"],))}
+    assert keys == {"greenhouse", "careers"}
+
+    # A board update never takes the link back.
+    changed = NormalizedJob(**{**board_job.__dict__, "description": "Python and Go", "content_hash": "changed"})
+    store.ingest_company(conn, board, [changed], complete=True, scan_started_at=now_iso(), expiry_days=30)
+    url = conn.execute("SELECT url FROM jobs WHERE id = %s", (rows[0]["id"],)).fetchone()["url"]
+    assert url == "https://acme.example/careers/careers-path-engineer-9"
+
+    # A complete careers read makes the board a fallback: it is no longer scheduled.
+    assert board.id in registry.scheduled_source_ids(conn, shard=None, shard_count=6, max_failures=5)
+    career_pages.record(conn, page_id, CrawlResult("ok", "greenhouse", [], True, page.careers_url, Embed("greenhouse", board.token)),
+                        kept=1, counts={})
+    assert board.id not in registry.scheduled_source_ids(conn, shard=None, shard_count=6, max_failures=5)
+    row = conn.execute("SELECT strategy, last_status, last_complete FROM career_pages WHERE id = %s", (page_id,)).fetchone()
+    assert (row["strategy"], row["last_status"], row["last_complete"]) == ("greenhouse", "ok", 1)
+    # A page that stops publishing job data hands the company back to the board.
+    career_pages.record(conn, page_id, CrawlResult("no_job_data"), kept=0, counts={})
+    assert board.id in registry.scheduled_source_ids(conn, shard=None, shard_count=6, max_failures=5)
+
+
+def test_careers_page_postings_sharing_the_listing_url_are_not_merged(conn):
+    from app.discovery.jobs import careers_scan
+    from app.discovery.jobs.careers_crawl import CareerPage
+
+    page = CareerPage(f"pg_{uuid.uuid4().hex[:6]}", "Acme", "https://acme.example/careers", "acme.example")
+    target = careers_scan.page_target(page, "Acme", page.careers_url)
+
+    def listed(i: int, title: str) -> NormalizedJob:
+        return NormalizedJob(**{**njob(f"{page.id}:embedded_json:{i}", title=title).__dict__, "url": page.careers_url})
+
+    first = store.ingest_company(conn, target, [listed(0, "Listing Url Engineer Z")], complete=False,
+                                 scan_started_at=now_iso(), expiry_days=30)
+    assert first.inserted == 1
+    # Two other roles whose only link is the same listing page: never linked to job Z by URL.
+    stats = store.ingest_company(conn, target, [listed(1, "Listing Url Engineer A"), listed(2, "Listing Url Engineer B")],
+                                 complete=False, scan_started_at=now_iso(), expiry_days=30)
+    assert stats.inserted == 2 and stats.linked == 0
