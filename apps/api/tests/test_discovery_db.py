@@ -34,9 +34,10 @@ APP_DB_TS = Path(__file__).resolve().parents[2] / "web" / "lib" / "app-db.ts"
 
 
 def web_ddl() -> list[str]:
-    """Static DDL statements from app-db.ts (parameterized data statements are skipped)."""
-    blocks = re.findall(r"await db`([\s\S]*?)`;", APP_DB_TS.read_text(encoding="utf-8"))
-    return [b for b in blocks if "${" not in b]
+    """Static DDL statements from app-db.ts (parameterized statements and queries are skipped)."""
+    # Up to the first closing backtick, so a query chained with `.catch(...)` stays one block.
+    blocks = re.findall(r"await db`([^`]*)`", APP_DB_TS.read_text(encoding="utf-8"))
+    return [b for b in blocks if "${" not in b and not b.lstrip().upper().startswith("SELECT")]
 
 
 @pytest.fixture(scope="module")
