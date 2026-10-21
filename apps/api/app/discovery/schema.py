@@ -42,6 +42,12 @@ SHARED_STATEMENTS: tuple[str, ...] = (
     "ALTER TABLE user_job_state ADD COLUMN IF NOT EXISTS recommended_at TEXT",
     "ALTER TABLE user_job_state ADD COLUMN IF NOT EXISTS score INTEGER",
     "ALTER TABLE user_job_state ADD COLUMN IF NOT EXISTS reasons_json TEXT",
+    # 'rerank' = hidden by ranking (no longer fits), not by the user; re-offered once it fits
+    # again. Rows hidden before this column existed have the same shape and are tagged here.
+    "ALTER TABLE user_job_state ADD COLUMN IF NOT EXISTS hidden_reason TEXT",
+    """UPDATE user_job_state SET hidden_reason = 'rerank'
+       WHERE hidden_reason IS NULL AND recommended_at IS NULL AND score IS NULL
+         AND ignored = 0 AND application_id IS NULL""",
     """CREATE INDEX IF NOT EXISTS user_job_state_recommended_idx
        ON user_job_state (user_id, recommended_at)""",
     "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS discovery_enabled INTEGER NOT NULL DEFAULT 1",

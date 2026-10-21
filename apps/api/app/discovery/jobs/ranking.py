@@ -11,8 +11,14 @@ Experience: a user with N years (profile `years_experience`, else
 bonus (min years near N) and a region bonus (India, then remote open to India, then other
 remote, then elsewhere) to the match score, so India leads while global roles still appear.
 
-Runs incrementally after each company scan (for its new jobs) and once a day over the
-whole active pool to top up. Both paths are idempotent (`ON CONFLICT DO NOTHING`).
+Hidden by ranking: a re-rank that finds an open recommendation no longer fits clears
+`recommended_at` and sets `hidden_reason = 'rerank'`. Those rows stay in the pool, so a later
+run offers the job again once it fits (for example after a profile change). Jobs the user
+ignored, applied to or bookmarked are never offered again.
+
+Runs incrementally after each company scan (for its new jobs), once a day over the whole active
+pool to top up, after a career-preference save and when onboarding completes. Every path is
+idempotent: an existing recommendation is never touched; only a ranking-hidden row is reused.
 """
 
 from __future__ import annotations
@@ -29,6 +35,12 @@ from app.discovery.jobs.scoring import Career, ats_score, compatibility_score
 from app.discovery.timeutil import expiry_cutoff_iso, ist_day_start_iso, now_iso
 
 POOL_LIMIT = 1500
+# A state row hidden by ranking, not by the user (never ignored, applied or bookmarked). The
+# pool offers these jobs again, so they come back once a profile change makes them fit.
+# COALESCE keeps it true/false (never NULL), so `NOT` on it is safe for ordinary rows.
+_SYSTEM_HIDDEN = (
+    "(COALESCE({s}.hidden_reason, '') = 'rerank' AND {s}.ignored = 0 AND {s}.application_id IS NULL)"
+)
 # Rank bonus by job region (filters.REGION_PRIORITY order): India first.
 REGION_BONUS = {"india": 12, "india_remote": 9, "remote": 4, "global": 0}
 CLOSENESS_MAX = 10
@@ -130,7 +142,8 @@ def _candidates(
                 AND (j.min_years IS NULL OR j.min_years <= %(max_years)s)
                 AND EXISTS (SELECT 1 FROM job_sources s WHERE s.job_id = j.id)
                 AND NOT EXISTS (SELECT 1 FROM user_job_state u
-                                WHERE u.user_id = %(user)s AND u.job_id = j.id)"""
+                                WHERE u.user_id = %(user)s AND u.job_id = j.id
+                                  AND NOT """ + _SYSTEM_HIDDEN.format(s="u") + ")"
     params: dict[str, Any] = {
         "cutoff": cutoff, "user": user_id, "limit": POOL_LIMIT, "max_years": max_years,
     }
@@ -200,7 +213,11 @@ def recommend(
                 """INSERT INTO user_job_state
                      (user_id, job_id, ignored, application_id, updated_at, recommended_at, score, reasons_json)
                    VALUES (%s, %s, 0, NULL, %s, %s, %s, %s)
-                   ON CONFLICT (user_id, job_id) DO NOTHING""",
+                   ON CONFLICT (user_id, job_id) DO UPDATE SET
+                     recommended_at = EXCLUDED.recommended_at, score = EXCLUDED.score,
+                     reasons_json = EXCLUDED.reasons_json, updated_at = EXCLUDED.updated_at,
+                     hidden_reason = NULL
+                   WHERE """ + _SYSTEM_HIDDEN.format(s="user_job_state"),
                 [
                     (
                         user_id, row["id"], now, now, rank,
@@ -251,16 +268,18 @@ def rerank_user(conn: psycopg.Connection, settings: DiscoverySettings, user_id: 
 
     1. Re-score the recommendations still open for them (not applied, not ignored) against the
        current career profile, and refresh `job_scores`.
-    2. Drop open recommendations that no longer meet the match threshold. Setting
-       `recommended_at` to NULL hides them from Discover; the row stays, so the pool query never
-       offers them again.
-    3. Fill from the pool with whatever daily budget is left, exactly like the normal run.
+    2. Hide open recommendations that no longer fit (outside the experience window or under the
+       match threshold): `recommended_at` is cleared and `hidden_reason` set to 'rerank'.
+    3. Fill from the pool with whatever daily budget is left, exactly like the normal run. The
+       pool includes jobs hidden by an earlier re-rank, so those that fit the new profile come
+       back (ranked with the rest, within the daily cap).
 
-    Returns counts: {"rescored", "dropped", "added"}. A user who isn't eligible (not approved, or
+    Returns counts: {"rescored", "dropped", "added", "restored"}; "restored" is the part of
+    "added" that had been hidden by ranking. A user who isn't eligible (not approved, or
     discovery paused) gets zeros; their list is left as it was.
     """
     if user_id not in eligible_users(conn):
-        return {"rescored": 0, "dropped": 0, "added": 0}
+        return {"rescored": 0, "dropped": 0, "added": 0, "restored": 0}
     ctx = load_user_context(conn, user_id, settings.default_years_experience)
     limit_years = max_min_years(settings, ctx.years)
     rows = conn.execute(
@@ -311,9 +330,27 @@ def rerank_user(conn: psycopg.Connection, settings: DiscoverySettings, user_id: 
         )
         cur.executemany(
             "UPDATE user_job_state SET recommended_at = NULL, score = NULL, reasons_json = NULL, "
-            "updated_at = %s WHERE user_id = %s AND job_id = %s",
+            "hidden_reason = 'rerank', updated_at = %s WHERE user_id = %s AND job_id = %s",
             [(now, uid, jid) for uid, jid in drop],
         )
 
+    hidden = [
+        r["job_id"]
+        for r in conn.execute(
+            "SELECT job_id FROM user_job_state WHERE user_id = %s AND hidden_reason = 'rerank'", (user_id,)
+        ).fetchall()
+    ]
     added = recommend(conn, settings, job_ids=None, contexts={user_id: ctx}, user_ids=[user_id])
-    return {"rescored": len(keep), "dropped": len(drop), "added": added.get(user_id, 0)}
+    restored = 0
+    if hidden and added.get(user_id):
+        restored = conn.execute(
+            """SELECT COUNT(*) AS n FROM user_job_state
+               WHERE user_id = %s AND job_id = ANY(%s) AND recommended_at IS NOT NULL""",
+            (user_id, hidden),
+        ).fetchone()["n"]
+    return {
+        "rescored": len(keep),
+        "dropped": len(drop),
+        "added": added.get(user_id, 0),
+        "restored": int(restored),
+    }

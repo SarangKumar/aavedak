@@ -519,3 +519,68 @@ def test_onboarding_completion_ranks_existing_pool(conn):
     assert too_senior not in recommended(conn, user) and world not in recommended(conn, user)
     # Idempotent: a second call within the day adds nothing (cap reached).
     assert ranking.rerank_user(conn, cap2, user)["added"] == 0
+
+
+def test_rerank_restores_system_hidden_jobs_but_never_user_choices(conn):
+    isolate_pool(conn)
+    target = make_source(conn)
+    tag = uuid.uuid4().hex[:6]
+    fits = pool_job(conn, target, f"rr-fit-{tag}", region="india", min_years=1, loc="Bengaluru")
+    stretch = pool_job(conn, target, f"rr-str-{tag}", region="india", min_years=3, loc="Pune")
+    ignored = pool_job(conn, target, f"rr-ign-{tag}", region="india", min_years=3, loc="Chennai")
+    saved = pool_job(conn, target, f"rr-sav-{tag}", region="india", min_years=3, loc="Delhi")
+    user = add_user(conn)
+    conn.execute("UPDATE profiles SET years_experience = 1 WHERE user_id = %s", (user,))
+    cfg = DiscoverySettings(discovery_daily_limit=10, discovery_min_match_score=0)
+    ranking.recommend(conn, cfg, user_ids=[user])
+    assert recommended(conn, user) == {fits, stretch, ignored, saved}
+
+    # The user ignores one and bookmarks another (application row linked to the job state).
+    now = now_iso()
+    conn.execute("UPDATE user_job_state SET ignored = 1 WHERE user_id = %s AND job_id = %s", (user, ignored))
+    conn.execute(
+        """INSERT INTO applications (id, user_id, company_name, role, location, job_id, status, created_at, updated_at)
+           VALUES (%s, %s, 'Acme', 'Python Engineer', 'Delhi', %s, 'bookmarked', %s, %s)""",
+        (f"app-{tag}", user, saved, now, now),
+    )
+    conn.execute("UPDATE user_job_state SET application_id = %s WHERE user_id = %s AND job_id = %s",
+                 (f"app-{tag}", user, saved))
+
+    # Years drop to 0: the 3-year job is now outside 0 + 2 and is hidden by ranking.
+    conn.execute("UPDATE profiles SET years_experience = 0 WHERE user_id = %s", (user,))
+    result = ranking.rerank_user(conn, cfg, user)
+    assert result["dropped"] == 1 and result["restored"] == 0
+    row = conn.execute("SELECT recommended_at, hidden_reason FROM user_job_state WHERE user_id = %s AND job_id = %s",
+                       (user, stretch)).fetchone()
+    assert row["recommended_at"] is None and row["hidden_reason"] == "rerank"
+    # Same profile again: still hidden, no flip-flop.
+    assert ranking.rerank_user(conn, cfg, user)["restored"] == 0
+
+    # Years back to 1: the hidden job fits again and returns; user choices are untouched.
+    conn.execute("UPDATE profiles SET years_experience = 1 WHERE user_id = %s", (user,))
+    result = ranking.rerank_user(conn, cfg, user)
+    assert result["restored"] == 1 and result["added"] == 1
+    row = conn.execute("SELECT recommended_at, hidden_reason, score FROM user_job_state WHERE user_id = %s AND job_id = %s",
+                       (user, stretch)).fetchone()
+    assert row["recommended_at"] is not None and row["hidden_reason"] is None and row["score"] is not None
+    states = {r["job_id"]: r for r in conn.execute(
+        "SELECT job_id, ignored, application_id FROM user_job_state WHERE user_id = %s", (user,)).fetchall()}
+    assert states[ignored]["ignored"] == 1 and states[saved]["application_id"] == f"app-{tag}"
+    count = conn.execute("SELECT COUNT(*) AS n FROM user_job_state WHERE user_id = %s", (user,)).fetchone()["n"]
+    assert count == 4  # reused the hidden row, no duplicates
+
+
+def test_legacy_rerank_hidden_rows_are_tagged_by_the_migration(conn):
+    user = add_user(conn)
+    now = now_iso()
+    conn.execute(
+        """INSERT INTO user_job_state (user_id, job_id, ignored, application_id, updated_at, recommended_at)
+           VALUES (%s, 'legacy-hidden', 0, NULL, %s, NULL), (%s, 'legacy-ignored', 1, NULL, %s, NULL),
+                  (%s, 'legacy-open', 0, NULL, %s, %s)""",
+        (user, now, user, now, user, now, now),
+    )
+    backfill = next(s for s in schema.SHARED_STATEMENTS if s.startswith("UPDATE user_job_state SET hidden_reason"))
+    conn.execute(backfill)
+    tags = {r["job_id"]: r["hidden_reason"] for r in conn.execute(
+        "SELECT job_id, hidden_reason FROM user_job_state WHERE user_id = %s", (user,)).fetchall()}
+    assert tags == {"legacy-hidden": "rerank", "legacy-ignored": None, "legacy-open": None}
