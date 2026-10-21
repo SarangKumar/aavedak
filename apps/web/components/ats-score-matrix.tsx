@@ -7,6 +7,7 @@ import type { FinalScoreEntry } from "@/lib/ats-engines/aggregate";
 import { ResumePreviewButton } from "@/components/resume-preview";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { TableHead } from "@/components/ui/table";
 import type { AtsEngineId } from "@/lib/ats-engines/types";
 
 export type AtsMatrixEngine = { id: AtsEngineId; header: ReactNode };
@@ -40,23 +41,28 @@ export function AtsScoreMatrix<R extends AtsMatrixResume>({
 }) {
   return (
     <ScrollArea orientation="horizontal" className="border-border/60 rounded-lg border">
-      {/* Fixed layout: equal-width engine columns so score rings form an even grid. */}
-      <table
-        className="w-full table-fixed border-collapse text-[12px]"
-        style={{ minWidth: `${Math.max(36, 11 + engines.length * 7.5)}rem` }}
-      >
+      {/* Fixed layout: equal-width engine columns so score rings form an even grid. Every
+          column but the resume name has a set width, so the table is the sum of its columns
+          (or the full width when that is wider): dragging the name column wider scrolls the
+          table instead of squeezing the engines. */}
+      <table className="w-full table-fixed border-collapse text-[12px]">
         <colgroup>
-          <col className="w-36 sm:w-44" />
+          {/* Auto: the name column takes its width from its (resizable) header cell. */}
+          <col />
           {engines.map((eng) => (
-            <col key={eng.id} />
+            <col key={eng.id} className="w-28" />
           ))}
-          <col className="w-32 sm:w-40" />
+          <col className="w-36 sm:w-44" />
         </colgroup>
         <thead>
           <tr className="border-border/50 border-b">
-            <th className="text-muted-foreground bg-card after:bg-border/60 sticky left-0 z-10 px-3 py-2.5 text-center align-middle font-medium after:absolute after:inset-y-0 after:right-0 after:w-px">
+            {/* Vinyaas resizable header: drag its right edge to widen the resume names. */}
+            <TableHead
+              resizable
+              className="bg-card sticky left-0 z-20 h-auto w-40 px-3 py-2.5 text-center text-[12px] font-medium normal-case tracking-normal sm:w-48"
+            >
               Resume
-            </th>
+            </TableHead>
             {engines.map((eng) => (
               <th
                 key={eng.id}
@@ -65,7 +71,7 @@ export function AtsScoreMatrix<R extends AtsMatrixResume>({
                 {eng.header}
               </th>
             ))}
-            <th className="text-muted-foreground bg-card before:bg-border/60 sticky right-0 z-10 px-2 py-2.5 text-center align-middle font-medium before:absolute before:inset-y-0 before:left-0 before:w-px">
+            <th className="text-muted-foreground bg-card before:bg-border/60 sticky right-0 z-10 py-2.5 pl-2 pr-6 text-right align-middle font-medium before:absolute before:inset-y-0 before:left-0 before:w-px">
               Final score
             </th>
           </tr>
@@ -102,7 +108,7 @@ export function AtsScoreMatrix<R extends AtsMatrixResume>({
                     {renderCell(resume.id, eng.id)}
                   </td>
                 ))}
-                <td className="bg-card before:bg-border/60 sticky right-0 z-10 h-12 px-2 align-middle before:absolute before:inset-y-0 before:left-0 before:w-px">
+                <td className="bg-card before:bg-border/60 sticky right-0 z-10 h-12 pl-2 pr-6 align-middle before:absolute before:inset-y-0 before:left-0 before:w-px">
                   {scores ? <FinalScoreCell entries={scores} /> : null}
                 </td>
               </tr>

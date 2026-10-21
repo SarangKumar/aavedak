@@ -19,16 +19,16 @@ const GROUP_LABEL = {
  * that ran for the row (native 50% · reference 35% · open source 15%, renormalised over what ran;
  * weights in `lib/ats-engines/aggregate.ts`). Hover shows each engine's effective weight.
  *
- * Layout: the placeholder and the score group are both centred in the column. The group is
- * [ring][verdict] with the verdict in a fixed-width box, so every ring sits on the same
- * vertical line regardless of verdict length.
+ * Layout: the placeholder and the score group are right-aligned (the column adds its own
+ * inset, so they never touch the border). The group is [ring][verdict] with the verdict in a
+ * fixed-width box, so every ring sits on the same vertical line regardless of verdict length.
  */
 export function FinalScoreCell({ entries }: { entries: FinalScoreEntry[] }) {
   const final = weightedFinalScore(entries);
   if (final === null) {
     return (
-      <div className="flex w-full items-center justify-center">
-        <span className="text-muted-foreground text-[11px]">—</span>
+      <div className="flex w-full items-center justify-end">
+        <span className="text-muted-foreground w-[6.375rem] text-center text-[11px]">—</span>
       </div>
     );
   }
@@ -57,7 +57,7 @@ export function FinalScoreCell({ entries }: { entries: FinalScoreEntry[] }) {
   return (
     <Tooltip content={breakdown}>
       <div
-        className="flex w-full cursor-help items-center justify-center gap-1.5"
+        className="flex w-full cursor-help items-center justify-end gap-1.5"
         tabIndex={0}
         aria-label={`Weighted final score ${final.score}`}
       >
