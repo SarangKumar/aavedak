@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.ats.jd_input import CleanJdText
+
 
 class ResumeInput(BaseModel):
     id: str = Field(..., min_length=1)
@@ -10,7 +12,7 @@ class ResumeInput(BaseModel):
 
 class ScoreRequest(BaseModel):
     resumeText: str = ""
-    jdText: str = ""
+    jdText: CleanJdText = ""
     role: str = ""
     yearsExperience: float | None = Field(default=None, ge=0, le=60)
     skills: list[str] = Field(default_factory=list)
@@ -18,7 +20,7 @@ class ScoreRequest(BaseModel):
 
 
 class BatchScoreRequest(BaseModel):
-    jdText: str = ""
+    jdText: CleanJdText = ""
     role: str = ""
     yearsExperience: float | None = Field(default=None, ge=0, le=60)
     skills: list[str] = Field(default_factory=list)
@@ -30,7 +32,7 @@ class EngineScoreRequest(BaseModel):
     engineId: str = Field(..., min_length=1)
     resumeId: str = ""
     resumeText: str = ""
-    jdText: str = ""
+    jdText: CleanJdText = ""
     role: str = ""
     yearsExperience: float | None = Field(default=None, ge=0, le=60)
     mode: str | None = None  # resume_only | role_match | job_match

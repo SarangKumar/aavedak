@@ -15,6 +15,10 @@ Title-only mode uses Aavedak's role profile (`role_expected_skills`: core + comm
 
 Score types are different measurements (quality, readiness, similarity, match) and are not calibrated against each other.
 
+## Job description input (`jd_input.py`)
+
+Every ATS and Improve request's `jdText` is cleaned when the request is parsed, before any engine runs, with the same cleaner used for imported jobs (`discovery.jobs.jd_clean.strip_boilerplate`). It drops privacy and data-protection notices, cookie banners, equal-opportunity statements and page footers, and returns the text unchanged when nothing applies or too little would be left. Without it, keyword engines read that text as requirements (for example "privacy", "cookies" or "gender" as missing keywords). Only the engines' copy is cleaned; the text in the browser stays as pasted. Tested in `tests/test_jd_input.py` with `tests/fixtures/pasted_jd_with_boilerplate.txt`.
+
 ## Shared pipeline (`pipeline.py`)
 
 - `parse_resume_shared` / `parse_jd_shared`: frozen dataclasses of tuples (contact, bullets, date ranges, taxonomy hard skills, soft terms), LRU-cached per exact text. Engines cannot mutate shared data.

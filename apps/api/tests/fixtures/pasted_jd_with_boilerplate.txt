@@ -1,0 +1,28 @@
+Senior Backend Engineer
+Bengaluru, India · Full-time
+
+About the role
+We are looking for a backend engineer to design and run the services behind our payments platform. You will own APIs end to end, from design reviews to on-call.
+
+What you will do
+- Build and scale Python and Go services on Kubernetes
+- Design PostgreSQL schemas and tune slow queries
+- Run Kafka pipelines that process millions of events a day
+- Review code and mentor two junior engineers
+
+What we are looking for
+- 4+ years building production backend systems
+- Strong Python or Go, and solid SQL
+- Experience with AWS, Docker and CI/CD
+- Clear written communication
+
+Equal Employment Opportunity
+Acme is an equal opportunity employer. We do not discriminate on the basis of race, religion, colour, national origin, gender, sexual orientation, gender identity, age, marital status, veteran status or disability status. Reasonable accommodation is available on request.
+
+Privacy Notice
+By applying, you consent to Acme processing your personal data in line with our candidate privacy policy and the GDPR. You can ask us to delete your data at any time by writing to our data protection officer.
+
+We use cookies to improve your experience on this site. Accept all cookies
+Apply now
+Share this job
+© 2026 Acme Payments Pvt Ltd. All rights reserved.

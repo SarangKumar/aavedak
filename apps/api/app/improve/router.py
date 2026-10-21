@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.ats.engine_runner import VALID_ENGINES
+from app.ats.jd_input import CleanJdText
 from app.improve.service import DEFAULT_ENGINES, improve, improve_and_score
 
 router = APIRouter(prefix="/svc/v1/improve", tags=["improve"])
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/svc/v1/improve", tags=["improve"])
 class ImproveRequest(BaseModel):
     resumeText: str = Field(..., min_length=1, max_length=200_000)
     role: str = Field(default="", max_length=200)
-    jdText: str = Field(default="", max_length=60_000)
+    jdText: CleanJdText = Field(default="", max_length=60_000)
     yearsExperience: float | None = Field(default=None, ge=0, le=60)
     # None = every safe change; a list = only these change ids (per-change accept/reject).
     accepted: list[str] | None = None
