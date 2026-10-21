@@ -1,0 +1,848 @@
+# Careers-page candidates for scripts/verify_careers_pages.py.
+# One company per line: Name|focus|tier|url [alternative url ...]
+#   focus: in = Indian company, io = global company hiring in India (offices / GCC), gl = global
+#   tier:  1 = household name, 2 = well known, 3 = other (homepage ordering only)
+# Only URLs that resolve to a live careers page (HTTP 200 after redirects, robots.txt
+# allowing it) are written to careers_pages.json; the first working alternative wins.
+# Indian product companies, unicorns and startups
+Flipkart|in|1|https://www.flipkartcareers.com https://www.flipkart.com/careers
+Swiggy|in|1|https://careers.swiggy.com
+Zomato|in|1|https://www.zomato.com/careers https://www.eternal.com/careers
+Razorpay|in|1|https://razorpay.com/jobs/
+CRED|in|1|https://careers.cred.club
+Meesho|in|1|https://www.meesho.io/careers https://meesho.io/careers
+PhonePe|in|1|https://www.phonepe.com/careers/
+Paytm|in|1|https://paytm.com/careers/ https://jobs.paytm.com
+Zerodha|in|1|https://zerodha.com/careers/
+Groww|in|1|https://groww.in/careers
+Ola|in|1|https://www.olacabs.com/careers https://ola.careers
+Ola Electric|in|1|https://www.olaelectric.com/careers https://olaelectric.com/careers
+Krutrim|in|2|https://www.olakrutrim.com/careers
+Freshworks|in|1|https://www.freshworks.com/company/careers/
+Zoho|in|1|https://www.zoho.com/careers/
+InMobi|in|2|https://www.inmobi.com/company/careers https://careers.inmobi.com
+Dream11|in|1|https://www.dreamsports.group/careers https://www.dream11.com/careers
+ShareChat|in|2|https://sharechat.com/careers https://mohallatech.com/careers
+Unacademy|in|2|https://unacademy.com/careers
+BYJU'S|in|1|https://byjus.com/careers/
+upGrad|in|2|https://www.upgrad.com/careers/
+Physics Wallah|in|2|https://www.pw.live/careers
+Nykaa|in|1|https://www.nykaa.com/careers https://careers.nykaa.com
+Lenskart|in|1|https://www.lenskart.com/careers https://careers.lenskart.com
+Urban Company|in|1|https://www.urbancompany.com/careers https://careers.urbancompany.com
+Delhivery|in|2|https://www.delhivery.com/careers
+BigBasket|in|2|https://careers.bigbasket.com https://www.bigbasket.com/careers/
+Myntra|in|1|https://careers.myntra.com
+MakeMyTrip|in|1|https://careers.makemytrip.com
+OYO|in|2|https://www.oyorooms.com/careers/ https://careers.oyorooms.com
+Pine Labs|in|2|https://www.pinelabs.com/careers
+BharatPe|in|2|https://bharatpe.com/careers
+Cars24|in|2|https://www.cars24.com/careers/
+Spinny|in|2|https://www.spinny.com/careers/
+Udaan|in|2|https://udaan.com/careers
+Zepto|in|1|https://www.zeptonow.com/careers https://zepto.team
+Blinkit|in|1|https://blinkit.com/careers
+Licious|in|3|https://www.licious.in/careers
+boAt|in|2|https://www.boat-lifestyle.com/pages/careers
+Honasa Consumer|in|3|https://honasa.in/careers
+Ather Energy|in|2|https://www.atherenergy.com/careers
+Postman|in|1|https://www.postman.com/company/careers/
+BrowserStack|in|1|https://www.browserstack.com/careers
+Chargebee|in|2|https://www.chargebee.com/careers/
+Hasura|in|3|https://hasura.io/careers/
+Scaler|in|2|https://www.scaler.com/careers/
+Innovaccer|in|2|https://innovaccer.com/careers
+Icertis|in|2|https://www.icertis.com/company/careers/
+Darwinbox|in|2|https://darwinbox.com/careers
+LeadSquared|in|3|https://www.leadsquared.com/careers/
+Mindtickle|in|3|https://www.mindtickle.com/careers/
+Druva|in|2|https://www.druva.com/about/careers
+HighRadius|in|2|https://www.highradius.com/careers/
+Uniphore|in|3|https://www.uniphore.com/careers/
+Yellow.ai|in|3|https://yellow.ai/careers/
+Haptik|in|3|https://www.haptik.ai/careers
+slice|in|3|https://slice.careers https://www.sliceit.com/careers
+Jupiter|in|3|https://jupiter.money/careers/
+Fi Money|in|3|https://fi.money/careers
+Navi|in|2|https://navi.com/careers
+ACKO|in|2|https://www.acko.com/careers/
+Digit Insurance|in|3|https://www.godigit.com/careers
+PB Fintech|in|2|https://www.pbfintech.in/careers https://www.policybazaar.com/careers/
+Zeta|in|2|https://www.zeta.tech/in/careers/ https://www.zeta.tech/careers
+Juspay|in|2|https://juspay.io/careers https://juspay.in/careers
+Setu|in|3|https://setu.co/careers
+Khatabook|in|3|https://khatabook.com/careers
+Vedantu|in|3|https://www.vedantu.com/careers
+Eruditus|in|3|https://eruditus.com/careers/
+Clear|in|3|https://clear.in/careers https://cleartax.in/s/careers
+Perfios|in|3|https://www.perfios.com/careers
+M2P Fintech|in|3|https://m2pfintech.com/careers/
+Cashfree Payments|in|2|https://www.cashfree.com/careers/
+PayU|in|2|https://corporate.payu.com/careers/ https://payu.in/careers
+MobiKwik|in|3|https://www.mobikwik.com/careers
+NoBroker|in|3|https://www.nobroker.in/careers
+Housing.com|in|3|https://housing.com/careers
+Info Edge|in|2|https://careers.infoedge.com https://www.infoedge.in/careers
+Justdial|in|3|https://www.justdial.com/Careers
+IndiaMART|in|3|https://corporate.indiamart.com/careers/
+Tata 1mg|in|2|https://www.1mg.com/jobs https://www.1mg.com/careers
+PharmEasy|in|3|https://pharmeasy.in/careers
+Practo|in|2|https://www.practo.com/company/careers
+cult.fit|in|2|https://www.cult.fit/careers https://careers.cult.fit
+HealthifyMe|in|3|https://www.healthifyme.com/careers/
+Rapido|in|2|https://www.rapido.bike/Careers https://rapido.bike/careers
+Porter|in|3|https://porter.in/careers
+Shadowfax|in|3|https://www.shadowfax.in/careers
+BlackBuck|in|3|https://blackbuck.com/careers https://www.blackbuck.com/careers
+Dunzo|in|3|https://www.dunzo.com/careers
+FirstCry|in|3|https://www.firstcry.com/careers https://www.globalbees.com/careers
+Purplle|in|3|https://www.purplle.com/careers
+Snapdeal|in|3|https://www.snapdeal.com/page/careers https://careers.snapdeal.com
+Tata Digital|in|2|https://www.tatadigital.com/careers
+Jio|in|1|https://careers.jio.com
+Airtel|in|1|https://www.airtel.in/careers/
+Wingify|in|3|https://wingify.com/careers https://vwo.com/careers/
+CleverTap|in|3|https://clevertap.com/careers/
+MoEngage|in|3|https://www.moengage.com/careers/
+WebEngage|in|3|https://webengage.com/careers/
+Netcore Cloud|in|3|https://netcorecloud.com/careers/
+Gupshup|in|3|https://www.gupshup.io/careers
+Exotel|in|3|https://exotel.com/careers/
+Sprinklr|in|2|https://www.sprinklr.com/careers/
+Whatfix|in|3|https://whatfix.com/careers/
+Capillary Technologies|in|3|https://www.capillarytech.com/careers/
+Zenoti|in|3|https://www.zenoti.com/careers
+Open Financial|in|3|https://open.money/careers
+Upstox|in|2|https://upstox.com/careers/
+Angel One|in|2|https://www.angelone.in/careers
+smallcase|in|3|https://www.smallcase.com/careers
+INDmoney|in|3|https://www.indmoney.com/careers
+CoinDCX|in|3|https://careers.coindcx.com https://coindcx.com/careers
+CoinSwitch|in|3|https://coinswitch.co/careers
+Polygon|in|3|https://polygon.technology/careers
+Frappe|in|3|https://frappe.io/careers
+Tally Solutions|in|3|https://tallysolutions.com/careers/
+Kissflow|in|3|https://kissflow.com/careers/
+Sprinto|in|3|https://sprinto.com/careers/
+LambdaTest|in|3|https://www.lambdatest.com/careers
+HackerRank|in|2|https://www.hackerrank.com/careers/
+HackerEarth|in|3|https://www.hackerearth.com/careers/
+Coding Ninjas|in|3|https://www.codingninjas.com/careers
+apna|in|3|https://apna.co/careers
+Simplilearn|in|3|https://www.simplilearn.com/careers
+Great Learning|in|3|https://www.mygreatlearning.com/careers
+Testbook|in|3|https://testbook.com/careers
+Classplus|in|3|https://classplusapp.com/careers
+Cuemath|in|3|https://www.cuemath.com/careers/
+Teachmint|in|3|https://www.teachmint.com/careers
+Pocket FM|in|2|https://www.pocketfm.com/careers
+Kuku FM|in|3|https://kukufm.com/careers
+Glance|in|2|https://glance.com/careers
+Inshorts|in|3|https://inshorts.com/careers
+JioHotstar|in|1|https://careers.hotstar.com https://www.hotstar.com/careers
+MPL|in|3|https://www.mpl.live/careers
+WinZO|in|3|https://www.winzogames.com/careers
+Games24x7|in|3|https://www.games24x7.com/careers/
+Gameskraft|in|3|https://gameskraft.com/careers/
+Zupee|in|3|https://www.zupee.com/careers/
+Nazara Technologies|in|3|https://www.nazara.com/careers
+ixigo|in|3|https://www.ixigo.com/about/careers https://www.ixigo.com/careers
+EaseMyTrip|in|3|https://www.easemytrip.com/careers.html
+Yatra|in|3|https://www.yatra.com/online/careers.html
+Cleartrip|in|3|https://www.cleartrip.com/careers
+redBus|in|3|https://www.redbus.in/careers https://www.redbus.in/info/careers
+Treebo|in|3|https://www.treebo.com/careers/
+OfBusiness|in|3|https://www.ofbusiness.com/careers
+Moglix|in|3|https://www.moglix.com/careers
+Infra.Market|in|3|https://www.infra.market/careers
+Zetwerk|in|3|https://www.zetwerk.com/careers/
+Ninjacart|in|3|https://www.ninjacart.com/careers
+DeHaat|in|3|https://agrevolution.in/careers https://dehaat.in/careers
+Country Delight|in|3|https://countrydelight.in/careers
+Rebel Foods|in|3|https://www.rebelfoods.com/careers
+Park+|in|3|https://parkplus.io/careers
+CarDekho|in|2|https://www.cardekho.com/careers https://www.girnarsoft.com/careers
+CarWale|in|3|https://www.carwale.com/careers
+Yulu|in|3|https://www.yulu.bike/careers
+Bounce|in|3|https://bounceshare.com/careers
+Euler Motors|in|3|https://www.eulermotors.com/careers
+Simple Energy|in|3|https://www.simpleenergy.in/careers
+Ultraviolette|in|3|https://www.ultraviolette.com/careers
+Log9 Materials|in|3|https://www.log9materials.com/careers
+Exponent Energy|in|3|https://www.exponent.energy/careers
+TVS Motor|in|2|https://www.tvsmotor.com/careers
+Bajaj Auto|in|2|https://www.bajajauto.com/careers
+Hero MotoCorp|in|2|https://www.heromotocorp.com/en-in/careers.html
+Mahindra|in|1|https://www.mahindra.com/careers https://careers.mahindra.com
+Tata Motors|in|1|https://careers.tatamotors.com https://www.tatamotors.com/careers/
+Maruti Suzuki|in|1|https://www.marutisuzuki.com/corporate/careers
+Reliance Industries|in|1|https://careers.ril.com https://www.ril.com/careers
+Adani Group|in|1|https://www.adani.com/careers
+Larsen & Toubro|in|1|https://www.larsentoubro.com/corporate/careers/
+L&T Technology Services|in|2|https://www.ltts.com/careers
+Tata Elxsi|in|2|https://www.tataelxsi.com/careers
+KPIT Technologies|in|2|https://www.kpit.com/careers/
+Tata Technologies|in|2|https://www.tatatechnologies.com/careers/
+Cyient|in|2|https://www.cyient.com/careers
+Quest Global|in|3|https://www.quest-global.com/careers/
+Happiest Minds|in|2|https://www.happiestminds.com/careers/
+LTIMindtree|in|1|https://www.ltimindtree.com/careers/
+Persistent Systems|in|2|https://www.persistent.com/careers/
+Coforge|in|2|https://www.coforge.com/careers
+Mphasis|in|2|https://careers.mphasis.com https://www.mphasis.com/home/careers.html
+Hexaware|in|2|https://hexaware.com/careers/ https://jobs.hexaware.com
+Zensar Technologies|in|2|https://www.zensar.com/careers
+Birlasoft|in|3|https://www.birlasoft.com/careers
+Sonata Software|in|3|https://www.sonata-software.com/careers
+Mastek|in|3|https://www.mastek.com/careers
+Intellect Design Arena|in|3|https://www.intellectdesign.com/careers/
+Nucleus Software|in|3|https://www.nucleussoftware.com/careers
+Newgen Software|in|3|https://newgensoft.com/company/careers/
+Ramco Systems|in|3|https://www.ramco.com/careers
+Sasken|in|3|https://www.sasken.com/careers
+Tejas Networks|in|3|https://www.tejasnetworks.com/careers
+Firstsource|in|3|https://www.firstsource.com/careers
+InfoBeans|in|3|https://www.infobeans.com/careers/
+Affle|in|3|https://affle.com/careers https://www.affle.com/careers
+Tanla Platforms|in|3|https://www.tanla.com/careers
+Datamatics|in|3|https://www.datamatics.com/careers
+LatentView Analytics|in|3|https://www.latentview.com/careers/
+Mu Sigma|in|3|https://www.mu-sigma.com/careers
+Fractal Analytics|in|2|https://fractal.ai/careers/
+Tiger Analytics|in|3|https://www.tigeranalytics.com/careers/
+Tredence|in|3|https://www.tredence.com/careers
+Sigmoid|in|3|https://www.sigmoid.com/careers/
+Course5 Intelligence|in|3|https://www.course5i.com/careers/
+Quantiphi|in|3|https://quantiphi.com/careers/
+Gramener|in|3|https://gramener.com/careers/
+TCS|in|1|https://www.tcs.com/careers https://www.tcs.com/careers/india
+Infosys|in|1|https://www.infosys.com/careers/
+Wipro|in|1|https://careers.wipro.com https://www.wipro.com/careers/
+HCLTech|in|1|https://www.hcltech.com/careers
+Tech Mahindra|in|1|https://careers.techmahindra.com https://www.techmahindra.com/careers/
+Genpact|in|2|https://www.genpact.com/careers
+EXL|in|2|https://www.exlservice.com/careers
+WNS|in|3|https://www.wns.com/careers
+Sarvam AI|in|2|https://www.sarvam.ai/careers
+InterviewBit|in|3|https://www.interviewbit.com/careers/
+Leap Scholar|in|3|https://leapscholar.com/careers https://leapfinance.com/careers
+Lead School|in|3|https://leadschool.in/careers/
+Seekho|in|3|https://seekho.ai/careers
+Verse Innovation|in|3|https://www.verseinnovation.com/careers
+Rooter|in|3|https://www.rooter.gg/careers
+Krafton India|in|3|https://krafton.in/careers
+Zostel|in|3|https://www.zostel.com/careers/
+FabHotels|in|3|https://www.fabhotels.com/careers
+Jumbotail|in|3|https://jumbotail.com/careers
+Bizongo|in|3|https://www.bizongo.com/careers
+Captain Fresh|in|3|https://captainfresh.in/careers
+FreshToHome|in|3|https://www.freshtohome.com/careers
+Milkbasket|in|3|https://www.milkbasket.com/careers
+Droom|in|3|https://droom.in/careers
+River|in|3|https://rideriver.com/careers
+Sugar Cosmetics|in|3|https://in.sugarcosmetics.com/pages/careers
+Bewakoof|in|3|https://www.bewakoof.com/careers
+Mensa Brands|in|3|https://www.mensabrands.com/careers
+Tata CLiQ|in|3|https://www.tatacliq.com/careers
+Ecom Express|in|3|https://ecomexpress.in/careers
+Xpressbees|in|3|https://www.xpressbees.com/careers
+Rivigo|in|3|https://rivigo.com/careers
+Shiprocket|in|3|https://www.shiprocket.in/careers/
+Pickrr|in|3|https://www.pickrr.com/careers
+Dukaan|in|3|https://mydukaan.io/careers
+Instamojo|in|3|https://www.instamojo.com/careers/
+Lendingkart|in|3|https://www.lendingkart.com/careers/
+KreditBee|in|3|https://www.kreditbee.in/careers
+MoneyTap|in|3|https://www.moneytap.com/careers
+Paisabazaar|in|3|https://www.paisabazaar.com/careers/
+BankBazaar|in|3|https://www.bankbazaar.com/careers.html
+Bajaj Finserv|in|2|https://www.bajajfinserv.in/careers
+HDFC Bank|in|1|https://www.hdfcbank.com/personal/about-us/careers
+ICICI Bank|in|1|https://www.icicicareers.com https://www.icicibank.com/careers
+Axis Bank|in|2|https://www.axisbank.com/careers
+Kotak Mahindra Bank|in|2|https://www.kotak.com/en/careers.html
+Yes Bank|in|3|https://www.yesbank.in/careers
+IDFC FIRST Bank|in|3|https://www.idfcfirstbank.com/careers
+Tata Capital|in|3|https://www.tatacapital.com/careers.html
+Aditya Birla Group|in|2|https://careers.adityabirla.com https://www.adityabirla.com/careers
+Piramal Group|in|3|https://www.piramal.com/careers/
+Godrej|in|2|https://www.godrej.com/careers https://www.godrejindustries.com/careers
+Asian Paints|in|2|https://www.asianpaints.com/more/careers.html
+ITC|in|1|https://www.itcportal.com/careers/
+Hindustan Unilever|in|1|https://www.hul.co.in/careers/
+Titan Company|in|2|https://www.titancompany.in/careers
+Tata Steel|in|2|https://www.tatasteel.com/careers/
+JSW Group|in|2|https://www.jsw.in/careers
+Vedanta|in|3|https://www.vedantalimited.com/eng/careers.php
+Sun Pharma|in|2|https://sunpharma.com/careers/
+Dr. Reddy's|in|2|https://careers.drreddys.com https://www.drreddys.com/careers
+Cipla|in|2|https://www.cipla.com/careers
+Biocon|in|2|https://www.biocon.com/careers/
+Lupin|in|3|https://www.lupin.com/careers/
+Zydus|in|3|https://www.zyduslife.com/careers
+Glenmark|in|3|https://www.glenmarkpharma.com/careers
+Apollo Hospitals|in|3|https://www.apollohospitals.com/careers/
+Max Healthcare|in|3|https://www.maxhealthcare.in/careers
+Narayana Health|in|3|https://www.narayanahealth.org/careers
+Vodafone Idea|in|3|https://www.myvi.in/careers
+Zee Entertainment|in|3|https://www.zee.com/careers/
+Times Internet|in|2|https://www.timesinternet.in/careers
+Network18|in|3|https://www.network18online.com/careers/
+Unicommerce|in|3|https://unicommerce.com/careers/
+Increff|in|3|https://www.increff.com/careers/
+Locus|in|3|https://locus.sh/careers/
+FarEye|in|3|https://fareye.com/careers
+Vymo|in|3|https://getvymo.com/careers/
+Signzy|in|3|https://www.signzy.com/careers
+IDfy|in|3|https://www.idfy.com/careers/
+Hyperverge|in|3|https://hyperverge.co/careers/
+Observe.AI|in|3|https://www.observe.ai/careers
+Atlan|in|2|https://atlan.com/careers/
+Rocketlane|in|3|https://www.rocketlane.com/careers
+Zluri|in|3|https://www.zluri.com/careers
+Spyne|in|3|https://www.spyne.ai/careers
+Murf AI|in|3|https://murf.ai/careers
+Rephrase.ai|in|3|https://www.rephrase.ai/careers
+Peak XV|in|2|https://www.peakxv.com/careers/
+Elevation Capital|in|3|https://elevationcapital.com/careers
+Dhan|in|3|https://dhan.co/careers/
+Fyers|in|3|https://fyers.in/careers/
+5paisa|in|3|https://www.5paisa.com/careers
+Motilal Oswal|in|3|https://www.motilaloswal.com/careers
+HDFC Securities|in|3|https://www.hdfcsec.com/careers
+Edelweiss|in|3|https://www.edelweissfin.com/careers
+Toplyne|in|3|https://www.toplyne.io/careers
+Plum|in|3|https://www.plumhq.com/careers
+Pazcare|in|3|https://www.pazcare.com/careers
+Even Healthcare|in|3|https://www.even.in/careers
+Eka Care|in|3|https://www.eka.care/careers
+Qure.ai|in|3|https://www.qure.ai/careers
+Niramai|in|3|https://www.niramai.com/careers/
+SigTuple|in|3|https://sigtuple.com/careers/
+Tricog|in|3|https://www.tricog.com/careers/
+Ultrahuman|in|2|https://www.ultrahuman.com/careers/
+Noise|in|3|https://www.gonoise.com/pages/careers
+Boult|in|3|https://www.boultaudio.com/pages/careers
+Lava International|in|3|https://www.lavamobiles.com/careers
+Dixon Technologies|in|3|https://www.dixoninfo.com/careers.php
+Agnikul Cosmos|in|3|https://agnikul.in/careers
+Skyroot Aerospace|in|3|https://skyroot.in/careers/
+Pixxel|in|3|https://www.pixxel.space/careers
+Digantara|in|3|https://www.digantara.co.in/careers
+ideaForge|in|3|https://ideaforgetech.com/careers
+Tonbo Imaging|in|3|https://www.tonboimaging.com/careers
+Ixigo Abhibus|in|3|https://www.abhibus.com/careers
+# Big tech, global product companies with India offices / GCCs
+Google|io|1|https://careers.google.com https://www.google.com/about/careers/applications/
+Microsoft|io|1|https://careers.microsoft.com https://jobs.careers.microsoft.com
+Amazon|io|1|https://www.amazon.jobs/en/ https://www.amazon.jobs
+Apple|io|1|https://www.apple.com/careers/in/ https://jobs.apple.com
+Meta|io|1|https://www.metacareers.com
+Netflix|io|1|https://jobs.netflix.com https://explore.jobs.netflix.net/careers
+Adobe|io|1|https://careers.adobe.com https://www.adobe.com/careers.html
+Salesforce|io|1|https://careers.salesforce.com
+Oracle|io|1|https://www.oracle.com/careers/ https://careers.oracle.com
+SAP|io|1|https://jobs.sap.com
+Intel|io|1|https://jobs.intel.com https://www.intel.com/content/www/us/en/jobs/jobs-at-intel.html
+AMD|io|1|https://careers.amd.com
+NVIDIA|io|1|https://www.nvidia.com/en-us/about-nvidia/careers/
+Qualcomm|io|1|https://careers.qualcomm.com
+Cisco|io|1|https://jobs.cisco.com https://www.cisco.com/c/en/us/about/careers.html
+Broadcom|io|2|https://www.broadcom.com/company/careers
+Dell Technologies|io|1|https://jobs.dell.com
+HP|io|2|https://jobs.hp.com
+Hewlett Packard Enterprise|io|2|https://careers.hpe.com
+Uber|io|1|https://www.uber.com/us/en/careers/
+LinkedIn|io|1|https://careers.linkedin.com
+Atlassian|io|1|https://www.atlassian.com/company/careers
+Intuit|io|1|https://www.intuit.com/careers/ https://jobs.intuit.com
+PayPal|io|1|https://careers.pypl.com
+Visa|io|1|https://corporate.visa.com/en/jobs/ https://usa.visa.com/careers.html
+Mastercard|io|1|https://careers.mastercard.com
+American Express|io|1|https://www.americanexpress.com/en-us/careers/ https://aexp.eightfold.ai/careers
+Goldman Sachs|io|1|https://www.goldmansachs.com/careers/
+JPMorgan Chase|io|1|https://careers.jpmorgan.com
+Morgan Stanley|io|1|https://www.morganstanley.com/careers
+Walmart Global Tech|io|1|https://careers.walmart.com https://tech.walmart.com/content/walmart-global-tech/en_us/careers.html
+Target|io|2|https://corporate.target.com/careers https://india.target.com
+Lowe's|io|2|https://talent.lowes.com https://www.lowes.co.in/careers
+Tesco|io|2|https://www.tesco-careers.com https://www.tescobengaluru.com/careers/
+Sabre|io|3|https://www.sabre.com/careers/
+Expedia Group|io|1|https://careers.expediagroup.com
+Booking.com|io|2|https://careers.booking.com https://jobs.booking.com
+Agoda|io|2|https://careersatagoda.com
+Airbnb|io|1|https://careers.airbnb.com
+Spotify|io|1|https://www.lifeatspotify.com
+Shopify|io|1|https://www.shopify.com/careers
+Dropbox|io|2|https://jobs.dropbox.com
+Twilio|io|2|https://www.twilio.com/en-us/company/jobs
+Datadog|io|2|https://careers.datadoghq.com
+Snowflake|io|1|https://careers.snowflake.com
+Databricks|io|1|https://www.databricks.com/company/careers
+MongoDB|io|2|https://www.mongodb.com/company/careers
+Elastic|io|2|https://www.elastic.co/careers https://jobs.elastic.co
+Confluent|io|2|https://careers.confluent.io
+HashiCorp|gl|3|https://www.hashicorp.com/careers
+GitLab|gl|2|https://about.gitlab.com/jobs/
+GitHub|io|1|https://github.careers https://www.github.careers
+Cloudflare|io|2|https://www.cloudflare.com/careers/
+Okta|io|2|https://www.okta.com/company/careers/
+Zscaler|io|2|https://www.zscaler.com/careers
+CrowdStrike|io|2|https://www.crowdstrike.com/careers/
+Palo Alto Networks|io|2|https://jobs.paloaltonetworks.com
+Fortinet|io|3|https://www.fortinet.com/corporate/careers
+ServiceNow|io|1|https://careers.servicenow.com
+Workday|io|2|https://www.workday.com/en-us/company/careers/overview.html
+Zendesk|io|2|https://www.zendesk.com/jobs/
+HubSpot|io|2|https://www.hubspot.com/careers
+Canva|gl|1|https://www.lifeatcanva.com
+Notion|gl|2|https://www.notion.so/careers https://www.notion.com/careers
+Figma|gl|2|https://www.figma.com/careers/
+Rippling|io|2|https://www.rippling.com/careers
+Deel|gl|2|https://www.deel.com/careers
+Stripe|io|1|https://stripe.com/jobs
+Coinbase|io|2|https://www.coinbase.com/careers
+Robinhood|gl|2|https://careers.robinhood.com
+Plaid|gl|3|https://plaid.com/careers/
+Brex|gl|3|https://www.brex.com/careers
+Ramp|gl|3|https://ramp.com/careers
+OpenAI|gl|1|https://openai.com/careers/
+Anthropic|gl|1|https://www.anthropic.com/careers
+xAI|gl|1|https://x.ai/careers
+Cohere|gl|2|https://cohere.com/careers
+Scale AI|gl|2|https://scale.com/careers
+Hugging Face|gl|2|https://huggingface.co/jobs https://apply.workable.com/huggingface/
+Perplexity|gl|2|https://www.perplexity.ai/hub/careers https://www.perplexity.ai/careers
+Mistral AI|gl|2|https://mistral.ai/careers
+Pinterest|io|2|https://www.pinterestcareers.com
+Snap|gl|2|https://careers.snap.com
+X|gl|2|https://careers.x.com
+Reddit|gl|2|https://www.redditinc.com/careers
+Discord|gl|3|https://discord.com/careers
+Duolingo|gl|2|https://careers.duolingo.com
+Grammarly|gl|3|https://www.grammarly.com/jobs
+Zoom|io|2|https://careers.zoom.us
+DocuSign|io|3|https://careers.docusign.com
+Box|io|3|https://careers.box.com
+Autodesk|io|2|https://www.autodesk.com/careers
+Ansys|io|3|https://careers.ansys.com
+PTC|io|3|https://www.ptc.com/en/about/careers
+Siemens|io|1|https://jobs.siemens.com https://www.siemens.com/global/en/company/jobs.html
+Bosch|io|1|https://www.bosch.in/careers/ https://www.bosch.com/careers/
+Honeywell|io|2|https://careers.honeywell.com
+GE Aerospace|io|2|https://careers.geaerospace.com
+GE Vernova|io|3|https://careers.gevernova.com
+ABB|io|2|https://careers.abb https://global.abb/group/en/careers
+Schneider Electric|io|2|https://www.se.com/ww/en/about-us/careers/ https://careers.se.com
+Philips|io|2|https://www.careers.philips.com
+Shell|io|2|https://www.shell.com/careers.html https://www.shell.in/careers.html
+Mercedes-Benz R&D India|io|2|https://www.mbrdi.co.in/careers https://group.mercedes-benz.com/careers/
+Continental|io|3|https://jobs.continental.com
+ZF Group|io|3|https://jobs.zf.com
+Volvo Group|io|3|https://www.volvogroup.com/en/careers.html
+Caterpillar|io|2|https://careers.caterpillar.com
+John Deere|io|2|https://www.deere.com/en/our-company/careers/ https://jobs.deere.com
+Cummins|io|3|https://careers.cummins.com
+Eaton|io|3|https://www.eaton.com/us/en-us/company/careers.html
+Emerson|io|3|https://www.emerson.com/en-us/careers
+Rockwell Automation|io|3|https://www.rockwellautomation.com/en-us/company/careers.html
+Texas Instruments|io|2|https://careers.ti.com
+Analog Devices|io|2|https://careers.analog.com
+NXP Semiconductors|io|2|https://www.nxp.com/company/about-nxp/careers:CAREERS
+Infineon|io|3|https://www.infineon.com/cms/en/careers/
+Micron Technology|io|2|https://careers.micron.com
+Western Digital|io|3|https://jobs.westerndigital.com
+Synopsys|io|2|https://careers.synopsys.com
+Cadence|io|2|https://www.cadence.com/en_US/home/company/careers.html
+Arm|io|2|https://careers.arm.com
+MediaTek|io|3|https://careers.mediatek.com
+Samsung|io|1|https://www.samsung.com/in/about-us/careers/ https://research.samsung.com/careers
+Sony|io|2|https://www.sony.com/en/SonyInfo/Careers/
+Ericsson|io|2|https://www.ericsson.com/en/careers
+Nokia|io|2|https://www.nokia.com/about-us/careers/
+Wells Fargo|io|2|https://www.wellsfargojobs.com
+Citi|io|1|https://jobs.citi.com
+HSBC|io|2|https://www.hsbc.com/careers
+Barclays|io|2|https://search.jobs.barclays https://home.barclays/careers/
+Deutsche Bank|io|2|https://careers.db.com
+UBS|io|2|https://www.ubs.com/global/en/careers.html
+Standard Chartered|io|2|https://www.sc.com/en/careers/
+Societe Generale|io|3|https://careers.societegenerale.com
+BNY|io|2|https://www.bny.com/corporate/global/en/careers.html
+Northern Trust|io|3|https://careers.northerntrust.com
+State Street|io|3|https://careers.statestreet.com
+Fidelity Investments|io|2|https://jobs.fidelity.com
+UnitedHealth Group|io|2|https://careers.unitedhealthgroup.com
+LSEG|io|3|https://www.lseg.com/en/careers
+BlackRock|io|2|https://careers.blackrock.com
+Nasdaq|io|3|https://www.nasdaq.com/about/careers
+FIS|io|3|https://careers.fisglobal.com
+Fiserv|io|3|https://www.careers.fiserv.com
+Broadridge|io|3|https://www.broadridge.com/careers/
+Chubb|io|3|https://careers.chubb.com
+Swiss Re|io|3|https://www.swissre.com/careers.html
+Allianz|io|3|https://careers.allianz.com
+MetLife|io|3|https://www.metlifecareers.com
+McKinsey & Company|io|1|https://www.mckinsey.com/careers
+Boston Consulting Group|io|1|https://careers.bcg.com
+Bain & Company|io|2|https://www.bain.com/careers/
+Gartner|io|3|https://jobs.gartner.com
+Thomson Reuters|io|3|https://careers.thomsonreuters.com
+S&P Global|io|2|https://careers.spglobal.com
+Moody's|io|3|https://careers.moodys.com
+MSCI|io|3|https://careers.msci.com
+D. E. Shaw India|io|2|https://www.deshawindia.com/careers https://www.deshaw.com/careers
+Tower Research Capital|io|3|https://www.tower-research.com/careers
+Jane Street|gl|2|https://www.janestreet.com/join-jane-street/
+Citadel|gl|2|https://www.citadel.com/careers/
+Optiver|io|3|https://optiver.com/working-at-optiver/career-opportunities/
+IMC Trading|io|3|https://www.imc.com/eu/careers
+Graviton Research Capital|in|3|https://www.gravitontrading.com/careers.html
+Quadeye|in|3|https://www.quadeye.com/careers
+AlphaGrep|in|3|https://www.alphagrep.com/careers
+Novartis|io|2|https://www.novartis.com/careers
+Pfizer|io|2|https://www.pfizer.com/about/careers
+AstraZeneca|io|2|https://careers.astrazeneca.com
+GSK|io|2|https://www.gsk.com/en-gb/careers/
+Sanofi|io|3|https://www.sanofi.com/en/careers
+Roche|io|2|https://careers.roche.com
+Johnson & Johnson|io|2|https://www.careers.jnj.com
+Abbott|io|2|https://www.jobs.abbott
+Medtronic|io|3|https://jobs.medtronic.com
+GE HealthCare|io|2|https://careers.gehealthcare.com
+Siemens Healthineers|io|3|https://www.siemens-healthineers.com/careers
+BD|io|3|https://jobs.bd.com
+Stryker|io|3|https://careers.stryker.com
+Thermo Fisher Scientific|io|3|https://jobs.thermofisher.com
+Unilever|io|1|https://careers.unilever.com
+Procter & Gamble|io|1|https://www.pgcareers.com
+Nestle|io|2|https://www.nestle.com/jobs https://www.nestle.in/jobs
+PepsiCo|io|2|https://www.pepsicojobs.com
+The Coca-Cola Company|io|2|https://careers.coca-colacompany.com
+Mondelez|io|3|https://www.mondelezinternational.com/careers/
+Diageo|io|3|https://www.diageo.com/en/careers
+AB InBev|io|3|https://www.ab-inbev.com/careers/
+L'Oreal|io|2|https://careers.loreal.com
+Nike|gl|2|https://jobs.nike.com https://careers.nike.com
+Adidas|io|3|https://careers.adidas-group.com
+IKEA|io|2|https://www.ikea.com/in/en/this-is-ikea/work-with-us/
+H&M|io|3|https://career.hm.com
+Decathlon|io|3|https://www.decathlon.in/careers
+bp|io|3|https://www.bp.com/en/global/corporate/careers.html
+Chevron|io|3|https://careers.chevron.com
+Maersk|io|3|https://www.maersk.com/careers
+DHL|io|3|https://careers.dhl.com
+FedEx|io|3|https://careers.fedex.com
+UPS|io|3|https://www.jobs-ups.com
+Boeing|io|2|https://jobs.boeing.com
+Airbus|io|2|https://www.airbus.com/en/careers
+Rolls-Royce|io|3|https://careers.rolls-royce.com
+Thales|io|3|https://careers.thalesgroup.com
+RTX|io|3|https://careers.rtx.com
+Harman|io|3|https://jobs.harman.com https://careers.harman.com
+Aptiv|io|3|https://www.aptiv.com/en/careers
+Valeo|io|3|https://www.valeo.com/en/careers/
+Denso|io|3|https://www.denso.com/global/en/careers/
+Magna|io|3|https://www.magna.com/careers
+Forvia|io|3|https://www.forvia.com/en/careers
+BMW Group|io|3|https://www.bmwgroup.jobs
+Volkswagen Group|io|3|https://www.volkswagen-group.com/en/careers-15881
+Stellantis|io|3|https://www.stellantis.com/en/careers
+Hyundai|io|3|https://www.hyundai.com/in/en/hyundai-story/careers
+LG Electronics|io|3|https://www.lg.com/in/careers
+Accenture|io|1|https://www.accenture.com/in-en/careers
+Capgemini|io|1|https://www.capgemini.com/in-en/careers/
+Deloitte|io|1|https://www2.deloitte.com/in/en/careers.html https://www.deloitte.com/in/en/careers.html
+PwC|io|1|https://www.pwc.in/careers.html
+EY|io|1|https://www.ey.com/en_in/careers
+KPMG|io|1|https://kpmg.com/in/en/home/careers.html https://kpmg.com/in/en/careers.html
+Cognizant|io|1|https://careers.cognizant.com
+IBM|io|1|https://www.ibm.com/careers https://www.ibm.com/in-en/careers
+DXC Technology|io|3|https://careers.dxc.com
+NTT DATA|io|2|https://www.nttdata.com/global/en/careers
+Nagarro|io|2|https://www.nagarro.com/en/careers
+Thoughtworks|io|2|https://www.thoughtworks.com/careers
+EPAM Systems|io|2|https://www.epam.com/careers
+Globant|io|3|https://career.globant.com https://www.globant.com/careers
+Virtusa|io|3|https://www.virtusa.com/careers
+Atos|io|3|https://atos.net/en/careers
+Sopra Steria|io|3|https://www.soprasteria.in/careers
+UST|io|2|https://www.ust.com/en/careers
+IBS Software|in|3|https://www.ibsplc.com/careers
+CGI|io|3|https://www.cgi.com/en/careers
+Publicis Sapient|io|2|https://careers.publicissapient.com
+GlobalLogic|io|2|https://www.globallogic.com/careers/
+Synechron|io|3|https://www.synechron.com/careers
+ZS Associates|io|2|https://www.zs.com/careers
+Axtria|io|3|https://www.axtria.com/careers/
+Indegene|in|3|https://www.indegene.com/careers
+Concentrix|io|3|https://jobs.concentrix.com
+Teleperformance|io|3|https://www.tp.com/en-us/careers/
+Sutherland|io|3|https://www.sutherlandglobal.com/careers
+Nutanix|io|2|https://www.nutanix.com/company/careers https://careers.nutanix.com
+NetApp|io|2|https://careers.netapp.com
+Pure Storage|io|3|https://www.purestorage.com/company/careers.html
+New Relic|io|3|https://newrelic.com/about/careers
+VMware|io|3|https://careers.vmware.com
+Red Hat|io|2|https://www.redhat.com/en/jobs
+Arista Networks|io|3|https://www.arista.com/en/careers
+F5|io|3|https://www.f5.com/company/careers
+Akamai|io|3|https://www.akamai.com/careers
+Check Point Software|io|3|https://careers.checkpoint.com
+Rubrik|io|3|https://www.rubrik.com/company/careers
+Cohesity|io|3|https://www.cohesity.com/company/careers/
+Commvault|io|3|https://www.commvault.com/careers
+Veeam|io|3|https://careers.veeam.com
+Citrix|io|3|https://www.citrix.com/about/careers.html
+Infor|io|3|https://www.infor.com/about/careers
+Epicor|io|3|https://www.epicor.com/en/company/careers/
+Tyler Technologies|gl|3|https://www.tylertech.com/careers
+Guidewire|io|3|https://careers.guidewire.com
+Veeva Systems|io|3|https://careers.veeva.com
+Medidata|io|3|https://www.medidata.com/en/careers
+Cerner Oracle Health|io|3|https://www.oracle.com/health/careers/
+Optum|io|2|https://www.optum.com/careers.html https://careers.unitedhealthgroup.com/optum
+Elevance Health|io|3|https://careers.elevancehealth.com
+Cigna|io|3|https://jobs.thecignagroup.com
+CVS Health|gl|3|https://jobs.cvshealth.com
+Walgreens|io|3|https://jobs.walgreens.com
+Kroger|gl|3|https://www.krogerfamilycareers.com
+Costco|gl|3|https://www.costco.com/jobs.html
+Home Depot|gl|3|https://careers.homedepot.com
+Best Buy|gl|3|https://jobs.bestbuy.com
+Nordstrom|io|3|https://careers.nordstrom.com
+Macy's|gl|3|https://www.macysjobs.com
+Gap Inc.|io|3|https://www.gapinc.com/en-us/careers/gap-careers
+Levi Strauss|gl|3|https://www.levistrauss.com/careers/
+Ralph Lauren|gl|3|https://careers.ralphlauren.com
+Marks & Spencer|io|3|https://jobs.marksandspencer.com
+Sainsbury's|io|3|https://sainsburys.jobs
+Ahold Delhaize|gl|3|https://www.aholddelhaize.com/careers/
+Carrefour|gl|3|https://www.carrefour.com/en/careers
+# Global tech and product companies (many hire remote / in India)
+Asana|gl|2|https://asana.com/jobs
+Airtable|gl|3|https://www.airtable.com/careers
+Amplitude|gl|3|https://amplitude.com/careers
+Benchling|gl|3|https://www.benchling.com/careers
+Calendly|gl|3|https://careers.calendly.com
+Carta|gl|3|https://carta.com/careers/
+Celonis|io|3|https://www.celonis.com/careers/
+Chime|gl|3|https://careers.chime.com
+CircleCI|gl|3|https://circleci.com/careers/
+ClickUp|gl|3|https://clickup.com/careers
+Cockroach Labs|gl|3|https://www.cockroachlabs.com/careers/
+Coursera|io|2|https://careers.coursera.com https://about.coursera.org/careers/
+Dataiku|gl|3|https://www.dataiku.com/careers/
+dbt Labs|gl|3|https://www.getdbt.com/dbt-labs/open-roles
+DigitalOcean|io|3|https://www.digitalocean.com/careers
+DoorDash|gl|2|https://careersatdoordash.com
+Etsy|gl|3|https://careers.etsy.com
+Expensify|gl|3|https://we.are.expensify.com
+Faire|gl|3|https://www.faire.com/careers
+Fivetran|io|3|https://www.fivetran.com/careers
+Flexport|gl|3|https://www.flexport.com/careers/
+Gusto|gl|3|https://gusto.com/about/careers
+Instacart|gl|2|https://instacart.careers
+Intercom|gl|3|https://www.intercom.com/careers
+Lyft|gl|2|https://www.lyft.com/careers
+Miro|gl|2|https://miro.com/careers/
+monday.com|gl|2|https://monday.com/careers
+Mixpanel|gl|3|https://mixpanel.com/jobs/
+Netlify|gl|3|https://www.netlify.com/careers/
+Palantir|gl|2|https://www.palantir.com/careers/
+PagerDuty|gl|3|https://careers.pagerduty.com
+PostHog|gl|3|https://posthog.com/careers
+Qualtrics|gl|3|https://www.qualtrics.com/careers/
+Samsara|io|3|https://www.samsara.com/company/careers
+Sentry|gl|3|https://sentry.io/careers/
+Snyk|gl|3|https://snyk.io/careers/
+Block|gl|2|https://block.xyz/careers
+Sumo Logic|io|3|https://www.sumologic.com/company/careers/
+Toast|gl|3|https://careers.toasttab.com
+Twitch|gl|3|https://www.twitch.tv/jobs/
+Unity|gl|2|https://careers.unity.com
+Vercel|gl|2|https://vercel.com/careers
+Wise|io|2|https://wise.jobs
+Revolut|io|2|https://www.revolut.com/careers/
+Klarna|gl|3|https://www.klarna.com/careers/
+N26|gl|3|https://n26.com/en/careers
+Monzo|gl|3|https://monzo.com/careers
+Adyen|io|3|https://careers.adyen.com
+Checkout.com|gl|3|https://www.checkout.com/careers
+Zalando|gl|3|https://jobs.zalando.com
+Delivery Hero|gl|3|https://careers.deliveryhero.com
+Grab|gl|2|https://grab.careers
+Gojek|io|3|https://www.gojek.io/careers https://career.gojek.com
+Shopee|gl|3|https://careers.shopee.sg
+TikTok|gl|1|https://lifeattiktok.com https://careers.tiktok.com
+ByteDance|gl|2|https://jobs.bytedance.com/en/
+Rakuten|io|3|https://rakuten.careers
+Mercari|gl|3|https://careers.mercari.com
+Coupang|gl|3|https://www.coupang.jobs
+Sea Limited|gl|3|https://www.sea.com/careers
+Lazada|gl|3|https://www.lazada.com/en/careers/
+Traveloka|gl|3|https://www.traveloka.com/en-en/careers
+Tokopedia|gl|3|https://www.tokopedia.com/careers/
+Careem|gl|3|https://www.careem.com/en-AE/careers/
+Talabat|gl|3|https://careers.talabat.com
+Noon|gl|3|https://www.noon.com/careers
+Tabby|gl|3|https://tabby.ai/en-AE/careers
+Mercado Libre|gl|3|https://careers-meli.mercadolibre.com/en
+Nubank|gl|3|https://international.nubank.com.br/careers/
+Rappi|gl|3|https://about.rappi.com/careers
+Supabase|gl|3|https://supabase.com/careers
+Linear|gl|3|https://linear.app/careers
+Retool|gl|3|https://retool.com/careers
+Webflow|gl|3|https://webflow.com/careers
+Zapier|gl|3|https://zapier.com/jobs
+Automattic|gl|3|https://automattic.com/work-with-us/
+Canonical|gl|3|https://canonical.com/careers
+Mozilla|gl|3|https://www.mozilla.org/en-US/careers/
+Wikimedia Foundation|gl|3|https://wikimediafoundation.org/about/jobs/
+Grafana Labs|gl|3|https://grafana.com/about/careers/
+Docker|gl|3|https://www.docker.com/careers/
+JetBrains|gl|3|https://www.jetbrains.com/careers/
+Kong|io|3|https://konghq.com/careers
+Couchbase|io|3|https://www.couchbase.com/careers/
+Redis|io|3|https://redis.io/careers/
+Neo4j|gl|3|https://neo4j.com/careers/
+Temporal|gl|3|https://temporal.io/careers
+Airbyte|gl|3|https://airbyte.com/careers
+Algolia|gl|3|https://www.algolia.com/careers/
+Contentful|gl|3|https://www.contentful.com/careers/
+Contentstack|io|3|https://www.contentstack.com/careers
+Sprout Social|gl|3|https://sproutsocial.com/careers/
+Squarespace|gl|3|https://www.squarespace.com/about/careers
+Wix|gl|3|https://careers.wix.com
+GoDaddy|io|3|https://careers.godaddy.com
+Yahoo|gl|3|https://www.yahooinc.com/careers/
+eBay|io|2|https://jobs.ebayinc.com
+Wayfair|gl|3|https://www.aboutwayfair.com/careers
+Chewy|gl|3|https://careers.chewy.com
+Peloton|gl|3|https://careers.onepeloton.com
+Roblox|gl|2|https://careers.roblox.com
+Electronic Arts|io|2|https://www.ea.com/careers
+Ubisoft|io|3|https://www.ubisoft.com/en-us/company/careers
+Riot Games|gl|3|https://www.riotgames.com/en/work-with-us
+Epic Games|gl|2|https://www.epicgames.com/site/en-US/careers
+Activision Blizzard|gl|3|https://careers.activisionblizzard.com
+Zynga|io|3|https://www.zynga.com/careers/
+Supercell|gl|3|https://supercell.com/en/careers/
+Tesla|gl|1|https://www.tesla.com/careers
+SpaceX|gl|1|https://www.spacex.com/careers/
+Rivian|gl|3|https://careers.rivian.com
+Lucid Motors|gl|3|https://www.lucidmotors.com/careers
+Waymo|gl|2|https://careers.withwaymo.com
+Cruise|gl|3|https://getcruise.com/careers/
+Aurora|gl|3|https://aurora.tech/careers
+Zoox|gl|3|https://zoox.com/careers
+Anduril|gl|3|https://www.anduril.com/careers/
+Shield AI|gl|3|https://shield.ai/careers/
+Skydio|gl|3|https://www.skydio.com/careers
+Figure AI|gl|3|https://www.figure.ai/careers
+Boston Dynamics|gl|3|https://bostondynamics.com/careers/
+DeepMind|gl|1|https://deepmind.google/about/careers/
+Character.AI|gl|3|https://character.ai/careers
+Runway|gl|3|https://runwayml.com/careers
+Stability AI|gl|3|https://stability.ai/careers
+ElevenLabs|gl|2|https://elevenlabs.io/careers
+Synthesia|gl|3|https://www.synthesia.io/careers
+Glean|io|3|https://www.glean.com/careers
+Writer|gl|3|https://writer.com/careers/
+Jasper|gl|3|https://www.jasper.ai/careers
+Weights & Biases|gl|3|https://wandb.ai/site/careers
+Pinecone|gl|3|https://www.pinecone.io/careers/
+Weaviate|gl|3|https://weaviate.io/company/careers
+LangChain|gl|3|https://www.langchain.com/careers
+Replit|gl|3|https://replit.com/careers
+Cursor|gl|2|https://cursor.com/careers https://www.cursor.com/careers
+Sourcegraph|gl|3|https://sourcegraph.com/jobs
+Harvey|gl|3|https://www.harvey.ai/careers
+Abridge|gl|3|https://www.abridge.com/careers
+Groq|gl|3|https://groq.com/careers/
+Cerebras|io|3|https://www.cerebras.ai/careers
+SambaNova|io|3|https://sambanova.ai/careers
+Lambda|gl|3|https://lambda.ai/careers https://lambdalabs.com/careers
+CoreWeave|gl|3|https://www.coreweave.com/careers
+Together AI|gl|3|https://www.together.ai/careers
+Modal|gl|3|https://modal.com/careers
+Fireworks AI|gl|3|https://fireworks.ai/careers
+GitBook|gl|3|https://www.gitbook.com/careers
+Doist|gl|3|https://doist.com/careers
+Buffer|gl|3|https://buffer.com/journey
+Toptal|gl|3|https://www.toptal.com/careers
+Andela|gl|3|https://andela.com/careers/
+Turing|io|3|https://www.turing.com/careers
+Remote|gl|3|https://remote.com/careers
+Oyster|gl|3|https://www.oysterhr.com/careers
+Personio|gl|3|https://www.personio.com/about-personio/careers/
+HiBob|gl|3|https://www.hibob.com/careers/
+Lattice|gl|3|https://lattice.com/careers
+Culture Amp|gl|3|https://www.cultureamp.com/company/careers
+Xero|gl|3|https://www.xero.com/careers/
+Afterpay|gl|3|https://www.afterpay.com/en-AU/careers
+Paytm Money|in|3|https://www.paytmmoney.com/careers
+Tata Consumer Products|in|3|https://www.tataconsumer.com/careers
+Tata Power|in|3|https://www.tatapower.com/careers.aspx
+Tata Communications|in|2|https://www.tatacommunications.com/careers/
+Tata AIG|in|3|https://www.tataaig.com/careers
+Tata AIA|in|3|https://www.tataaia.com/careers.html
+Tata Projects|in|3|https://tataprojects.com/careers/
+Mahindra Finance|in|3|https://www.mahindrafinance.com/careers
+Bajaj Allianz|in|3|https://www.bajajallianz.com/about-us/careers.html
+HDFC Life|in|3|https://www.hdfclife.com/about-us/careers
+ICICI Lombard|in|3|https://www.icicilombard.com/careers
+SBI Card|in|3|https://www.sbicard.com/en/about-us/careers.page
+Muthoot Finance|in|3|https://www.muthootfinance.com/careers
+Shriram Finance|in|3|https://www.shriramfinance.in/careers
+NSE|in|2|https://www.nseindia.com/careers
+BSE|in|3|https://www.bseindia.com/careers.html
+NPCI|in|2|https://www.npci.org.in/careers
+CRISIL|in|3|https://www.crisil.com/en/home/careers.html
+ICRA|in|3|https://www.icra.in/Careers
+CAMS|in|3|https://www.camsonline.com/Careers
+NSDL|in|3|https://nsdl.co.in/careers.php
+CDSL|in|3|https://www.cdslindia.com/Careers/Careers.html
+Zoomcar|in|3|https://www.zoomcar.com/careers
+Paytm Insider|in|3|https://insider.in/careers
+BookMyShow|in|2|https://in.bookmyshow.com/careers https://bigtree.bookmyshow.com/careers
+Dineout|in|3|https://www.dineout.co.in/careers
+Magicpin|in|3|https://magicpin.in/careers/
+Thrillophilia|in|3|https://www.thrillophilia.com/careers
+Headout|in|3|https://www.headout.com/careers/
+Credgenics|in|3|https://www.credgenics.com/careers
+Mintoak|in|3|https://www.mintoak.com/careers
+Paytm Payments Bank|in|3|https://www.paytmbank.com/careers
+Airtel Payments Bank|in|3|https://www.airtel.in/bank/careers
+Fino Payments Bank|in|3|https://www.finobank.com/careers
+Jio Financial Services|in|3|https://www.jfs.in/careers/
+Jio Platforms|in|3|https://www.jio.com/careers
+Reliance Retail|in|2|https://relianceretail.com/careers.html
+DMart|in|3|https://www.dmartindia.com/careers
+Trent|in|3|https://trentlimited.com/careers
+Shoppers Stop|in|3|https://corporate.shoppersstop.com/careers
+Aditya Birla Fashion|in|3|https://www.abfrl.com/careers/
+Raymond|in|3|https://www.raymond.in/careers
+Pidilite|in|3|https://www.pidilite.com/careers/
+Marico|in|3|https://marico.com/india/careers
+Dabur|in|3|https://www.dabur.com/careers
+Britannia|in|3|https://www.britannia.co.in/careers
+Havells|in|3|https://www.havells.com/en/discover-havells/careers.html
+Voltas|in|3|https://www.voltas.com/careers
+Blue Star|in|3|https://www.bluestarindia.com/careers
+Crompton|in|3|https://www.crompton.co.in/pages/careers
+Polycab|in|3|https://polycab.com/careers/
+Bharat Electronics|in|3|https://bel-india.in/careers/
+HAL|in|3|https://hal-india.co.in/career
+ISRO|in|2|https://www.isro.gov.in/Careers.html
+DRDO|in|3|https://www.drdo.gov.in/drdo/careers
+C-DAC|in|3|https://www.cdac.in/index.aspx?id=current_jobs
+Indian Railways CRIS|in|3|https://cris.org.in/crisweb/careers
+ONGC|in|3|https://ongcindia.com/web/eng/careers
+Indian Oil|in|3|https://iocl.com/careers
+NTPC|in|3|https://ntpc.co.in/careers
+Coal India|in|3|https://www.coalindia.in/career-cil/
+SAIL|in|3|https://sail.co.in/en/career
+BHEL|in|3|https://careers.bhel.in
+GAIL|in|3|https://gailonline.com/CRApplyingGail.html
+Power Grid|in|3|https://www.powergrid.in/en/job-opportunities

@@ -1,0 +1,4714 @@
+[
+  {
+    "name": "5paisa",
+    "careersUrl": "https://www.5paisa.com/careers",
+    "domain": "5paisa.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ABB",
+    "careersUrl": "https://careers.abb/global/en",
+    "domain": "careers.abb",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Abbott",
+    "careersUrl": "https://www.jobs.abbott/us/en",
+    "domain": "jobs.abbott",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Abridge",
+    "careersUrl": "https://www.abridge.com/careers",
+    "domain": "abridge.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Accenture",
+    "careersUrl": "https://www.accenture.com/in-en/careers",
+    "domain": "accenture.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ACKO",
+    "careersUrl": "https://www.acko.com/careers/",
+    "domain": "acko.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Activision Blizzard",
+    "careersUrl": "https://careers.activisionblizzard.com",
+    "domain": "activisionblizzard.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Adani Group",
+    "careersUrl": "https://www.adani.com/careers",
+    "domain": "adani.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Aditya Birla Fashion",
+    "careersUrl": "https://www.abfrl.com/careers/",
+    "domain": "abfrl.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Aditya Birla Group",
+    "careersUrl": "https://careers.adityabirla.com",
+    "domain": "adityabirla.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Adobe",
+    "careersUrl": "https://careers.adobe.com/us/en",
+    "domain": "adobe.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Adyen",
+    "careersUrl": "https://careers.adyen.com",
+    "domain": "adyen.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Agnikul Cosmos",
+    "careersUrl": "https://agnikul.in/careers/",
+    "domain": "agnikul.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Agoda",
+    "careersUrl": "https://careersatagoda.com",
+    "domain": "careersatagoda.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Ahold Delhaize",
+    "careersUrl": "https://aholddelhaize.com/careers/",
+    "domain": "aholddelhaize.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Airbnb",
+    "careersUrl": "https://careers.airbnb.com",
+    "domain": "airbnb.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Airbus",
+    "careersUrl": "https://www.airbus.com/en/careers",
+    "domain": "airbus.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Airbyte",
+    "careersUrl": "https://airbyte.com/company/careers",
+    "domain": "airbyte.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Airtable",
+    "careersUrl": "https://airtable.com/careers",
+    "domain": "airtable.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Airtel",
+    "careersUrl": "https://www.airtel.in/careers/",
+    "domain": "airtel.in",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Algolia",
+    "careersUrl": "https://www.algolia.com/careers",
+    "domain": "algolia.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Allianz",
+    "careersUrl": "https://careers.allianz.com/global/en",
+    "domain": "allianz.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Amazon",
+    "careersUrl": "https://www.amazon.jobs/en/",
+    "domain": "amazon.jobs",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "AMD",
+    "careersUrl": "https://careers.amd.com/careers-home/jobs",
+    "domain": "amd.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "American Express",
+    "careersUrl": "https://www.americanexpress.com/en-us/careers/",
+    "domain": "americanexpress.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Amplitude",
+    "careersUrl": "https://amplitude.com/careers",
+    "domain": "amplitude.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Andela",
+    "careersUrl": "https://www.andela.com/for-talent",
+    "domain": "andela.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Anduril",
+    "careersUrl": "https://www.anduril.com/careers",
+    "domain": "anduril.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Angel One",
+    "careersUrl": "https://www.angelone.in/careers",
+    "domain": "angelone.in",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Anthropic",
+    "careersUrl": "https://www.anthropic.com/careers",
+    "domain": "anthropic.com",
+    "countryFocus": "global",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "apna",
+    "careersUrl": "https://careers.apna.co",
+    "domain": "apna.co",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Apple",
+    "careersUrl": "https://www.apple.com/careers/in/",
+    "domain": "apple.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Aptiv",
+    "careersUrl": "https://www.aptiv.com/en/jobs",
+    "domain": "aptiv.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Arista Networks",
+    "careersUrl": "https://www.arista.com/en/careers",
+    "domain": "arista.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Arm",
+    "careersUrl": "https://careers.arm.com",
+    "domain": "arm.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Asana",
+    "careersUrl": "https://asana.com/jobs",
+    "domain": "asana.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Asian Paints",
+    "careersUrl": "https://careers.asianpaints.com",
+    "domain": "asianpaints.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "AstraZeneca",
+    "careersUrl": "https://careers.astrazeneca.com",
+    "domain": "astrazeneca.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Atlan",
+    "careersUrl": "https://atlan.com/careers/",
+    "domain": "atlan.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Atlassian",
+    "careersUrl": "https://www.atlassian.com/company/careers",
+    "domain": "atlassian.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Atos",
+    "careersUrl": "https://atos.net/en/join-us",
+    "domain": "atos.net",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Aurora",
+    "careersUrl": "https://aurora.tech/careers",
+    "domain": "aurora.tech",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Automattic",
+    "careersUrl": "https://automattic.com/work-with-us/",
+    "domain": "automattic.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Axis Bank",
+    "careersUrl": "https://www.axisbank.com/careers",
+    "domain": "axisbank.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Axtria",
+    "careersUrl": "https://www.axtria.com/axtria-careers/",
+    "domain": "axtria.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Bain & Company",
+    "careersUrl": "https://www.bain.com/careers/",
+    "domain": "bain.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Bajaj Auto",
+    "careersUrl": "https://legacy.bajajauto.com/careers/why-us",
+    "domain": "bajajauto.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "BankBazaar",
+    "careersUrl": "https://www.bankbazaar.com/careers.html",
+    "domain": "bankbazaar.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Barclays",
+    "careersUrl": "https://search.jobs.barclays",
+    "domain": "jobs.barclays",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "BD",
+    "careersUrl": "https://jobs.bd.com/en",
+    "domain": "bd.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Benchling",
+    "careersUrl": "https://www.benchling.com/careers",
+    "domain": "benchling.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Best Buy",
+    "careersUrl": "https://jobs.bestbuy.com/bby",
+    "domain": "bestbuy.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "BharatPe",
+    "careersUrl": "https://bharatpe.com/careers",
+    "domain": "bharatpe.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "BigBasket",
+    "careersUrl": "https://careers.bigbasket.com",
+    "domain": "bigbasket.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Birlasoft",
+    "careersUrl": "https://www.birlasoft.com/careers",
+    "domain": "birlasoft.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Bizongo",
+    "careersUrl": "https://www.bizongo.com/careers",
+    "domain": "bizongo.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "BlackRock",
+    "careersUrl": "https://careers.blackrock.com",
+    "domain": "blackrock.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Block",
+    "careersUrl": "https://block.xyz/careers/jobs",
+    "domain": "block.xyz",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Blue Star",
+    "careersUrl": "https://www.bluestarindia.com/careers",
+    "domain": "bluestarindia.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "BMW Group",
+    "careersUrl": "https://www.bmwgroup.jobs/en.html",
+    "domain": "bmwgroup.jobs",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "BNY",
+    "careersUrl": "https://www.bny.com/corporate/global/en/about-us/careers/work-with-us.html",
+    "domain": "bny.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Boeing",
+    "careersUrl": "https://jobs.boeing.com",
+    "domain": "boeing.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Booking.com",
+    "careersUrl": "https://careers.booking.com",
+    "domain": "booking.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "BookMyShow",
+    "careersUrl": "https://in.bookmyshow.com/careers",
+    "domain": "bookmyshow.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Bosch",
+    "careersUrl": "https://www.bosch.in/careers/",
+    "domain": "bosch.in",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Boston Consulting Group",
+    "careersUrl": "https://careers.bcg.com/global/en/",
+    "domain": "bcg.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Boston Dynamics",
+    "careersUrl": "https://bostondynamics.com/careers/",
+    "domain": "bostondynamics.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Boult",
+    "careersUrl": "https://www.boultaudio.com/pages/careers",
+    "domain": "boultaudio.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Box",
+    "careersUrl": "https://careers.box.com/en/",
+    "domain": "box.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "bp",
+    "careersUrl": "https://careers.bp.com/",
+    "domain": "bp.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Brex",
+    "careersUrl": "https://www.brex.com/careers",
+    "domain": "brex.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Britannia",
+    "careersUrl": "https://www.britannia.co.in/careers",
+    "domain": "britannia.co.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Broadcom",
+    "careersUrl": "https://www.broadcom.com/company/careers",
+    "domain": "broadcom.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Broadridge",
+    "careersUrl": "https://www.broadridge.com/careers/",
+    "domain": "broadridge.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "BrowserStack",
+    "careersUrl": "https://www.browserstack.com/careers",
+    "domain": "browserstack.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Buffer",
+    "careersUrl": "https://buffer.com/journey",
+    "domain": "buffer.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "BYJU'S",
+    "careersUrl": "https://byjus.com/careers-at-byjus/",
+    "domain": "byjus.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ByteDance",
+    "careersUrl": "https://jobs.bytedance.com/en/",
+    "domain": "bytedance.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "C-DAC",
+    "careersUrl": "https://www.cdac.in/index.aspx?id=current_jobs",
+    "domain": "cdac.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cadence",
+    "careersUrl": "https://www.cadence.com/en_US/home/company/life-at-cadence/careers.html",
+    "domain": "cadence.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Calendly",
+    "careersUrl": "https://calendly.com/careers",
+    "domain": "calendly.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Canonical",
+    "careersUrl": "https://canonical.com/careers",
+    "domain": "canonical.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Canva",
+    "careersUrl": "https://www.lifeatcanva.com/en/",
+    "domain": "lifeatcanva.com",
+    "countryFocus": "global",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Capgemini",
+    "careersUrl": "https://www.capgemini.com/in-en/careers/",
+    "domain": "capgemini.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "CarDekho",
+    "careersUrl": "https://www.girnarsoft.com/careers.php",
+    "domain": "girnarsoft.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cars24",
+    "careersUrl": "https://www.cars24.com/careers/",
+    "domain": "cars24.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Carta",
+    "careersUrl": "https://carta.com/careers/",
+    "domain": "carta.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cashfree Payments",
+    "careersUrl": "https://www.cashfree.com/careers/",
+    "domain": "cashfree.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Caterpillar",
+    "careersUrl": "https://careers.caterpillar.com/en/",
+    "domain": "caterpillar.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Celonis",
+    "careersUrl": "https://careers.celonis.com",
+    "domain": "celonis.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cerebras",
+    "careersUrl": "https://www.cerebras.ai/join-us",
+    "domain": "cerebras.ai",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "CGI",
+    "careersUrl": "https://www.cgi.com/en/careers",
+    "domain": "cgi.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Chargebee",
+    "careersUrl": "https://www.chargebee.com/company/careers/",
+    "domain": "chargebee.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Check Point Software",
+    "careersUrl": "https://www.checkpoint.com/careers/",
+    "domain": "checkpoint.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Checkout.com",
+    "careersUrl": "https://www.checkout.com/careers",
+    "domain": "checkout.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Chevron",
+    "careersUrl": "https://careers.chevron.com",
+    "domain": "chevron.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Chewy",
+    "careersUrl": "https://careers.chewy.com/us/en",
+    "domain": "chewy.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cigna",
+    "careersUrl": "https://jobs.thecignagroup.com/us/en",
+    "domain": "thecignagroup.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cipla",
+    "careersUrl": "https://www.cipla.com/careers",
+    "domain": "cipla.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "CircleCI",
+    "careersUrl": "https://circleci.com/careers/",
+    "domain": "circleci.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cisco",
+    "careersUrl": "https://careers.cisco.com/global/en",
+    "domain": "cisco.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Citi",
+    "careersUrl": "https://jobs.citi.com",
+    "domain": "citi.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Classplus",
+    "careersUrl": "https://classplusapp.com/careers",
+    "domain": "classplusapp.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Clear",
+    "careersUrl": "https://cleartax.in/s/careers",
+    "domain": "cleartax.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "CleverTap",
+    "careersUrl": "https://clevertap.com/careers/",
+    "domain": "clevertap.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ClickUp",
+    "careersUrl": "https://clickup.com/careers",
+    "domain": "clickup.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cloudflare",
+    "careersUrl": "https://www.cloudflare.com/careers/",
+    "domain": "cloudflare.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Coal India",
+    "careersUrl": "https://www.coalindia.in/career-cil/",
+    "domain": "coalindia.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cockroach Labs",
+    "careersUrl": "https://www.cockroachlabs.com/careers/",
+    "domain": "cockroachlabs.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Coding Ninjas",
+    "careersUrl": "https://www.codingninjas.com/careers",
+    "domain": "codingninjas.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cognizant",
+    "careersUrl": "https://careers.cognizant.com/global-en/",
+    "domain": "cognizant.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cohere",
+    "careersUrl": "https://cohere.com/careers",
+    "domain": "cohere.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Coinbase",
+    "careersUrl": "https://www.coinbase.com/en-in/careers",
+    "domain": "coinbase.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "CoinDCX",
+    "careersUrl": "https://coindcx.com/about-us",
+    "domain": "coindcx.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Commvault",
+    "careersUrl": "https://www.commvault.com/careers",
+    "domain": "commvault.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Concentrix",
+    "careersUrl": "https://jobs.concentrix.com",
+    "domain": "concentrix.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Contentstack",
+    "careersUrl": "https://www.contentstack.com/company/careers",
+    "domain": "contentstack.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Continental",
+    "careersUrl": "https://jobs.continental.com/en/",
+    "domain": "continental.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "CoreWeave",
+    "careersUrl": "https://www.coreweave.com/careers",
+    "domain": "coreweave.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Costco",
+    "careersUrl": "https://www.costco.com/f/-/careers",
+    "domain": "costco.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Country Delight",
+    "careersUrl": "https://countrydelight.in/careers",
+    "domain": "countrydelight.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Coupang",
+    "careersUrl": "https://www.coupang.jobs/en/",
+    "domain": "coupang.jobs",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "CRED",
+    "careersUrl": "https://careers.cred.club",
+    "domain": "cred.club",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "CRISIL",
+    "careersUrl": "https://www.crisil.com/en/home/careers.html",
+    "domain": "crisil.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Crompton",
+    "careersUrl": "https://www.crompton.co.in/pages/careers",
+    "domain": "crompton.co.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "CrowdStrike",
+    "careersUrl": "https://www.crowdstrike.com/en-us/careers/",
+    "domain": "crowdstrike.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "cult.fit",
+    "careersUrl": "https://careers.cult.fit/cult/",
+    "domain": "cult.fit",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Culture Amp",
+    "careersUrl": "https://www.cultureamp.com/company/careers",
+    "domain": "cultureamp.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cursor",
+    "careersUrl": "https://cursor.com/careers",
+    "domain": "cursor.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "CVS Health",
+    "careersUrl": "https://jobs.cvshealth.com/us/en/home",
+    "domain": "cvshealth.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Cyient",
+    "careersUrl": "https://www.cyient.com/careers",
+    "domain": "cyient.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "D. E. Shaw India",
+    "careersUrl": "https://www.deshawindia.com/careers",
+    "domain": "deshawindia.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Darwinbox",
+    "careersUrl": "https://darwinbox.com/careers",
+    "domain": "darwinbox.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Databricks",
+    "careersUrl": "https://www.databricks.com/company/careers",
+    "domain": "databricks.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Datadog",
+    "careersUrl": "https://careers.datadoghq.com",
+    "domain": "datadoghq.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Dataiku",
+    "careersUrl": "https://www.dataiku.com/company/careers",
+    "domain": "dataiku.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "dbt Labs",
+    "careersUrl": "https://www.getdbt.com/about-us/careers",
+    "domain": "getdbt.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Decathlon",
+    "careersUrl": "https://www.decathlon.in/careers",
+    "domain": "decathlon.in",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Deel",
+    "careersUrl": "https://www.deel.com/careers/",
+    "domain": "deel.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "DeepMind",
+    "careersUrl": "https://deepmind.google/careers/",
+    "domain": "deepmind.google",
+    "countryFocus": "global",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "DeHaat",
+    "careersUrl": "https://agrevolution.in/careers",
+    "domain": "agrevolution.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Delhivery",
+    "careersUrl": "https://www.delhivery.com/careers",
+    "domain": "delhivery.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Delivery Hero",
+    "careersUrl": "https://careers.deliveryhero.com",
+    "domain": "deliveryhero.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Dell Technologies",
+    "careersUrl": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers",
+    "domain": "dell.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Deloitte",
+    "careersUrl": "https://www.deloitte.com/in/en/careers.html",
+    "domain": "deloitte.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Deutsche Bank",
+    "careersUrl": "https://careers.db.com",
+    "domain": "db.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "DHL",
+    "careersUrl": "https://careers.dhl.com/global/en",
+    "domain": "dhl.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Digantara",
+    "careersUrl": "https://www.digantara.co.in/careers",
+    "domain": "digantara.co.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Digit Insurance",
+    "careersUrl": "https://www.godigit.com/careers",
+    "domain": "godigit.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "DigitalOcean",
+    "careersUrl": "https://www.digitalocean.com/careers",
+    "domain": "digitalocean.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Discord",
+    "careersUrl": "https://discord.com/careers",
+    "domain": "discord.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Dixon Technologies",
+    "careersUrl": "https://www.dixoninfo.com/careers.php",
+    "domain": "dixoninfo.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "DMart",
+    "careersUrl": "https://www.dmartindia.com/careers",
+    "domain": "dmartindia.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Docker",
+    "careersUrl": "https://www.docker.com/careers/",
+    "domain": "docker.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "DocuSign",
+    "careersUrl": "https://careers.docusign.com/careers-home",
+    "domain": "docusign.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Doist",
+    "careersUrl": "https://doist.com/careers",
+    "domain": "doist.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Dr. Reddy's",
+    "careersUrl": "https://careers.drreddys.com",
+    "domain": "drreddys.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Dream11",
+    "careersUrl": "https://www.dreamsports.group/lifeatdreamsports",
+    "domain": "dreamsports.group",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Dropbox",
+    "careersUrl": "https://jobs.dropbox.com",
+    "domain": "dropbox.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Druva",
+    "careersUrl": "https://www.druva.com/why-druva/explore/careers",
+    "domain": "druva.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Dukaan",
+    "careersUrl": "https://mydukaan.io/careers",
+    "domain": "mydukaan.io",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Duolingo",
+    "careersUrl": "https://careers.duolingo.com",
+    "domain": "duolingo.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "DXC Technology",
+    "careersUrl": "https://careers.dxc.com",
+    "domain": "dxc.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "eBay",
+    "careersUrl": "https://careers.ebayinc.com/",
+    "domain": "ebayinc.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Elastic",
+    "careersUrl": "https://www.elastic.co/careers",
+    "domain": "elastic.co",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Electronic Arts",
+    "careersUrl": "https://www.ea.com/careers",
+    "domain": "ea.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Elevance Health",
+    "careersUrl": "https://careers.elevancehealth.com",
+    "domain": "elevancehealth.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ElevenLabs",
+    "careersUrl": "https://elevenlabs.io/careers",
+    "domain": "elevenlabs.io",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Emerson",
+    "careersUrl": "https://www.emerson.com/en/corporate/careers",
+    "domain": "emerson.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "EXL",
+    "careersUrl": "https://www.exlservice.com/careers",
+    "domain": "exlservice.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Exotel",
+    "careersUrl": "https://exotel.com/about-us/careers/",
+    "domain": "exotel.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Expedia Group",
+    "careersUrl": "https://careers.expediagroup.com",
+    "domain": "expediagroup.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Expensify",
+    "careersUrl": "https://we.are.expensify.com",
+    "domain": "expensify.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Exponent Energy",
+    "careersUrl": "https://www.exponent.energy/careers",
+    "domain": "exponent.energy",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "EY",
+    "careersUrl": "https://www.ey.com/en_in/careers",
+    "domain": "ey.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "F5",
+    "careersUrl": "https://www.f5.com/company/careers",
+    "domain": "f5.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "FabHotels",
+    "careersUrl": "https://www.fabhotels.com/careers",
+    "domain": "fabhotels.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "FarEye",
+    "careersUrl": "https://fareye.com/about/careers",
+    "domain": "fareye.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "FedEx",
+    "careersUrl": "https://careers.fedex.com",
+    "domain": "fedex.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Fi Money",
+    "careersUrl": "https://fi.money/careers",
+    "domain": "fi.money",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Fidelity Investments",
+    "careersUrl": "https://jobs.fidelity.com/en/",
+    "domain": "fidelity.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Figma",
+    "careersUrl": "https://www.figma.com/careers/",
+    "domain": "figma.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Figure AI",
+    "careersUrl": "https://www.figure.ai/careers",
+    "domain": "figure.ai",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Fireworks AI",
+    "careersUrl": "https://fireworks.ai/careers",
+    "domain": "fireworks.ai",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Firstsource",
+    "careersUrl": "https://www.firstsource.com/careers",
+    "domain": "firstsource.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "FIS",
+    "careersUrl": "https://careers.fisglobal.com/us/en",
+    "domain": "fisglobal.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Fiserv",
+    "careersUrl": "https://careers.fiserv.com/us/en",
+    "domain": "fiserv.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Flexport",
+    "careersUrl": "https://www.flexport.com/careers/",
+    "domain": "flexport.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Flipkart",
+    "careersUrl": "https://www.flipkartcareers.com",
+    "domain": "flipkartcareers.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Forvia",
+    "careersUrl": "https://www.forvia.com/en/careers",
+    "domain": "forvia.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Fractal Analytics",
+    "careersUrl": "https://fractal.ai/careers/",
+    "domain": "fractal.ai",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Frappe",
+    "careersUrl": "https://frappe.io/careers",
+    "domain": "frappe.io",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Freshworks",
+    "careersUrl": "https://www.freshworks.com/company/careers/",
+    "domain": "freshworks.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Fyers",
+    "careersUrl": "https://recruit.fyers.in/jobs/Careers",
+    "domain": "fyers.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Gameskraft",
+    "careersUrl": "https://gameskraft.com/careers/",
+    "domain": "gameskraft.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Gap Inc.",
+    "careersUrl": "https://www.gapinc.com/en-us/careers/gap-careers",
+    "domain": "gapinc.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Gartner",
+    "careersUrl": "https://jobs.gartner.com",
+    "domain": "gartner.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "GE Aerospace",
+    "careersUrl": "https://careers.geaerospace.com/global/en",
+    "domain": "geaerospace.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "GE HealthCare",
+    "careersUrl": "https://careers.gehealthcare.com/global/en",
+    "domain": "gehealthcare.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "GE Vernova",
+    "careersUrl": "https://careers.gevernova.com",
+    "domain": "gevernova.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Genpact",
+    "careersUrl": "https://www.genpact.com/careers",
+    "domain": "genpact.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "GitBook",
+    "careersUrl": "https://www.gitbook.com/careers",
+    "domain": "gitbook.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "GitHub",
+    "careersUrl": "https://www.github.careers/careers-home",
+    "domain": "github.careers",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "GitLab",
+    "careersUrl": "https://about.gitlab.com/jobs/",
+    "domain": "gitlab.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Glance",
+    "careersUrl": "https://glance.com/careers",
+    "domain": "glance.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Glean",
+    "careersUrl": "https://www.glean.com/careers",
+    "domain": "glean.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "GlobalLogic",
+    "careersUrl": "https://www.globallogic.com/careers/",
+    "domain": "globallogic.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Globant",
+    "careersUrl": "https://career.globant.com",
+    "domain": "globant.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "GoDaddy",
+    "careersUrl": "https://careers.godaddy.com",
+    "domain": "godaddy.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Godrej",
+    "careersUrl": "https://www.godrej.com/careers",
+    "domain": "godrej.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Grab",
+    "careersUrl": "https://www.grab.careers/en/",
+    "domain": "grab.careers",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Gramener",
+    "careersUrl": "https://gramener.com/careers/",
+    "domain": "gramener.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Grammarly",
+    "careersUrl": "https://www.grammarly.com/jobs",
+    "domain": "grammarly.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Graviton Research Capital",
+    "careersUrl": "https://www.gravitontrading.com/careers.html",
+    "domain": "gravitontrading.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Great Learning",
+    "careersUrl": "https://www.mygreatlearning.com/careers",
+    "domain": "mygreatlearning.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Groww",
+    "careersUrl": "https://groww.in/careers",
+    "domain": "groww.in",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "GSK",
+    "careersUrl": "https://www.gsk.com/en-gb/careers/",
+    "domain": "gsk.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Guidewire",
+    "careersUrl": "https://www.guidewire.com/about/careers",
+    "domain": "guidewire.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Gupshup",
+    "careersUrl": "https://www.gupshup.io/careers",
+    "domain": "gupshup.io",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "HackerEarth",
+    "careersUrl": "https://www.hackerearth.com/careers",
+    "domain": "hackerearth.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "HackerRank",
+    "careersUrl": "https://www.hackerrank.com/careers/home",
+    "domain": "hackerrank.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "HAL",
+    "careersUrl": "https://hal-india.co.in/career",
+    "domain": "hal-india.co.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Haptik",
+    "careersUrl": "https://www.haptik.ai/careers",
+    "domain": "haptik.ai",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Harvey",
+    "careersUrl": "https://www.harvey.ai/careers",
+    "domain": "harvey.ai",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Hasura",
+    "careersUrl": "https://hasura.io/careers/",
+    "domain": "hasura.io",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "HDFC Bank",
+    "careersUrl": "https://www.hdfcbank.com/personal/about-us/careers",
+    "domain": "hdfcbank.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "HDFC Securities",
+    "careersUrl": "https://www.hdfcsec.com/careers",
+    "domain": "hdfcsec.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Headout",
+    "careersUrl": "https://www.headout.com/careers/",
+    "domain": "headout.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Hero MotoCorp",
+    "careersUrl": "https://www.heromotocorp.com/en-in/company/careers/career-overview.html",
+    "domain": "heromotocorp.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Hewlett Packard Enterprise",
+    "careersUrl": "https://careers.hpe.com/us/en",
+    "domain": "hpe.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Hexaware",
+    "careersUrl": "https://jobs.hexaware.com/",
+    "domain": "hexaware.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "HiBob",
+    "careersUrl": "https://www.hibob.com/careers/",
+    "domain": "hibob.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Home Depot",
+    "careersUrl": "https://careers.homedepot.com",
+    "domain": "homedepot.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Honeywell",
+    "careersUrl": "https://careers.honeywell.com/en/sites/Honeywell",
+    "domain": "honeywell.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "HP",
+    "careersUrl": "https://jobs.hp.com",
+    "domain": "hp.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "HSBC",
+    "careersUrl": "https://www.hsbc.com/careers",
+    "domain": "hsbc.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "HubSpot",
+    "careersUrl": "https://www.hubspot.com/careers",
+    "domain": "hubspot.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Hugging Face",
+    "careersUrl": "https://apply.workable.com/huggingface/",
+    "domain": "workable.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "IBM",
+    "careersUrl": "https://www.ibm.com/careers",
+    "domain": "ibm.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Icertis",
+    "careersUrl": "https://www.icertis.com/company/careers/",
+    "domain": "icertis.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ideaForge",
+    "careersUrl": "https://ideaforgetech.com/careers",
+    "domain": "ideaforgetech.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "IDfy",
+    "careersUrl": "https://www.idfy.com/careers/",
+    "domain": "idfy.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "IKEA",
+    "careersUrl": "https://www.ikea.com/in/en/this-is-ikea/work-with-us/",
+    "domain": "ikea.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "IMC Trading",
+    "careersUrl": "https://www.imc.com/eu/careers",
+    "domain": "imc.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Increff",
+    "careersUrl": "https://www.increff.com/careers",
+    "domain": "increff.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Indegene",
+    "careersUrl": "https://www.indegene.com/careers",
+    "domain": "indegene.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "IndiaMART",
+    "careersUrl": "https://careers.indiamart.com/",
+    "domain": "indiamart.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "INDmoney",
+    "careersUrl": "https://www.indmoney.com/careers",
+    "domain": "indmoney.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Infineon",
+    "careersUrl": "https://www.infineon.com/careers",
+    "domain": "infineon.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Infor",
+    "careersUrl": "https://www.infor.com/about/careers",
+    "domain": "infor.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Infra.Market",
+    "careersUrl": "https://www.infra.market/careers",
+    "domain": "infra.market",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "InMobi",
+    "careersUrl": "https://www.inmobi.com/company/careers",
+    "domain": "inmobi.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Innovaccer",
+    "careersUrl": "https://innovaccer.com/careers",
+    "domain": "innovaccer.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Instacart",
+    "careersUrl": "https://www.instacart.careers/",
+    "domain": "instacart.careers",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Instamojo",
+    "careersUrl": "https://www.instamojo.com/careers/",
+    "domain": "instamojo.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Intel",
+    "careersUrl": "https://jobs.intel.com",
+    "domain": "intel.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Intellect Design Arena",
+    "careersUrl": "https://www.intellectdesign.com/careers/",
+    "domain": "intellectdesign.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Intercom",
+    "careersUrl": "https://www.intercom.com/careers",
+    "domain": "intercom.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Intuit",
+    "careersUrl": "https://www.intuit.com/careers/",
+    "domain": "intuit.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ISRO",
+    "careersUrl": "https://www.isro.gov.in/Careers.html",
+    "domain": "isro.gov.in",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ITC",
+    "careersUrl": "https://itcportal.com/careers.html",
+    "domain": "itcportal.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ixigo",
+    "careersUrl": "https://careers.ixigo.com/",
+    "domain": "ixigo.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Ixigo Abhibus",
+    "careersUrl": "https://www.abhibus.com/careers/",
+    "domain": "abhibus.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Jane Street",
+    "careersUrl": "https://www.janestreet.com/join-jane-street/overview/",
+    "domain": "janestreet.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Jasper",
+    "careersUrl": "https://www.jasper.ai/careers",
+    "domain": "jasper.ai",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "JetBrains",
+    "careersUrl": "https://www.jetbrains.com/careers/",
+    "domain": "jetbrains.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Jio",
+    "careersUrl": "https://careers.jio.com",
+    "domain": "jio.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "JioHotstar",
+    "careersUrl": "https://www.hotstar.com/careers",
+    "domain": "hotstar.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "John Deere",
+    "careersUrl": "https://jobs.deere.com",
+    "domain": "deere.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Johnson & Johnson",
+    "careersUrl": "https://www.careers.jnj.com/en/",
+    "domain": "jnj.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "JPMorgan Chase",
+    "careersUrl": "https://careers.jpmorgan.com",
+    "domain": "jpmorgan.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "JSW Group",
+    "careersUrl": "https://www.jsw.in/careers/",
+    "domain": "jsw.in",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Jumbotail",
+    "careersUrl": "https://jumbotail.com/careers",
+    "domain": "jumbotail.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Jupiter",
+    "careersUrl": "https://jupiter.money/careers/",
+    "domain": "jupiter.money",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Juspay",
+    "careersUrl": "https://juspay.io/careers",
+    "domain": "juspay.io",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Kissflow",
+    "careersUrl": "https://careers.kissflow.com/",
+    "domain": "kissflow.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Klarna",
+    "careersUrl": "https://www.klarna.com/international/careers/",
+    "domain": "klarna.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Kong",
+    "careersUrl": "https://konghq.com/company/careers",
+    "domain": "konghq.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "KPIT Technologies",
+    "careersUrl": "https://www.kpit.com/careers-overview/",
+    "domain": "kpit.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "KPMG",
+    "careersUrl": "https://kpmg.com/in/en/careers.html",
+    "domain": "kpmg.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "KreditBee",
+    "careersUrl": "https://www.kreditbee.in/careers",
+    "domain": "kreditbee.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Kroger",
+    "careersUrl": "https://www.krogerfamilycareers.com/en/sites/CX_2001",
+    "domain": "krogerfamilycareers.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "L&T Technology Services",
+    "careersUrl": "https://www.ltts.com/careers",
+    "domain": "ltts.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "L'Oreal",
+    "careersUrl": "https://careers.loreal.com/en",
+    "domain": "loreal.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Lambda",
+    "careersUrl": "https://lambda.ai/careers",
+    "domain": "lambda.ai",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "LambdaTest",
+    "careersUrl": "https://www.lambdatest.com/careers",
+    "domain": "lambdatest.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "LangChain",
+    "careersUrl": "https://www.langchain.com/careers",
+    "domain": "langchain.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Larsen & Toubro",
+    "careersUrl": "https://www.larsentoubro.com/corporate/careers",
+    "domain": "larsentoubro.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Lattice",
+    "careersUrl": "https://lattice.com/careers",
+    "domain": "lattice.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Lazada",
+    "careersUrl": "https://www.lazada.com/en/careers/",
+    "domain": "lazada.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "LeadSquared",
+    "careersUrl": "https://www.leadsquared.com/careers/",
+    "domain": "leadsquared.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Lendingkart",
+    "careersUrl": "https://www.lendingkart.com/careers",
+    "domain": "lendingkart.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Lenskart",
+    "careersUrl": "https://www.lenskart.com/careers-at-lenskart",
+    "domain": "lenskart.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Licious",
+    "careersUrl": "https://www.licious.in/careers",
+    "domain": "licious.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Linear",
+    "careersUrl": "https://linear.app/careers",
+    "domain": "linear.app",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "LinkedIn",
+    "careersUrl": "https://careers.linkedin.com",
+    "domain": "linkedin.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Locus",
+    "careersUrl": "https://locus.sh/careers/",
+    "domain": "locus.sh",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Lowe's",
+    "careersUrl": "https://talent.lowes.com/us/en",
+    "domain": "lowes.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "LSEG",
+    "careersUrl": "https://www.lseg.com/en/careers",
+    "domain": "lseg.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "LTIMindtree",
+    "careersUrl": "https://www.ltimindtree.com/careers/",
+    "domain": "ltimindtree.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Lucid Motors",
+    "careersUrl": "https://lucidmotors.com/careers",
+    "domain": "lucidmotors.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Lyft",
+    "careersUrl": "https://www.lyft.com/careers",
+    "domain": "lyft.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "M2P Fintech",
+    "careersUrl": "https://careers.m2pfintech.com",
+    "domain": "m2pfintech.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Maersk",
+    "careersUrl": "https://www.maersk.com/careers",
+    "domain": "maersk.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Magicpin",
+    "careersUrl": "https://magicpin.in/careers",
+    "domain": "magicpin.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Magna",
+    "careersUrl": "https://www.magna.com/careers",
+    "domain": "magna.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mahindra",
+    "careersUrl": "https://www.mahindra.com/career",
+    "domain": "mahindra.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Marico",
+    "careersUrl": "https://marico.com/india/careers/life-at-marico",
+    "domain": "marico.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Marks & Spencer",
+    "careersUrl": "https://jobs.marksandspencer.com",
+    "domain": "marksandspencer.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Maruti Suzuki",
+    "careersUrl": "https://www.marutisuzuki.com/corporate/careers",
+    "domain": "marutisuzuki.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mastek",
+    "careersUrl": "https://www.mastek.com/careers",
+    "domain": "mastek.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mastercard",
+    "careersUrl": "https://careers.mastercard.com/us/en/",
+    "domain": "mastercard.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "MediaTek",
+    "careersUrl": "https://careers.mediatek.com/en",
+    "domain": "mediatek.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Medidata",
+    "careersUrl": "https://www.medidata.com/en/about-us/medidata-careers/",
+    "domain": "medidata.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mercado Libre",
+    "careersUrl": "https://careers-meli.mercadolibre.com/en",
+    "domain": "mercadolibre.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mercari",
+    "careersUrl": "https://careers.mercari.com",
+    "domain": "mercari.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mercedes-Benz R&D India",
+    "careersUrl": "https://www.mbrdi.co.in/careers",
+    "domain": "mbrdi.co.in",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Meta",
+    "careersUrl": "https://www.metacareers.com",
+    "domain": "metacareers.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "MetLife",
+    "careersUrl": "https://www.metlifecareers.com/en_US/ml",
+    "domain": "metlifecareers.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Microsoft",
+    "careersUrl": "https://careers.microsoft.com/v2/global/en/home.html",
+    "domain": "microsoft.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mindtickle",
+    "careersUrl": "https://www.mindtickle.com/careers/",
+    "domain": "mindtickle.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Miro",
+    "careersUrl": "https://miro.com/careers/",
+    "domain": "miro.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mistral AI",
+    "careersUrl": "https://mistral.ai/careers/",
+    "domain": "mistral.ai",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mixpanel",
+    "careersUrl": "https://mixpanel.com/jobs/",
+    "domain": "mixpanel.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "MobiKwik",
+    "careersUrl": "https://www.mobikwik.com/careers",
+    "domain": "mobikwik.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Modal",
+    "careersUrl": "https://modal.com/careers",
+    "domain": "modal.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "MoEngage",
+    "careersUrl": "https://www.moengage.com/careers/",
+    "domain": "moengage.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "monday.com",
+    "careersUrl": "https://monday.com/careers",
+    "domain": "monday.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mondelez",
+    "careersUrl": "https://www.mondelezinternational.com/careers/",
+    "domain": "mondelezinternational.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "MoneyTap",
+    "careersUrl": "https://www.moneytap.com/careers",
+    "domain": "moneytap.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "MongoDB",
+    "careersUrl": "https://www.mongodb.com/company/careers",
+    "domain": "mongodb.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Monzo",
+    "careersUrl": "https://monzo.com/careers",
+    "domain": "monzo.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Moody's",
+    "careersUrl": "https://careers.moodys.com/en",
+    "domain": "moodys.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Motilal Oswal",
+    "careersUrl": "https://www.motilaloswal.com/careers",
+    "domain": "motilaloswal.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mozilla",
+    "careersUrl": "https://www.mozilla.org/en-US/careers/",
+    "domain": "mozilla.org",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mphasis",
+    "careersUrl": "https://careers.mphasis.com/home.html",
+    "domain": "mphasis.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "MSCI",
+    "careersUrl": "https://careers.msci.com",
+    "domain": "msci.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Mu Sigma",
+    "careersUrl": "https://www.mu-sigma.com/career/",
+    "domain": "mu-sigma.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Muthoot Finance",
+    "careersUrl": "https://www.muthootfinance.com/careers",
+    "domain": "muthootfinance.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Myntra",
+    "careersUrl": "https://careers.myntra.com",
+    "domain": "myntra.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "N26",
+    "careersUrl": "https://n26.com/en-eu/careers",
+    "domain": "n26.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Nagarro",
+    "careersUrl": "https://www.nagarro.com/en/careers",
+    "domain": "nagarro.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Navi",
+    "careersUrl": "https://navi.com/careers",
+    "domain": "navi.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Nazara Technologies",
+    "careersUrl": "https://www.nazara.com/careers",
+    "domain": "nazara.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Neo4j",
+    "careersUrl": "https://neo4j.com/careers/",
+    "domain": "neo4j.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "NetApp",
+    "careersUrl": "https://careers.netapp.com",
+    "domain": "netapp.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Netcore Cloud",
+    "careersUrl": "https://netcorecloud.com/careers/",
+    "domain": "netcorecloud.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Netflix",
+    "careersUrl": "https://jobs.netflix.com",
+    "domain": "netflix.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Netlify",
+    "careersUrl": "https://www.netlify.com/careers/",
+    "domain": "netlify.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "New Relic",
+    "careersUrl": "https://newrelic.com/careers",
+    "domain": "newrelic.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Newgen Software",
+    "careersUrl": "https://newgensoft.com/company/careers/",
+    "domain": "newgensoft.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Nike",
+    "careersUrl": "https://careers.nike.com/",
+    "domain": "nike.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Ninjacart",
+    "careersUrl": "https://ninjacart.com/careers/",
+    "domain": "ninjacart.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Niramai",
+    "careersUrl": "https://niramai.com/careers/",
+    "domain": "niramai.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "NoBroker",
+    "careersUrl": "https://www.nobroker.in/careers",
+    "domain": "nobroker.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Noise",
+    "careersUrl": "https://help.gonoise.com/pages/career",
+    "domain": "gonoise.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Nordstrom",
+    "careersUrl": "https://careers.nordstrom.com",
+    "domain": "nordstrom.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Northern Trust",
+    "careersUrl": "https://careers.northerntrust.com",
+    "domain": "northerntrust.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Notion",
+    "careersUrl": "https://www.notion.so/careers",
+    "domain": "notion.so",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Novartis",
+    "careersUrl": "https://www.novartis.com/careers",
+    "domain": "novartis.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "NTT DATA",
+    "careersUrl": "https://careers.nttdata.com/global/en",
+    "domain": "nttdata.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Nubank",
+    "careersUrl": "https://international.nubank.com.br/careers/",
+    "domain": "nubank.com.br",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Nucleus Software",
+    "careersUrl": "https://www.nucleussoftware.com/careers/",
+    "domain": "nucleussoftware.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Nutanix",
+    "careersUrl": "https://careers.nutanix.com/en/",
+    "domain": "nutanix.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "NVIDIA",
+    "careersUrl": "https://www.nvidia.com/en-us/about-nvidia/careers/",
+    "domain": "nvidia.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "NXP Semiconductors",
+    "careersUrl": "https://www.nxp.com/company/about-nxp/careers:CAREERS",
+    "domain": "nxp.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Nykaa",
+    "careersUrl": "https://careers.nykaa.com",
+    "domain": "nykaa.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Observe.AI",
+    "careersUrl": "https://www.observe.ai/careers",
+    "domain": "observe.ai",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Okta",
+    "careersUrl": "https://www.okta.com/company/careers/",
+    "domain": "okta.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Ola",
+    "careersUrl": "https://www.olacabs.com/careers",
+    "domain": "olacabs.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Open Financial",
+    "careersUrl": "https://open.money/company/careers",
+    "domain": "open.money",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Optiver",
+    "careersUrl": "https://www.optiver.com/join-us/jobs/",
+    "domain": "optiver.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Optum",
+    "careersUrl": "https://www.optum.com/en/careers.html",
+    "domain": "optum.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Oracle",
+    "careersUrl": "https://careers.oracle.com/en/sites/jobsearch",
+    "domain": "oracle.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Oyster",
+    "careersUrl": "https://www.oysterhr.com/careers",
+    "domain": "oysterhr.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Palantir",
+    "careersUrl": "https://www.palantir.com/careers/",
+    "domain": "palantir.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Palo Alto Networks",
+    "careersUrl": "https://jobs.paloaltonetworks.com/en",
+    "domain": "paloaltonetworks.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "PayPal",
+    "careersUrl": "https://careers.pypl.com/home/default.aspx",
+    "domain": "pypl.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Paytm",
+    "careersUrl": "https://paytm.com/careers/",
+    "domain": "paytm.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "PayU",
+    "careersUrl": "https://corporate.payu.com/careers/",
+    "domain": "payu.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Peloton",
+    "careersUrl": "https://careers.onepeloton.com/en/",
+    "domain": "onepeloton.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "PepsiCo",
+    "careersUrl": "https://www.pepsicojobs.com/main/",
+    "domain": "pepsicojobs.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Perfios",
+    "careersUrl": "https://www.perfios.com/careers",
+    "domain": "perfios.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "PharmEasy",
+    "careersUrl": "https://pharmeasy.in/careers/",
+    "domain": "pharmeasy.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Philips",
+    "careersUrl": "https://www.careers.philips.com/in/en",
+    "domain": "philips.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "PhonePe",
+    "careersUrl": "https://www.phonepe.com/careers/",
+    "domain": "phonepe.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Pidilite",
+    "careersUrl": "https://www.pidilite.com/careers/working-with-us",
+    "domain": "pidilite.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Pine Labs",
+    "careersUrl": "https://www.pinelabs.com/careers",
+    "domain": "pinelabs.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Pinecone",
+    "careersUrl": "https://www.pinecone.io/careers/",
+    "domain": "pinecone.io",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Pinterest",
+    "careersUrl": "https://www.pinterestcareers.com",
+    "domain": "pinterestcareers.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Pixxel",
+    "careersUrl": "https://www.pixxel.space/careers",
+    "domain": "pixxel.space",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Plaid",
+    "careersUrl": "https://plaid.com/careers/",
+    "domain": "plaid.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Plum",
+    "careersUrl": "https://www.plumhq.com/careers",
+    "domain": "plumhq.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Polycab",
+    "careersUrl": "https://polycab.com/life-at-polycab/people",
+    "domain": "polycab.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Polygon",
+    "careersUrl": "https://polygon.technology/careers",
+    "domain": "polygon.technology",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "PostHog",
+    "careersUrl": "https://posthog.com/careers",
+    "domain": "posthog.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Postman",
+    "careersUrl": "https://www.postman.com/company/careers/",
+    "domain": "postman.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Power Grid",
+    "careersUrl": "https://www.powergrid.in/en/job-opportunities",
+    "domain": "powergrid.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Practo",
+    "careersUrl": "https://www.practo.com/company/careers",
+    "domain": "practo.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Procter & Gamble",
+    "careersUrl": "https://www.pgcareers.com/in/en",
+    "domain": "pgcareers.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Publicis Sapient",
+    "careersUrl": "https://careers.publicissapient.com",
+    "domain": "publicissapient.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Pure Storage",
+    "careersUrl": "https://www.purestorage.com/company/careers.html",
+    "domain": "purestorage.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Purplle",
+    "careersUrl": "https://www.purplle.com/careers",
+    "domain": "purplle.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Quadeye",
+    "careersUrl": "https://www.quadeye.com/jobs",
+    "domain": "quadeye.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Qualtrics",
+    "careersUrl": "https://www.qualtrics.com/careers/us/en",
+    "domain": "qualtrics.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Quantiphi",
+    "careersUrl": "https://quantiphi.com/careers/",
+    "domain": "quantiphi.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Quest Global",
+    "careersUrl": "https://careers.quest-global.com/global/en",
+    "domain": "quest-global.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Ramco Systems",
+    "careersUrl": "https://www.ramco.com/careers",
+    "domain": "ramco.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Ramp",
+    "careersUrl": "https://ramp.com/careers",
+    "domain": "ramp.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Rapido",
+    "careersUrl": "https://www.rapido.bike/Careers",
+    "domain": "rapido.bike",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Raymond",
+    "careersUrl": "https://www.raymond.in/careers",
+    "domain": "raymond.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Razorpay",
+    "careersUrl": "https://razorpay.com/careers/",
+    "domain": "razorpay.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Red Hat",
+    "careersUrl": "https://www.redhat.com/en/jobs",
+    "domain": "redhat.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Reddit",
+    "careersUrl": "https://redditinc.com/careers",
+    "domain": "redditinc.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Redis",
+    "careersUrl": "https://redis.io/company/careers/",
+    "domain": "redis.io",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Reliance Industries",
+    "careersUrl": "https://careers.ril.com",
+    "domain": "ril.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Remote",
+    "careersUrl": "https://remote.com/careers",
+    "domain": "remote.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Rephrase.ai",
+    "careersUrl": "https://www.rephrase.ai/careers",
+    "domain": "rephrase.ai",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Replit",
+    "careersUrl": "https://replit.com/careers",
+    "domain": "replit.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Retool",
+    "careersUrl": "https://retool.com/careers",
+    "domain": "retool.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Riot Games",
+    "careersUrl": "https://www.riotgames.com/en/work-with-us",
+    "domain": "riotgames.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Rippling",
+    "careersUrl": "https://www.rippling.com/careers",
+    "domain": "rippling.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "River",
+    "careersUrl": "https://www.rideriver.com/careers",
+    "domain": "rideriver.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Rivian",
+    "careersUrl": "https://careers.rivian.com/careers-home/",
+    "domain": "rivian.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Robinhood",
+    "careersUrl": "https://careers.robinhood.com",
+    "domain": "robinhood.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Roche",
+    "careersUrl": "https://careers.roche.com/global/en",
+    "domain": "roche.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Rockwell Automation",
+    "careersUrl": "https://www.rockwellautomation.com/en-us/careers.html",
+    "domain": "rockwellautomation.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "RTX",
+    "careersUrl": "https://careers.rtx.com/global/en",
+    "domain": "rtx.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Runway",
+    "careersUrl": "https://runwayml.com/careers",
+    "domain": "runwayml.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "S&P Global",
+    "careersUrl": "https://careers.spglobal.com/jobs",
+    "domain": "spglobal.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sabre",
+    "careersUrl": "https://www.sabre.com/careers/",
+    "domain": "sabre.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sainsbury's",
+    "careersUrl": "https://www.sainsburys.jobs/",
+    "domain": "sainsburys.jobs",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Salesforce",
+    "careersUrl": "https://www.salesforce.com/company/careers/?bc=DB",
+    "domain": "salesforce.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "SambaNova",
+    "careersUrl": "https://sambanova.ai/company/careers",
+    "domain": "sambanova.ai",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Samsara",
+    "careersUrl": "https://www.samsara.com/company/careers",
+    "domain": "samsara.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Samsung",
+    "careersUrl": "https://www.samsung.com/in/about-us/careers/",
+    "domain": "samsung.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sanofi",
+    "careersUrl": "https://jobs.sanofi.com/en",
+    "domain": "sanofi.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "SAP",
+    "careersUrl": "https://jobs.sap.com/en/",
+    "domain": "sap.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sarvam AI",
+    "careersUrl": "https://www.sarvam.ai/careers",
+    "domain": "sarvam.ai",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sasken",
+    "careersUrl": "https://careers.sasken.com/tb/saskenjobs/",
+    "domain": "sasken.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Scale AI",
+    "careersUrl": "https://scale.com/careers",
+    "domain": "scale.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Scaler",
+    "careersUrl": "https://www.scaler.com/careers/",
+    "domain": "scaler.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sea Limited",
+    "careersUrl": "https://www.sea.com/careers",
+    "domain": "sea.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sentry",
+    "careersUrl": "https://sentry.io/careers/",
+    "domain": "sentry.io",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ServiceNow",
+    "careersUrl": "https://careers.servicenow.com",
+    "domain": "servicenow.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Setu",
+    "careersUrl": "https://setu.co/careers",
+    "domain": "setu.co",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Shadowfax",
+    "careersUrl": "https://www.shadowfax.in/careers",
+    "domain": "shadowfax.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ShareChat",
+    "careersUrl": "https://sharechat.com/careers",
+    "domain": "sharechat.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Shell",
+    "careersUrl": "https://www.shell.com/careers.html",
+    "domain": "shell.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Shield AI",
+    "careersUrl": "https://shield.ai/careers/",
+    "domain": "shield.ai",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Shopee",
+    "careersUrl": "https://careers.shopee.sg",
+    "domain": "shopee.sg",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Shopify",
+    "careersUrl": "https://www.shopify.com/careers",
+    "domain": "shopify.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Shriram Finance",
+    "careersUrl": "https://www.shriramfinance.in/careers",
+    "domain": "shriramfinance.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Siemens",
+    "careersUrl": "https://jobs.siemens.com/en_US/externaljobs",
+    "domain": "siemens.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Siemens Healthineers",
+    "careersUrl": "https://www.siemens-healthineers.com/careers",
+    "domain": "siemens-healthineers.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sigmoid",
+    "careersUrl": "https://www.sigmoid.com/careers/",
+    "domain": "sigmoid.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Signzy",
+    "careersUrl": "https://www.signzy.com/careers",
+    "domain": "signzy.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Simplilearn",
+    "careersUrl": "https://www.simplilearn.com/careers",
+    "domain": "simplilearn.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Skydio",
+    "careersUrl": "https://www.skydio.com/careers",
+    "domain": "skydio.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Skyroot Aerospace",
+    "careersUrl": "https://www.skyroot.in/careers",
+    "domain": "skyroot.in",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "slice",
+    "careersUrl": "https://slice.careers",
+    "domain": "slice.careers",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Snap",
+    "careersUrl": "https://careers.snap.com",
+    "domain": "snap.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Snowflake",
+    "careersUrl": "https://careers.snowflake.com/us/en",
+    "domain": "snowflake.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Snyk",
+    "careersUrl": "https://snyk.io/careers/",
+    "domain": "snyk.io",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Societe Generale",
+    "careersUrl": "https://careers.societegenerale.com",
+    "domain": "societegenerale.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sonata Software",
+    "careersUrl": "https://www.sonata-software.com/careers",
+    "domain": "sonata-software.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sopra Steria",
+    "careersUrl": "https://careers.soprasteria.in/",
+    "domain": "soprasteria.in",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sourcegraph",
+    "careersUrl": "https://sourcegraph.com/jobs",
+    "domain": "sourcegraph.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "SpaceX",
+    "careersUrl": "https://www.spacex.com/careers/",
+    "domain": "spacex.com",
+    "countryFocus": "global",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Spinny",
+    "careersUrl": "https://www.spinny.com/careers/",
+    "domain": "spinny.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Spotify",
+    "careersUrl": "https://www.lifeatspotify.com",
+    "domain": "lifeatspotify.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sprinklr",
+    "careersUrl": "https://www.sprinklr.com/careers/",
+    "domain": "sprinklr.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sprout Social",
+    "careersUrl": "https://sproutsocial.com/careers/",
+    "domain": "sproutsocial.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Squarespace",
+    "careersUrl": "https://www.squarespace.com/about/careers",
+    "domain": "squarespace.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Stability AI",
+    "careersUrl": "https://stability.ai/careers",
+    "domain": "stability.ai",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Standard Chartered",
+    "careersUrl": "https://www.sc.com/en/global-careers/experienced-hire/",
+    "domain": "sc.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "State Street",
+    "careersUrl": "https://careers.statestreet.com/global/en",
+    "domain": "statestreet.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Stripe",
+    "careersUrl": "https://stripe.com/in/careers",
+    "domain": "stripe.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Stryker",
+    "careersUrl": "https://careers.stryker.com",
+    "domain": "stryker.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sumo Logic",
+    "careersUrl": "https://www.sumologic.com/company/careers",
+    "domain": "sumologic.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sun Pharma",
+    "careersUrl": "https://sunpharma.com/careers/",
+    "domain": "sunpharma.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Supabase",
+    "careersUrl": "https://supabase.com/careers",
+    "domain": "supabase.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Supercell",
+    "careersUrl": "https://supercell.com/en/careers/",
+    "domain": "supercell.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Sutherland",
+    "careersUrl": "https://www.jobs.sutherlandglobal.com/",
+    "domain": "sutherlandglobal.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Swiggy",
+    "careersUrl": "https://careers.swiggy.com",
+    "domain": "swiggy.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Swiss Re",
+    "careersUrl": "https://www.swissre.com/careers.html",
+    "domain": "swissre.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Synechron",
+    "careersUrl": "https://www.synechron.com/careers",
+    "domain": "synechron.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Synopsys",
+    "careersUrl": "https://careers.synopsys.com",
+    "domain": "synopsys.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Synthesia",
+    "careersUrl": "https://www.synthesia.io/careers",
+    "domain": "synthesia.io",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tabby",
+    "careersUrl": "https://tabby.ai/en-AE/careers",
+    "domain": "tabby.ai",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Talabat",
+    "careersUrl": "https://careers.talabat.com",
+    "domain": "talabat.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tally Solutions",
+    "careersUrl": "https://tallysolutions.com/careers/",
+    "domain": "tallysolutions.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tanla Platforms",
+    "careersUrl": "https://www.tanla.com/careers",
+    "domain": "tanla.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Target",
+    "careersUrl": "https://corporate.target.com/careers",
+    "domain": "target.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tata 1mg",
+    "careersUrl": "https://www.1mg.com/jobs",
+    "domain": "1mg.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tata AIG",
+    "careersUrl": "https://careers.tataaig.com/",
+    "domain": "tataaig.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tata Capital",
+    "careersUrl": "https://www.tatacapital.com/careers.html",
+    "domain": "tatacapital.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tata CLiQ",
+    "careersUrl": "https://www.tatacliq.com/careers",
+    "domain": "tatacliq.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tata Elxsi",
+    "careersUrl": "https://www.tataelxsi.com/careers",
+    "domain": "tataelxsi.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tata Motors",
+    "careersUrl": "https://careers.tatamotors.com",
+    "domain": "tatamotors.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tata Projects",
+    "careersUrl": "https://tataprojects.com/careers",
+    "domain": "tataprojects.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tata Steel",
+    "careersUrl": "https://www.tatasteel.com/careers/",
+    "domain": "tatasteel.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tata Technologies",
+    "careersUrl": "https://www.tatatechnologies.com/in/careers/",
+    "domain": "tatatechnologies.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Teachmint",
+    "careersUrl": "https://www.teachmint.com/careers",
+    "domain": "teachmint.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tech Mahindra",
+    "careersUrl": "https://careers.techmahindra.com",
+    "domain": "techmahindra.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Teleperformance",
+    "careersUrl": "https://www.tp.com/en-us/careers/job-opportunities/",
+    "domain": "tp.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Temporal",
+    "careersUrl": "https://temporal.io/careers",
+    "domain": "temporal.io",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tesco",
+    "careersUrl": "https://www.tescobengaluru.com/careers/",
+    "domain": "tescobengaluru.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Testbook",
+    "careersUrl": "https://testbook.com/careers",
+    "domain": "testbook.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Texas Instruments",
+    "careersUrl": "https://careers.ti.com/en/sites/CX",
+    "domain": "ti.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Thales",
+    "careersUrl": "https://careers.thalesgroup.com/global/en",
+    "domain": "thalesgroup.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "The Coca-Cola Company",
+    "careersUrl": "https://careers.coca-colacompany.com",
+    "domain": "coca-colacompany.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Thermo Fisher Scientific",
+    "careersUrl": "https://jobs.thermofisher.com/global/en",
+    "domain": "thermofisher.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Thomson Reuters",
+    "careersUrl": "https://careers.thomsonreuters.com",
+    "domain": "thomsonreuters.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Thoughtworks",
+    "careersUrl": "https://www.thoughtworks.com/careers",
+    "domain": "thoughtworks.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Thrillophilia",
+    "careersUrl": "https://www.thrillophilia.com/careers",
+    "domain": "thrillophilia.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tiger Analytics",
+    "careersUrl": "https://www.tigeranalytics.com/about-us/current-openings/",
+    "domain": "tigeranalytics.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Times Internet",
+    "careersUrl": "https://timesinternet.in/careers",
+    "domain": "timesinternet.in",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Titan Company",
+    "careersUrl": "https://www.titancompany.in/careers",
+    "domain": "titancompany.in",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Together AI",
+    "careersUrl": "https://www.together.ai/careers",
+    "domain": "together.ai",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tonbo Imaging",
+    "careersUrl": "https://tonboimaging.com/defense/careers/",
+    "domain": "tonboimaging.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Toptal",
+    "careersUrl": "https://www.toptal.com/careers",
+    "domain": "toptal.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tower Research Capital",
+    "careersUrl": "https://tower-research.com/careers/",
+    "domain": "tower-research.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Traveloka",
+    "careersUrl": "https://careers.traveloka.com/",
+    "domain": "traveloka.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tredence",
+    "careersUrl": "https://www.tredence.com/careers/greatest-of-ai",
+    "domain": "tredence.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tricog",
+    "careersUrl": "https://tricog.com/careers/",
+    "domain": "tricog.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Turing",
+    "careersUrl": "https://www.turing.com/careers",
+    "domain": "turing.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Twitch",
+    "careersUrl": "https://www.twitch.tv/jobs/",
+    "domain": "twitch.tv",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Tyler Technologies",
+    "careersUrl": "https://www.tylertech.com/careers",
+    "domain": "tylertech.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Ubisoft",
+    "careersUrl": "https://www.ubisoft.com/en-us/company/careers",
+    "domain": "ubisoft.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "UBS",
+    "careersUrl": "https://www.ubs.com/global/en/careers.html",
+    "domain": "ubs.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Ultraviolette",
+    "careersUrl": "https://www.ultraviolette.com/careers",
+    "domain": "ultraviolette.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Unacademy",
+    "careersUrl": "https://unacademy.com/careers",
+    "domain": "unacademy.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Unilever",
+    "careersUrl": "https://careers.unilever.com/en",
+    "domain": "unilever.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Uniphore",
+    "careersUrl": "https://www.uniphore.com/careers/",
+    "domain": "uniphore.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "UnitedHealth Group",
+    "careersUrl": "https://careers.unitedhealthgroup.com/search-jobs",
+    "domain": "unitedhealthgroup.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Unity",
+    "careersUrl": "https://unity.com/careers",
+    "domain": "unity.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "upGrad",
+    "careersUrl": "https://www.upgrad.com/careers/",
+    "domain": "upgrad.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "UPS",
+    "careersUrl": "https://www.jobs-ups.com/imea/en",
+    "domain": "jobs-ups.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Upstox",
+    "careersUrl": "https://upstox.com/careers/",
+    "domain": "upstox.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Urban Company",
+    "careersUrl": "https://careers.urbancompany.com",
+    "domain": "urbancompany.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "UST",
+    "careersUrl": "https://www.ust.com/en/careers",
+    "domain": "ust.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Valeo",
+    "careersUrl": "https://www.valeo.com/en/careers/",
+    "domain": "valeo.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Vedantu",
+    "careersUrl": "https://courses.vedantu.com/career-page/",
+    "domain": "vedantu.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Veeam",
+    "careersUrl": "https://careers.veeam.com",
+    "domain": "veeam.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Veeva Systems",
+    "careersUrl": "https://careers.veeva.com",
+    "domain": "veeva.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Vercel",
+    "careersUrl": "https://vercel.com/careers",
+    "domain": "vercel.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Virtusa",
+    "careersUrl": "https://www.virtusa.com/careers",
+    "domain": "virtusa.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Visa",
+    "careersUrl": "https://corporate.visa.com/en/jobs/",
+    "domain": "visa.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Volvo Group",
+    "careersUrl": "https://www.volvogroup.com/en/careers.html",
+    "domain": "volvogroup.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Walgreens",
+    "careersUrl": "https://jobs.walgreens.com/en",
+    "domain": "walgreens.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Walmart Global Tech",
+    "careersUrl": "https://careers.walmart.com/us/en/home",
+    "domain": "walmart.com",
+    "countryFocus": "india_office",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Wayfair",
+    "careersUrl": "https://www.aboutwayfair.com/careers",
+    "domain": "aboutwayfair.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Weaviate",
+    "careersUrl": "https://weaviate.io/company/careers",
+    "domain": "weaviate.io",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Webflow",
+    "careersUrl": "https://webflow.com/company/careers",
+    "domain": "webflow.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Weights & Biases",
+    "careersUrl": "https://wandb.ai/site/careers/",
+    "domain": "wandb.ai",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Wells Fargo",
+    "careersUrl": "https://www.wellsfargojobs.com",
+    "domain": "wellsfargojobs.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Western Digital",
+    "careersUrl": "https://www.westerndigital.com/careers",
+    "domain": "westerndigital.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Whatfix",
+    "careersUrl": "https://whatfix.com/careers/",
+    "domain": "whatfix.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Wikimedia Foundation",
+    "careersUrl": "https://wikimediafoundation.org/jobs/",
+    "domain": "wikimediafoundation.org",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Wingify",
+    "careersUrl": "https://wingify.com/company/careers/",
+    "domain": "wingify.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Wipro",
+    "careersUrl": "https://careers.wipro.com",
+    "domain": "wipro.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Wise",
+    "careersUrl": "https://wise.jobs",
+    "domain": "wise.jobs",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Wix",
+    "careersUrl": "https://careers.wix.com",
+    "domain": "wix.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "WNS",
+    "careersUrl": "https://www.wns.com/about-us/careers",
+    "domain": "wns.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Workday",
+    "careersUrl": "https://www.workday.com/en-us/company/careers/overview.html",
+    "domain": "workday.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Writer",
+    "careersUrl": "https://writer.com/company/careers/",
+    "domain": "writer.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "X",
+    "careersUrl": "https://careers.x.com",
+    "domain": "x.com",
+    "countryFocus": "global",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "xAI",
+    "careersUrl": "https://x.ai/careers",
+    "domain": "x.ai",
+    "countryFocus": "global",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Xero",
+    "careersUrl": "https://careers.xero.com",
+    "domain": "xero.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Xpressbees",
+    "careersUrl": "https://www.xpressbees.com/careers",
+    "domain": "xpressbees.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Yahoo",
+    "careersUrl": "https://www.yahooinc.com/careers/",
+    "domain": "yahooinc.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Yulu",
+    "careersUrl": "https://www.yulu.bike/careers",
+    "domain": "yulu.bike",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zalando",
+    "careersUrl": "https://jobs.zalando.com/en",
+    "domain": "zalando.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zapier",
+    "careersUrl": "https://zapier.com/jobs",
+    "domain": "zapier.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zendesk",
+    "careersUrl": "https://www.zendesk.com/company/careers/",
+    "domain": "zendesk.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zenoti",
+    "careersUrl": "https://www.zenoti.com/company/careers",
+    "domain": "zenoti.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zensar Technologies",
+    "careersUrl": "https://www.zensar.com/careers",
+    "domain": "zensar.com",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zerodha",
+    "careersUrl": "https://careers.zerodha.com",
+    "domain": "zerodha.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zeta",
+    "careersUrl": "https://www.zeta.tech/in/careers",
+    "domain": "zeta.tech",
+    "countryFocus": "india",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ZF Group",
+    "careersUrl": "https://jobs.zf.com",
+    "domain": "zf.com",
+    "countryFocus": "india_office",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zluri",
+    "careersUrl": "https://www.zluri.com/careers",
+    "domain": "zluri.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zoho",
+    "careersUrl": "https://www.zoho.com/careers/",
+    "domain": "zoho.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zomato",
+    "careersUrl": "https://www.eternal.com/careers/",
+    "domain": "eternal.com",
+    "countryFocus": "india",
+    "tier": 1,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zoom",
+    "careersUrl": "https://www.careers.zoom.us/",
+    "domain": "zoom.us",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zoomcar",
+    "careersUrl": "https://www.zoomcar.com/careers",
+    "domain": "zoomcar.com",
+    "countryFocus": "india",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zoox",
+    "careersUrl": "https://zoox.com/careers",
+    "domain": "zoox.com",
+    "countryFocus": "global",
+    "tier": 3,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "ZS Associates",
+    "careersUrl": "https://www.zs.com/careers",
+    "domain": "zs.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  },
+  {
+    "name": "Zscaler",
+    "careersUrl": "https://www.zscaler.com/careers",
+    "domain": "zscaler.com",
+    "countryFocus": "india_office",
+    "tier": 2,
+    "verifiedAt": "2026-10-21T06:03:08Z"
+  }
+]
