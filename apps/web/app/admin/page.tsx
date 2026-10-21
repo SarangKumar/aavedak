@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { PendingRegistrations } from "@/components/pending-registrations";
 import { RecentResumesTable } from "@/components/recent-resumes-table";
+import { AdminCareersPagesPanel } from "@/components/admin-careers-pages-panel";
 import { AdminDiscoveryPanel } from "@/components/admin-discovery-panel";
 import { AdminJobsPanel } from "@/components/admin-jobs-panel";
 import { ShellWidth } from "@/components/shell-width";
@@ -134,6 +135,8 @@ export default async function AdminPage() {
       <AdminJobsPanel />
 
       <AdminDiscoveryPanel />
+
+      <AdminCareersPagesPanel />
 
       <CollapsibleSection
         title="Person email suggest-corrections"

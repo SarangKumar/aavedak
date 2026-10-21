@@ -3,11 +3,13 @@ import type { Metadata } from "next";
 
 import { FEATURES } from "@/lib/features";
 import { BrandMark } from "@/components/brand-mark";
+import { HomeCareerSources } from "@/components/home-career-sources";
 import { HomeFaq } from "@/components/home-faq";
 import { HomeFlow } from "@/components/home-flow";
 import { HomeOpeningsSection } from "@/components/home-openings-section";
 import { HomePromises } from "@/components/home-promises";
 import { getOptionalAccess } from "@/lib/app-access";
+import { getCareersShowcase } from "@/lib/careers-showcase";
 import { getJobMapSummary } from "@/lib/job-map/query";
 import { hasFullyOnboarded } from "@/lib/onboarding";
 
@@ -38,7 +40,11 @@ const features = (
 ).map(([key, tag]) => ({ ...FEATURES[key], tag }));
 
 export default async function HomePage() {
-  const [access, jobMap] = await Promise.all([getOptionalAccess(), getJobMapSummary()]);
+  const [access, jobMap, careers] = await Promise.all([
+    getOptionalAccess(),
+    getJobMapSummary(),
+    getCareersShowcase(),
+  ]);
   let primaryHref = "/sign-in";
   let primaryLabel = "Get started";
   if (access) {
@@ -185,6 +191,8 @@ export default async function HomePage() {
         </section>
 
         {jobMap && jobMap.totalOpenings > 0 ? <HomeOpeningsSection summary={jobMap} /> : null}
+
+        {careers && careers.companies.length > 0 ? <HomeCareerSources showcase={careers} /> : null}
 
         <HomePromises />
 
