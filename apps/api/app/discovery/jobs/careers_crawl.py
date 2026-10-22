@@ -47,7 +47,10 @@ from app.discovery.timeutil import to_iso, utcnow
 CRAWLER_UA = "Mozilla/5.0 (compatible; AavedakJobsBot/1.0; +https://aavedak.vercel.app/how-it-works)"
 ROBOTS_AGENT = "AavedakJobsBot"
 
-ATS_STRATEGIES = ("greenhouse", "lever", "ashby", "smartrecruiters", "workable", "workday")
+ATS_STRATEGIES = (
+    "greenhouse", "lever", "ashby", "smartrecruiters", "workable", "workday",
+    "rippling", "breezy", "personio", "teamtailor",
+)
 STRATEGIES = ATS_STRATEGIES + ("jsonld", "embedded_json", "jsonld_links", "jsonld_sitemap")
 STATUSES = ("ok", "no_job_data", "blocked", "error")
 
@@ -59,6 +62,10 @@ STRATEGY_LABELS = {
     "smartrecruiters": "SmartRecruiters",
     "workable": "Workable",
     "workday": "Workday",
+    "rippling": "Rippling",
+    "breezy": "Breezy HR",
+    "personio": "Personio",
+    "teamtailor": "Teamtailor",
     "jsonld": "schema.org JobPosting",
     "embedded_json": "Page data",
     "jsonld_links": "Job pages (JobPosting)",
@@ -74,6 +81,9 @@ class CareerPage:
     company_name: str
     careers_url: str
     domain: str
+    # Postings the last successful crawl found; the outage guard (jobs/health.py) compares a
+    # new complete read against it before letting it close jobs.
+    last_posting_count: int | None = None
 
 
 @dataclass(frozen=True)
@@ -137,7 +147,15 @@ _EMBED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
             re.I,
         ),
     ),
+    ("rippling", re.compile(r"api\.rippling\.com/platform/api/ats/v1/board/" + _TOKEN, re.I)),
+    ("rippling", re.compile(r"ats\.rippling\.com/(?:api/v\d/board/)?(?!api\b)" + _TOKEN, re.I)),
+    ("breezy", re.compile(r"\b([a-z0-9][a-z0-9-]{1,60})\.breezy\.hr", re.I)),
+    ("personio", re.compile(r"\b([a-z0-9][a-z0-9-]{1,60})\.jobs\.personio\.(?:de|com)", re.I)),
 )
+
+# Teamtailor serves the careers site from the company's own domain, so its token is that
+# host, not a slug in the markup — detected from the platform's asset/script references.
+_TEAMTAILOR_RE = re.compile(r"teamtailor(?:-cdn)?\.com|tt-assets|data-tt-|teamtailor\.js", re.I)
 # Path segments that are never a board name.
 _NOT_TOKENS = {
     "embed", "api", "js", "v0", "v1", "jobs", "job", "static", "assets", "css", "images", "img",
@@ -165,6 +183,9 @@ def detect_embeds(html: str, page_url: str = "") -> list[Embed]:
                 if provider != "smartrecruiters":
                     token = token.lower()
             counts[Embed(provider, token)] += 1
+    host = host_of(page_url)
+    if host and _TEAMTAILOR_RE.search(html):
+        counts[Embed("teamtailor", host)] += 1
     return [embed for embed, _ in counts.most_common()]
 
 

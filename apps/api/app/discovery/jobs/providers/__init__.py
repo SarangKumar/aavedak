@@ -8,13 +8,18 @@ from urllib.parse import urlparse
 
 from app.discovery.jobs.providers.ashby import AshbyProvider
 from app.discovery.jobs.providers.base import Provider, ProviderError
+from app.discovery.jobs.providers.breezy import BreezyProvider
 from app.discovery.jobs.providers.greenhouse import GreenhouseProvider
 from app.discovery.jobs.providers.json_feed import JsonFeedProvider
 from app.discovery.jobs.providers.jsonld import JsonLdProvider, UnsupportedPage
 from app.discovery.jobs.providers.lever import LeverProvider
+from app.discovery.jobs.providers.personio import PersonioProvider
+from app.discovery.jobs.providers.rippling import RipplingProvider
 from app.discovery.jobs.providers.smartrecruiters import SmartRecruitersProvider
+from app.discovery.jobs.providers.teamtailor import TeamtailorProvider
 from app.discovery.jobs.providers.workable import WorkableProvider
 from app.discovery.jobs.providers.workday import WorkdayProvider
+from app.discovery.jobs.providers.workable_index import WorkableIndexProvider
 
 PROVIDERS: dict[str, Provider] = {
     p.key: p
@@ -24,10 +29,15 @@ PROVIDERS: dict[str, Provider] = {
         AshbyProvider(),
         WorkableProvider(),
         SmartRecruitersProvider(),
+        RipplingProvider(),
+        BreezyProvider(),
+        PersonioProvider(),
+        TeamtailorProvider(),
+        WorkdayProvider(),
         JsonLdProvider(),
         JsonFeedProvider(),
-        # Only reached through a company's own careers page (careers_crawl.py).
-        WorkdayProvider(),
+        # Not one company's board: Workable's public cross-company index.
+        WorkableIndexProvider(),
     )
 }
 
@@ -37,9 +47,17 @@ BOARD_URLS = {
     "ashby": "https://jobs.ashbyhq.com/{}",
     "workable": "https://apply.workable.com/{}",
     "smartrecruiters": "https://careers.smartrecruiters.com/{}",
+    "rippling": "https://ats.rippling.com/{}",
+    "breezy": "https://{}.breezy.hr/",
+    "personio": "https://{}.jobs.personio.de/",
+    # A Teamtailor token is the careers host itself, not a slug.
+    "teamtailor": "https://{}/jobs",
+    "workday": "https://{}",
 }
 
 _SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+_WORKDAY_HOST = re.compile(r"^([a-z0-9-]+)\.(wd\d{1,2})\.myworkdayjobs\.com$")
+_LOCALE = re.compile(r"^[a-z]{2}-[A-Z]{2}$")
 
 
 @dataclass(frozen=True)
@@ -93,6 +111,24 @@ def detect_source(url: str) -> DetectedSource:
         return board("workable", host.split(".")[0])
     if host in ("careers.smartrecruiters.com", "jobs.smartrecruiters.com"):
         return board("smartrecruiters", first)
+    if host == "ats.rippling.com" and first not in ("", "api"):
+        return board("rippling", first)
+    if host.endswith(".breezy.hr") and host.count(".") == 2:
+        return board("breezy", host.split(".")[0])
+    if host.endswith((".jobs.personio.de", ".jobs.personio.com")) and host.count(".") == 3:
+        return board("personio", host.split(".")[0])
+    # Workday career sites: tenant.wdN.myworkdayjobs.com/[locale/]site → token "tenant.wdN/site".
+    workday = _WORKDAY_HOST.match(host)
+    if workday:
+        site = next((s for s in segments if not _LOCALE.match(s) and s not in ("wday", "cxs", "en")), None)
+        if site:
+            return DetectedSource(
+                "workday",
+                f"{workday.group(1)}.{workday.group(2)}/{site}",
+                f"https://{host}/{site}",
+            )
+    if host.endswith(".teamtailor.com") and host.count(".") == 2:
+        return DetectedSource("teamtailor", host, f"https://{host}/jobs")
     clean = parsed._replace(fragment="").geturl()
     return DetectedSource("jsonld", clean, clean)
 

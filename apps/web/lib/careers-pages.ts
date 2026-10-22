@@ -10,6 +10,10 @@ export type CareersStrategy =
   | "smartrecruiters"
   | "workable"
   | "workday"
+  | "rippling"
+  | "breezy"
+  | "personio"
+  | "teamtailor"
   | "jsonld"
   | "embedded_json"
   | "jsonld_links"
@@ -22,6 +26,10 @@ export const STRATEGY_LABELS: Record<CareersStrategy, string> = {
   smartrecruiters: "SmartRecruiters",
   workable: "Workable",
   workday: "Workday",
+  rippling: "Rippling",
+  breezy: "Breezy HR",
+  personio: "Personio",
+  teamtailor: "Teamtailor",
   jsonld: "schema.org JobPosting",
   embedded_json: "Page data",
   jsonld_links: "Job pages (JobPosting)",
@@ -36,6 +44,10 @@ export const PLATFORM_STRATEGIES: readonly CareersStrategy[] = [
   "smartrecruiters",
   "workable",
   "workday",
+  "rippling",
+  "breezy",
+  "personio",
+  "teamtailor",
 ];
 
 export function strategyLabel(strategy: string | null | undefined): string {

@@ -8,6 +8,7 @@ from app.discovery.jobs.salary import SalaryInfo
 
 PROVIDERS = (
     "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "jsonld", "json_feed", "workday",
+    "rippling", "breezy", "personio", "teamtailor", "workable_index",
 )
 
 
@@ -26,6 +27,9 @@ class SourceTarget:
     official_careers_url: str | None = None
     official_status: str | None = None
     official_checked_at: str | None = None
+    # Postings the last scan of this source returned; the outage guard (jobs/health.py)
+    # compares a new "complete" fetch against it before letting it close jobs.
+    last_posting_count: int | None = None
 
 
 @dataclass
@@ -88,3 +92,6 @@ class FetchResult:
     # Where the board's postings actually live when that is the company's own site (e.g.
     # Greenhouse `absolute_url` on careers.airbnb.com): a hint for the official careers page.
     official_url_hint: str | None = None
+    # (company name, website) pairs a cross-company index reported: candidates for
+    # jobs/company_discovery.py. Per-company boards leave this empty.
+    company_hints: list[tuple[str, str | None]] = field(default_factory=list)
