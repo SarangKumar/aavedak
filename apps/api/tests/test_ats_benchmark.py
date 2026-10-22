@@ -90,12 +90,38 @@ def test_resume_only_mode_not_job_match():
 
 
 def test_improvements_never_ask_to_invent():
+    """No recommendation may ask for keywords, and a skill gap must stay conditional.
+
+    Structural advice ("keep 3–6 bullets per role") is not a skill gap and carries no such caveat,
+    so the caveat is asserted on the recommendations that name a missing skill — they are tagged
+    `kind == "skill_gap"` by `analyze_resume`.
+    """
     r = _score(ORDERING_CASES[6][1])  # unrelated
     assert r["improvements"], "expected gap recommendations"
+    gaps = [i for i in r["improvements"] if i.get("kind") == "skill_gap"]
+    assert gaps, "expected at least one skill-gap recommendation for an unrelated resume"
     for imp in r["improvements"]:
+        assert "add keywords" not in imp["text"].lower()
+    for imp in gaps:
         low = imp["text"].lower()
-        assert "add keywords" not in low
         assert "invent" in low or "genuine" in low or "if you have" in low
+
+
+def test_recommendations_say_what_to_do():
+    """A benchmark-criterion recommendation is an action; the measurement stays in `reason`."""
+    r = analyze_resume("Experience\nWorked on things.\n" * 3)
+    crit = [i for i in r["improvements"] if i.get("kind") == "criterion"]
+    assert crit, "expected benchmark-criterion recommendations for a weak resume"
+    for imp in crit:
+        assert not imp["text"].startswith(("ATS parseability:", "Quantified impact:"))
+        assert "scored" in imp["reason"] and "/100" in imp["reason"]
+
+
+def test_one_recommendation_per_topic():
+    """The legacy quality pass and the criterion never both report the same topic."""
+    r = analyze_resume("Experience\nAssisted with tasks and helped the team with various work.\n" * 4)
+    keys = [i.get("key") for i in r["improvements"] if i.get("key")]
+    assert len(keys) == len(set(keys))
 
 
 if __name__ == "__main__":

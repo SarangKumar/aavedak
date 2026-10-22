@@ -490,6 +490,31 @@ def _without_education(text: str) -> str:
     return "\n".join(out)
 
 
+#: Public alias — the experience half of a resume (degree dates aren't employment dates).
+without_education = _without_education
+
+
+def education_block(text: str) -> str:
+    """The Education / Certifications block(s) only — the inverse of `without_education`.
+
+    Empty when the resume has no detectable education heading, which is itself a finding for the
+    ATS platform profiles (their education fields then have nothing to parse).
+    """
+    out: list[str] = []
+    in_edu = False
+    for line in (text or "").splitlines():
+        if _HEADING_LINE.match(line) and len(line.split()) <= 3:
+            if _EDU_HEAD.search(line):
+                in_edu = True
+                out.append(line)
+                continue
+            if _SECTION_WORDS.search(line):
+                in_edu = False
+        if in_edu:
+            out.append(line)
+    return "\n".join(out)
+
+
 def extract_quality_signals(text: str) -> QualitySignals:
     lines = [l for l in (text or "").split("\n") if l.strip()]
     bullets = [m.group(1) for l in lines if (m := _BULLET_MARKER.match(l))]

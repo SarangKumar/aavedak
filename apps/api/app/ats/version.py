@@ -1,3 +1,3 @@
 """Scoring engine version — bump when formulas or evidence rules change."""
 
-ENGINE_VERSION = "3.0"
+ENGINE_VERSION = "3.1"

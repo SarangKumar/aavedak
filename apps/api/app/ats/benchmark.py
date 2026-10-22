@@ -16,6 +16,7 @@ from app.ats.reference_signals import (
     detect_degree_level,
     extract_quality_signals,
     extract_reference_signals,
+    without_education,
 )
 from app.ats.seniority import level_band, seniority_fit
 
@@ -46,13 +47,49 @@ COMMON_TYPOS = (
     "successfull", "acheive", "experiance", "untill", "becuase", "thier", "maintainance", "relevent",
     "responsibilties", "sucessful", "techincal", "knowlege", "neccessary", "oppurtunity",
 )
-_ACTION_RE = re.compile(
-    r"^(?:built|developed|designed|implemented|led|owned|created|optimized|improved|reduced|increased|"
-    r"launched|shipped|architected|migrated|automated|delivered|drove|scaled|cut|grew|mentored|"
-    r"established|engineered|streamlined|resolved|negotiated|analyzed|deployed|refactored|introduced|"
-    r"spearheaded|achieved|accelerated|saved|won|trained|coordinated|managed|published|authored)\b",
-    re.I,
+# Strong-verb lexicon (engine 3.1). Base forms; `_verb_forms` adds the tenses a resume actually
+# uses. Until 3.0 this was 44 hard-coded past-tense words, so a current role written in the present
+# tense ("Design and ship …") and ordinary engineering verbs ("Integrated", "Tuned", "Wrote")
+# counted as no action verb at all and good resumes lost points. The list is the union of the verb
+# sets the engines we benchmark use — Open ATS's 62-verb list, ATS Resume Checker's strong verbs and
+# Resume Worded's published guidance — plus the delivery verbs common in Indian tech resumes.
+STRONG_VERB_BASES = (
+    "accelerate", "achieve", "analyze", "architect", "author", "automate", "benchmark", "build",
+    "coach", "collaborate", "consolidate", "containerize", "coordinate", "craft", "create", "cut",
+    "debug", "decrease", "define", "deliver", "deploy", "design", "develop", "devise", "document",
+    "drive", "eliminate", "engineer", "enhance", "establish", "execute", "expand", "generate",
+    "grow", "guide", "implement", "improve", "increase", "influence", "initiate", "innovate",
+    "instrument", "integrate", "introduce", "invent", "launch", "lead", "manage", "measure",
+    "mentor", "migrate", "modernize", "monitor", "negotiate", "onboard", "optimize", "orchestrate",
+    "overhaul", "own", "partner", "pioneer", "present", "prevent", "produce", "prototype",
+    "publish", "rearchitect", "rebuild", "redesign", "reduce", "refactor", "resolve", "restructure",
+    "revamp", "save", "scale", "secure", "ship", "simplify", "spearhead", "standardize",
+    "streamline", "strengthen", "train", "transform", "troubleshoot", "tune", "unify", "upgrade",
+    "validate", "win", "write",
 )
+# Past tense / past participle where the regular rules below don't produce it.
+_IRREGULAR_PAST = {
+    "build": ("built",), "rebuild": ("rebuilt",), "lead": ("led",), "drive": ("drove", "driven"),
+    "grow": ("grew", "grown"), "cut": ("cut", "cutting"), "win": ("won",), "write": ("wrote", "written"),
+    "ship": ("shipped", "shipping"), "run": ("ran",),
+}
+
+
+def _verb_forms(base: str) -> set[str]:
+    """Surface forms of one base verb: present, third person, past and gerund."""
+    forms = {base, base + "s"}
+    if base.endswith("e"):
+        forms |= {base + "d", base[:-1] + "ing"}
+    elif base.endswith("y"):
+        forms |= {base[:-1] + "ied", base + "ing"}
+    else:
+        forms |= {base + "ed", base + "ing"}
+    forms |= set(_IRREGULAR_PAST.get(base, ()))
+    return forms
+
+
+STRONG_VERB_FORMS = frozenset(f for base in STRONG_VERB_BASES for f in _verb_forms(base))
+_ACTION_RE = re.compile(rf"^(?:{'|'.join(sorted(STRONG_VERB_FORMS, key=len, reverse=True))})\b", re.I)
 _METRIC_RE = re.compile(
     r"\d+(?:\.\d+)?\s*%|[$₹€£]\s?\d|\b\d+(?:\.\d+)?\s*(?:k|m|b|x|ms|s|hrs?|hours|days|weeks|users|"
     r"customers|requests|people|engineers|members|services)\b|\b\d{2,}\b",
@@ -74,6 +111,9 @@ class Criterion:
     weight: float
     detail: str
     sources: str
+    #: What to change in the resume. `detail` says what was measured; `fix` says what to do about it,
+    #: so a recommendation never reads back as a diagnosis.
+    fix: str = ""
 
 
 def _c(n: float) -> int:
@@ -115,33 +155,41 @@ def quality_criteria(
     lower = text.lower()
     out: list[Criterion] = []
 
-    def add(key: str, label: str, score: float, detail: str, sources: str) -> None:
-        out.append(Criterion(key, label, _c(score), QUALITY_WEIGHTS[key], detail, sources))
+    def add(key: str, label: str, score: float, detail: str, sources: str, fix: str = "") -> None:
+        out.append(Criterion(key, label, _c(score), QUALITY_WEIGHTS[key], detail, sources, fix))
 
     add("parseability", "ATS parseability", parse_score,
         "Readable text, standard headings, no table/column/icon artefacts.",
-        "Jobscan formatting, Enhancv parse rate, Open ATS formatting")
+        "Jobscan formatting, Enhancv parse rate, Open ATS formatting",
+        "Export a single-column, text-based PDF: plain headings, no tables or sidebars, and name, "
+        "email, phone and links as selectable text rather than icons or graphics.")
 
     core = [x for x in ("experience", "education", "skills") if x in s.sections]
     contact = int(s.has_email) + int(s.has_phone)
     add("sectionsContact", "Sections & contact",
         len(core) / 3 * 70 + contact / 2 * 30,
         f"{len(core)}/3 core sections · email {'✓' if s.has_email else '✗'} · phone {'✓' if s.has_phone else '✗'}.",
-        "Jobscan sections, Rezi/RW contact, ATS Resume Checker structure")
+        "Jobscan sections, Rezi/RW contact, ATS Resume Checker structure",
+        "Use the words Experience, Education and Skills as headings on their own lines, and put a "
+        "plain email address and phone number in the header.")
 
     metric = sum(1 for b in bullets if _METRIC_RE.search(b))
     time_based = sum(1 for b in bullets if re.search(r"\b(?:in|within|over)\s+\d+\s*(?:days?|weeks?|months?|quarters?|years?)\b", b, re.I))
     quant = 0.85 * _ratio_score(metric / n_b, 1 / 3) + 15 * min(1, time_based)
     add("quantifiedImpact", "Quantified impact", quant,
         f"{metric}/{len(bullets)} bullets carry a number (target ≥ ⅓); {time_based} time-bound.",
-        "Resume Worded impact, Rezi achievements, Enhancv quantifying impact, Teal metrics")
+        "Resume Worded impact, Rezi achievements, Enhancv quantifying impact, Teal metrics",
+        "Put a real number in at least one bullet in three — latency, throughput, users, revenue, "
+        "cost or time saved — and make one of them time-bound (“cut build time 40% in six weeks”).")
 
     action = sum(1 for b in bullets if _ACTION_RE.match(b))
     weak = sum(1 for b in bullets if b.split() and b.split()[0].lower().strip(",.") in WEAK_OPENERS)
     add("actionVerbs", "Action verbs",
         _ratio_score(action / n_b, 0.6) - min(30, weak * 10),
         f"{action} bullets lead with a strong verb; {weak} weak openers (Assisted, Helped…).",
-        "Resume Worded weak verbs, Open ATS action %, ATS Resume Checker achievements")
+        "Resume Worded weak verbs, Open ATS action %, ATS Resume Checker achievements",
+        "Start every bullet with a strong verb (Built, Designed, Reduced, Migrated) and replace "
+        "“Assisted with”, “Helped”, “Worked on” and “Responsible for” with what you actually did.")
 
     per_role_ok = 3 <= q.bullets_per_role <= 6 if q.roles else len(bullets) >= 3
     length_ok = 8 <= q.avg_bullet_words <= 28
@@ -149,14 +197,18 @@ def quality_criteria(
     add("bulletQuality", "Bullet length & count",
         (50 if length_ok else 20) + (40 if per_role_ok else 15) + (10 if long_b == 0 else 0),
         f"avg {q.avg_bullet_words:.0f} words (8–28), {q.bullets_per_role:.1f} per role (3–6), {long_b} over 35 words.",
-        "Resume Worded brevity, Rezi 3–6 bullets, Teal bullets per position")
+        "Resume Worded brevity, Rezi 3–6 bullets, Teal bullets per position",
+        "Keep 3–6 bullets per role, each roughly 8–28 words; split anything over 35 words into two "
+        "bullets so one line carries one result.")
 
     hedges = sum(count_phrase(lower, h) for h in HEDGES)
     hygiene = 100 - min(30, q.buzz_hits * 8) - min(20, q.pronoun_lines * 5) - min(20, max(0, q.passive_hits - 1) * 5) - min(20, hedges * 7)
     add("writingHygiene", "Buzzwords, pronouns, passive voice",
         hygiene,
         f"{q.buzz_hits} buzzwords/clichés, {q.pronoun_lines} pronoun lines, {q.passive_hits} passive, {hedges} hedges.",
-        "Rezi best practices, Resume Worded style, Open ATS content, Jobscan buzzwords")
+        "Rezi best practices, Resume Worded style, Open ATS content, Jobscan buzzwords",
+        "Cut clichés (“team player”, “results-driven”), drop I/me/my, and rewrite passive phrasing "
+        "— “was implemented by me” becomes “implemented”.")
 
     starts = [b.split()[0].lower() for b in bullets if b.split()]
     past = sum(1 for w in starts if w.endswith("ed"))
@@ -168,7 +220,9 @@ def quality_criteria(
     add("tenseConsistency", "Verb tense consistency",
         100 if mixed <= tol else 100 - (mixed - tol) * 200,
         f"{past} past-tense vs {present} present-tense bullet openers.",
-        "Resume Worded verb tenses")
+        "Resume Worded verb tenses",
+        "Use past tense for past roles and keep one tense inside each role; present tense belongs "
+        "only to the role you currently hold.")
 
     repeat_starts = sum(c - 2 for c in _counts(starts).values() if c >= 3)
     typos = sum(1 for t in COMMON_TYPOS if re.search(rf"\b{t}\b", lower))
@@ -176,14 +230,22 @@ def quality_criteria(
     add("repetitionSpelling", "Repetition & spelling",
         100 - min(45, repeat_starts * 10) - min(45, (typos + doubled) * 15),
         f"{repeat_starts} repeated bullet openers, {typos} common typos, {doubled} doubled words.",
-        "Enhancv repetition + spelling, Resume Worded repetition/spelling")
+        "Enhancv repetition + spelling, Resume Worded repetition/spelling",
+        "Open each bullet with a different verb and fix the repeated words and misspellings listed "
+        "above; read the resume once from the bottom up to catch them.")
 
-    gaps = _gap_years(text)
-    mixed_dates = bool(q.full_month_dates and q.other_dates)
+    # Employment dates only: a degree written as "2018 – 2022" is not a second date format, and the
+    # years between a degree and the first job are not an employment gap.
+    employment = without_education(text)
+    emp_signals = extract_quality_signals(employment)
+    gaps = _gap_years(employment)
+    mixed_dates = bool(emp_signals.full_month_dates and emp_signals.other_dates)
     add("datesGaps", "Dates & gaps",
         (100 if q.roles else 60) - (25 if mixed_dates else 0) - min(40, gaps * 20),
         f"{q.roles} date ranges, {'mixed' if mixed_dates else 'consistent'} format, {gaps} gap(s) > 1 year.",
-        "Rezi date format, Resume Worded dates, Enhancv employment gaps, Jobscan date formatting")
+        "Rezi date format, Resume Worded dates, Enhancv employment gaps, Jobscan date formatting",
+        "Write every role as “Mon YYYY – Mon YYYY” (or “– Present”) in one format, and cover any "
+        "break longer than a year with study, freelance or contract work.")
 
     if years_experience is not None:
         fit = seniority_fit(
@@ -196,17 +258,25 @@ def quality_criteria(
         )
         add("lengthSeniority", "Length & seniority fit", fit.score,
             f"Calibrated for {years_experience:g} yrs ({fit.band.label}): {sum(fit.checks.values())}/{len(fit.checks)} checks.",
-            "Resume Worded career level, Rezi experience level, Enhancv seniority fit, Jobscan job level")
+            "Resume Worded career level, Rezi experience level, Enhancv seniority fit, Jobscan job level",
+            f"Match the depth expected at {fit.band.label}: {fit.band.min_words}–{fit.band.max_words} "
+            f"words, at least {fit.band.min_bullets} experience bullets and quantified results in "
+            f"≥{round(fit.band.min_metric_share * 100)}% of them"
+            + (", with at least one ownership or mentoring bullet." if fit.band.needs_leadership else "."))
     else:
         wc = q.word_count
         add("lengthSeniority", "Length", 100 if 400 <= wc <= 1000 else 70 if 300 <= wc <= 1600 else 35,
             f"{wc} words (400–1,000 ideal; set years of experience to calibrate).",
-            "Rezi 400–1,600 words, Open ATS 400–800, Jobscan word count")
+            "Rezi 400–1,600 words, Open ATS 400–800, Jobscan word count",
+            "Aim for 400–1,000 words — expand thin roles with scope and results, trim older ones — "
+            "and set your years of experience in settings so this is calibrated to your level.")
 
     add("skillsEvidence", "Skills shown in experience",
         _ratio_score(skills_in_experience / max(1, skills_total), 0.6) if skills_total else 30,
         f"{skills_in_experience}/{skills_total} recognised skills appear in experience/projects, not only a list.",
-        "Enhancv skills evidence, Teal skills in bullets, Aavedak evidence model")
+        "Enhancv skills evidence, Teal skills in bullets, Aavedak evidence model",
+        "Name each skill you list inside a real experience or project bullet — what you built with "
+        "it and what it achieved — instead of leaving it in the Skills list alone.")
     return out
 
 

@@ -77,6 +77,31 @@ def _issue(code: str, title: str, detail: str) -> dict[str, str]:
     return {"code": code, "title": title, "detail": detail}
 
 
+def _dedupe_improvements(improvements: list[dict]) -> list[dict]:
+    """One recommendation per topic.
+
+    Several checks can notice the same weakness (the legacy quality pass and the benchmark
+    criterion both look at action verbs, for example). Where both carry the same `key`, keep the
+    criterion: it reports the measurement, the sources and the concrete fix, so the user is never
+    shown two different denominators for one problem.
+    """
+    criterion_keys = {
+        i["key"] for i in improvements if i.get("kind") == "criterion" and i.get("key")
+    }
+    seen: set[str] = set()
+    out: list[dict] = []
+    for imp in improvements:
+        key = str(imp.get("key") or imp["text"])
+        if imp.get("kind") != "criterion" and key in criterion_keys:
+            continue
+        if key in seen or imp["text"] in seen:
+            continue
+        seen.add(key)
+        seen.add(imp["text"])
+        out.append(imp)
+    return out
+
+
 def score_ats_compatibility(profile) -> tuple[int, list[str], list[dict[str, str]]]:
     """Continuous ATS-parseability score — hard to max, varies with content density."""
     score = 6.0
@@ -272,19 +297,19 @@ def _writing_quality_adjustment(profile) -> tuple[float, list[dict[str, str]]]:
     hedges = sum(1 for p in _HEDGING_PHRASES if count_phrase(profile.lower, p) > 0)
     if hedges >= 2:
         adjust -= min(8.0, hedges * 2.0)
-        notes.append({"priority": "medium", "text": "Replace hedging phrases (“worked on”, “responsible for”) with what you did and the result.", "reason": f"{hedges} hedging phrases found."})
+        notes.append({"key": "criterion.writingHygiene", "priority": "medium", "text": "Replace hedging phrases (“worked on”, “responsible for”) with what you did and the result.", "reason": f"{hedges} hedging phrases found."})
     if q.passive_hits > 2:
         adjust -= min(6.0, q.passive_hits * 1.5)
-        notes.append({"priority": "low", "text": "Prefer active voice over “was implemented”-style phrasing.", "reason": f"{q.passive_hits} passive constructions."})
+        notes.append({"key": "criterion.writingHygiene", "priority": "low", "text": "Prefer active voice over “was implemented”-style phrasing.", "reason": f"{q.passive_hits} passive constructions."})
     if q.pronoun_lines:
         adjust -= min(4.0, q.pronoun_lines * 1.0)
-        notes.append({"priority": "low", "text": "Drop first-person pronouns (I, me, my) from bullets.", "reason": f"{q.pronoun_lines} lines use them."})
+        notes.append({"key": "criterion.writingHygiene", "priority": "low", "text": "Drop first-person pronouns (I, me, my) from bullets.", "reason": f"{q.pronoun_lines} lines use them."})
     if q.buzz_hits - hedges > 1:
         adjust -= min(4.0, (q.buzz_hits - hedges) * 1.0)
-        notes.append({"priority": "low", "text": "Swap buzzwords (“team player”, “dynamic”) for specific accomplishments.", "reason": "Vague filler found."})
+        notes.append({"key": "criterion.writingHygiene", "priority": "low", "text": "Swap buzzwords (“team player”, “dynamic”) for specific accomplishments.", "reason": "Vague filler found."})
     if q.word_count > 1100:
         adjust -= 4.0
-        notes.append({"priority": "low", "text": "Trim to the most relevant 10–15 years; very long resumes dilute impact.", "reason": f"~{q.word_count} words."})
+        notes.append({"key": "criterion.lengthSeniority", "priority": "low", "text": "Trim to the most relevant 10–15 years; very long resumes dilute impact.", "reason": f"~{q.word_count} words."})
     return adjust, notes
 
 
@@ -339,24 +364,24 @@ def score_resume_quality(profile) -> tuple[int, list[str], list[dict[str, str]]]
     if action:
         strengths.append(f"{len(action)} bullets start with clear actions")
     if action_part < 0.6:
-        improvements.append({"priority": "high", "text": "Rewrite bullets to start with strong action verbs.", "reason": f"Only {len(action)} of {len(bullets)} bullets are action-led."})
+        improvements.append({"key": "criterion.actionVerbs", "priority": "high", "text": "Rewrite bullets to start with strong action verbs.", "reason": f"Only {len(action)} of {len(bullets)} bullets are action-led."})
     if metric:
         strengths.append(f"{len(metric)} bullets include measurable impact")
     if metric_part < 0.6:
-        improvements.append({"priority": "high", "text": "Add measurable results to more bullets (latency, users, revenue, time saved).", "reason": f"Only {len(metric)} of {len(bullets)} bullets carry a number."})
+        improvements.append({"key": "criterion.quantifiedImpact", "priority": "high", "text": "Add measurable results to more bullets (latency, users, revenue, time saved).", "reason": f"Only {len(metric)} of {len(bullets)} bullets carry a number."})
     if long_bullets:
-        improvements.append({"priority": "medium", "text": "Shorten oversized bullets for clarity.", "reason": f"{len(long_bullets)} bullets are very long."})
+        improvements.append({"key": "criterion.bulletQuality", "priority": "medium", "text": "Shorten oversized bullets for clarity.", "reason": f"{len(long_bullets)} bullets are very long."})
     if len(profile.sections) >= 3:
         strengths.append("Clear section organization")
     else:
-        improvements.append({"priority": "medium", "text": "Organize into Experience, Education, and Skills sections.", "reason": "Parsers and recruiters scan structured sections faster."})
+        improvements.append({"key": "criterion.sectionsContact", "priority": "medium", "text": "Organize into Experience, Education, and Skills sections.", "reason": "Parsers and recruiters scan structured sections faster."})
     if tech_in_exp >= 3:
         strengths.append("Technical skills appear in experience context")
     if wc < 400:
-        improvements.append({"priority": "medium", "text": "Expand experience with concrete scope and results (400–800 words works best).", "reason": f"~{wc} words."})
+        improvements.append({"key": "criterion.lengthSeniority", "priority": "medium", "text": "Expand experience with concrete scope and results (400–800 words works best).", "reason": f"~{wc} words."})
     if profile.stuffing_score >= 0.35:
         score -= 15
-        improvements.append({"priority": "high", "text": "Remove repeated keyword stuffing; show skills in real experience context.", "reason": "Keyword repetition detected."})
+        improvements.append({"key": "quality.stuffing", "priority": "high", "text": "Remove repeated keyword stuffing; show skills in real experience context.", "reason": "Keyword repetition detected."})
     improvements.extend(writing_notes)
 
     return _soft_cap(score, 92), strengths[:6], improvements[:8]
@@ -775,13 +800,18 @@ def analyze_resume(
     quality_overall = weighted(criteria)
     for crit in criteria:
         if crit.score < 60:
+            # `text` is the action to take; the measurement and its sources stay in `reason`, so a
+            # recommendation never reads back as a restated diagnosis.
             improvements.append(
-                {"priority": "medium" if crit.score >= 35 else "high",
-                 "text": f"{crit.label}: {crit.detail}",
-                 "reason": f"Benchmark criterion ({crit.sources})."}
+                {"key": f"criterion.{crit.key}",
+                 "kind": "criterion",
+                 "priority": "medium" if crit.score >= 35 else "high",
+                 "text": crit.fix or f"Improve {crit.label.lower()}.",
+                 "reason": f"{crit.label} scored {crit.score}/100 — {crit.detail} "
+                           f"(benchmark criterion: {crit.sources})."}
             )
     if level is not None:
-        improvements.extend(level.improvements)
+        improvements.extend({**imp, "key": "criterion.lengthSeniority"} for imp in level.improvements)
         if level.score >= 100:
             strengths.append(f"Matches expectations for {level.band.label}")
 
@@ -827,8 +857,8 @@ def analyze_resume(
             matched_resp,
             partial_resp,
             missing_resp,
-            strengths,
-            improvements,
+            list(dict.fromkeys(strengths))[:8],
+            _dedupe_improvements(improvements)[:10],
             ats_issues,
             confidence,
             notes,
@@ -879,6 +909,7 @@ def analyze_resume(
             exp -= 12
             improvements.append(
                 {
+                    "key": "experience.years",
                     "priority": "medium",
                     "text": f"JD suggests ~{jd.years_min}+ years; emphasize the most relevant tenure you do have.",
                     "reason": "Experience-years gap relative to the posting.",
@@ -1002,6 +1033,8 @@ def analyze_resume(
     for item in missing_skills[:5]:
         improvements.append(
             {
+                "key": f"skill.{item['skill']}",
+                "kind": "skill_gap",
                 "priority": "high" if item.get("skill") in required_missing else "medium",
                 "text": (
                     f"{item['skill']} appears in the posting but not on this resume. "
@@ -1014,6 +1047,8 @@ def analyze_resume(
         if item.get("evidenceLevel", 0) <= 1:
             improvements.append(
                 {
+                    "key": f"skill.{item['skill']}",
+                    "kind": "skill_gap",
                     "priority": "high",
                     "text": (
                         f"{item['skill']} is listed but the resume has no supporting experience bullet. "
@@ -1025,20 +1060,15 @@ def analyze_resume(
         else:
             improvements.append(
                 {
+                    "key": f"skill.{item['skill']}",
+                    "kind": "skill_gap",
                     "priority": "medium",
                     "text": f"Strengthen {item['skill']} with a clearer action + context in Experience or Projects.",
                     "reason": f"Partial evidence ({item.get('evidenceLabel', 'partial')}).",
                 }
             )
 
-    # Deduplicate improvements by text
-    seen_imp: set[str] = set()
-    uniq_imp: list[dict[str, str]] = []
-    for imp in improvements:
-        if imp["text"] in seen_imp:
-            continue
-        seen_imp.add(imp["text"])
-        uniq_imp.append(imp)
+    uniq_imp = _dedupe_improvements(improvements)
 
     confidence = "high"
     if jd.too_short or len(profile.raw) < 400:
@@ -1121,6 +1151,7 @@ def _pack(
             "contribution": round(c.score * c.weight * share, 1),
             "parent": "Resume quality",
             "detail": c.detail,
+            "fix": c.fix,
             "sources": c.sources,
         }
         for c in (criteria or [])
