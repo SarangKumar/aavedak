@@ -71,7 +71,7 @@ export function AtsScoreMatrix<R extends AtsMatrixResume>({
                 {eng.header}
               </th>
             ))}
-            <th className="text-muted-foreground bg-card before:bg-border/60 sticky right-0 z-10 py-2.5 pl-2 pr-6 text-right align-middle font-medium before:absolute before:inset-y-0 before:left-0 before:w-px">
+            <th className="text-muted-foreground bg-card before:bg-border/60 sticky right-0 z-10 py-2.5 pl-2 pr-6 text-center align-middle font-medium before:absolute before:inset-y-0 before:left-0 before:w-px">
               Final score
             </th>
           </tr>

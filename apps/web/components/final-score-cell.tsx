@@ -16,21 +16,25 @@ const GROUP_LABEL: Record<AtsEngineGroup, string> = {
   open_source: "Open Source",
 };
 
+/** Ring (2rem) + gap (0.375rem) + verdict slot (4rem) — one width for every row, score or not. */
+const SCORE_BOX = "w-[6.375rem]";
+
 /**
  * Fixed rightmost column of the resume × engine tables: the weighted final score of every engine
- * that ran for the row (native 50% · reference 35% · open source 15%, renormalised over what ran;
- * weights in `lib/ats-engines/aggregate.ts`). Hover shows each engine's effective weight.
+ * that ran for the row (group weights in `lib/ats-engines/aggregate.ts`, renormalised over what
+ * ran). Hover shows each engine's effective weight.
  *
- * Layout: the placeholder and the score group are right-aligned (the column adds its own
- * inset, so they never touch the border). The group is [ring][verdict] with the verdict in a
- * fixed-width box, so every ring sits on the same vertical line regardless of verdict length.
+ * Layout: the content is centred in the cell, but the rings still line up row to row. Both the
+ * placeholder and the [ring][verdict] group sit in the same fixed-width box (`SCORE_BOX`), with the
+ * ring left-aligned inside it and the verdict in a fixed-width slot of its own — so a long verdict
+ * ("Needs work") cannot push the ring off the line a short one ("Strong") sits on.
  */
 export function FinalScoreCell({ entries }: { entries: FinalScoreEntry[] }) {
   const final = weightedFinalScore(entries);
   if (final === null) {
     return (
-      <div className="flex w-full items-center justify-end">
-        <span className="text-muted-foreground w-[6.375rem] text-center text-[11px]">—</span>
+      <div className="flex w-full items-center justify-center">
+        <span className={`text-muted-foreground ${SCORE_BOX} text-center text-[11px]`}>—</span>
       </div>
     );
   }
@@ -61,13 +65,15 @@ export function FinalScoreCell({ entries }: { entries: FinalScoreEntry[] }) {
   return (
     <Tooltip content={breakdown}>
       <div
-        className="flex w-full cursor-help items-center justify-end gap-1.5"
+        className="flex w-full cursor-help items-center justify-center"
         tabIndex={0}
         aria-label={`Weighted final score ${final.score}`}
       >
-        <ScoreRing value={final.score} size="xs" />
-        <span className="text-foreground w-16 whitespace-nowrap text-left text-[12px] font-medium">
-          {scoreVerdict(final.score)}
+        <span className={`flex ${SCORE_BOX} items-center gap-1.5`}>
+          <ScoreRing value={final.score} size="xs" />
+          <span className="text-foreground w-16 whitespace-nowrap text-left text-[12px] font-medium">
+            {scoreVerdict(final.score)}
+          </span>
         </span>
       </div>
     </Tooltip>
