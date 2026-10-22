@@ -14,7 +14,12 @@ for internals). This page covers how it runs, how to configure it, and how to op
 - Jobs older than `job_expiry_days` (30) from their **posting date** leave both tabs.
   Linked applications in an early status are marked `Rejected` (reason `job_expired`)
   once; history stays in the tracker. See `docs/decisions.md`.
-- **Profile settings → Job discovery** turns daily recommendations off/on per user.
+- **Profile settings → Job discovery** turns daily recommendations off/on per user, and
+  **Run matching again** re-runs `ranking.rerank_user` for that user on demand (the same work a
+  career-preference or resume change triggers): open recommendations are re-scored, ones that no
+  longer fit are hidden, ones an earlier run hid are restored if they fit again, and the list is
+  topped up within the day's cap. Applications, bookmarks and ignored roles are never re-offered
+  or changed. It does nothing while discovery is paused or the account is unapproved.
 - **People at {company}** on each job: contacts linked to that company, ordered by
   referral relevance, then community up/down votes (one vote per user per person).
 

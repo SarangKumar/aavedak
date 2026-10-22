@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PROFILE_BIO_MAX } from "@/lib/profile-limits";
+import type { RerankCounts } from "@/lib/rerank-user";
 import {
   InputGroup,
   InputGroupAddon,
@@ -241,6 +242,8 @@ export function ProfileSettings({
   const [resumes, setResumes] = useState(initialResumes);
   const [discoveryEnabled, setDiscoveryEnabled] = useState(initialDiscoveryEnabled);
   const [discoveryPending, setDiscoveryPending] = useState(false);
+  const [rerankPending, setRerankPending] = useState(false);
+  const [rerankResult, setRerankResult] = useState<RerankCounts | null>(null);
   const [pending, setPending] = useState(false);
   const [careerPending, setCareerPending] = useState(false);
   const [resumePending, setResumePending] = useState<string | null>(null);
@@ -488,6 +491,38 @@ export function ProfileSettings({
       toast.add({ title: "Could not update discovery", type: "error" });
     } finally {
       setDiscoveryPending(false);
+    }
+  }
+
+  async function runMatchingAgain() {
+    setRerankPending(true);
+    setRerankResult(null);
+    try {
+      const res = await fetch("/api/profile/rerank", { method: "POST" });
+      const data = (await res.json()) as { error?: string; rerank?: RerankCounts };
+      if (!res.ok || !data.rerank) throw new Error(data.error || "Could not re-run matching.");
+      setRerankResult(data.rerank);
+      const { added, restored = 0, dropped, rescored } = data.rerank;
+      toast.add({
+        title:
+          added + dropped + rescored === 0
+            ? "Nothing changed"
+            : `Matching re-run: ${added} added, ${dropped} removed`,
+        description:
+          added + dropped + rescored === 0
+            ? "Your Discover list is already up to date for today."
+            : `${rescored} re-scored${restored ? `, ${restored} brought back` : ""}. Open Jobs → Discover to see the new order.`,
+        type: "success",
+      });
+      router.refresh();
+    } catch (err) {
+      toast.add({
+        title: "Could not re-run matching",
+        description: err instanceof Error ? err.message : undefined,
+        type: "error",
+      });
+    } finally {
+      setRerankPending(false);
     }
   }
 
@@ -991,6 +1026,48 @@ export function ProfileSettings({
                     </label>
                     {discoveryPending ? <Spinner className="size-3.5" label="Saving" /> : null}
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card size="sm" className="mt-3">
+                <CardHeader>
+                  <CardTitle className="text-[13px]">Run matching again</CardTitle>
+                  <CardDescription className="text-[12px] leading-relaxed">
+                    Matching already re-runs by itself whenever you save career preferences or
+                    change your resumes, so you only need this after something else changes — a
+                    fresh batch of scraped roles, say. It re-scores every role still open on
+                    Jobs&nbsp;→&nbsp;Discover against your current resume and preferences, removes
+                    the ones that no longer fit (too many years required, or below the match
+                    threshold), brings back roles an earlier run had hidden if they fit again, and
+                    then tops the list up from the shared pool using whatever is left of
+                    today&apos;s 50-recommendation limit.
+                    <br />
+                    <br />
+                    Nothing you have acted on is touched: roles you applied to, bookmarked or
+                    ignored are never re-offered or re-ordered, and no application, note or saved
+                    job changes. Only the Discover list and its match scores change. If daily
+                    discovery is paused above, or your account is still awaiting approval, this does
+                    nothing.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-wrap items-center gap-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={rerankPending}
+                    loadingText="Matching…"
+                    disabled={rerankPending}
+                    onClick={() => void runMatchingAgain()}
+                  >
+                    Run matching again
+                  </Button>
+                  {rerankResult ? (
+                    <p className="text-muted-foreground text-[11px] tabular-nums">
+                      {rerankResult.added} added · {rerankResult.dropped} removed ·{" "}
+                      {rerankResult.rescored} re-scored
+                      {rerankResult.restored ? ` · ${rerankResult.restored} brought back` : ""}
+                    </p>
+                  ) : null}
                 </CardContent>
               </Card>
             </SettingsPanel>
