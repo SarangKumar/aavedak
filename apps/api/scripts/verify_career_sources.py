@@ -28,46 +28,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import httpx  # noqa: E402
 
-from app.discovery.jobs import filters  # noqa: E402
-from app.discovery.jobs.models import SourceTarget  # noqa: E402
+from app.discovery.jobs.board_probe import PROBE_SPECS, TOKEN_SUFFIXES, probe_board, token_variants  # noqa: E402,F401
 from app.discovery.jobs.providers import BOARD_URLS  # noqa: E402
-from app.discovery.jobs.providers import ashby, greenhouse, lever, smartrecruiters, workable  # noqa: E402
 
 SEED = Path(__file__).resolve().parent.parent / "app" / "discovery" / "data" / "career_sources.json"
-LIGHT_URLS = {
-    "greenhouse": ("https://boards-api.greenhouse.io/v1/boards/{t}/jobs", {}),
-    "lever": ("https://api.lever.co/v0/postings/{t}", {"mode": "json"}),
-    "ashby": ("https://api.ashbyhq.com/posting-api/job-board/{t}", {}),
-    "workable": ("https://apply.workable.com/api/v1/widget/accounts/{t}", {}),
-    "smartrecruiters": ("https://api.smartrecruiters.com/v1/companies/{t}/postings", {"limit": 100, "country": "in"}),
-}
-PARSERS = {
-    "greenhouse": greenhouse.parse,
-    "lever": lever.parse,
-    "ashby": ashby.parse,
-    "workable": workable.parse,
-    "smartrecruiters": smartrecruiters.parse_list,
-}
-
-
-# Many boards use the company name plus a suffix (e.g. Headout → "headoutcareers").
-TOKEN_SUFFIXES = ("careers", "jobs", "hq", "inc", "india", "tech")
-
-
-def token_variants(name: str) -> list[str]:
-    """Likely board tokens, most likely first: "acmecorp", "acme-corp", "acme", then the joined
-    name with common suffixes ("acmecorpcareers", …)."""
-    words = [w for w in re.split(r"[^A-Za-z0-9]+", name) if w]
-    if not words:
-        return []
-    joined = "".join(words).lower()
-    candidates = [joined, "-".join(words).lower(), words[0].lower() if len(words) > 1 else ""]
-    candidates += [f"{joined}{suffix}" for suffix in TOKEN_SUFFIXES]
-    out: list[str] = []
-    for token in candidates:
-        if token and token not in out:
-            out.append(token)
-    return out
+# The probe matrix (endpoint + parser per platform) lives in app/discovery/jobs/board_probe.py,
+# shared with in-pipeline company discovery so the two can never drift apart.
+LIGHT_URLS = PROBE_SPECS
 
 
 KEEP = "india"  # "india": ≥1 India-eligible posting; "live": any board with ≥1 posting
@@ -75,29 +42,11 @@ DELAY = 0.0  # seconds slept before each request (per worker), to stay polite
 
 
 def check(client: httpx.Client, provider: str, token: str, name: str) -> tuple[int, int, int] | None:
-    url, params = LIGHT_URLS[provider]
+    """(India-eligible, junior tech, total) postings on that board, or None if it is not one."""
     if DELAY:
         time.sleep(DELAY)
-    try:
-        response = client.get(url.format(t=token), params=params)
-    except httpx.HTTPError:
-        return None
-    if response.status_code != 200:
-        return None
-    try:
-        payload = response.json()
-    except ValueError:
-        return None
-    target = SourceTarget(id="", company_name=name, provider=provider, token=token, careers_url="")
-    try:
-        postings = PARSERS[provider](payload, target)
-    except Exception:  # noqa: BLE001 — unexpected payload shape means "not a board"
-        return None
-    india = [p for p in postings if filters.is_india_eligible(p.locations, p.country_code)]
-    engineering = [
-        p for p in india if filters.is_engineering_title(p.title) and not filters.is_senior_title(p.title)
-    ]
-    return len(india), len(engineering), len(postings)
+    found = probe_board(client, provider, token, name)
+    return None if found is None else (found.india, found.engineering, found.total)
 
 
 def keep(india: int, total: int) -> bool:

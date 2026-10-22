@@ -52,6 +52,11 @@ class DiscoveryTuning(BaseModel):
     discovery_user_agent: str = "AavedakJobsBot/1.0 (+https://aavedak.vercel.app)"
     # SmartRecruiters lists omit descriptions; cap per-posting detail fetches per company.
     smartrecruiters_detail_limit: int = Field(40, ge=0, le=200)
+    # Company discovery (jobs/company_discovery.py): candidates resolved per scan shard, and
+    # product-data candidates collected per scan. Both are small: discovery rides behind the
+    # scans in the same ticks, so it must never crowd out job fetching.
+    company_discovery_per_scan: int = Field(15, ge=0, le=100)
+    company_candidates_per_scan: int = Field(25, ge=0, le=200)
     # Rows per people-import run item.
     people_batch_size: int = Field(100, ge=10, le=1000)
     # People discovery v2 (see DISCOVERY.md): per-run and per-company limits.

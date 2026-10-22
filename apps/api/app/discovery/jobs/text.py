@@ -47,6 +47,13 @@ def name_key(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip().lower())
 
 
+def compact_name_key(value: str) -> str:
+    """Company-name key that ignores case and punctuation: "Tata 1mg" → "tata1mg". Used to
+    tell whether a company is already covered by a registry row (the SQL side is
+    `regexp_replace(lower(name), '[^a-z0-9]', '', 'g')`)."""
+    return re.sub(r"[^a-z0-9]", "", value.lower())
+
+
 def slug_key(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
 

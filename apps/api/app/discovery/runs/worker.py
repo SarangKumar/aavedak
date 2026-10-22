@@ -11,7 +11,7 @@ from typing import Any
 import psycopg
 
 from app.discovery.config import DiscoverySettings
-from app.discovery.jobs import careers_scan, scan
+from app.discovery.jobs import careers_scan, company_discovery, scan
 from app.discovery.people import discover, importer
 from app.discovery.runs import store
 from app.discovery.runs.store import ClaimedItem, ItemOutcome
@@ -27,6 +27,9 @@ HANDLERS = {
     ),
     importer.ITEM_KIND: lambda conn, settings, items, deadline: importer.process_items(conn, items),
     discover.ITEM_KIND: lambda conn, settings, items, deadline: discover.process_items(conn, settings, items),
+    company_discovery.ITEM_KIND: lambda conn, settings, items, deadline: company_discovery.process_items(
+        conn, settings, items, deadline=deadline
+    ),
 }
 
 

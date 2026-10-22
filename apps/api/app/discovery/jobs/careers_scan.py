@@ -17,7 +17,7 @@ from concurrent.futures import TimeoutError as FuturesTimeout
 import psycopg
 
 from app.discovery.config import DiscoverySettings
-from app.discovery.jobs import career_pages, ranking, store
+from app.discovery.jobs import career_pages, company_discovery, health, ranking, store
 from app.discovery.jobs.careers_crawl import CareerPage, CrawlResult, crawl, make_crawl_client
 from app.discovery.jobs.models import SourceTarget
 from app.discovery.jobs.normalize import normalize_postings
@@ -133,14 +133,36 @@ def _handle(
         include_internships=settings.include_internships,
         max_age_days=settings.job_expiry_days,
     )
+    guard = health.guard_complete(
+        complete=result.complete, fetched=len(result.postings), previous=page.last_posting_count
+    )
+    if guard.guarded:
+        logger.warning(
+            "outage guard: %s returned %s postings after %s — not closing jobs",
+            page.careers_url, len(result.postings), guard.previous,
+        )
+        counts["outageGuard"] = {"previous": guard.previous, "fetched": len(result.postings)}
     try:
         stats = store.ingest_company(
             conn,
             page_target(page, company_name, result.final_url),
             normalized.jobs,
-            complete=result.complete,
+            complete=guard.complete,
             scan_started_at=scan_started,
             expiry_days=settings.job_expiry_days,
+        )
+        # The page runs on a hiring platform we can read but whose board is not registered:
+        # add it, so the jobs survive the page switching to client-side rendering.
+        registered_board = (
+            company_discovery.register_embed(
+                conn,
+                company_name=company_name,
+                provider=result.embed.provider,
+                token=result.embed.token,
+                careers_url=result.final_url or page.careers_url,
+            )
+            if result.embed
+            else None
         )
         recommended = ranking.recommend(conn, settings, job_ids=list(stats.new_job_ids), contexts=contexts)
         people_links = people_store.link_jobs_to_company_people(conn, list(stats.new_job_ids))
@@ -158,7 +180,9 @@ def _handle(
             "peopleLinks": people_links,
         }
     )
-    career_pages.record(conn, page.id, result, kept=len(normalized.jobs), counts=counts)
+    career_pages.record(
+        conn, page.id, result, kept=len(normalized.jobs), counts=counts, guarded=guard.guarded
+    )
     outcomes[item_id] = ItemOutcome(
         True,
         {
@@ -173,6 +197,8 @@ def _handle(
             "closed": stats.closed,
             "recommended": counts["recommended"],
             "peopleLinks": people_links,
+            "registeredBoard": bool(registered_board),
+            "outageGuard": guard.guarded,
             "skipped": sum(skipped.values()),
         },
     )

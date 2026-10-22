@@ -182,6 +182,35 @@ PIPELINE_STATEMENTS: tuple[str, ...] = (
     )""",
     "CREATE UNIQUE INDEX IF NOT EXISTS career_pages_url_uidx ON career_pages (lower(careers_url))",
     "CREATE INDEX IF NOT EXISTS career_pages_source_idx ON career_pages (company_source_id)",
+    # Last scan's posting count per source / page: the outage guard (jobs/health.py) refuses
+    # to treat a collapsed "complete" fetch as the full list, so a broken board or a throttled
+    # API can never close a company's jobs.
+    "ALTER TABLE company_sources ADD COLUMN IF NOT EXISTS last_posting_count INTEGER",
+    "ALTER TABLE career_pages ADD COLUMN IF NOT EXISTS last_posting_count INTEGER",
+    # Companies found by discovery rather than curated: the candidate ledger
+    # (jobs/company_discovery.py). `status`: pending | board | careers_page | none | error;
+    # `discovery_source`: workable_index | applications | shared_jobs | careers_embed.
+    # A resolved candidate keeps the id of the registry row it was promoted into.
+    """CREATE TABLE IF NOT EXISTS discovered_companies (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      name_key TEXT NOT NULL,
+      domain TEXT,
+      careers_url TEXT,
+      ats TEXT,
+      ats_token TEXT,
+      discovery_source TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      last_error TEXT,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      checked_at TEXT,
+      promoted_source_id TEXT,
+      promoted_page_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )""",
+    "CREATE UNIQUE INDEX IF NOT EXISTS discovered_companies_name_uidx ON discovered_companies (name_key)",
+    "CREATE INDEX IF NOT EXISTS discovered_companies_due_idx ON discovered_companies (status, checked_at)",
     # Per-source references for a canonical job (one job may be listed by several sources).
     """CREATE TABLE IF NOT EXISTS job_sources (
       id TEXT PRIMARY KEY NOT NULL,
