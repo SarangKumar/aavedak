@@ -480,9 +480,10 @@ def isolate_pool(conn) -> None:
     conn.execute("UPDATE jobs SET closed_at = %s WHERE user_id IS NULL AND closed_at IS NULL", (now_iso(),))
 
 
-def pool_job(conn, target, ext: str, *, region: str, min_years: int | None, loc: str) -> str:
-    store.ingest_company(conn, target, [njob(ext, title=f"Python Engineer {ext}", loc=loc)], complete=False,
-                         scan_started_at=iso_minus(5), expiry_days=30)
+def pool_job(conn, target, ext: str, *, region: str, min_years: int | None, loc: str,
+             title: str | None = None) -> str:
+    store.ingest_company(conn, target, [njob(ext, title=title or f"Python Engineer {ext}", loc=loc)],
+                         complete=False, scan_started_at=iso_minus(5), expiry_days=30)
     job_id = conn.execute("SELECT job_id FROM job_sources WHERE external_id = %s", (ext,)).fetchone()["job_id"]
     conn.execute("UPDATE jobs SET region = %s, min_years = %s WHERE id = %s", (region, min_years, job_id))
     return job_id
@@ -571,6 +572,61 @@ def test_rerank_restores_system_hidden_jobs_but_never_user_choices(conn):
     assert states[ignored]["ignored"] == 1 and states[saved]["application_id"] == f"app-{tag}"
     count = conn.execute("SELECT COUNT(*) AS n FROM user_job_state WHERE user_id = %s", (user,)).fetchone()["n"]
     assert count == 4  # reused the hidden row, no duplicates
+
+
+def test_the_same_role_in_two_cities_is_offered_once(conn):
+    """Ingest keeps both rows (their dedupe keys differ by location); ranking offers the
+    better-matching one, so Discover does not repeat a role."""
+    isolate_pool(conn)
+    target = make_source(conn)
+    tag = uuid.uuid4().hex[:6]
+    title = f"Platform Engineer {tag}"
+    blr = pool_job(conn, target, f"dup-a-{tag}", region="india", min_years=1, loc="Bengaluru", title=title)
+    pune = pool_job(conn, target, f"dup-b-{tag}", region="india", min_years=1, loc="Pune", title=title)
+    other = pool_job(conn, target, f"dup-c-{tag}", region="india", min_years=1, loc="Bengaluru",
+                     title=f"Data Engineer {tag}")
+    user = add_user(conn)
+    cfg = DiscoverySettings(discovery_daily_limit=10, discovery_min_match_score=0)
+    ranking.recommend(conn, cfg, user_ids=[user])
+    offered = recommended(conn, user)
+    assert len(offered & {blr, pune}) == 1 and other in offered
+
+
+def test_rerank_skips_jobs_whose_inputs_are_unchanged(conn):
+    """`inputs_key` is the cache: an unchanged job + profile is never re-scored, and a resume
+    edit invalidates exactly that user's rows."""
+    isolate_pool(conn)
+    target = make_source(conn)
+    tag = uuid.uuid4().hex[:6]
+    job_id = pool_job(conn, target, f"ck-{tag}", region="india", min_years=1, loc="Bengaluru")
+    user = add_user(conn)
+    cfg = DiscoverySettings(discovery_daily_limit=10, discovery_min_match_score=0)
+    ranking.recommend(conn, cfg, user_ids=[user])
+
+    def stored() -> dict:
+        return conn.execute(
+            "SELECT inputs_key, updated_at FROM job_scores WHERE user_id = %s AND job_id = %s",
+            (user, job_id),
+        ).fetchone()
+
+    first = stored()
+    assert first["inputs_key"]
+    # Nothing changed: no re-score, no write.
+    counts = ranking.rerank_user(conn, cfg, user)
+    assert counts["unchanged"] >= 1 and counts["rescored"] == 0
+    assert stored() == first
+
+    # A resume with text changes the candidate, so the row is scored again under a new key.
+    now = now_iso()
+    conn.execute(
+        """INSERT INTO resumes (id, user_id, display_name, status, storage_path, original_filename,
+             byte_size, created_at, updated_at, extracted_text)
+           VALUES (%s, %s, %s, 'active', 'resumes/x.pdf', 'x.pdf', 1024, %s, %s, %s)""",
+        (f"res-{tag}", user, f"Resume {tag}", now, now, "Python Django PostgreSQL Docker engineer resume text."),
+    )
+    counts = ranking.rerank_user(conn, cfg, user)
+    assert counts["rescored"] >= 1
+    assert stored()["inputs_key"] != first["inputs_key"]
 
 
 def test_legacy_rerank_hidden_rows_are_tagged_by_the_migration(conn):

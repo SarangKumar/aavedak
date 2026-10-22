@@ -441,6 +441,11 @@ async function runDiscoverySchema(db: NeonQueryFunction<false, false>) {
   await db`CREATE INDEX IF NOT EXISTS user_job_state_recommended_idx
     ON user_job_state (user_id, recommended_at)`;
 
+  // Match-engine cache key (engine version + job data + profile/resume data) written by
+  // discovery: a re-rank skips a row whose key is unchanged, since the deterministic engine
+  // would return exactly the stored score. See apps/api/app/discovery/jobs/match.py.
+  await db`ALTER TABLE job_scores ADD COLUMN IF NOT EXISTS inputs_key TEXT`;
+
   await db`ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS discovery_enabled INTEGER NOT NULL DEFAULT 1`;
 
   // Application history: system changes (job expiry) are recorded once per reason.

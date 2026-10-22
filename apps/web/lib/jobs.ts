@@ -304,8 +304,30 @@ export type DiscoverJob = JobRecord & {
     region?: string | null;
     /** 0–10: how close the job's minimum years is to the user's experience. */
     experienceFit?: number;
-    /** Match score (0–100); `score` on the row also adds experience and region bonuses. */
+    /** Match score (0–100); `score` on the row also adds region and recency bonuses. */
     match?: number;
+    /** Match engine that produced the explanation (e.g. "match@1.0"). */
+    engine?: string;
+    /** 0–100: share of the score backed by evidence rather than credited as unknown. */
+    confidence?: number;
+    /** Skills the posting states that are in the resume or profile. */
+    skillsMatched?: string[];
+    /** Skills the posting requires with no evidence in the resume or profile. */
+    skillsMissing?: string[];
+    /** Short, evidence-based sentences behind the score. */
+    reasons?: string[];
+    /** What could not be judged, and why (short description, no resume text, …). */
+    uncertainty?: string[];
+    /** Per-signal contribution; `points` across the rows sums to `match`. */
+    breakdown?: Array<{
+      key: string;
+      label: string;
+      score: number | null;
+      weight: number;
+      points: number;
+      available: boolean;
+      detail: string;
+    }>;
   };
 };
 

@@ -83,8 +83,9 @@ app/discovery/
     email_extractor.py  pull published emails from posting text; pick one application inbox (pure)
     normalize.py RawPosting → NormalizedJob + content hash + dedupe key + apply_email
     store.py     per-company incremental upsert, close/reopen
-    ranking.py   per-user recommendations (daily cap, min score); rerank_user() after career changes
-    scoring.py   port of web lib/job-scoring.ts (keep in sync)
+    match.py     the matching engine: eligibility, weighted scoring, explanation, ranking (pure)
+    ranking.py   per-user recommendations: the SQL around match.py (daily cap, min score, inputs_key cache); rerank_user() after a profile or resume change
+    scoring.py   JD quality score — port of computeAtsScore in web lib/job-scoring.ts (keep in sync)
     expiry.py    expire jobs + auto-reject early applications (once)
     single.py    read one posting from its link for web "Add job" (no filters, nothing stored)
     registry.py  company_sources: seed/admin import, shards, scan status
@@ -125,8 +126,9 @@ Per company source (one run item):
    `JobPosting` data with the `jsonld` provider as source `official-{token}` of the same
    company source, using the board's company name so roles merge, and ingest it after the
    board (`complete=False`: a page read never closes jobs).
-5. `ranking.recommend(job_ids=new)` → `user_job_state` rows (`recommended_at`, score,
-   reasons) + `job_scores`, respecting each user's daily cap and Profile setting.
+5. `ranking.recommend(job_ids=new)` runs the matcher (`match.py`) for each eligible user →
+   `user_job_state` rows (`recommended_at`, rank score, reasons) + `job_scores` (match score,
+   JD quality, breakdown, `inputs_key`), respecting each user's daily cap and Profile setting.
 6. `people.store.link_jobs_to_company_people` refreshes `job_person_relevance`.
 7. `registry.record_official` stores the page read status (and a detected page URL);
    `registry.record_scan` stores counts (incl. `officialPage`) / last error on the source.
@@ -384,23 +386,92 @@ demand.
 
 ```bash
 cd apps/api
-.venv/bin/python -m pytest tests/test_discovery_jobs.py tests/test_discovery_people.py tests/test_discovery_salary_official.py -q
+.venv/bin/python -m pytest tests/test_job_matching.py tests/test_discovery_jobs.py tests/test_discovery_people.py tests/test_discovery_salary_official.py -q
 # SQL paths need a disposable Postgres (superuser URL; a temp database is created per module):
 TEST_DATABASE_URL=postgresql://... .venv/bin/python -m pytest tests/test_discovery_db.py -q
 ```
 
-## Matching (experience window, India first)
+## Matching (`match.py` + `ranking.py`)
 
-`ranking.recommend` offers a user only jobs whose `min_years` is NULL or at most
-`years_experience + experience_window_years` (2; a profile without years counts as
-`default_years_experience` = 0). So 0 YOE sees fresher to 2-year roles, 2 YOE sees up to 4. The pool query orders India → India-remote → remote → global before recency, so a large
-worldwide pool cannot crowd Indian roles out of `POOL_LIMIT`. The stored ranking value
-(`user_job_state.score`) is the match score plus an experience closeness bonus (0–10, highest
-when `min_years` equals the user's years; unstated = 5) plus a region bonus (India 12,
-India-remote 9, remote 4, global 0). `reasons_json.match` keeps the plain match score, which is
-what the UI shows. Re-rank drops open recommendations now outside the window. The Jobs page's
-Region menu (`?region=`) defaults to **India first**; India only, Outside India and All regions
-are the other views.
+One engine produces every recommendation. `match.py` holds the whole decision and is pure
+(no database, no network), so each rule is tunable and tested in `tests/test_job_matching.py`;
+`ranking.py` only does the SQL around it.
+
+**Stage A — eligibility (hard constraints).** A job is rejected only for something no other
+signal can outweigh: archived, expired (`expired_at`), closed/filled (`closed_at`), a stated
+minimum above the user's window (`years_experience + experience_window_years`, default +2; a
+profile without years counts as `default_years_experience` = 0, so 0 YOE sees fresher to
+2-year roles and 2 YOE up to 4), or an explicitly excluded company or title keyword. An
+incomplete description, an unmentioned skill or a non-preferred location is **never** a
+rejection — those are scored, not filtered.
+
+**Stage B — deterministic score (0–100).** Eight signals, each reporting whether it had any
+evidence at all. Weights live only in `match.MatchWeights` and must sum to 1 (`_check()`):
+
+| Signal              | Weight | Evidence used                                                                                               |
+| ------------------- | ------ | ----------------------------------------------------------------------------------------------------------- |
+| `required_skills`   | .24    | importance-weighted share of the JD's **required** skills found in the resume or profile (`ats.jd_profile`) |
+| `role_title`        | .22    | tiered title match: preferred role as a phrase → same taxonomy role → specific word overlap → any tech role |
+| `experience`        | .14    | stated `min_years`/`max_years` against the user's years                                                     |
+| `location`          | .12    | preferred city, then work arrangement and remote preference, then region                                    |
+| `resume_similarity` | .10    | TF-IDF cosine (`ats.text_similarity`) between resume and description, calibrated ×1.8                       |
+| `preferred_skills`  | .08    | same as required, for the JD's "nice to have" group                                                         |
+| `seniority`         | .06    | the posting's level (provider label, JD wording or title) against the user's band (`ats.seniority`)         |
+| `employment_type`   | .04    | the posting's type against a stated preference (no UI collects one yet, so usually no evidence)             |
+
+    score = 100 · ( Σ wᵢ·fᵢ  +  (1 − Σ wᵢ)·unknown_fit )     unknown_fit = 0.45
+
+`Σ wᵢ` over the signals that had evidence is reported as `confidence`; the rest is credited
+neutrally, so a thin posting lands between a confirmed poor match and a confirmed good one
+instead of being inflated or sunk. Each skill counts once however often it is repeated, and a
+skill the posting never mentions is "no evidence", never a penalty. Requirements are read only
+from a description of at least `MIN_JD_WORDS` (40) words — a title is never turned into
+requirements, so the engine cannot invent any.
+
+**Stage C — optional AI evaluation.** Not implemented; see the section below.
+
+**Stage D — explanation.** `user_job_state.reasons_json` keeps the keys the web app always
+read (`skills`, `roles`, `locations`, `minYears`, `maxYears`, `region`, `experienceFit`,
+`match`) and adds `engine`, `confidence`, `skillsMatched`, `skillsMissing`, `reasons`,
+`uncertainty` and `breakdown`. Each breakdown row carries the signal's own 0–100 fit, its
+weight and its `points`; the points (including one `unrated` row for the unknown remainder)
+always sum to the overall score. `skillsMissing` means "asked for here, not found in your
+resume or profile" — not "you do not have it" — and the UI labels it that way.
+
+**Stage E — ranking.** `user_job_state.score` = match score + region bonus (India 12,
+India-remote 9, remote 4, global 0) + recency bonus (≤3 days 6, ≤7 days 4, ≤14 days 2), so the
+two nudges together cannot outweigh relevance. Ordering is `(-rank, newer posting, job id)` —
+fully determined by the data. Near-identical roles at one company (same title once requisition
+ids and word order are set aside; level markers such as "II" are kept) are offered once, and
+one company fills at most `max_per_company` (3) of the front of a batch, with its other roles
+kept behind it rather than dropped. The pool query orders India → India-remote → remote →
+global before recency, so a large worldwide pool cannot crowd Indian roles out of `POOL_LIMIT`.
+The Jobs page's Region menu (`?region=`) defaults to **India first**; India only, Outside India
+and All regions are the other views.
+
+**Cost and caching.** One pool query per user, never per job; `job_scores.inputs_key` is a
+hash of the engine version, the job's own data and the profile/resume data, so a re-rank skips
+every job whose inputs are unchanged (counted as `unchanged`), and a resume edit invalidates
+only that user's rows. Parsed descriptions are cached by content inside `match.jd_facts`, so a
+pool is parsed once per run however many users it is ranked for. The whole engine is
+deterministic: same inputs and same weights, same list.
+
+## Optional AI evaluation (not implemented)
+
+This repository has no AI provider: no key, no SDK, no server-side model call anywhere, and the
+deployment is Vercel Hobby. Adding one for every scanned job would also cost per job per user,
+which the project's budget does not carry. So the engine ships deterministic only, with
+`match.apply_second_stage()` as the single place an LLM re-score would attach:
+
+- It runs over the top `SECOND_STAGE_TOP_N` (20) ranked candidates per user, never the pool.
+- The evaluator returns `{job_id: {"score": 0-100, "reasons": [...]}}`; anything else —
+  a missing key, a non-numeric score, an exception, a timeout — is ignored and the
+  deterministic result stands (tested in `tests/test_job_matching.py`).
+- A valid verdict is blended at `SECOND_STAGE_WEIGHT` (0.4) and the batch is re-ordered.
+- `RankedJob.cache_key` is `inputs_key`, so an implementation stores its verdict against the
+  job data + resume/profile version and never pays for the same pair twice.
+- Keys would live in the API's env (never the client), prompts would carry only the stored
+  description and the user's own resume text, and the feature would stay off by default.
 
 ## Storage (Neon free 0.5 GB)
 
@@ -411,4 +482,4 @@ empties the description of shared jobs expired or closed for 7+ days that nobody
 
 ## Career change re-rank
 
-Saving Career preferences (web `PATCH /api/profile`), finishing onboarding (`POST /api/onboarding/complete`, after `onboarding_complete` is set) and an admin approving a user all call `POST /svc/v1/discovery/admin/rerank-user`, which runs `ranking.rerank_user`: re-score open recommendations, hide those outside the experience window or below `discovery_min_match_score` (`recommended_at` set to NULL and `hidden_reason = 'rerank'`), then fill the remaining daily budget from the pool. The pool includes ranking-hidden rows, so a hidden job that fits the new profile comes back (`restored` in the result); rows the user ignored, applied to or bookmarked are never re-offered. Discover orders by score first. Covered by `tests/test_discovery_db.py` (needs `TEST_DATABASE_URL`).
+Saving Career preferences (web `PATCH /api/profile`), finishing onboarding (`POST /api/onboarding/complete`, after `onboarding_complete` is set), uploading/activating/archiving a resume (`/api/resumes*`, after the response) and an admin approving a user all call `POST /svc/v1/discovery/admin/rerank-user`, which runs `ranking.rerank_user`: re-score open recommendations whose `inputs_key` changed, hide those that no longer pass stage A or fall below `discovery_min_match_score` (`recommended_at` set to NULL and `hidden_reason = 'rerank'`), then fill the remaining daily budget from the pool. Jobs whose inputs are unchanged are left exactly as they are (`unchanged` in the result). The pool includes ranking-hidden rows, so a hidden job that fits the new profile comes back (`restored`); rows the user ignored, applied to or bookmarked are never re-offered. Discover orders by score first. Covered by `tests/test_discovery_db.py` (needs `TEST_DATABASE_URL`).

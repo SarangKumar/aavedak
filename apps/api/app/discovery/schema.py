@@ -48,6 +48,9 @@ SHARED_STATEMENTS: tuple[str, ...] = (
     "ALTER TABLE user_job_state ADD COLUMN IF NOT EXISTS hidden_reason TEXT",
     """CREATE INDEX IF NOT EXISTS user_job_state_recommended_idx
        ON user_job_state (user_id, recommended_at)""",
+    # Match-engine cache key (version + job data + profile/resume data): a re-rank skips a
+    # row whose key is unchanged, since the deterministic engine would return the same score.
+    "ALTER TABLE job_scores ADD COLUMN IF NOT EXISTS inputs_key TEXT",
     "ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS discovery_enabled INTEGER NOT NULL DEFAULT 1",
     "ALTER TABLE applications ADD COLUMN IF NOT EXISTS status_reason TEXT",
     "ALTER TABLE applications ADD COLUMN IF NOT EXISTS status_changed_at TEXT",
@@ -300,7 +303,8 @@ SHARED_BACKFILLS: tuple[str, ...] = (
          AND ignored = 0 AND application_id IS NULL""",
 )
 
-BASE_TABLES = ("jobs", "companies", "applications", "user_job_state", "user_preferences", "people", "profiles")
+BASE_TABLES = ("jobs", "companies", "applications", "user_job_state", "user_preferences", "people",
+               "profiles", "job_scores")
 
 
 class BaseSchemaMissing(RuntimeError):

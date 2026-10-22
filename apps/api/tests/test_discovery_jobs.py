@@ -13,7 +13,7 @@ from app.discovery.jobs.normalize import normalize_postings
 from app.discovery.jobs.providers import BOARD_URLS, detect_source
 from app.discovery.jobs.providers import ashby, greenhouse, json_feed, jsonld, lever, smartrecruiters, workable
 from app.discovery.jobs.registry import load_seed, parse_import_line, shard_seed
-from app.discovery.jobs.scoring import Career, ats_score, compatibility_score
+from app.discovery.jobs.scoring import ats_score
 from app.discovery.jobs.text import dedupe_key, html_to_text
 from app.discovery.timeutil import clamp_posted_at, ist_day_start_iso, parse_datetime, to_iso
 
@@ -381,19 +381,7 @@ def test_hash_ignores_description_when_provider_says_so():
     assert ha == hb
 
 
-# --- scoring (port of apps/web/lib/job-scoring.ts) ------------------------------------------
-
-
-def test_compatibility_rewards_skill_and_role_hits():
-    job = {"title": "Backend Engineer", "company": "Acme", "location": "Bengaluru",
-           "description": "Python, Postgres and FastAPI services. 1+ years experience."}
-    empty, _ = compatibility_score(job, Career(), "")
-    good, details = compatibility_score(
-        job, Career(skills=["Python", "Postgres"], preferred_roles=["Backend Engineer"],
-                    preferred_locations=["Bengaluru"], experience_level="1-3"), "python fastapi postgres")
-    assert good > empty and details["skillHits"] == ["Python", "Postgres"]
-    # Pinned: 12 + 38 (all skills) + 9 (one role) + 6 (one location) + resume 3/12*40=10 + 8 (exp) = 83
-    assert good == 83
+# --- JD quality score (port of apps/web/lib/job-scoring.ts) ---------------------------------
 
 
 def test_ats_score_bounds():
@@ -737,25 +725,25 @@ def test_run_history_window_is_inclusive_ist_days():
     assert history_window(months=1, today=date(2026, 3, 31)) == (date(2026, 3, 1), date(2026, 3, 31))
 
 
-# --- experience window + India-first ranking -------------------------------------------------
+# --- experience window ----------------------------------------------------------------------
 
 
-def test_experience_window_and_closeness():
+def test_experience_window():
     from app.discovery.config import DiscoverySettings
     from app.discovery.jobs import ranking
 
     settings = DiscoverySettings()
     assert ranking.max_min_years(settings, 2) == 4  # 2 YOE → fresher through 4-year roles
     assert ranking.max_min_years(settings, 0) == 2
-    assert ranking.experience_closeness(2, 2) == ranking.CLOSENESS_MAX
-    assert ranking.experience_closeness(0, 2) < ranking.experience_closeness(2, 2)
-    assert ranking.experience_closeness(None, 2) == ranking.CLOSENESS_MAX // 2
 
 
 def test_rank_puts_india_first():
-    from app.discovery.jobs import ranking
+    from app.discovery.jobs import match
 
-    india = ranking.rank_value(60, {"min_years": 1, "region": "india"}, 1)
-    berlin = ranking.rank_value(60, {"min_years": 1, "region": "global"}, 1)
-    remote_india = ranking.rank_value(60, {"min_years": 1, "region": "india_remote"}, 1)
-    assert india > remote_india > berlin
+    result = match.MatchResult(score=60, confidence=100, components=[])
+    now = "2026-10-22T00:00:00+00:00"
+
+    def rank(region: str) -> int:
+        return match.rank_value(result, match.JobFacts(id=region, region=region), now)
+
+    assert rank("india") > rank("india_remote") > rank("remote") > rank("global")

@@ -1691,6 +1691,66 @@ function SectionTitle({
 }
 
 /** Right-hand side: four separate cards — job, about/JD, people, resume (ATS). */
+/**
+ * "Why this match" for a recommendation: the engine's own reasons, the skills it found on
+ * both sides, the required skills it could not find, and what it could not judge. Rows
+ * scored before the staged engine only carry skills and roles, so those fall back to the
+ * single "Matches your profile" line.
+ */
+function WhyThisMatch({ reasons }: { reasons?: JobDto["reasons"] }) {
+  if (!reasons) return null;
+  const matched = reasons.skillsMatched ?? reasons.skills ?? [];
+  const missing = reasons.skillsMissing ?? [];
+  const why = reasons.reasons ?? [];
+  if (why.length === 0 && missing.length === 0) {
+    const legacy = [...(reasons.skills ?? []), ...(reasons.roles ?? [])].slice(0, 8);
+    return legacy.length > 0 ? (
+      <p className="text-muted-foreground text-[11px]">
+        Matches your profile: <span className="text-foreground/90">{legacy.join(", ")}</span>
+      </p>
+    ) : null;
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      {why.length > 0 ? (
+        <ul className="text-muted-foreground flex flex-col gap-0.5 text-[11px]">
+          {why.map((reason) => (
+            <li key={reason}>· {reason}</li>
+          ))}
+        </ul>
+      ) : null}
+      {matched.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="text-muted-foreground text-[11px]">Skills found:</span>
+          {matched.slice(0, 8).map((skill) => (
+            <Badge key={skill} variant="secondary" className="text-[10px]">
+              {skill}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+      {missing.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1">
+          <span
+            className="text-muted-foreground text-[11px]"
+            title="Asked for in this posting and not found in your resume or profile — which is not the same as not having it"
+          >
+            Not found in your resume:
+          </span>
+          {missing.slice(0, 8).map((skill) => (
+            <Badge key={skill} variant="outline" className="text-[10px]">
+              {skill}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+      {reasons.uncertainty && reasons.uncertainty.length > 0 ? (
+        <p className="text-muted-foreground/80 text-[11px]">{reasons.uncertainty[0]}</p>
+      ) : null}
+    </div>
+  );
+}
+
 function JobDetail({
   job,
   stretch,
@@ -1716,7 +1776,6 @@ function JobDetail({
   const pending = pendingAction !== null;
   const [confirmUnapply, setConfirmUnapply] = useState(false);
   const left = daysLeft(job);
-  const reasons = [...(job.reasons?.skills ?? []), ...(job.reasons?.roles ?? [])].slice(0, 8);
 
   async function copyDescription() {
     try {
@@ -1829,11 +1888,7 @@ function JobDetail({
           </p>
         ) : null}
 
-        {reasons.length > 0 ? (
-          <p className="text-muted-foreground text-[11px]">
-            Matches your profile: <span className="text-foreground/90">{reasons.join(", ")}</span>
-          </p>
-        ) : null}
+        <WhyThisMatch reasons={job.reasons} />
 
         <div className="flex flex-wrap gap-1.5">
           {tab === "discover" ? (

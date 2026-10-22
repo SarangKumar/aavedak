@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
+import { rerankUser } from "@/lib/rerank-user";
 import { cardAtsInputs, createResumeFromPdf, isCardScoreStale, listResumes } from "@/lib/resumes";
 import { nativeEngineVersion } from "@/lib/ats-service";
 
@@ -60,6 +61,9 @@ export async function POST(request: Request) {
       file,
       makeActive: makeActiveRaw === "false" ? false : true,
     });
+    // Job matching reads the active resume (else the newest one), so a new resume changes
+    // this user's recommendations. Re-ranked after the response; unchanged jobs are skipped.
+    after(() => rerankUser(user.id));
     return NextResponse.json(
       {
         resume: {

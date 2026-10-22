@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
+import { rerankUser } from "@/lib/rerank-user";
 import {
   archiveResume,
   deleteInactiveResume,
@@ -33,6 +34,10 @@ export async function PATCH(request: Request, ctx: Ctx) {
       displayName: body.displayName,
       status: body.status,
     });
+    if (body.status) {
+      // Activating or archiving a resume changes which text job matching compares against.
+      after(() => rerankUser(user.id));
+    }
     return NextResponse.json({
       resume: {
         id: resume.id,
@@ -63,6 +68,8 @@ export async function DELETE(request: Request, ctx: Ctx) {
       return NextResponse.json({ ok: true, deleted: id });
     }
     const resume = await archiveResume(user.id, id);
+    // Archiving the resume matching used means the next-best one takes over.
+    after(() => rerankUser(user.id));
     return NextResponse.json({
       resume: {
         id: resume.id,

@@ -2,7 +2,14 @@ import "server-only";
 
 import { DiscoveryApiError, discoveryAdmin } from "@/lib/discovery-api";
 
-export type RerankCounts = { rescored: number; dropped: number; added: number; restored?: number };
+export type RerankCounts = {
+  rescored: number;
+  /** Rows whose job and profile data were unchanged, so the stored score was kept. */
+  unchanged?: number;
+  dropped: number;
+  added: number;
+  restored?: number;
+};
 export type RerankResult = RerankCounts | { error: string };
 
 /**

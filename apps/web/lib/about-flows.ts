@@ -448,10 +448,14 @@ const SIGNUP: Flow = {
     },
     {
       title: "5. How a job is chosen for you",
-      body: "From open shared jobs posted in the last 30 days that you haven't been shown: only jobs asking at most your years plus 2 (or not saying). India first, then remote open to India, remote and global. Each job is scored against your skills, roles, locations and resume text; with a profile, a match under 30 is skipped. Rank = match + experience fit (0-10) + region bonus (India 12, India-remote 9, remote 4). Up to 50 new jobs a day.",
+      body: "From open shared jobs posted in the last 30 days that you haven't been shown. First the hard rules: a job that has expired, been filled, or asks for more than your years plus 2 is dropped. What is left is scored out of 100 from eight signals - the skills the posting requires, the ones it would like, your preferred roles against its title, experience, seniority, location and work mode, employment type, and how much your resume wording overlaps the description. Each signal only counts when the posting actually says something about it; what it leaves unsaid is counted as unknown rather than as a pass or a fail, so a one-line posting never wins and never loses on wording alone. With a profile to judge by, a match under 30 is skipped. The list is then ordered by that score plus a small bonus for India (12) and for a posting from the last few days (up to 6), the same role at one company is shown once, and one company takes at most 3 of the top slots. Up to 50 new jobs a day.",
     },
     {
-      title: "6. The Jobs page reads it",
+      title: "6. Why you see each job",
+      body: "Every recommendation carries its own reasons: the score, the skills found in both the posting and your resume or profile, the skills the posting asks for that are not in either (which is not the same as you not having them), the experience and location fit, and anything that could not be judged - a description too short to read requirements from, or no resume text on file. The per-signal points always add up to the score shown.",
+    },
+    {
+      title: "7. The Jobs page reads it",
       body: "On each visit the page reads your stored recommendations plus jobs you added yourself, filters them by posted date (24 hours by default, up to a month) and shows India first in the region menu. Nothing is re-ranked on page load.",
       data: "Reads user_job_state, jobs, job_scores.",
     },
@@ -465,7 +469,7 @@ const RERANK: Flow = {
   shape:
     "Two kinds of entry. Saving career preferences or finishing onboarding re-scores what is still open and branches into kept or hidden; hidden jobs loop back to the pool and return once they fit. Every path then tops up from the pool, up to what is left of today's cap.",
   trigger:
-    "You save career preferences in Profile or finish onboarding, or an admin approves you (re-rank for you); each scan (new jobs only); the daily ranking cron at 06:45 IST (whole pool); or an admin run.",
+    "You save career preferences in Profile, change your resume, or finish onboarding, or an admin approves you (re-rank for you); each scan (new jobs only); the daily ranking cron at 06:45 IST (whole pool); or an admin run.",
   grid: "grid-cols-3 lg:grid-cols-6",
   nodes: [
     {
@@ -538,12 +542,12 @@ const RERANK: Flow = {
   steps: [
     {
       title: "1. What is re-scored",
-      body: "Only your open recommendations: shown to you, not applied to, not ignored, and the job still open. Each is scored again against your current profile and resume.",
+      body: "Only your open recommendations: shown to you, not applied to, not ignored, and the job still open. Each is scored again against your current profile and resume - unless neither the posting nor your profile has changed since it was scored, in which case the stored score is kept and no work is repeated.",
       data: "Reads user_job_state, jobs, profiles, resumes.",
     },
     {
       title: "2. Kept or hidden",
-      body: "A job now asking more than your years plus 2, or scoring under 30, is hidden: its recommendation date is cleared and it is marked as hidden by ranking, not by you. Others keep their place with the new score and reasons.",
+      body: "A job that now fails a hard rule - asking more than your years plus 2, expired, filled - or that scores under 30, is hidden: its recommendation date is cleared and it is marked as hidden by ranking, not by you. Others keep their place with the new score and reasons.",
       data: "Updates user_job_state (score, reasons_json, recommended_at, hidden_reason) and job_scores.",
     },
     {

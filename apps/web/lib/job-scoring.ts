@@ -372,11 +372,17 @@ export async function scoreJobForUser(userId: string, job: JobRecord): Promise<J
   });
 }
 
+/**
+ * Rescore the jobs this user added by hand. Discovered jobs (`userId === null`) are owned by
+ * the discovery matcher (apps/api `discovery/jobs/match.py`), which writes their score and
+ * explanation; rescoring them here would overwrite a staged match score with this file's
+ * lighter heuristic.
+ */
 export async function rescoreAllJobsForUser(userId: string): Promise<number> {
   const jobs = await listJobsForUser(userId, { includeIgnored: true });
   let n = 0;
   for (const job of jobs) {
-    if (job.status === "archived") continue;
+    if (job.status === "archived" || job.userId === null) continue;
     await scoreJobForUser(userId, job);
     n += 1;
   }
