@@ -1,6 +1,6 @@
 # ATS engines — methodology, contracts, stages
 
-Single reference for all eleven engines. All scoring is Python (`engine_runner.py`); the web keeps only the registry (`apps/web/lib/ats-engines/registry.ts`: names, modes, contracts) — no TS fallback. Keep the registry consistent with the Python engines.
+Single reference for all fifteen engines. All scoring is Python (`engine_runner.py`); the web keeps only the registry (`apps/web/lib/ats-engines/registry.ts`: names, modes, contracts) — no TS fallback. Keep the registry consistent with the Python engines.
 
 | Engine id                                                                                                | Kind        | Modes                                              | Title        | JD           | Score type(s)                                       | When FastAPI is down |
 | -------------------------------------------------------------------------------------------------------- | ----------- | -------------------------------------------------- | ------------ | ------------ | --------------------------------------------------- | -------------------- |
@@ -10,6 +10,7 @@ Single reference for all eleven engines. All scoring is Python (`engine_runner.p
 | `ats_resume_checker`                                                                                     | open_source | resume_only, role_match, job_match                 | optional     | optional     | `resume_quality` / `ats_readiness`                  | Service unavailable  |
 | `resume_skills_extractor`                                                                                | open_source | role_match, job_match (no resume-only)             | optional     | optional     | `role_match` / `skill_similarity_match`             | Service unavailable  |
 | `hybrid_resume_analyzer`                                                                                 | open_source | resume_only, role_match, job_match (JD > 20 chars) | optional     | optional     | `resume_validation` / `role_match` / `hybrid_match` | Service unavailable  |
+| `greenhouse_ats`, `lever_ats`, `workable_ats`, `icims_ats`                                               | platform    | resume_only, role_match, job_match                 | optional     | optional     | `parse_readiness` / `application_readiness`         | Service unavailable  |
 
 Title-only mode uses Aavedak's role profile (`role_expected_skills`: core + common skills of `skill_taxonomy.ROLE_PROFILES`) as the comparison target; an unrecognized title fails with `missing_input` rather than scoring against nothing (ATS Resume Checker instead completes with a warning and omits keyword match).
 
@@ -99,7 +100,54 @@ All four upstream repos were re-cloned at the commits above and compared line by
 - **Resume Skills Extractor**: formula and calibration match; TF-IDF now uses sklearn's exact stop list.
 - **Hybrid Resume Analyzer**: rubric, rule validation and TF-IDF defaults match.
 
-## Native engine (`aavedak`, engine 3.0 — best-of benchmark, `benchmark.py`)
+## ATS platform profiles (`platform_profiles.py`, profile 1.0, 2026-10-22)
+
+Four engines that are not resume checkers: each one is a real applicant-tracking system, scored on
+**how completely its own documented candidate record can be filled from this resume's text**. These
+platforms store an application as structured fields and let recruiters search and filter on them, so
+a field the parser cannot fill is a field the recruiter cannot search. Modes: `resume_only` →
+`parse_readiness`; `role_match` / `job_match` → `application_readiness`.
+
+`overall = 60% field coverage + 40% recruiter-search coverage` when a title or JD is given, and
+field coverage alone without one. Field coverage is the weighted share of that platform's fields the
+resume fills (each field 0–1, partly-filled arrays score the share of entries that carry the field);
+search coverage is `0.6 ·` share of the posting's skills found `+ 0.4 ·` share of its other
+recurring terms (`jd_keywords`), or role-profile skill coverage in `role_match`.
+
+| Engine           | Field model (vendor's own docs, read 2026-10-22)                                                                                                                                                                                                                                                                  | Weighted toward                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `greenhouse_ats` | Job Board API "Submit an application": `first_name`, `last_name`, `email`, `phone`, `location` (+ `latitude`/`longitude`), `employments[company_name, title, start_date{month,year}, end_date, current]`, `educations[school_name_id, degree_id, discipline_id, start_date{month,year}]`, `question_{id}` (links) | month + year dates (.14), employer and title (.12 each), email (.12)                |
+| `lever_ats`      | Create an opportunity with `parse=true` → `name`, `headline` (previous companies), `emails`, `phones`, `location`, `company` (current employer), `links`; contact `location` is `{city, region, postalCode, country}`                                                                                             | the seven parsed fields only — emails (.18), headline (.18), location/links (.14)   |
+| `workable_ats`   | `POST /jobs/{shortcode}/candidates`: `name`/`firstname`+`lastname`, `email`, `phone`, `address`, `summary`, `experience_entries[title (required), company, industry, current, dates]`, `education_entries[school (required), degree, field_of_study, dates]`, `skills`, `answers`, `social_profiles`              | the required ones — experience `title` (.16), email (.12), education `school` (.09) |
+| `icims_ats`      | Candidate profile: basic information (location, email, phone) + Employment, Education, Skills and Links blocks; skills come from a static industry skill list and are extracted from the resume                                                                                                                   | location (.14), email (.14), the Employment block (.14)                             |
+
+- Sources: [docs.greenhouse.io/job-board.html](https://docs.greenhouse.io/job-board.html),
+  [hire.lever.co/developer/documentation](https://hire.lever.co/developer/documentation),
+  [workable.readme.io](https://workable.readme.io),
+  [community.icims.com](https://community.icims.com).
+- **Documented vs estimated**: the field _lists_ are the vendors' own. No vendor publishes how it
+  weights its fields, so `reference_weights.PLATFORM_FIELD_WEIGHTS` (required fields and the ones
+  recruiters filter on weigh most) and `PLATFORM_SEARCH_SHARE = 0.4` are Aavedak estimates. Every
+  result says so in `limitations`, together with "not affiliated".
+- **Not implemented, deliberately**: **Workday** — its candidate schema is behind the Workday
+  Community login, so a field model would be guesswork; and **Ashby** — its public candidate object
+  (`name`, `emailAddresses`, `phoneNumbers`, `socialLinks`, `tags`, `source`, `resumeFileHandle`)
+  measures nothing the Lever profile does not already cover. Adding either needs a published field
+  list, not a blog post.
+- Extraction (`extract_record`, LRU-cached per text): name/email/phone/links/skills from
+  `pipeline.parse_resume_shared`; the candidate's own location from the first 12 lines via
+  discovery's `canonical_location`; employment entries from date ranges in
+  `without_education(text)`, each checked for a title, an employer, a month + year on both ends and
+  the `Present` marker; education from `education_block(text)` (school name, degree level, field of
+  study). Employer and title are text heuristics — employer names are not a closed list — and both
+  are listed as a limitation.
+- Every unfilled field becomes one finding (severity from the field's weight and how empty it is)
+  naming the vendor's own field, plus one improvement whose text is the fix, e.g. "Write dates as
+  'Mar 2021 – Jun 2023': month and year on both ends".
+- These engines need no inputs: a resume alone answers "can this ATS read me?". `parse_readiness`
+  and `application_readiness` are not comparable with the match scores of the other engines.
+
+## Native engine (`aavedak`, engine 3.1 — best-of benchmark, `benchmark.py`)
 
 The native score is the union of the strongest documented criteria across all ten other engines. Resume quality is 11 criteria (0–100 each, weights sum to 1):
 
@@ -120,6 +168,32 @@ The native score is the union of the strongest documented criteria across all te
 - `resume_only`: overall = weighted quality. Every criterion is returned in `breakdown` with its detail line and sources; criteria under 60 become improvements.
 - `role_match` / `job_match`: overall = 65% match + 35% quality. Match keeps the evidence-based dimensions (required/preferred skills with synonyms via the taxonomy, responsibilities, experience incl. JD "N+ years" vs stated years, evidence quality, job title) and adds **education & certifications** (.06; degree level incl. B.Tech/M.Tech/BCA/MCA, and any certification the JD names). The critical required-skill protection still caps the final score.
 - Degree detection (`detect_degree_level`) now recognises Indian degrees (B.Tech, B.E., B.Sc, BCA, B.Com, M.Tech, M.Sc, MCA, M.E.) — previously a B.Tech resume read as "no degree" for Jobscan and SkillSyncer too.
+
+### Engine 3.1 (2026-10-22) — accuracy and recommendations
+
+- **Action verbs**: the criterion matched 44 hard-coded past-tense words, so a current role written
+  in the present tense ("Design and ship …") and ordinary engineering verbs (Integrated, Tuned,
+  Wrote, Containerized) counted as _no_ action verb and cost real resumes points. It now matches
+  `STRONG_VERB_BASES` (92 bases: Open ATS's 62-verb list, ATS Resume Checker's strong verbs, Resume
+  Worded's published guidance, plus common delivery verbs) in every tense, generated by
+  `_verb_forms` with an irregular-past table. The reference engines keep their own vendor-faithful
+  verb lists.
+- **Dates & gaps** is computed on `without_education(text)`: a degree written "2018 – 2022" is no
+  longer counted as a second date format, and the years between a degree and a first job are no
+  longer an employment gap. Both were common false positives that cost 25–45 points on that
+  criterion.
+- **Recommendations are actions, not restated diagnoses.** Each criterion now carries a `fix`
+  (`Criterion.fix`, also in `breakdown[].fix`): the improvement's `text` is what to change and its
+  `reason` holds the measurement, the score and the sources. Before, the text was
+  "Quantified impact: 2/12 bullets carry a number (target ≥ ⅓)" — a diagnosis the user had to
+  translate into an action.
+- **One recommendation per topic** (`_dedupe_improvements`): the legacy quality pass and the
+  benchmark criterion both watch action verbs, impact and length; where they overlap the criterion
+  wins, so the user never sees two different denominators for one problem. `resume_only` also
+  dedupes now (it returned the raw list before).
+- Improvements carry a `kind` (`criterion`, `skill_gap`, `platform_field`) and a `key`. The
+  "never ask the user to invent experience" rule is asserted on `skill_gap` recommendations, which
+  is what it was always about — structural advice carries no such caveat.
 
 ## Reference engine audit (2026-10-12)
 

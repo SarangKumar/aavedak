@@ -11,10 +11,9 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from dataclasses import dataclass
 from typing import Any, Callable
 
-from app.ats.analyze import _fingerprint
+from app.ats.engine_result import EngineInput, engine_result
 from app.ats.pipeline import (
     ANALYZING_CONTENT,
     CALCULATING_SCORE,
@@ -49,15 +48,6 @@ from app.ats.skill_taxonomy import display_name, infer_role_key, role_skill_buck
 from app.ats.text_similarity import tfidf_cosine
 
 OSS_PROFILE_VERSION = "1.1"
-
-
-@dataclass(frozen=True)
-class EngineInput:
-    resume_id: str
-    resume_text: str
-    jd_text: str
-    role: str
-    mode: str
 
 
 def _clamp(n: float, lo: float = 0.0, hi: float = 100.0) -> float:
@@ -98,81 +88,9 @@ def _finding(fid: str, severity: str, category: str, title: str, detail: str, re
     }
 
 
-def _result(
-    *,
-    inp: EngineInput,
-    resume: ParsedResume,
-    engine_id: str,
-    engine_name: str,
-    profile_id: str,
-    score_type: str,
-    score_name: str,
-    overall: float,
-    score_label: str,
-    formula: str,
-    reference: str,
-    breakdown: list[dict],
-    findings: list[dict],
-    improvements: list[dict],
-    scores: dict[str, int | None],
-    strengths: list[str],
-    limitations: list[str],
-    matched: list[dict] | None = None,
-    missing: list[dict] | None = None,
-    metrics: list[dict] | None = None,
-    skill_categories: list[dict] | None = None,
-    warnings: list[str] | None = None,
-    blurb: str,
-) -> dict[str, Any]:
-    overall_i = _r(overall)
-    sev_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
-    findings = sorted(findings, key=lambda f: sev_order.get(f["severity"], 5))
-    return {
-        "resumeId": inp.resume_id,
-        "mode": inp.mode,
-        "engineId": engine_id,
-        "engineName": engine_name,
-        "scoreType": score_type,
-        "scoreScale": {"min": 0, "max": 100},
-        "scoreName": score_name,
-        "overallScore": overall_i,
-        "atsScore": overall_i,
-        "scoreLabel": score_label,
-        "scores": scores,
-        "breakdown": breakdown,
-        "findings": findings,
-        "metrics": metrics or [],
-        "skillCategories": skill_categories or [],
-        "limitations": limitations,
-        "warnings": warnings or [],
-        "methodology": {
-            "id": profile_id,
-            "version": OSS_PROFILE_VERSION,
-            "formula": formula,
-            "reference": reference,
-        },
-        "matchedSkills": matched or [],
-        "partialSkills": [],
-        "missingSkills": missing or [],
-        "matchedResponsibilities": [],
-        "partialResponsibilities": [],
-        "missingResponsibilities": [],
-        "strengths": strengths[:8],
-        "improvements": improvements[:10],
-        # Existing UI section for parse/format problems — mirror the formatting findings there.
-        "atsIssues": [
-            {"code": f["id"], "title": f["title"], "detail": f["detail"]}
-            for f in findings
-            if f["category"] in ("formatting", "contact", "structure")
-        ][:8],
-        "confidence": "high" if len(resume.raw) > 900 else "medium" if len(resume.raw) > 400 else "low",
-        "notes": [formula, f"profile {profile_id}@{OSS_PROFILE_VERSION} · adapted from {reference}"],
-        "engine": "fastapi",
-        "engineVersion": f"{profile_id}@{OSS_PROFILE_VERSION}",
-        "textChars": len(resume.raw.strip()),
-        "textFingerprint": _fingerprint(resume.raw),
-        "blurb": blurb,
-    }
+def _result(**kwargs: Any) -> dict[str, Any]:
+    """OSS engines' envelope: the shared builder pinned to this family's profile version."""
+    return engine_result(profile_version=OSS_PROFILE_VERSION, **kwargs)
 
 
 def _word_in(text_lower: str, term: str) -> bool:

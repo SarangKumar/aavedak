@@ -74,7 +74,8 @@ def _run(engine_id: str, **kw):
 def test_registry_has_four_new_unique_engines():
     assert set(NEW) <= VALID_ENGINES
     assert set(OSS_ENGINES) == set(NEW)
-    assert len(VALID_ENGINES) == 11
+    # 7 legacy (native + reference) + 4 OSS ports + 4 ATS platform profiles.
+    assert len(VALID_ENGINES) == 15
     assert len({name for name, _c, _f in OSS_ENGINES.values()}) == 4
 
 

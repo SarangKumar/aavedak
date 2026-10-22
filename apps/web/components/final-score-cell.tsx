@@ -4,15 +4,17 @@ import { getEngine } from "@/lib/ats-engines/registry";
 import {
   ATS_GROUP_WEIGHTS,
   weightedFinalScore,
+  type AtsEngineGroup,
   type FinalScoreEntry,
 } from "@/lib/ats-engines/aggregate";
 import { scoreVerdict } from "@/lib/ats-types";
 
-const GROUP_LABEL = {
+const GROUP_LABEL: Record<AtsEngineGroup, string> = {
   native: "Native",
   reference: "Reference",
+  platform: "ATS platform",
   open_source: "Open Source",
-} as const;
+};
 
 /**
  * Fixed rightmost column of the resume × engine tables: the weighted final score of every engine
@@ -35,8 +37,10 @@ export function FinalScoreCell({ entries }: { entries: FinalScoreEntry[] }) {
   const breakdown = (
     <span className="block max-w-72 space-y-1 text-[11px]">
       <span className="block font-medium">
-        Weighted final score · Native {ATS_GROUP_WEIGHTS.native * 100}% · Reference{" "}
-        {ATS_GROUP_WEIGHTS.reference * 100}% · Open Source {ATS_GROUP_WEIGHTS.open_source * 100}%
+        Weighted final score ·{" "}
+        {(Object.keys(GROUP_LABEL) as AtsEngineGroup[])
+          .map((g) => `${GROUP_LABEL[g]} ${ATS_GROUP_WEIGHTS[g] * 100}%`)
+          .join(" · ")}{" "}
         (renormalised over engines that ran)
       </span>
       {[...final.parts]

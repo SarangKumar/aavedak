@@ -14,7 +14,11 @@ export type AtsEngineId =
   | "open_ats"
   | "ats_resume_checker"
   | "resume_skills_extractor"
-  | "hybrid_resume_analyzer";
+  | "hybrid_resume_analyzer"
+  | "greenhouse_ats"
+  | "lever_ats"
+  | "workable_ats"
+  | "icims_ats";
 
 export type AtsScoreType =
   | "resume_quality"
@@ -27,14 +31,20 @@ export type AtsScoreType =
   | "ats_readiness"
   | "skill_similarity_match"
   | "hybrid_match"
-  | "resume_validation";
+  | "resume_validation"
+  | "parse_readiness"
+  | "application_readiness";
 
 export type EngineCapability = {
   id: AtsEngineId;
   name: string;
   shortDescription: string;
-  /** Independent Aavedak implementation vs public-doc reference profile. */
-  kind: "native" | "reference" | "open_source";
+  /**
+   * native — Aavedak's own engine; reference — a resume checker's published criteria;
+   * open_source — a port of an open-source scorer; platform — a real ATS's own candidate
+   * record (how completely its documented fields can be filled from this resume).
+   */
+  kind: "native" | "reference" | "open_source" | "platform";
   /** Open-source project the engine is adapted from (kind "open_source"). */
   referenceRepo?: string;
   /** Modes this engine can run (product config — not a vendor claim). */

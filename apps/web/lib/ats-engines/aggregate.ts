@@ -4,14 +4,20 @@ import type { AtsEngineId } from "./types";
  * Final (aggregate) ATS score weights — the single place to tune them.
  *
  * Group weights: the native engine carries the most (it is the best-of benchmark and the only one
- * we fully control), reference engines next (vendor-documented criteria), open-source ports least
- * (narrow upstream rubrics; some are similarity-only).
+ * we fully control), reference engines next (vendor-documented criteria), then the ATS platform
+ * profiles (a real ATS's own documented fields, but measuring parse readiness rather than fit),
+ * and open-source ports least (narrow upstream rubrics; some are similarity-only).
  *
  * Engine weights split a group's share: engines whose criteria are better documented or audited
  * count more. Missing engines (not selected, needs a JD, failed, unavailable) are dropped and the
  * remaining weights renormalised, both across groups and within a group.
  */
-export const ATS_GROUP_WEIGHTS = { native: 0.5, reference: 0.35, open_source: 0.15 } as const;
+export const ATS_GROUP_WEIGHTS = {
+  native: 0.45,
+  reference: 0.3,
+  platform: 0.15,
+  open_source: 0.1,
+} as const;
 
 export type AtsEngineGroup = keyof typeof ATS_GROUP_WEIGHTS;
 
@@ -32,6 +38,12 @@ export const ATS_ENGINE_WEIGHTS: Record<AtsEngineId, { group: AtsEngineGroup; we
   // Similarity-heavy / validation-style rubrics.
   resume_skills_extractor: { group: "open_source", weight: 0.8 },
   hybrid_resume_analyzer: { group: "open_source", weight: 0.7 },
+  // Field models published field-by-field (Greenhouse, Workable) count more than ones described
+  // only as profile blocks (iCIMS) or limited to what the parser fills (Lever).
+  greenhouse_ats: { group: "platform", weight: 1.2 },
+  workable_ats: { group: "platform", weight: 1.1 },
+  lever_ats: { group: "platform", weight: 1.0 },
+  icims_ats: { group: "platform", weight: 0.9 },
 };
 
 export type FinalScoreEntry = { engineId: AtsEngineId; score: number };

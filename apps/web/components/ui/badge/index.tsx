@@ -15,6 +15,7 @@ const badgeVariants = {
   engineNative: "border-primary/40 bg-primary/10 text-primary",
   engineOss: "border-border bg-secondary text-secondary-foreground",
   engineRef: "border-border/70 text-muted-foreground",
+  enginePlatform: "border-accent-foreground/30 bg-accent text-accent-foreground",
 } as const;
 
 export type BadgeVariant = keyof typeof badgeVariants;

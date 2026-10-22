@@ -36,6 +36,24 @@ function testRegistryMatrix() {
   assert.equal(syncer.jd, "required");
 }
 
+function testPlatformEnginesRegistered() {
+  const platform = ATS_ENGINES.filter((e) => e.kind === "platform");
+  assert.deepEqual(platform.map((e) => e.id).sort(), [
+    "greenhouse_ats",
+    "icims_ats",
+    "lever_ats",
+    "workable_ats",
+  ]);
+  for (const eng of platform) {
+    // They need no inputs: a resume alone tells you whether that ATS can read it.
+    assert.equal(eng.jd, "optional");
+    assert.equal(eng.title, "optional");
+    assert.equal(scoreTypeForMode(eng, "resume_only"), "parse_readiness");
+    assert.equal(scoreTypeForMode(eng, "job_match"), "application_readiness");
+    assert.ok(eng.limitations.some((l) => l.includes("Not affiliated")));
+  }
+}
+
 function testCombinationsOnlySelected() {
   const combos = buildCombinations({
     resumeIds: ["r1", "r2"],
@@ -67,23 +85,24 @@ function testNaRegressionWithFullInputs() {
       jdText: "Requirements: Python FastAPI Docker Kubernetes. Bachelor's preferred.",
     },
   });
-  assert.equal(combos.length, 11);
+  assert.equal(combos.length, ATS_ENGINES.length);
   assert.equal(
     summarizeCombinations(combos).readyCount,
-    11,
-    "All eleven engines must be ready when title+JD are supplied",
+    ATS_ENGINES.length,
+    "Every engine must be ready when title+JD are supplied",
   );
   assert.equal(summarizeCombinations(combos).needsCount, 0);
 }
 
 function testSelectAllEnginesCount() {
-  assert.equal(ATS_ENGINES.length, 11);
+  // 1 native + 6 reference + 4 open source + 4 ATS platform profiles.
+  assert.equal(ATS_ENGINES.length, 15);
   const combos = buildCombinations({
     resumeIds: ["a", "b", "c"],
     engines: ATS_ENGINES.map((e) => ({ engineId: e.id })),
     shared: { role: "Cloud Engineer", jdText: "Must have AWS Docker Kubernetes Python" },
   });
-  assert.equal(combos.length, 33);
+  assert.equal(combos.length, 3 * ATS_ENGINES.length);
   const summary = summarizeCombinations(combos);
   assert.ok(summary.readyCount >= 12);
 }
@@ -143,7 +162,12 @@ function testNewEngineModes() {
 (globalThis as { React?: typeof React }).React = React;
 
 function testEngineLabelShowsNameAndKind() {
-  const kind: Record<string, string> = { native: "Native", open_source: "OSS", reference: "Ref" };
+  const kind: Record<string, string> = {
+    native: "Native",
+    open_source: "OSS",
+    reference: "Ref",
+    platform: "ATS",
+  };
   for (const eng of ATS_ENGINES) {
     const html = renderToStaticMarkup(createElement(EngineLabel, { engineId: eng.id }));
     assert.ok(html.includes(eng.name.replace(/&/g, "&amp;")), `${eng.id} name rendered`);
@@ -273,6 +297,7 @@ async function testReadRunStream() {
 testRegistryMatrix();
 testNewEnginesRegistered();
 testNewEngineModes();
+testPlatformEnginesRegistered();
 testEngineLabelShowsNameAndKind();
 testStageDisplay();
 testCellUpdateGuards();

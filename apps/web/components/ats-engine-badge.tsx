@@ -9,9 +9,10 @@ const KIND: Record<string, { label: string; variant: BadgeVariant }> = {
   native: { label: "Native", variant: "engineNative" },
   open_source: { label: "OSS", variant: "engineOss" },
   reference: { label: "Ref", variant: "engineRef" },
+  platform: { label: "ATS", variant: "enginePlatform" },
 };
 
-/** Small Native / OSS / Ref tag — the only badge; engines are identified by name. */
+/** Small Native / OSS / Ref / ATS tag — the only badge; engines are identified by name. */
 export function EngineKindBadge({
   engineId,
   className,

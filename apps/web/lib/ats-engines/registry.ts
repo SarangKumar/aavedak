@@ -25,7 +25,7 @@ export const ATS_ENGINES: EngineCapability[] = [
     preferredMode: "job_match",
     scoreTypes: ["resume_quality", "role_match", "job_match"],
     scoringProfileId: "aavedak-native",
-    profileVersion: "3.0",
+    profileVersion: "3.1",
     limitations: [
       "Transparent local/API model — not a Workday/Greenhouse/Taleo oracle.",
       "Does not invent experience; skills-list-only evidence is partial.",
@@ -243,6 +243,106 @@ export const ATS_ENGINES: EngineCapability[] = [
     algoBlurb:
       "Rubric from the reference (skills 40 + keyword overlap 30 + length 20 − 2 per missing skill, out of 90) normalized to 100, combined 70/30 with TF-IDF similarity. Both parts are shown separately. Title-only: skills + length out of 60. Resume-only: the source's rule-based resume validation.",
   },
+  // ── ATS platform profiles ──────────────────────────────────────────────────────────────────
+  // Not resume checkers: each of these is a real applicant-tracking system, scored on how much of
+  // its own documented candidate record this resume's text can fill (apps/api/app/ats/
+  // platform_profiles.py). Field lists are the vendors' own docs; the weights are Aavedak's.
+  {
+    id: "greenhouse_ats",
+    name: "Greenhouse",
+    shortDescription: "Fills Greenhouse's application fields (ATS platform).",
+    kind: "platform",
+    supportedModes: ["resume_only", "role_match", "job_match"],
+    title: "optional",
+    jd: "optional",
+    preferredMode: "resume_only",
+    scoreTypes: ["parse_readiness", "application_readiness"],
+    scoreTypeByMode: {
+      resume_only: "parse_readiness",
+      role_match: "application_readiness",
+      job_match: "application_readiness",
+    },
+    scoringProfileId: "greenhouse-platform",
+    profileVersion: "1.0",
+    limitations: [
+      "Measures whether Greenhouse's documented application fields can be filled from this resume — not a Greenhouse score or ranking. Not affiliated with Greenhouse.",
+      "Field names come from the Job Board API docs; the weight on each field is an Aavedak estimate, and employer/title detection is a text heuristic.",
+    ],
+    algoBlurb:
+      "Greenhouse stores an application as first/last name, email, phone, location, an employments array (company, title, month + year dates, current flag) and an educations array (school, degree, discipline). Scored on how many of those fields your resume text can fill, plus — with a title or JD — how findable it is in a recruiter keyword search (40%).",
+  },
+  {
+    id: "lever_ats",
+    name: "Lever",
+    shortDescription: "Fills the seven fields Lever's parser populates (ATS platform).",
+    kind: "platform",
+    supportedModes: ["resume_only", "role_match", "job_match"],
+    title: "optional",
+    jd: "optional",
+    preferredMode: "resume_only",
+    scoreTypes: ["parse_readiness", "application_readiness"],
+    scoreTypeByMode: {
+      resume_only: "parse_readiness",
+      role_match: "application_readiness",
+      job_match: "application_readiness",
+    },
+    scoringProfileId: "lever-platform",
+    profileVersion: "1.0",
+    limitations: [
+      "Measures whether Lever's documented parsed fields can be filled from this resume — not a Lever score or ranking. Not affiliated with Lever.",
+      "Lever's docs list the fields; their weights are an Aavedak estimate, and employer detection is a text heuristic.",
+    ],
+    algoBlurb:
+      "Parsing a resume into Lever fills exactly seven fields: name, headline (your previous companies), emails, phones, location, current company and links. Lever stores no education, so contact details, employer names and links carry the whole record. With a title or JD, recruiter-search coverage adds 40%.",
+  },
+  {
+    id: "workable_ats",
+    name: "Workable",
+    shortDescription: "Fills Workable's candidate object (ATS platform).",
+    kind: "platform",
+    supportedModes: ["resume_only", "role_match", "job_match"],
+    title: "optional",
+    jd: "optional",
+    preferredMode: "resume_only",
+    scoreTypes: ["parse_readiness", "application_readiness"],
+    scoreTypeByMode: {
+      resume_only: "parse_readiness",
+      role_match: "application_readiness",
+      job_match: "application_readiness",
+    },
+    scoringProfileId: "workable-platform",
+    profileVersion: "1.0",
+    limitations: [
+      "Measures whether Workable's documented candidate fields can be filled from this resume — not a Workable score or ranking. Not affiliated with Workable.",
+      "Field names come from Workable's API docs; the weight on each field is an Aavedak estimate, and employer/title detection is a text heuristic.",
+    ],
+    algoBlurb:
+      "Workable's candidate object carries name, email, phone, address, summary, experience entries (title is required), education entries (school is required), skills and social profiles. Scored on how many of those your resume fills, plus recruiter-search coverage (40%) when a title or JD is given.",
+  },
+  {
+    id: "icims_ats",
+    name: "iCIMS",
+    shortDescription: "Fills the iCIMS candidate profile blocks (ATS platform).",
+    kind: "platform",
+    supportedModes: ["resume_only", "role_match", "job_match"],
+    title: "optional",
+    jd: "optional",
+    preferredMode: "resume_only",
+    scoreTypes: ["parse_readiness", "application_readiness"],
+    scoreTypeByMode: {
+      resume_only: "parse_readiness",
+      role_match: "application_readiness",
+      job_match: "application_readiness",
+    },
+    scoringProfileId: "icims-platform",
+    profileVersion: "1.0",
+    limitations: [
+      "Measures whether the iCIMS candidate profile can be filled from this resume — not an iCIMS score, ranking or AI match. Not affiliated with iCIMS.",
+      "Blocks come from iCIMS's own profile documentation; the weight on each is an Aavedak estimate, and employer/title detection is a text heuristic.",
+    ],
+    algoBlurb:
+      "The iCIMS profile leads with location, email and phone, then Employment, Education, Skills and Links blocks — and its skills come from a fixed industry list, so they must appear as words. Scored on how completely those blocks fill, plus recruiter-search coverage (40%) with a title or JD.",
+  },
 ];
 
 export function getEngine(id: string): EngineCapability | undefined {
@@ -290,6 +390,10 @@ export function scoreTypeLabel(t: AtsScoreType): string {
       return "Hybrid Match";
     case "resume_validation":
       return "Resume Validation";
+    case "parse_readiness":
+      return "Parse Readiness";
+    case "application_readiness":
+      return "Application Readiness";
     default:
       return t;
   }

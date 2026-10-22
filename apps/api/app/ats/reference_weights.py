@@ -53,6 +53,77 @@ ENHANCV_WEIGHTS = {
     "bullet_length": 0.15,
 }
 
+# ── ATS platform profiles (field models from each vendor's docs; see app/ats/platform_profiles.py) ──
+# The fields are documented; how a platform weights them is not. These splits are Aavedak
+# estimates: a field the platform requires, or one recruiters filter on, weighs most. Each dict
+# must sum to 1.0 (asserted below) and every key must be a check in `platform_profiles._all_checks`.
+PLATFORM_FIELD_WEIGHTS: dict[str, dict[str, float]] = {
+    # Greenhouse's application form: name and email are required; employments / educations are
+    # structured arrays whose dates are a month + year pair.
+    "greenhouse_ats": {
+        "name": 0.10,
+        "email": 0.12,
+        "phone": 0.06,
+        "location": 0.06,
+        "employments_company": 0.12,
+        "employments_title": 0.12,
+        "employments_dates": 0.14,
+        "employments_current": 0.04,
+        "education_school": 0.08,
+        "education_degree": 0.06,
+        "education_field": 0.06,
+        "links": 0.04,
+    },
+    # Lever parses exactly seven fields and stores no education, so contact details, the company
+    # headline and links carry the whole record.
+    "lever_ats": {
+        "name": 0.14,
+        "email": 0.18,
+        "phone": 0.10,
+        "location": 0.14,
+        "headline": 0.18,
+        "company": 0.12,
+        "links": 0.14,
+    },
+    # Workable requires `title` on every experience entry and `school` on every education entry.
+    "workable_ats": {
+        "name": 0.10,
+        "email": 0.12,
+        "phone": 0.06,
+        "location": 0.06,
+        "summary": 0.06,
+        "experience_title": 0.16,
+        "experience_company": 0.10,
+        "experience_dates": 0.08,
+        "experience_current": 0.03,
+        "education_school": 0.09,
+        "education_degree": 0.05,
+        "education_field": 0.05,
+        "skills": 0.04,
+    },
+    # The iCIMS profile leads with location/email/phone, then the Employment, Education, Skills and
+    # Links blocks.
+    "icims_ats": {
+        "location": 0.14,
+        "email": 0.14,
+        "phone": 0.08,
+        "employment_entries": 0.14,
+        "employment_title": 0.10,
+        "employment_company": 0.10,
+        "employment_dates": 0.08,
+        "education_block": 0.12,
+        "skills": 0.06,
+        "links": 0.04,
+    },
+}
+for _engine, _fields in PLATFORM_FIELD_WEIGHTS.items():
+    assert abs(sum(_fields.values()) - 1.0) < 1e-9, f"{_engine} field weights must sum to 1.0"
+
+# Share of a platform score taken by recruiter-search coverage when a title or JD is given (the
+# rest is field coverage). Aavedak choice: no vendor publishes such a split.
+PLATFORM_SEARCH_SHARE = 0.4
+
+
 # ── Open-source reference engines (verified against each repo's source; see app/ats/ENGINES.md) ──
 
 # jlynshue/open-ats `three_category_config()` (what its CLI actually uses — not the PRD's 40/20/20/20).

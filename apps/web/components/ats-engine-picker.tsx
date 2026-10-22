@@ -10,11 +10,13 @@ import { ATS_ENGINES } from "@/lib/ats-engines/registry";
 import type { AtsEngineId } from "@/lib/ats-engines/types";
 import { cn } from "@/lib/utils";
 
-const ENGINE_KINDS = ["native", "reference", "open_source"] as const;
+// Order mirrors the Final score's group order (lib/ats-engines/aggregate.ts).
+const ENGINE_KINDS = ["native", "reference", "platform", "open_source"] as const;
 type EngineKind = (typeof ENGINE_KINDS)[number];
 const KIND_LABELS: Record<EngineKind, string> = {
   native: "Native",
   reference: "Reference",
+  platform: "ATS platforms",
   open_source: "Open Source",
 };
 const ENGINE_IDS_BY_KIND: Record<EngineKind, AtsEngineId[]> = ENGINE_KINDS.reduce(

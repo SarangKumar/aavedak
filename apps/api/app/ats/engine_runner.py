@@ -7,7 +7,9 @@ import logging
 from fastapi import HTTPException
 
 from app.ats.analyze import analyze_resume, detect_mode
-from app.ats.oss_profiles import OSS_ENGINES, EngineInput
+from app.ats.engine_result import EngineInput
+from app.ats.oss_profiles import OSS_ENGINES
+from app.ats.platform_profiles import PLATFORM_ENGINES
 from app.ats.pipeline import (
     ANALYSIS_FAILURE,
     CALCULATING_SCORE,
@@ -39,7 +41,10 @@ LEGACY_ENGINES = frozenset(
         "enhancv_style",
     }
 )
-VALID_ENGINES = LEGACY_ENGINES | frozenset(OSS_ENGINES)
+# Staged engines share one contract: (name, EngineContract, run). OSS engines are ports of
+# open-source scorers; platform engines model a real ATS's candidate record (platform_profiles.py).
+STAGED_ENGINES = {**OSS_ENGINES, **PLATFORM_ENGINES}
+VALID_ENGINES = LEGACY_ENGINES | frozenset(STAGED_ENGINES)
 
 
 def _run_legacy(
@@ -89,7 +94,7 @@ def run_engine_staged(
         emit(CALCULATING_SCORE, None)
         return _run_legacy(engine_id, rid, resume_text, jd_text, role, mode, years_experience)
 
-    name, contract, run = OSS_ENGINES[engine_id]
+    name, contract, run = STAGED_ENGINES[engine_id]
     resolved = resolve_mode(contract, engine_name=name, role=role, jd_text=jd_text, mode=mode)
     try:
         return run(EngineInput(rid, resume_text, jd_text, role, resolved), emit)
