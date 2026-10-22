@@ -643,3 +643,222 @@ def test_legacy_rerank_hidden_rows_are_tagged_by_the_migration(conn):
     tags = {r["job_id"]: r["hidden_reason"] for r in conn.execute(
         "SELECT job_id, hidden_reason FROM user_job_state WHERE user_id = %s", (user,)).fetchall()}
     assert tags == {"legacy-hidden": "rerank", "legacy-ignored": None, "legacy-open": None}
+
+
+# --- outage guard, refresh safety, company discovery ---------------------------------------
+
+
+class CollapsingProvider:
+    """A board that listed many roles and now answers with (almost) none — the shape of an
+    outage, not of a company that closed everything."""
+
+    key = "greenhouse"
+
+    def __init__(self, count: int) -> None:
+        self.count = count
+
+    def fetch(self, client, target):
+        return FetchResult([
+            RawPosting(external_id=f"{target.token}:{i}", title="Software Engineer I", company_name="Acme",
+                       url=f"https://acme.example/{i}", locations=["Chennai, India"],
+                       description="Python services", posted_at=now_iso())
+            for i in range(self.count)
+        ])
+
+
+def test_outage_guard_keeps_a_collapsed_board_from_closing_every_job(conn, settings, monkeypatch):
+    target = make_source(conn)
+
+    def run_scan(count: int) -> dict:
+        monkeypatch.setattr(scan, "get_provider", lambda key: CollapsingProvider(count))
+        run, _ = runs.create_run(conn, kind="jobs_scan", items=[(scan.ITEM_KIND, target.id, {})])
+        process_tick(conn, settings, budget_seconds=60, kinds=[scan.ITEM_KIND])
+        return json.loads(conn.execute(
+            "SELECT last_counts_json FROM company_sources WHERE id = %s", (target.id,)).fetchone()["last_counts_json"])
+
+    first = run_scan(20)
+    assert first["inserted"] == 20
+    assert conn.execute(
+        "SELECT last_posting_count AS n FROM company_sources WHERE id = %s", (target.id,)
+    ).fetchone()["n"] == 20
+
+    second = run_scan(1)
+    assert second["outageGuard"] == {"previous": 20, "fetched": 1}
+    # The collapsed count must not become the new baseline, or a second day of the same
+    # outage would look like a normal scan and close everything.
+    assert conn.execute(
+        "SELECT last_posting_count AS n FROM company_sources WHERE id = %s", (target.id,)
+    ).fetchone()["n"] == 20
+    open_jobs = conn.execute(
+        """SELECT COUNT(*) AS n FROM jobs j JOIN job_sources s ON s.job_id = j.id
+           WHERE s.company_source_id = %s AND j.closed_at IS NULL""", (target.id,)).fetchone()
+    assert open_jobs["n"] == 20  # nothing closed while the source looks broken
+
+    # Once the board answers normally again, the jobs it really dropped do close.
+    third = run_scan(20)
+    assert "outageGuard" not in third
+    fourth = run_scan(12)
+    assert "outageGuard" not in fourth and fourth["closed"] == 8
+
+
+def test_refreshing_a_job_keeps_the_user_s_application_state(conn, settings):
+    target = make_source(conn)
+    store.ingest_company(conn, target, [njob("g:1", title="Backend Engineer")], complete=True,
+                         scan_started_at=iso_minus(5), expiry_days=30)
+    job_id = conn.execute("SELECT job_id FROM job_sources WHERE external_id = 'g:1'").fetchone()["job_id"]
+    user = add_user(conn)
+    now = now_iso()
+    conn.execute(
+        """INSERT INTO applications (id, user_id, company_name, role, location, job_id, status, notes,
+             created_at, updated_at)
+           VALUES ('app_keep', %s, 'Acme', 'Backend Engineer', 'Bengaluru', %s, 'applied', 'Referred by Asha',
+                   %s, %s)""",
+        (user, job_id, now, now),
+    )
+    conn.execute(
+        """INSERT INTO user_job_state (user_id, job_id, ignored, application_id, updated_at, recommended_at, score)
+           VALUES (%s, %s, 0, 'app_keep', %s, %s, 77)""",
+        (user, job_id, now, now),
+    )
+
+    changed = njob("g:1", title="Backend Engineer", desc="Rewritten description", posted="2026-10-02T00:00:00.000Z")
+    stats = store.ingest_company(conn, target, [changed], complete=True,
+                                 scan_started_at=now_iso(), expiry_days=30)
+    assert stats.updated == 1
+    job = conn.execute("SELECT description, first_seen_at FROM jobs WHERE id = %s", (job_id,)).fetchone()
+    assert job["description"] == "Rewritten description"
+    app = conn.execute("SELECT status, notes, job_id FROM applications WHERE id = 'app_keep'").fetchone()
+    assert (app["status"], app["notes"], app["job_id"]) == ("applied", "Referred by Asha", job_id)
+    state = conn.execute(
+        "SELECT application_id, score, recommended_at FROM user_job_state WHERE user_id = %s AND job_id = %s",
+        (user, job_id)).fetchone()
+    assert state["application_id"] == "app_keep" and state["score"] == 77 and state["recommended_at"] is not None
+
+
+def test_index_sources_are_imported_once_and_scheduled_like_any_source(conn):
+    from app.discovery.jobs.providers.workable_index import INDEX_TOKENS
+
+    first = registry.import_index_sources(conn)
+    second = registry.import_index_sources(conn)
+    assert first["added"] == len(INDEX_TOKENS) and second["added"] == 0
+    rows = conn.execute(
+        "SELECT token, origin, enabled FROM company_sources WHERE provider = 'workable_index'").fetchall()
+    assert {r["token"] for r in rows} == set(INDEX_TOKENS)
+    assert all(r["origin"] == "index" and r["enabled"] == 1 for r in rows)
+    scheduled = registry.scheduled_source_ids(conn, shard=None, shard_count=6, max_failures=5)
+    index_ids = {r["id"] for r in conn.execute(
+        "SELECT id FROM company_sources WHERE provider = 'workable_index'").fetchall()}
+    assert index_ids <= set(scheduled)
+
+
+def test_company_candidates_skip_companies_already_covered(conn):
+    from app.discovery.jobs import company_discovery
+
+    make_source(conn, token="coveredco")  # a board source named "Acme"
+    added = company_discovery.record_hints(
+        conn,
+        [("Acme", "https://acme.example/"), ("Fresh Co", "https://fresh.example/"),
+         ("Fresh Co", "https://fresh.example/"), ("Platform Only", "https://x.workable.com/")],
+    )
+    assert added == 2  # "Acme" is already a source; the repeated name is one candidate
+    rows = {r["name"]: r for r in conn.execute(
+        "SELECT name, domain, discovery_source, status FROM discovered_companies").fetchall()}
+    assert set(rows) == {"Fresh Co", "Platform Only"}
+    assert rows["Fresh Co"]["domain"] == "fresh.example"
+    # A hiring-platform host is not a company website, so no domain is stored for it.
+    assert rows["Platform Only"]["domain"] is None
+    assert all(r["status"] == "pending" and r["discovery_source"] == "workable_index" for r in rows.values())
+
+    # Re-recording is idempotent and never duplicates a candidate.
+    assert company_discovery.record_hints(conn, [("Fresh Co", None)]) == 0
+
+
+def test_resolved_candidate_is_registered_as_a_board_and_a_careers_page(conn):
+    from app.discovery.jobs import company_discovery
+
+    company_discovery.record_hints(conn, [("Registerme Inc", "https://registerme.example/")])
+    candidate_id = conn.execute(
+        "SELECT id FROM discovered_companies WHERE name = 'Registerme Inc'").fetchone()["id"]
+    candidate = company_discovery.load(conn, candidate_id)
+    assert candidate is not None and candidate.domain == "registerme.example"
+
+    outcome = company_discovery._apply(
+        conn,
+        candidate,
+        company_discovery.Resolution(
+            "board", "https://registerme.example/careers", "greenhouse", "registermeinc", requests=3
+        ),
+    )
+    assert outcome.ok and outcome.result["registeredBoard"] and outcome.result["registeredPage"]
+
+    source = conn.execute(
+        "SELECT company_name, origin, enabled, official_careers_url, official_careers_origin"
+        " FROM company_sources WHERE provider = 'greenhouse' AND token = 'registermeinc'").fetchone()
+    assert source["company_name"] == "Registerme Inc" and source["origin"] == "discovered"
+    assert source["enabled"] == 1
+    assert source["official_careers_url"] == "https://registerme.example/careers"
+    assert source["official_careers_origin"] == "detected"
+
+    page = conn.execute(
+        "SELECT company_name, domain, origin, company_source_id FROM career_pages"
+        " WHERE careers_url = 'https://registerme.example/careers'").fetchone()
+    assert page["origin"] == "discovered" and page["domain"] == "registerme.example"
+    assert page["company_source_id"] is not None
+
+    ledger = conn.execute(
+        "SELECT status, ats, ats_token, attempts, promoted_source_id, promoted_page_id, checked_at"
+        " FROM discovered_companies WHERE id = %s", (candidate_id,)).fetchone()
+    assert ledger["status"] == "board" and (ledger["ats"], ledger["ats_token"]) == ("greenhouse", "registermeinc")
+    assert ledger["attempts"] == 1 and ledger["checked_at"] is not None
+    assert ledger["promoted_source_id"] and ledger["promoted_page_id"]
+
+    # Re-resolving the same candidate never creates a second registry row.
+    again = company_discovery._apply(
+        conn, candidate,
+        company_discovery.Resolution("board", "https://registerme.example/careers", "greenhouse", "registermeinc"),
+    )
+    assert again.result["registeredBoard"] is False and again.result["registeredPage"] is False
+    assert conn.execute(
+        "SELECT COUNT(*) AS n FROM company_sources WHERE token = 'registermeinc'").fetchone()["n"] == 1
+
+    # A candidate that resolved is not queued again while it is fresh.
+    assert candidate_id not in company_discovery.scheduled_ids(conn, limit=200)
+
+
+def test_unresolved_candidates_are_retried_and_then_given_up_on(conn):
+    from app.discovery.jobs import company_discovery
+
+    company_discovery.record_hints(conn, [("Nothing Found Ltd", None)])
+    candidate_id = conn.execute(
+        "SELECT id FROM discovered_companies WHERE name = 'Nothing Found Ltd'").fetchone()["id"]
+    candidate = company_discovery.load(conn, candidate_id)
+    for _ in range(company_discovery.MAX_ATTEMPTS):
+        company_discovery._apply(conn, candidate, company_discovery.Resolution("none", error="nothing"))
+        # Still due only once the recheck window has passed.
+        assert candidate_id not in company_discovery.scheduled_ids(conn, limit=200)
+        conn.execute(
+            "UPDATE discovered_companies SET checked_at = %s WHERE id = %s",
+            (iso_minus(company_discovery.RECHECK_SECONDS + 60), candidate_id),
+        )
+    # Attempts exhausted: it is never queued again.
+    assert candidate_id not in company_discovery.scheduled_ids(conn, limit=200)
+    row = conn.execute(
+        "SELECT attempts, status, last_error FROM discovered_companies WHERE id = %s", (candidate_id,)).fetchone()
+    assert row["attempts"] == company_discovery.MAX_ATTEMPTS and row["status"] == "none"
+
+
+def test_health_report_counts_sources_pages_and_validation_problems(conn, settings):
+    from app.discovery.jobs import health
+
+    target = make_source(conn, token="healthco")
+    store.ingest_company(conn, target, [njob("h:1", title="Platform Engineer")], complete=True,
+                         scan_started_at=iso_minus(5), expiry_days=30)
+    registry.record_scan(conn, target.id, ok=True, error=None, counts={"kept": 1}, posting_count=1)
+
+    report = health.source_health(conn, expiry_days=settings.job_expiry_days)
+    assert report["boards"]["configured"] >= 1 and report["boards"]["everSucceeded"] >= 1
+    assert any(r["ats"] == "greenhouse" for r in report["boardsByAts"])
+    assert report["jobs"]["active"] >= 1 and report["jobs"]["expiryDays"] == settings.job_expiry_days
+    for key in ("invalidUrl", "invalidTitle", "emptyDescription", "notRelistedRecently", "duplicateGroups"):
+        assert isinstance(report["validation"][key], int)
+    assert "careersPages" in report and "companyDiscovery" in report
