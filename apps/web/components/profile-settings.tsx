@@ -1007,7 +1007,7 @@ export function ProfileSettings({
                       {discoveryEnabled ? "On" : "Paused"}
                     </Badge>
                   </CardTitle>
-                  <CardDescription className="text-[12px]">
+                  <CardDescription className="max-w-2xl text-[12px]">
                     Recommendations stay on Jobs → Discover until you apply or ignore them. Jobs
                     older than 30 days from posting leave both tabs automatically.
                   </CardDescription>
@@ -1029,28 +1029,34 @@ export function ProfileSettings({
                 </CardContent>
               </Card>
 
-              <Card size="sm" className="mt-3">
+              <Card size="sm">
                 <CardHeader>
                   <CardTitle className="text-[13px]">Run matching again</CardTitle>
-                  <CardDescription className="text-[12px] leading-relaxed">
-                    Matching already re-runs by itself whenever you save career preferences or
-                    change your resumes, so you only need this after something else changes — a
-                    fresh batch of scraped roles, say. It re-scores every role still open on
-                    Jobs&nbsp;→&nbsp;Discover against your current resume and preferences, removes
-                    the ones that no longer fit (too many years required, or below the match
-                    threshold), brings back roles an earlier run had hidden if they fit again, and
-                    then tops the list up from the shared pool using whatever is left of
-                    today&apos;s 50-recommendation limit.
-                    <br />
-                    <br />
-                    Nothing you have acted on is touched: roles you applied to, bookmarked or
-                    ignored are never re-offered or re-ordered, and no application, note or saved
-                    job changes. Only the Discover list and its match scores change. If daily
-                    discovery is paused above, or your account is still awaiting approval, this does
-                    nothing.
-                  </CardDescription>
+                  {/* Two paragraphs, so the measure matches the panel description above rather
+                      than running the full card width. */}
+                  <div className="max-w-2xl space-y-2">
+                    <CardDescription className="text-[12px]">
+                      Matching already re-runs by itself whenever you save career preferences or
+                      change your resumes, so you only need this after something else changes — a
+                      fresh batch of scraped roles, say. It re-scores every role still open on
+                      Jobs&nbsp;→&nbsp;Discover against your current resume and preferences, removes
+                      the ones that no longer fit (too many years required, or below the match
+                      threshold), brings back roles an earlier run had hidden if they fit again, and
+                      then tops the list up from the shared pool using whatever is left of
+                      today&apos;s 50-recommendation limit.
+                    </CardDescription>
+                    <CardDescription className="text-[12px]">
+                      Nothing you have acted on is touched: roles you applied to, bookmarked or
+                      ignored are never re-offered or re-ordered, and no application, note or saved
+                      job changes. Only the Discover list and its match scores change. If daily
+                      discovery is paused above, or your account is still awaiting approval, this
+                      does nothing.
+                    </CardDescription>
+                  </div>
                 </CardHeader>
-                <CardContent className="flex flex-wrap items-center gap-3">
+                {/* CardContent is `flex flex-col` by default, so the row direction has to be set
+                    explicitly — `flex-wrap items-center` alone would centre the button. */}
+                <CardContent className="flex-row flex-wrap items-center gap-3">
                   <Button
                     size="sm"
                     variant="outline"
