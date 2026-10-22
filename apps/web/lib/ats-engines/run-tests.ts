@@ -4,6 +4,7 @@
  * Run: npx --yes tsx lib/ats-engines/run-tests.ts   (from apps/web)
  */
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 
 import React, { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -182,6 +183,40 @@ const cell = (over: Partial<AtsBatchResultCell>): AtsBatchResultCell => ({
   ...over,
 });
 
+function testFinalScoreRowsShareOneLayout() {
+  // The rings line up only if nothing in the row's layout depends on the verdict's text width.
+  // Render a "Moderate" row and a "Good" row and compare everything except the score and verdict:
+  // identical markup means identical geometry, whatever the words are.
+  // Loaded lazily: the cell's Tooltip imports a .css file, which node cannot require, so stub
+  // that extension first (Next handles it in the real build).
+  const load = createRequire(__filename);
+  (load as unknown as { extensions: Record<string, unknown> }).extensions[".css"] = () => {};
+  const { FinalScoreCell } = load("@/components/final-score-cell") as {
+    FinalScoreCell: (props: {
+      entries: { engineId: AtsEngineId; score: number }[];
+    }) => React.ReactElement;
+  };
+  const render = (score: number) =>
+    renderToStaticMarkup(
+      createElement(FinalScoreCell, { entries: [{ engineId: "aavedak" as AtsEngineId, score }] }),
+    );
+  const strip = (html: string) =>
+    html.replace(/Moderate|Good|Excellent|Strong|Weak/g, "VERDICT").replace(/\d+(\.\d+)?/g, "N");
+  assert.equal(strip(render(65)), strip(render(75)), "row layout must not vary with the verdict");
+
+  const html = render(65);
+  // Fixed tracks for the ring and the verdict, and one fixed-width group per row.
+  assert.ok(html.includes("grid-cols-[2rem_4rem]"), "verdict sits in a fixed track");
+  assert.ok(html.includes("w-[6.375rem]"), "the group has one fixed width");
+  // The placeholder row keeps the same box, so an empty row cannot shift the column.
+  const empty = renderToStaticMarkup(createElement(FinalScoreCell, { entries: [] }));
+  assert.ok(empty.includes("w-[6.375rem]"), "placeholder uses the same box");
+  assert.ok(
+    html.includes("justify-center") && empty.includes("justify-center"),
+    "both rows centre their group in the cell",
+  );
+}
+
 function testStageDisplay() {
   const running: AtsStage[] = [
     "validating_input",
@@ -299,6 +334,7 @@ testNewEnginesRegistered();
 testNewEngineModes();
 testPlatformEnginesRegistered();
 testEngineLabelShowsNameAndKind();
+testFinalScoreRowsShareOneLayout();
 testStageDisplay();
 testCellUpdateGuards();
 testCombinationsOnlySelected();
