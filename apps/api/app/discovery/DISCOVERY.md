@@ -155,10 +155,11 @@ Per company source (one run item):
   6 scan + 7 drain ticks/day cover a ~1,500-company registry with room for retries.
   Failed items retry up to `discovery_max_attempts`; 404 boards / unsupported pages fail
   immediately. A crashed tick's items become claimable when their lease expires.
-- `vercel.json` crons (each once/day, ±59 min on Hobby), all UTC. The repetitive job scan is
-  **spread evenly across the day**: shards `/cron/scan/0..5` run every 4 h at
-  00:15/04:15/08:15/12:15/16:15/20:15 UTC (so new jobs trickle in all day, not one nightly
-  burst). `/cron/expire` 00:15, `/cron/prune-filled` 00:45, `/cron/rank` 01:15,
+- `vercel.json` crons (each once/day, ±59 min on Hobby), all UTC. The job scan runs **twice a
+  day**: shards `/cron/scan/0` at 00:15 and `/cron/scan/1` at 12:15 UTC (05:45 and 17:45 IST).
+  Each run queues its half of the registry; the seven drain crons through the day finish what a
+  run could not fit in its budget, so the shard count sets how often a company is revisited,
+  not how much work a day gets through. `/cron/expire` 00:15, `/cron/prune-filled` 00:45, `/cron/rank` 01:15,
   `/cron/people-discovery` 02:15, `/cron/drain/0..6` spread through the day. Scan and
   people-discovery runs are idempotent
   per IST day (`run_key`), so a retried cron resumes instead of duplicating.
@@ -454,8 +455,19 @@ base web tables don't exist yet, endpoints return 503 instead of creating partia
 
 ## Seed registry
 
-`career_sources.json` is the single repo list of career sources: verified ATS boards plus
-exported admin sources (`"origin": "admin"`, no `verified*` counts).
+`career_sources.json` is the single repo list of career sources: verified ATS boards, boards
+imported from public datasets (`"origin": "dataset"` + a `"dataset"` id) and exported admin
+sources (`"origin": "admin"`, no `verified*` counts).
+
+**Dataset import** — `scripts/import_ats_datasets.py` grows the list from two CC BY 4.0
+datasets that already hold the (platform, board token) pair, so no token has to be guessed:
+LastRound AI's ATS company directory (9,935 companies with vendor, slug and name) and Latmay's
+69,638 ATS career-page URLs (parsed by our own `providers.detect_source`, never by the
+dataset's platform label). Every row is probed once with `board_probe.probe_board` and kept
+only when the board answers with postings and lists an India-eligible role that day, so the
+registry never gains an unverified entry. Credit, snapshot dates, limitations and the re-run
+commands are in `app/discovery/data/DATASETS.md`; the licences require the attribution kept
+there and the credit line on the public `/how-it-works` page.
 
 `scripts/verify_career_sources.py` tries likely board tokens for each candidate (name,
 hyphenated, first word, then name + `careers`/`jobs`/`hq`/`inc`/`india`/`tech`) on each

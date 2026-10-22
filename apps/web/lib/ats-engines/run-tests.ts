@@ -205,9 +205,17 @@ function testFinalScoreRowsShareOneLayout() {
   assert.equal(strip(render(65)), strip(render(75)), "row layout must not vary with the verdict");
 
   const html = render(65);
-  // Fixed tracks for the ring and the verdict, and one fixed-width group per row.
-  assert.ok(html.includes("grid-cols-[2rem_4rem]"), "verdict sits in a fixed track");
+  // Ring left, verdict right, on one line in a box of one fixed width.
+  assert.ok(html.includes("flex shrink-0 items-center"), "ring and verdict stay side by side");
+  assert.ok(!html.includes("flex-col"), "the row is never stacked");
+  assert.ok(html.includes("w-16 min-w-0 shrink-0"), "the verdict sits in a fixed-width slot");
   assert.ok(html.includes("w-[6.375rem]"), "the group has one fixed width");
+  // The ring is the first child of that box, so its x is the box's left edge in every row.
+  const box = html.slice(html.indexOf("w-[6.375rem]"));
+  assert.ok(
+    box.indexOf('data-slot="score-ring"') < box.indexOf("Moderate"),
+    "the ring comes before the verdict",
+  );
   // The placeholder row keeps the same box, so an empty row cannot shift the column.
   const empty = renderToStaticMarkup(createElement(FinalScoreCell, { entries: [] }));
   assert.ok(empty.includes("w-[6.375rem]"), "placeholder uses the same box");

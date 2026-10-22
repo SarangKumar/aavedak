@@ -20,8 +20,9 @@ const ENGINE_COUNTS = {
   native: ATS_ENGINES.filter((e) => e.kind === "native").length,
   reference: ATS_ENGINES.filter((e) => e.kind === "reference").length,
   open_source: ATS_ENGINES.filter((e) => e.kind === "open_source").length,
+  platform: ATS_ENGINES.filter((e) => e.kind === "platform").length,
 };
-const ENGINE_SPLIT = `${ENGINE_COUNTS.native} native, ${ENGINE_COUNTS.reference} reference and ${ENGINE_COUNTS.open_source} open source`;
+const ENGINE_SPLIT = `${ENGINE_COUNTS.native} native, ${ENGINE_COUNTS.reference} reference, ${ENGINE_COUNTS.open_source} open source and ${ENGINE_COUNTS.platform} real applicant-tracking systems`;
 
 const PAGE_TITLE = "How Aavedak works";
 const PAGE_DESCRIPTION = `Where Aavedak's Discover jobs come from (company job boards and career pages), which junior engineering and tech roles are kept, how referral emails are sent from your own Gmail, and the ${ENGINE_COUNTS.total} ATS engines: ${ENGINE_SPLIT}.`;
@@ -80,9 +81,9 @@ const toc: TocItem[] = [
  */
 const schedule = [
   {
-    when: "Every 4 hours · 05:45, 09:45, 13:45, 17:45, 21:45, 01:45 IST",
-    title: "Job scan (6 shards)",
-    body: "The careers-page registry is split into six shards, one per run, so new jobs trickle in through the day instead of arriving in one nightly burst. Each run reads the careers pages due today, then the job boards of companies whose page could not be read in full.",
+    when: "Twice a day · 05:45 and 17:45 IST",
+    title: "Job scan (2 shards)",
+    body: "Each run takes half the company registry: the careers pages due today, then the job boards of companies whose page could not be read in full, then a few new companies to identify. A morning and an evening run means a job posted during the day is usually in Discover the same evening.",
   },
   {
     when: "05:45 IST",
@@ -260,6 +261,11 @@ const KIND_GROUPS: Array<{ kind: EngineCapability["kind"]; title: string; body: 
     title: "Open source",
     body: "Adapted from open-source resume analyzers, following the formulas in their source code. Each one links to its original project.",
   },
+  {
+    kind: "platform",
+    title: "ATS platforms",
+    body: "Real applicant-tracking systems (Greenhouse, Lever, Workable, iCIMS). Each stores an application as a set of structured fields that recruiters search, so these check how completely that platform's own documented fields can be filled from your resume, and which ones stay empty. They are not these companies' scores, and Aavedak is not affiliated with them.",
+  },
 ];
 
 function requirementText(label: string, value: InputRequirement): string | null {
@@ -388,10 +394,10 @@ export default function HowItWorksPage() {
             <div className="space-y-3">
               <SectionHeading id="discover" eyebrow="Jobs" title="How Discover jobs works" />
               <p className="text-muted-foreground max-w-2xl text-[14px] leading-relaxed">
-                Every night Aavedak checks the career pages of {CAREER_SOURCES.length} companies,
-                keeps only the junior engineering and tech roles that fit, and recommends the best
-                matches to you. It never invents jobs, and no job is shown without a link to the
-                original posting.
+                Twice a day Aavedak checks the career pages and job boards of the companies in its
+                registry, keeps only the junior engineering and tech roles that fit, and recommends
+                the best matches to you. It never invents jobs, and no job is shown without a link
+                to the original posting.
               </p>
             </div>
 
@@ -428,6 +434,31 @@ export default function HowItWorksPage() {
                 These companies&apos; job boards had current openings in India or open to India when
                 they were checked, or were added by an admin. Each name links to the careers board
                 Aavedak reads. Pages added since the last update may not be listed yet.
+              </p>
+              {/* CC BY 4.0 attribution for the two datasets part of this list is built from.
+                  See apps/api/app/discovery/data/DATASETS.md. */}
+              <p className="text-muted-foreground max-w-2xl text-[12px] leading-relaxed">
+                Part of this list was built from two openly licensed datasets (CC BY 4.0): the ATS
+                company directory published by{" "}
+                <a
+                  href="https://lastroundai.com/blog/salary-transparency-study-2026"
+                  className="text-primary hover:underline"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  LastRound AI
+                </a>{" "}
+                and the ATS career-page URL list published by{" "}
+                <a
+                  href="https://latmay.com"
+                  className="text-primary hover:underline"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  Latmay
+                </a>
+                . Every board taken from them was checked against the platform&apos;s own public API
+                before it was added, exactly like the rest.
               </p>
               <div className="space-y-3">
                 {providerGroups.map((group) => (

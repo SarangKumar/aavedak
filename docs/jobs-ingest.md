@@ -25,13 +25,13 @@ for internals). This page covers how it runs, how to configure it, and how to op
 
 ## Schedule (vercel.json, UTC; Hobby = once/day per cron, ±59 min)
 
-| Cron                                 | When (UTC)                  | Purpose                                                                                                                        |
-| ------------------------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `/svc/v1/discovery/cron/scan/0..5`   | 18:15, 19:15 … 23:15        | Scan one registry shard each (careers pages, then boards and the cross-company index, then a few company-discovery candidates) |
-| `/svc/v1/discovery/cron/expire`      | 00:15                       | Expire old jobs, auto-reject early applications                                                                                |
-| `/svc/v1/discovery/cron/rank`        | 01:15 (≈ 06:45 IST)         | Top up recommendations from the whole pool                                                                                     |
-| `/svc/v1/discovery/cron/drain/0..6`  | 03:15, 05:15, 09:15 … 17:15 | Finish leftover / retrying items                                                                                               |
-| `/api/cron/process-follow-ups` (web) | 07:00                       | Unchanged                                                                                                                      |
+| Cron                                 | When (UTC)                        | Purpose                                                                                                                                                                                                          |
+| ------------------------------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/svc/v1/discovery/cron/scan/0..1`   | 00:15, 12:15 (≈ 05:45, 17:45 IST) | Scan one registry shard each — twice a day (careers pages, then boards and the cross-company index, then a few company-discovery candidates). The drains below finish whatever a run could not fit in its budget |
+| `/svc/v1/discovery/cron/expire`      | 00:15                             | Expire old jobs, auto-reject early applications                                                                                                                                                                  |
+| `/svc/v1/discovery/cron/rank`        | 01:15 (≈ 06:45 IST)               | Top up recommendations from the whole pool                                                                                                                                                                       |
+| `/svc/v1/discovery/cron/drain/0..6`  | 03:15, 05:15, 09:15 … 17:15       | Finish leftover / retrying items                                                                                                                                                                                 |
+| `/api/cron/process-follow-ups` (web) | 07:00                             | Unchanged                                                                                                                                                                                                        |
 
 Each cron call does at most `discovery_tick_budget_seconds` of work; whatever is left is
 picked up by the next drain cron (or the Admin page while open). Writes happen per company
@@ -90,7 +90,7 @@ Change a value there (and commit); it is no longer read from env.
 | `experience_window_years`        | `2`     | Match jobs with min years in [0, user YOE + this]                 |
 | `default_years_experience`       | `0`     | YOE assumed when the profile has none                             |
 | `include_internships`            | `false` | Also keep internships                                             |
-| `discovery_shards`               | `6`     | Must match the number of scan crons in `vercel.json`              |
+| `discovery_shards`               | `2`     | Must match the number of scan crons in `vercel.json`              |
 | `discovery_fetch_concurrency`    | `10`    | Sources fetched in parallel per tick                              |
 | `discovery_tick_budget_seconds`  | `45`    | Work per request before handing off                               |
 | `discovery_lease_seconds`        | `180`   | Lease on a claimed run item                                       |

@@ -31,8 +31,11 @@ class DiscoveryTuning(BaseModel):
     experience_window_years: float = Field(2.0, ge=0, le=10)
     default_years_experience: float = Field(0.0, ge=0, le=40)
     include_internships: bool = False
-    # Staggered daily scan crons the registry is split across (vercel.json has one per shard).
-    discovery_shards: int = Field(6, ge=1, le=24)
+    # Scan crons the registry is split across (vercel.json has one per shard): two a day,
+    # 05:45 and 17:45 IST. Each run queues its shard; the drain crons finish what a run could
+    # not fit in its budget, so the shard count sets how often a company is revisited, not how
+    # much work gets done in a day.
+    discovery_shards: int = Field(2, ge=1, le=24)
     # Company sources fetched in parallel inside one tick.
     discovery_fetch_concurrency: int = Field(10, ge=1, le=16)
     # Wall-clock budget for one tick; leftover items wait for the next tick/drain cron. Kept

@@ -104,7 +104,7 @@ const SCAN: Flow = {
   shape:
     "A loop that runs every day: crons queue the pages that are due, each page is read, jobs are cleaned and merged, statuses go back on the list, and the next run picks up from there. Timed-out pages loop back for a retry.",
   trigger:
-    "Six Vercel crons a day (/svc/v1/discovery/cron/scan/0 to 5, 05:45, 09:45, 13:45, 17:45, 21:45 and 01:45 IST), each for one sixth of the list, plus seven drain crons that only finish leftover work.",
+    "Two Vercel crons a day (/svc/v1/discovery/cron/scan/0 and /scan/1, 05:45 and 17:45 IST), each for one half of the list, plus seven drain crons through the day that only finish leftover work.",
   grid: "grid-cols-3 lg:grid-cols-6",
   nodes: [
     {
