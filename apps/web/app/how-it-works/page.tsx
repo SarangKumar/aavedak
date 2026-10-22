@@ -24,6 +24,11 @@ const ENGINE_COUNTS = {
 };
 const ENGINE_SPLIT = `${ENGINE_COUNTS.native} native, ${ENGINE_COUNTS.reference} reference, ${ENGINE_COUNTS.open_source} open source and ${ENGINE_COUNTS.platform} real applicant-tracking systems`;
 
+// The registry is in the thousands, so the public list shows this many companies per platform
+// (the ones with the most junior India openings at verification time) instead of every row:
+// all of them would make this page several megabytes of HTML.
+const COMPANIES_PER_PLATFORM = 60;
+
 const PAGE_TITLE = "How Aavedak works";
 const PAGE_DESCRIPTION = `Where Aavedak's Discover jobs come from (company job boards and career pages), which junior engineering and tech roles are kept, how referral emails are sent from your own Gmail, and the ${ENGINE_COUNTS.total} ATS engines: ${ENGINE_SPLIT}.`;
 
@@ -433,7 +438,9 @@ export default function HowItWorksPage() {
               <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
                 These companies&apos; job boards had current openings in India or open to India when
                 they were checked, or were added by an admin. Each name links to the careers board
-                Aavedak reads. Pages added since the last update may not be listed yet.
+                Aavedak reads. Pages added since the last update may not be listed yet. Each
+                platform shows the {COMPANIES_PER_PLATFORM} companies that had the most junior India
+                openings when they were checked; the rest are scanned just the same.
               </p>
               {/* CC BY 4.0 attribution for the two datasets part of this list is built from.
                   See apps/api/app/discovery/data/DATASETS.md. */}
@@ -473,7 +480,7 @@ export default function HowItWorksPage() {
                       </span>
                     </h4>
                     <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[12px] leading-relaxed">
-                      {group.sources.map((source) => (
+                      {group.sources.slice(0, COMPANIES_PER_PLATFORM).map((source) => (
                         <li key={source.careersUrl}>
                           <a
                             href={source.careersUrl}
@@ -485,6 +492,11 @@ export default function HowItWorksPage() {
                           </a>
                         </li>
                       ))}
+                      {group.sources.length > COMPANIES_PER_PLATFORM ? (
+                        <li className="text-muted-foreground/80">
+                          and {group.sources.length - COMPANIES_PER_PLATFORM} more
+                        </li>
+                      ) : null}
                     </ul>
                   </Card>
                 ))}

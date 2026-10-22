@@ -8,9 +8,23 @@
 import seed from "../../api/app/discovery/data/career_sources.json";
 
 export type CareerSourceProvider =
-  "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable" | "jsonld" | "json_feed";
+  | "greenhouse"
+  | "lever"
+  | "ashby"
+  | "smartrecruiters"
+  | "workable"
+  | "breezy"
+  | "rippling"
+  | "jsonld"
+  | "json_feed";
 
-export type CareerSource = { name: string; provider: string; careersUrl: string };
+export type CareerSource = {
+  name: string;
+  provider: string;
+  careersUrl: string;
+  /** India-eligible junior tech postings the board had when it was verified (0 when unknown). */
+  indiaEngineering: number;
+};
 
 export const PROVIDER_LABELS: Record<CareerSourceProvider, string> = {
   greenhouse: "Greenhouse",
@@ -18,6 +32,8 @@ export const PROVIDER_LABELS: Record<CareerSourceProvider, string> = {
   ashby: "Ashby",
   smartrecruiters: "SmartRecruiters",
   workable: "Workable",
+  breezy: "Breezy HR",
+  rippling: "Rippling",
   // Career sources added on the Admin page and exported to the registry.
   jsonld: "Company career pages",
   json_feed: "Job feeds",
@@ -32,11 +48,19 @@ export const CAREER_SOURCES: CareerSource[] = (() => {
   const byName = new Map<string, CareerSource>();
   for (const row of seed as unknown[]) {
     if (!row || typeof row !== "object") continue;
-    const { name, provider, careersUrl } = row as Record<string, unknown>;
+    const { name, provider, careersUrl, verifiedIndiaEngineering } = row as Record<string, unknown>;
     if (typeof name !== "string" || !name.trim() || typeof provider !== "string") continue;
     if (!isHttpUrl(careersUrl)) continue;
     const key = name.trim().toLowerCase();
-    if (!byName.has(key)) byName.set(key, { name: name.trim(), provider, careersUrl });
+    if (!byName.has(key)) {
+      byName.set(key, {
+        name: name.trim(),
+        provider,
+        careersUrl,
+        indiaEngineering:
+          typeof verifiedIndiaEngineering === "number" ? verifiedIndiaEngineering : 0,
+      });
+    }
   }
   return [...byName.values()].sort((a, b) =>
     a.name.localeCompare(b.name, "en", { sensitivity: "base" }),
@@ -53,7 +77,13 @@ export function careerSourcesByProvider(): Array<{
     .map((provider) => ({
       provider,
       label: PROVIDER_LABELS[provider],
-      sources: CAREER_SOURCES.filter((s) => s.provider === provider),
+      // Most junior India roles at verification time first, then alphabetically: a page that
+      // shows only part of a long list should show the companies that hire here most.
+      sources: CAREER_SOURCES.filter((s) => s.provider === provider).sort(
+        (a, b) =>
+          b.indiaEngineering - a.indiaEngineering ||
+          a.name.localeCompare(b.name, "en", { sensitivity: "base" }),
+      ),
     }))
     .filter((group) => group.sources.length > 0);
 }

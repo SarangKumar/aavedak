@@ -81,6 +81,14 @@ def _name_key(name: str) -> str:
     return re.sub(r"[^a-z0-9]", "", (name or "").lower())
 
 
+def plausible_token(token: str) -> bool:
+    """Reject board tokens that cannot be a company: a single character, or digits only.
+    Latmay carries a few test boards ("1", "123") whose postings parse but whose name would
+    read as nonsense in the public company list."""
+    token = (token or "").strip()
+    return len(token) >= 2 and any(c.isalpha() for c in token)
+
+
 def pretty_token(token: str) -> str:
     """Display name for a board the dataset gave no name for: the token, spaced and capitalised
     ("acme-corp" → "Acme Corp"). The board API does not report a company name, so this is a
@@ -96,7 +104,7 @@ def read_lastroundai(path: Path) -> list[Candidate]:
             provider = VENDORS.get((row.get("ats_vendor") or "").strip().lower())
             token = (row.get("board_slug") or "").strip()
             name = (row.get("company_name") or "").strip()
-            if not provider or not token:
+            if not provider or not token or not plausible_token(token):
                 continue
             out.append(Candidate(provider, token.lower(), name or pretty_token(token), LASTROUND_ID))
     return out
@@ -121,6 +129,9 @@ def read_latmay(path: Path) -> tuple[list[Candidate], Counter]:
             if detected.provider not in PROBE_SPECS:
                 skipped[f"{platform} → {detected.provider}"] += 1
                 continue
+            if not plausible_token(detected.token):
+                skipped[f"{platform} (implausible token)"] += 1
+                continue
             out.append(Candidate(detected.provider, detected.token, pretty_token(detected.token), LATMAY_ID))
     return out, skipped
 
@@ -131,7 +142,7 @@ def merge(groups: Iterable[list[Candidate]]) -> dict[tuple[str, str], Candidate]
     best: dict[tuple[str, str], Candidate] = {}
     for group in groups:
         for candidate in group:
-            key = (candidate.provider, candidate.token)
+            key = (candidate.provider, candidate.token.lower())
             current = best.get(key)
             if current is None:
                 best[key] = candidate
@@ -150,7 +161,7 @@ def drop_known(
     dropped: Counter = Counter()
     kept: dict[tuple[str, str], Candidate] = {}
     for key, candidate in candidates.items():
-        if key in keys:
+        if (key[0], key[1].lower()) in keys:
             dropped["already in registry (provider, token)"] += 1
             continue
         if candidate.dataset == LASTROUND_ID and _name_key(candidate.name) in names:
@@ -266,6 +277,35 @@ def probe_all(
     return results, live_rows, stats
 
 
+def entries_from_live(path: Path, *, keep: str) -> tuple[list[Candidate], list[dict[str, Any]]]:
+    """Re-read a `--live-out` file instead of probing again: the same keep rule, no requests.
+    Use it to widen or narrow what was imported from a run that already happened."""
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    candidates: list[Candidate] = []
+    entries: list[dict[str, Any]] = []
+    for row in rows:
+        if keep == "india" and not row.get("indiaPostings"):
+            continue
+        if not plausible_token(row["token"]):
+            continue
+        candidates.append(Candidate(row["provider"], row["token"], row["name"], row["dataset"]))
+        entries.append(
+            {
+                "name": row["name"],
+                "provider": row["provider"],
+                "token": row["token"],
+                "careersUrl": row["careersUrl"],
+                "sector": "software",
+                "origin": "dataset",
+                "dataset": row["dataset"],
+                "verifiedIndiaPostings": row["indiaPostings"],
+                "verifiedIndiaEngineering": row["indiaEngineering"],
+                "verifiedTotalPostings": row["totalPostings"],
+            }
+        )
+    return candidates, entries
+
+
 def write_seed(path: Path, seed: list[dict[str, Any]], additions: list[dict[str, Any]]) -> None:
     """Append and sort by company name, the shape the file already has. Existing rows are never
     rewritten, so a re-run only ever adds."""
@@ -290,12 +330,30 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=20.0)
     parser.add_argument("--seed-random", type=int, default=7, help="Seed for --sample, so a sample is repeatable.")
     parser.add_argument("--report", type=Path, help="Write the counts (and sample estimate) here as JSON.")
+    parser.add_argument("--from-live", type=Path,
+                        help="Re-apply --keep to a saved --live-out file instead of probing again (no requests).")
     parser.add_argument("--live-out", type=Path,
                         help="Write every live board found (including those with no India posting today) here.")
     args = parser.parse_args()
 
-    if not args.lastroundai and not args.hf:
-        parser.error("Pass --lastroundai and/or --hf")
+    if not args.lastroundai and not args.hf and not args.from_live:
+        parser.error("Pass --lastroundai and/or --hf, or --from-live")
+
+    if args.from_live:
+        seed = json.loads(args.out.read_text(encoding="utf-8"))
+        candidates, entries = entries_from_live(args.from_live, keep=args.keep)
+        fresh, dropped = drop_known({(c.provider, c.token.lower()): c for c in candidates}, seed)
+        additions = [e for e in entries if (e["provider"], e["token"].lower()) in fresh]
+        print(f"registry now: {len(seed)} boards")
+        print(f"{args.from_live.name}: {len(candidates)} boards pass keep={args.keep}")
+        for label, count in dropped.most_common():
+            print(f"  dropped: {label}: {count}")
+        if args.dry_run:
+            print(f"dry run: would add {len(additions)}")
+            return 0
+        write_seed(args.out, seed, additions)
+        print(f"wrote {args.out}: {len(seed)} + {len(additions)} = {len(seed) + len(additions)} boards")
+        return 0
 
     groups: list[list[Candidate]] = []
     sources: dict[str, int] = {}

@@ -48,6 +48,13 @@ const PROVIDER_LABELS: Record<string, string> = {
   ashby: "Ashby",
   smartrecruiters: "SmartRecruiters",
   workable: "Workable",
+  workable_index: "Workable",
+  breezy: "Breezy HR",
+  rippling: "Rippling",
+  personio: "Personio",
+  teamtailor: "Teamtailor",
+  workday: "Workday",
+  careers: "Careers page",
   jsonld: "Company site",
   json_feed: "Job feed",
 };
