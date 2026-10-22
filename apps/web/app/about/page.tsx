@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { AboutHowItWorks } from "@/components/about-how-it-works";
 import { CopyTextButton } from "@/components/copy-text-button";
 import { ShellWidth } from "@/components/shell-width";
 import { Card } from "@/components/ui/card";
@@ -85,6 +84,52 @@ const workspace = [
   },
 ] as const;
 
+const areas = [
+  {
+    title: "Discover",
+    body: `Every day Aavedak reads the careers pages of about 590 companies and recommends up to 50 junior roles that fit you, best match first, each linking to the original posting. It keeps only roles asking for under 3 years in engineering, data, ML/AI, QA, IT, security and design, in India or remote and open to India.`,
+  },
+  {
+    title: "Prepare",
+    body: `Score a resume with ${ENGINE_TOTAL} engines — Aavedak's own evidence-based scorer, ${ENGINE_REFERENCE_COUNT} modelled on popular resume checkers and ${ENGINE_OSS_COUNT} open-source analyzers — in resume-only, role or job-description mode. The Improve page tightens wording and ordering by rule, without adding a single claim you did not make.`,
+  },
+  {
+    title: "Apply and track",
+    body: "Applications move through a Kanban tracker with their full status history, the job they came from, the resume and cover letter you used, and a badge when a posting is pulled or expires. Resumes, cover letters and email templates live together in Documents.",
+  },
+  {
+    title: "Reach out",
+    body: "Pick the people at a company, fill one of your templates, attach a resume if you want, and the mail goes from your own Gmail after you confirm — with 20 seconds to undo. Follow-ups are yours to queue, and replies are synced back so you can see who answered.",
+  },
+] as const;
+
+const limits = [
+  "No invented jobs, skills, requirements or salaries. Pay is shown only where the company states it.",
+  "No scraping of sites that do not allow it. LinkedIn, Indeed, Glassdoor, Naukri and similar are never read for listings; every job links to its original posting.",
+  "No guessed email addresses in outreach. A person's address is used only where it is actually published; anything inferred is marked as such and never sent to.",
+  "No mail without your confirmation, and no mail from Aavedak's own domain — it leaves your Gmail, which you can disconnect at any time.",
+  "No LLM writing your resume or your emails. Scoring and rewriting are deterministic rules, so the same input always gives the same result, and nothing is quietly generated in your name.",
+] as const;
+
+const stack = [
+  {
+    title: "Web app",
+    body: "Next.js App Router with React and Tailwind, deployed on Vercel. Sign-in is Google only, self-hosted, and new accounts wait for approval.",
+  },
+  {
+    title: "Scoring and discovery service",
+    body: "A Python (FastAPI) service holds the ATS engines and the whole job-discovery pipeline — scanning, filtering, de-duplication and the matching engine — so the heavy, repetitive work never runs in your browser.",
+  },
+  {
+    title: "Storage",
+    body: "A Postgres database for everything structured, Google Cloud Storage for resume PDFs. Each account can delete its own data, files included, from Profile settings.",
+  },
+  {
+    title: "Cost",
+    body: "Aavedak runs on free tiers on purpose: no paid AI calls, no paid data provider, no per-job cost. That is also why the job scan is spread across the day in small, resumable runs.",
+  },
+] as const;
+
 export default function AboutPage() {
   return (
     <ShellWidth className="aavedak-fade-up space-y-10 py-10 sm:py-14">
@@ -100,7 +145,7 @@ export default function AboutPage() {
         </p>
         <p className="text-[13px]">
           <Link href="/how-it-works" className="text-primary hover:underline">
-            See how it works →
+            See how it works, flow by flow →
           </Link>
         </p>
       </header>
@@ -144,7 +189,37 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <AboutHowItWorks />
+      <section className="space-y-3" aria-labelledby="areas-heading">
+        <div className="max-w-2xl space-y-1">
+          <h2
+            id="areas-heading"
+            className="text-foreground text-[15px] font-semibold tracking-tight"
+          >
+            What Aavedak does
+          </h2>
+          <p className="text-muted-foreground text-[13px] leading-relaxed">
+            Four parts of one job search, in the order you meet them. Every flow behind them is
+            drawn step by step on{" "}
+            <Link href="/how-it-works" className="text-primary hover:underline">
+              how it works
+            </Link>
+            .
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {areas.map((area) => (
+            <Card
+              key={area.title}
+              className="border-border/80 bg-card h-full gap-2 rounded-lg border p-4 shadow-sm"
+            >
+              <h3 className="text-foreground text-[13px] font-semibold tracking-tight">
+                {area.title}
+              </h3>
+              <p className="text-muted-foreground text-[13px] leading-relaxed">{area.body}</p>
+            </Card>
+          ))}
+        </div>
+      </section>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Principles">
         {principles.map((item) => (
@@ -158,6 +233,27 @@ export default function AboutPage() {
             <p className="text-muted-foreground mt-2 text-[13px] leading-relaxed">{item.body}</p>
           </Card>
         ))}
+      </section>
+
+      <section className="space-y-3" aria-labelledby="limits-heading">
+        <div className="max-w-2xl space-y-1">
+          <h2
+            id="limits-heading"
+            className="text-foreground text-[15px] font-semibold tracking-tight"
+          >
+            What Aavedak will not do
+          </h2>
+          <p className="text-muted-foreground text-[13px] leading-relaxed">
+            The limits are part of the product, not gaps waiting to be filled.
+          </p>
+        </div>
+        <Card className="border-border/80 bg-card gap-0 rounded-lg border p-5 shadow-sm">
+          <ul className="text-muted-foreground list-disc space-y-2 pl-5 text-[13px] leading-relaxed">
+            {limits.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </Card>
       </section>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -202,6 +298,86 @@ export default function AboutPage() {
           </p>
         </Card>
       </div>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <Card className="border-border/80 bg-card gap-0 space-y-3 rounded-lg border p-5 shadow-sm">
+          <h2 className="text-foreground text-[13px] font-semibold tracking-tight">Your data</h2>
+          <ul className="text-muted-foreground list-disc space-y-2 pl-5 text-[13px] leading-relaxed">
+            <li>
+              You sign in with Google. Aavedak stores your name, email and the career profile you
+              fill in; it never asks for a password.
+            </li>
+            <li>
+              Gmail access is optional and only requested when you want to send outreach. It is used
+              to send mail you confirmed and to read replies to it. You can disconnect it whenever
+              you like.
+            </li>
+            <li>
+              Resume PDFs live in private cloud storage; only you and the scoring service read them.
+              Nothing you upload is shared with another user or used to train anything.
+            </li>
+            <li>
+              Profile settings → Danger Zone wipes your data or deletes the account outright, files
+              included.
+            </li>
+          </ul>
+          <p className="text-muted-foreground pt-1 text-[12px]">
+            The full detail is in the{" "}
+            <Link href="/privacy" className="text-primary hover:underline">
+              privacy policy
+            </Link>{" "}
+            and the{" "}
+            <Link href="/terms" className="text-primary hover:underline">
+              terms
+            </Link>
+            .
+          </p>
+        </Card>
+
+        <Card className="border-border/80 bg-card gap-0 space-y-3 rounded-lg border p-5 shadow-sm">
+          <h2 className="text-foreground text-[13px] font-semibold tracking-tight">
+            Under the hood
+          </h2>
+          <dl className="space-y-2.5">
+            {stack.map((item) => (
+              <div key={item.title} className="space-y-0.5">
+                <dt className="text-foreground text-[13px] font-medium">{item.title}</dt>
+                <dd className="text-muted-foreground text-[13px] leading-relaxed">{item.body}</dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+      </div>
+
+      <section className="space-y-3" aria-labelledby="status-heading">
+        <div className="max-w-2xl space-y-1">
+          <h2
+            id="status-heading"
+            className="text-foreground text-[15px] font-semibold tracking-tight"
+          >
+            Where it stands
+          </h2>
+        </div>
+        <Card className="border-border/80 bg-card gap-2 rounded-lg border p-5 shadow-sm">
+          <p className="text-muted-foreground text-[13px] leading-relaxed">
+            Aavedak is built and run by one person, Sarang Kumar, for a small group of job seekers
+            rather than the open internet: accounts are approved by hand and the number of seats is
+            capped, which keeps the free tiers it runs on honest. It is in active development — the
+            matching engine, the ATS engines and the company list all change, and every change that
+            is visible to you is written down.
+          </p>
+          <p className="text-muted-foreground text-[13px] leading-relaxed">
+            Read{" "}
+            <Link href="/how-it-works" className="text-primary hover:underline">
+              how it works
+            </Link>{" "}
+            for the flows behind each page, or the{" "}
+            <Link href="/changelog" className="text-primary hover:underline">
+              changelog
+            </Link>{" "}
+            for what shipped recently.
+          </p>
+        </Card>
+      </section>
     </ShellWidth>
   );
 }

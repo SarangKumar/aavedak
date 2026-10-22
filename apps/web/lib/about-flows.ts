@@ -62,6 +62,12 @@ export type FlowNode = {
   highlight?: boolean;
 };
 
+/**
+ * The flows drawn and traced on /how-it-works (`components/flow-walkthrough.tsx`): what starts
+ * each one, the shape of its diagram, and a step-by-step account of what it reads and writes.
+ * Each step is written from the code that runs it — update it when that code changes.
+ */
+
 /** `main`: the normal path. `loop`: back to an earlier step (dashed). `branch`: a skip / stop. */
 export type FlowEdge = {
   from: string;

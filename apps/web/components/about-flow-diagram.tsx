@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 const STEP_SECONDS = 0.3;
 
 /**
- * One About-page flow as a beam diagram. Takes only the flow id (icons are components and
+ * One flow (lib/about-flows.ts, rendered on /how-it-works) as a beam diagram. Takes only the
+ * flow id (icons are components and
  * cannot cross the server/client boundary as props). Loops are dashed, skips and stops pulse
  * in a muted colour. Beams measure on the client only, so the server render and the first
  * client render match; the Vinyaas beam CSS stops the pulses under prefers-reduced-motion.

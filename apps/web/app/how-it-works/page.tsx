@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { EngineKindBadge } from "@/components/ats-engine-badge";
+import { FlowWalkthrough } from "@/components/flow-walkthrough";
 import { PageToc, type TocItem } from "@/components/page-toc";
 import { ShellWidth } from "@/components/shell-width";
 import { Card } from "@/components/ui/card";
@@ -60,15 +61,65 @@ export const metadata: Metadata = {
 
 const toc: TocItem[] = [
   { id: "flow", label: "The flow" },
+  { id: "flows", label: "Flows, animated" },
   { id: "discover", label: "Discover jobs" },
   { id: "sources", label: "Where jobs come from", depth: 2 },
   { id: "companies", label: "Companies scanned", depth: 2 },
   { id: "rules", label: "Which jobs are kept", depth: 2 },
-  { id: "recommendations", label: "Recommendations", depth: 2 },
+  { id: "recommendations", label: "The matching engine", depth: 2 },
+  { id: "schedule", label: "What runs when" },
   { id: "referrals", label: "Referrals" },
   { id: "ats", label: "ATS checks" },
   { id: "engines", label: `The ${ENGINE_COUNTS.total} ATS engines` },
 ];
+
+/**
+ * The scheduled work, from `vercel.json` → `crons` (UTC) with the IST time shown, since every
+ * product rule that depends on a day boundary (the 50-a-day cap) uses IST. Keep in sync with
+ * `vercel.json`; on Vercel's Hobby plan each cron fires once a day, anywhere inside its hour.
+ */
+const schedule = [
+  {
+    when: "Every 4 hours · 05:45, 09:45, 13:45, 17:45, 21:45, 01:45 IST",
+    title: "Job scan (6 shards)",
+    body: "The careers-page registry is split into six shards, one per run, so new jobs trickle in through the day instead of arriving in one nightly burst. Each run reads the careers pages due today, then the job boards of companies whose page could not be read in full.",
+  },
+  {
+    when: "05:45 IST",
+    title: "Expiry",
+    body: "Jobs posted more than 30 days ago are marked expired and drop out of Discover. Your applications keep their status and history; the tracker simply badges the posting as expired.",
+  },
+  {
+    when: "06:15 IST",
+    title: "Filled or pulled postings",
+    body: "A posting a company fills or removes stops being listed, so it is closed and can never be recommended again. Applications are kept and badged “Removed from portal”.",
+  },
+  {
+    when: "06:45 IST",
+    title: "Ranking top-up",
+    body: "Runs the matching engine over the whole active pool for every user who has room left in today's 50, so a quiet scan day still fills Discover.",
+  },
+  {
+    when: "Every 4 hours · 05:47 IST onwards",
+    title: "People discovery (6 slots)",
+    body: "Looks for published contacts at the companies you have applied to — team pages, a company's public GitHub organisation, search snippets. Published addresses only; nothing is guessed and LinkedIn is never scraped.",
+  },
+  {
+    when: "7 runs through the day",
+    title: "Drain",
+    body: "Picks up work the scan runs could not finish inside their time budget — a slow board, a retried page — so nothing waits a whole day for its next turn.",
+  },
+  {
+    when: "12:30 IST",
+    title: "Follow-ups",
+    body: "Sends the follow-up emails you queued whose wait has elapsed, from your own Gmail. Nothing is composed or queued for you — you wrote and scheduled each one.",
+  },
+  {
+    when: "13:00 IST",
+    title: "Reply sync",
+    body: "Checks your Gmail for replies to referral and follow-up mail, so the Inbox and the people you have heard back from stay current.",
+  },
+] as const;
 
 const flow = [
   {
@@ -120,6 +171,33 @@ const jobRules = [
   {
     title: "Not included",
     body: "Sales and pre-sales roles that borrow the word “engineer” (Sales Engineer, Solutions Engineer), engineering managers, and non-tech roles such as marketing, finance or recruiting.",
+  },
+] as const;
+
+/**
+ * The recommendation pipeline in plain words — the stages of
+ * `apps/api/app/discovery/jobs/match.py`. Keep in sync with DISCOVERY.md → "Matching".
+ */
+const matchStages = [
+  {
+    title: "Rule out",
+    body: "Only hard rules drop a job: it has expired, the company filled or pulled it, it asks for more years than you have plus two, or you excluded that company. An incomplete description, a skill the posting never mentions or a city you did not list is never a reason to drop a job — those are scored, not filtered.",
+  },
+  {
+    title: "Score out of 100",
+    body: "Eight signals, each with its own weight: the skills the posting requires (the heaviest), your preferred roles against its title, the skills it would merely like, the experience it asks for, its seniority, location and work mode, employment type, and how much your resume's wording overlaps the description.",
+  },
+  {
+    title: "Count what is unknown as unknown",
+    body: "A signal counts only where the posting actually says something. What it leaves unsaid is credited neutrally instead of as a pass or a fail, so a one-line posting neither wins nor loses on wording alone, and a skill you simply did not list is never read as a skill you lack. Each recommendation reports how much of its score rests on real evidence.",
+  },
+  {
+    title: "Explain it",
+    body: "Every job shows its reasons: the skills found in both the posting and your resume, the required skills found in neither (labelled as not found — not as missing from you), the experience and location fit, and anything that could not be judged, such as a description too short to read requirements from. The per-signal points always add up to the score you see.",
+  },
+  {
+    title: "Order and spread out",
+    body: "Best match first, with only a small lift for India and for postings from the last few days, so freshness never outranks fit. The same role listed in two cities appears once, and one company can take at most three of the top slots — the rest of its roles wait behind them.",
   },
 ] as const;
 
@@ -302,6 +380,9 @@ export default function HowItWorksPage() {
             </p>
           </section>
 
+          {/* Flows, animated */}
+          <FlowWalkthrough />
+
           {/* Discover jobs */}
           <section className="space-y-8">
             <div className="space-y-3">
@@ -394,19 +475,35 @@ export default function HowItWorksPage() {
             </div>
 
             <div className="space-y-3">
-              <SubHeading id="recommendations">How you get recommendations</SubHeading>
+              <SubHeading id="recommendations">How the matching engine picks your jobs</SubHeading>
+              <p className="text-muted-foreground max-w-2xl text-[13px] leading-relaxed">
+                Matching runs in stages, and every recommendation carries the reasons behind its
+                score. Same inputs, same list: there is no randomness and no AI guesswork in it.
+              </p>
+              <ol className="max-w-2xl space-y-3">
+                {matchStages.map((stage, index) => (
+                  <li key={stage.title}>
+                    <Card className="border-border/80 gap-1.5 rounded-lg p-4 shadow-sm">
+                      <p className="text-primary font-mono text-[12px]">
+                        Stage {index + 1} · {stage.title}
+                      </p>
+                      <p className="text-muted-foreground text-[13px] leading-relaxed">
+                        {stage.body}
+                      </p>
+                    </Card>
+                  </li>
+                ))}
+              </ol>
               <ul className="text-muted-foreground max-w-2xl list-disc space-y-1.5 pl-5 text-[13px] leading-relaxed">
                 <li>
-                  Each new job is scored against your resume and your career preferences: skills,
-                  preferred roles and locations. Jobs below the match threshold are not recommended.
+                  You get up to 50 new matches a day (counted by IST day), best match first. They
+                  stay in Discover until you apply, bookmark or ignore them.
                 </li>
                 <li>
-                  You get up to 50 new matches a day, best match first. They stay in Discover until
-                  you apply, bookmark or ignore them.
-                </li>
-                <li>
-                  Change your career preferences and Discover is re-ranked straight away. Don&apos;t
-                  want to wait for the nightly scan? Use{" "}
+                  Change your career preferences or your resume and Discover is re-ranked straight
+                  away. A job that stopped fitting is set aside rather than discarded, and comes
+                  back if it fits again — for example after you raise your years of experience.
+                  Don&apos;t want to wait for the next scan? Use{" "}
                   <span className="text-foreground">Refresh jobs</span> on the Jobs page.
                 </li>
                 <li>
@@ -414,6 +511,44 @@ export default function HowItWorksPage() {
                   it down. You can turn recommendations off in Profile settings → Job discovery.
                 </li>
               </ul>
+            </div>
+          </section>
+
+          {/* Schedule */}
+          <section className="space-y-5">
+            <SectionHeading id="schedule" eyebrow="Schedule" title="What runs when" />
+            <p className="text-muted-foreground max-w-2xl text-[14px] leading-relaxed">
+              Nothing here waits for you to open the app. Scheduled runs do the repetitive work —
+              reading careers pages, expiring old postings, topping up your matches, looking for
+              published contacts, sending the follow-ups you queued. Times are IST; each run fires
+              once a day (or once per slot) and may land anywhere inside its hour.
+            </p>
+            <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {schedule.map((item) => (
+                <li key={item.title}>
+                  <Card className="border-border/80 h-full gap-1.5 rounded-lg p-4 shadow-sm">
+                    <p className="text-primary font-mono text-[12px]">{item.when}</p>
+                    <h3 className="text-foreground text-[13px] font-semibold tracking-tight">
+                      {item.title}
+                    </h3>
+                    <p className="text-muted-foreground text-[13px] leading-relaxed">{item.body}</p>
+                  </Card>
+                </li>
+              ))}
+            </ol>
+            <div className="text-muted-foreground max-w-2xl space-y-2 text-[13px] leading-relaxed">
+              <p>
+                No run is one long request. Work is queued as items, each leased by whichever run
+                picks it up, and a run processes items until its time budget is nearly used — then
+                the rest wait for the next run or a drain. A run that crashes mid-way loses nothing:
+                its leases lapse and the items become claimable again. Retried runs resume the same
+                day&apos;s work instead of starting a second copy of it, and a source that keeps
+                failing is retried weekly rather than every day.
+              </p>
+              <p>
+                Scraping and matching are deliberately separate: a scan stores jobs, and matching
+                reads them. A failure in one never corrupts the other.
+              </p>
             </div>
           </section>
 

@@ -3,23 +3,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FLOWS } from "@/lib/about-flows";
 
 /**
- * About page: how Aavedak works, as separate flows (daily scraping, daily people discovery,
- * registration, re-ranking, multi-engine ATS, Improve resume). Each tab has a beam diagram in
- * the flow's real shape (loops, fan-out / fan-in, branches) and a step-by-step trace.
+ * How-it-works page: every flow Aavedak runs (daily job scraping, daily people discovery,
+ * registration and first ranking, re-ranking, multi-engine ATS, Improve resume). Each tab has
+ * an animated beam diagram in the flow's real shape (loops, fan-out / fan-in, branches) and a
+ * step-by-step trace of what it reads, writes, skips and retries.
  */
-export function AboutHowItWorks() {
+export function FlowWalkthrough() {
   return (
-    <section className="space-y-5" aria-labelledby="how-heading">
-      <div className="max-w-2xl space-y-1">
-        <h2 id="how-heading" className="text-foreground text-[15px] font-semibold tracking-tight">
-          How Aavedak works
+    <section className="space-y-5" aria-labelledby="flows">
+      <div className="space-y-1">
+        <p className="text-primary/90 font-mono text-[11px] uppercase tracking-wide">Flows</p>
+        <h2 id="flows" className="aavedak-display text-foreground scroll-mt-24 text-xl sm:text-2xl">
+          Every flow, traced from the code
         </h2>
-        <p className="text-muted-foreground text-[13px] leading-relaxed">
-          Six flows, each traced from the code: what starts it, what it reads and writes, and what
-          happens when something is skipped or fails. Dashed beams loop back; muted ones are skips
-          or stops.
-        </p>
       </div>
+      <p className="text-muted-foreground max-w-2xl text-[14px] leading-relaxed">
+        {FLOWS.length} flows, each traced from the code that runs it: what starts it, what it reads
+        and writes, and what happens when something is skipped or fails. The beams animate in the
+        direction the data moves — dashed ones loop back to the start, muted ones are skips or
+        stops. They hold still if your system asks for reduced motion.
+      </p>
 
       <Tabs defaultValue={FLOWS[0]!.id} className="space-y-6">
         <TabsList aria-label="Flows" className="h-auto max-w-full flex-wrap justify-start">
