@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 
 import { JobsHub, type JobsSort, type JobsTab } from "@/components/jobs-hub";
 import { parseJobsRegionView } from "@/lib/jobs-region";
+import { settingsHref } from "@/lib/settings-sections";
 import { requireOnboarded } from "@/lib/app-access";
 import { toJobDto } from "@/lib/job-dto";
 import { listJobScores } from "@/lib/job-scoring";
@@ -76,7 +77,7 @@ export async function JobsBoard({
       initialApplied={applied.map((job) => toJobDto(job, byJob.get(job.id)))}
       discoveryEnabled={prefs.discoveryEnabled}
       resumes={resumes.map((r) => ({ id: r.id, displayName: r.displayName, status: r.status }))}
-      profileSettingsHref={`/${profile.username}/settings`}
+      profileSettingsHref={settingsHref(profile.username, "discovery")}
     />
   );
 }

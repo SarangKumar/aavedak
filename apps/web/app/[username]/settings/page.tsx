@@ -6,8 +6,12 @@ import { getOptionalAccess } from "@/lib/app-access";
 import { getPreferences } from "@/lib/preferences";
 import { getProfileByUsername } from "@/lib/profile";
 import { listResumes } from "@/lib/resumes";
+import { settingsHref, settingsSectionFrom } from "@/lib/settings-sections";
 
-type Props = { params: Promise<{ username: string }> };
+type Props = {
+  params: Promise<{ username: string }>;
+  searchParams?: Promise<{ section?: string | string[] }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params;
@@ -15,14 +19,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: profile ? `@${profile.username} · Settings` : `@${username} · Settings` };
 }
 
-export default async function ProfileSettingsPage({ params }: Props) {
+export default async function ProfileSettingsPage({ params, searchParams }: Props) {
   const { username } = await params;
+  // `?section=` opens one section directly; anything missing or unknown falls back to Public
+  // profile. A repeated parameter uses the first value.
+  const requested = (await searchParams)?.section;
+  const initialSection = settingsSectionFrom(Array.isArray(requested) ? requested[0] : requested);
   const profile = await getProfileByUsername(username);
   if (!profile) notFound();
 
   const access = await getOptionalAccess();
   if (!access) {
-    redirect(`/sign-in?next=/${profile.username}/settings`);
+    // Keep the requested section, so a shared deep link still opens it after signing in.
+    const next = encodeURIComponent(settingsHref(profile.username, initialSection));
+    redirect(`/sign-in?next=${next}`);
   }
   if (access.user.id !== profile.userId) {
     notFound();
@@ -40,6 +50,7 @@ export default async function ProfileSettingsPage({ params }: Props) {
 
   return (
     <ProfileSettings
+      initialSection={initialSection}
       initialDiscoveryEnabled={preferences.discoveryEnabled}
       profile={{
         username: profile.username,

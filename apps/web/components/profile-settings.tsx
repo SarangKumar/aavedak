@@ -2,8 +2,8 @@
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { FriendsInviteCard } from "@/components/friends-invite-card";
 import { GmailConnectBanner } from "@/components/gmail-connect-banner";
@@ -25,6 +25,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PROFILE_BIO_MAX } from "@/lib/profile-limits";
+import {
+  DEFAULT_SETTINGS_SECTION,
+  isSettingsSection,
+  type SettingsSection,
+} from "@/lib/settings-sections";
 import type { RerankCounts } from "@/lib/rerank-user";
 import {
   InputGroup,
@@ -94,10 +99,9 @@ type Props = {
   initialDiscoveryEnabled?: boolean;
   /** When set (inline edit from profile page), show Cancel back to view. */
   onCancel?: () => void;
+  /** Section to open, from `?section=` (the page validates it). */
+  initialSection?: SettingsSection;
 };
-
-type SettingsSection =
-  "public" | "links" | "projects" | "career" | "discovery" | "resume" | "access" | "danger";
 
 const SETTINGS_NAV: Array<{
   group: string;
@@ -220,9 +224,32 @@ export function ProfileSettings({
   initialResumes,
   initialDiscoveryEnabled = true,
   onCancel,
+  initialSection = DEFAULT_SETTINGS_SECTION,
 }: Props) {
   const router = useRouter();
-  const [section, setSection] = useState<SettingsSection>("public");
+  const [section, setSection] = useState<SettingsSection>(initialSection);
+
+  // Follow `?section=` when a link elsewhere changes it while this page is open (e.g. Jobs →
+  // "Daily discovery is paused"). Same render-phase sync as the Documents tabs.
+  const searchSection = useSearchParams().get("section");
+  const [seenSearchSection, setSeenSearchSection] = useState(searchSection);
+  if (searchSection !== seenSearchSection) {
+    setSeenSearchSection(searchSection);
+    if (isSettingsSection(searchSection) && searchSection !== section) setSection(searchSection);
+  }
+
+  // Keep the open section in the URL so a reload, a shared link or a bookmark reopens it.
+  // `replaceState`, so switching sections does not pile up history entries or scroll the page.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (section === DEFAULT_SETTINGS_SECTION) url.searchParams.delete("section");
+      else url.searchParams.set("section", section);
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      // URL sync is a convenience; the page works without it.
+    }
+  }, [section]);
   const [name, setName] = useState(profile.name ?? "");
   const [bio, setBio] = useState(profile.bio ?? "");
   const initialLinks = useMemo(() => linksFromProfile(profile), [profile]);
@@ -266,6 +293,14 @@ export function ProfileSettings({
     () => resumes.find((r) => r.status === "active")?.id ?? null,
     [resumes],
   );
+
+  /** Open a section and clear the banners belonging to the one being left. */
+  function selectSection(next: SettingsSection) {
+    setSection(next);
+    setError(null);
+    setSaved(false);
+    setCareerSaved(false);
+  }
 
   function setLink(key: ProfileLinkKey, value: string) {
     setLinks((prev) => ({ ...prev, [key]: value }));
@@ -633,12 +668,7 @@ export function ProfileSettings({
                       <li key={item.id}>
                         <button
                           type="button"
-                          onClick={() => {
-                            setSection(item.id);
-                            setError(null);
-                            setSaved(false);
-                            setCareerSaved(false);
-                          }}
+                          onClick={() => selectSection(item.id)}
                           className={cn(
                             "flex w-full cursor-pointer items-center rounded-md px-2.5 py-1.5 text-left text-[12px] font-medium transition-colors",
                             active
@@ -662,8 +692,8 @@ export function ProfileSettings({
             <Select
               value={section}
               onValueChange={(v) => {
-                if (!v) return;
-                setSection(v as SettingsSection);
+                if (!isSettingsSection(v)) return;
+                selectSection(v);
               }}
             >
               <SelectTrigger className="h-9 w-full rounded-md border text-[12px]">
