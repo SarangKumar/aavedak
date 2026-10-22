@@ -20,13 +20,13 @@ for internals). This page covers how it runs, how to configure it, and how to op
 
 ## Schedule (vercel.json, UTC; Hobby = once/day per cron, ±59 min)
 
-| Cron                                 | When (UTC)                  | Purpose                                         |
-| ------------------------------------ | --------------------------- | ----------------------------------------------- |
-| `/svc/v1/discovery/cron/scan/0..5`   | 18:15, 19:15 … 23:15        | Scan one registry shard each                    |
-| `/svc/v1/discovery/cron/expire`      | 00:15                       | Expire old jobs, auto-reject early applications |
-| `/svc/v1/discovery/cron/rank`        | 01:15 (≈ 06:45 IST)         | Top up recommendations from the whole pool      |
-| `/svc/v1/discovery/cron/drain/0..6`  | 03:15, 05:15, 09:15 … 17:15 | Finish leftover / retrying items                |
-| `/api/cron/process-follow-ups` (web) | 07:00                       | Unchanged                                       |
+| Cron                                 | When (UTC)                  | Purpose                                                                                                                        |
+| ------------------------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `/svc/v1/discovery/cron/scan/0..5`   | 18:15, 19:15 … 23:15        | Scan one registry shard each (careers pages, then boards and the cross-company index, then a few company-discovery candidates) |
+| `/svc/v1/discovery/cron/expire`      | 00:15                       | Expire old jobs, auto-reject early applications                                                                                |
+| `/svc/v1/discovery/cron/rank`        | 01:15 (≈ 06:45 IST)         | Top up recommendations from the whole pool                                                                                     |
+| `/svc/v1/discovery/cron/drain/0..6`  | 03:15, 05:15, 09:15 … 17:15 | Finish leftover / retrying items                                                                                               |
+| `/api/cron/process-follow-ups` (web) | 07:00                       | Unchanged                                                                                                                      |
 
 Each cron call does at most `discovery_tick_budget_seconds` of work; whatever is left is
 picked up by the next drain cron (or the Admin page while open). Writes happen per company
@@ -39,6 +39,32 @@ re-import the verified seed list), "Scan all sources now", run expiry / ranking 
 **bulk people discovery** (CSV upload → batched run), and run progress with retry of failed
 items. Admin actions go web → `POST /api/admin/discovery` (allowlist check) → FastAPI with
 `CRON_SECRET`.
+
+`/admin` → **Careers pages**: the careers-page registry with each page's last crawl.
+
+`/admin` → **Source health** (`GET /api/admin/discovery/health` → `/admin/health`): the one
+page to check when jobs stop arriving.
+
+- **Coverage** — boards configured / succeeded in the last 7 days / failing, careers pages
+  configured and readable, candidates in the discovery ledger, plus a badge per hiring
+  platform (`succeeded/configured`, last success, postings on its last scan) and one per
+  careers-page reading method.
+- **Job flow** — active jobs, and added / updated / closed / expired in the last 24 h, plus
+  open jobs no source has re-listed for 10+ days. If the **outage guard** stopped a source
+  from closing its jobs, the companies are named here: nothing was closed, and the next
+  scan decides (see DISCOVERY.md "Outage guard").
+- **Validation problems** — open shared jobs with an invalid link, a blank title, an empty or
+  very short description, and duplicate dedupe-key groups. Ingest already refuses a posting
+  without a valid http(s) link or a title, so these should stay at or near zero.
+- **Discovered companies** — the ledger: each candidate, where it was found (Workable index,
+  a user's application, a shared job, a careers-page embed), what it resolved to, and whether
+  a board or a careers page was registered from it. **Discover companies** collects new
+  candidates and works them for ~40 s; the scan and drain crons continue in the background.
+
+What to look at when **new jobs stop arriving**: Coverage → is one platform's
+`succeeded/configured` down? Job flow → did "Added 24h" drop while "Closed 24h" spiked (a
+source changed shape)? Was the outage guard triggered? Then open the failing rows in
+**Discovery → Sources** or **Careers pages** for the exact error.
 
 People CSV: header row; `name` required; optional `company`, `role`/`title`, `email`,
 `linkedin`, `source_url`. Max 4 MB per upload (Vercel request limit); split larger files.

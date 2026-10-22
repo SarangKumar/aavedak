@@ -31,11 +31,17 @@ forwards admin actions to `/svc/v1/discovery/admin/*` after its own allowlist ch
   `include_internships = True` (config.py). Filters run **before** anything is written, so the database only
   holds relevant jobs; skipped postings are only counted per reason.
 - Sources: **company careers pages first** (the `career_pages` registry, ~590 verified pages,
-  India-weighted — see "Careers pages registry"), then public ATS posting APIs (Greenhouse,
-  Lever, Ashby, SmartRecruiters, Workable, Workday) as a fallback, and optional permitted JSON
-  feeds. Every page fetch respects robots.txt. LinkedIn, Indeed, Glassdoor, Naukri,
-  Foundit, Instahyre, Cutshort, and Wellfound have no permitted read access and are **not**
-  scraped. NCS has no public listings API.
+  India-weighted — see "Careers pages registry"), then public ATS posting APIs
+  (Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Workday, Rippling, Breezy HR,
+  Personio, Teamtailor) as a fallback, Workable's public cross-company index (see
+  "Cross-company index"), and optional permitted JSON feeds. Every page fetch respects
+  robots.txt. LinkedIn, Indeed, Glassdoor, Naukri, Foundit, Instahyre, Cutshort, and
+  Wellfound have no permitted read access and are **not** scraped. NCS has no public
+  listings API.
+- **Companies are discovered, not only curated** (`jobs/company_discovery.py`): candidates
+  come from the cross-company index, from companies users already applied to, and from
+  careers-page embeds, and each is resolved to a board or a careers page by a bounded,
+  polite probe. See "Company discovery".
 - **Add job from a link** (`jobs/single.py`, `POST /admin/parse-job-url`) reads one posting
   the user pasted: ATS board APIs, JSON-LD, then `page_extract.py` (SAP SuccessFactors
   `data-careersite-propertyid` / `itemprop` markup, microdata, og/meta tags, `<h1>` and the
@@ -78,6 +84,9 @@ app/discovery/
   jobs/
     models.py    SourceTarget, RawPosting, NormalizedJob, FetchResult
     providers/   one module per source; pure parse() + fetch(); detect_source(url)
+    board_probe.py    token guesses + the public-API probe matrix (shared with the verifier script)
+    company_discovery.py  the `discovered_companies` ledger: candidates → board / careers page
+    health.py    outage guard (a collapsed "complete" fetch may not close jobs) + health report
     filters.py   region / tech role / executive / experience parsing (pure)
     salary.py    stated salary / stipend from provider pay data or labelled text (pure)
     email_extractor.py  pull published emails from posting text; pick one application inbox (pure)
@@ -116,21 +125,24 @@ Per company source (one run item):
    for new postings that already pass title/location rules (parallel, capped, time-boxed).
 2. `normalize_postings` filters and builds `NormalizedJob`s (pure), including
    `apply_email` when the description openly publishes an application inbox.
-3. `store.ingest_company` (one transaction): new → insert job + `job_sources` ref, or link
+3. `health.guard_complete` decides whether this fetch may close jobs: only when the provider
+   said the list was complete **and** the posting count did not collapse against
+   `last_posting_count` (see "Outage guard").
+4. `store.ingest_company` (one transaction): new → insert job + `job_sources` ref, or link
    to a canonical job with the same dedupe key (company + title + first location token);
    changed hash → update in place (posted_at only moves earlier; empty description never
    overwrites); unchanged → bump `last_seen_at`; missing from a **complete** fetch →
    `closed_at` (unless another source listed it in the last 36h); reappears → reopened.
    Postings already older than the expiry window are never stored.
-4. **Official careers page** (when set and due — see below): read its schema.org
+5. **Official careers page** (when set and due — see below): read its schema.org
    `JobPosting` data with the `jsonld` provider as source `official-{token}` of the same
    company source, using the board's company name so roles merge, and ingest it after the
    board (`complete=False`: a page read never closes jobs).
-5. `ranking.recommend(job_ids=new)` runs the matcher (`match.py`) for each eligible user →
+6. `ranking.recommend(job_ids=new)` runs the matcher (`match.py`) for each eligible user →
    `user_job_state` rows (`recommended_at`, rank score, reasons) + `job_scores` (match score,
    JD quality, breakdown, `inputs_key`), respecting each user's daily cap and Profile setting.
-6. `people.store.link_jobs_to_company_people` refreshes `job_person_relevance`.
-7. `registry.record_official` stores the page read status (and a detected page URL);
+7. `people.store.link_jobs_to_company_people` refreshes `job_person_relevance`.
+8. `registry.record_official` stores the page read status (and a detected page URL);
    `registry.record_scan` stores counts (incl. `officialPage`) / last error on the source.
 
 ## Runs, ticks, crons (Vercel Hobby)
@@ -226,6 +238,88 @@ overwrites an admin's `enabled`).
 /admin/careers-pages/{id}` `{enabled}`, `POST /admin/careers-pages/import`. The web Admin
   page's **Careers pages** section shows them; the homepage lists readable companies and the
   platforms read (`apps/web/lib/careers-showcase.ts`, cached 1 h).
+
+## Cross-company index
+
+`providers/workable_index.py` reads **jobs.workable.com/api/v1/jobs**, the public, keyless
+API behind Workable's own cross-customer job board — the only ATS index that is free and
+needs no account. It is not one company's board, so it is handled differently:
+
+- the token is a query spec `"{location}:{query}"`; `INDEX_TOKENS` lists them (ten India
+  queries + two remote ones). `registry.import_index_sources` creates one `company_sources`
+  row per spec (`provider = 'workable_index'`, `origin = 'index'`) on every scan cron, so
+  each spec is its own bounded run item and spreads across the shards like any other source.
+  They are created from code, not from `career_sources.json`, because they are not companies
+  and must not appear in the web app's seed-company lists.
+- each posting carries its own company, so ingest creates/links the company per job and the
+  external id is the posting's own (`workable-index:{id}`): the same job found through two
+  specs is one source ref.
+- the result is **never `complete`** — a query view may never close a job.
+- paging follows `nextPageToken`, capped at `MAX_PAGES` (6 × 20 postings) per spec.
+- every company it reports (name + the website Workable publishes) becomes a
+  `company_hints` entry on the `FetchResult`, which `scan.py` hands to company discovery.
+
+## Company discovery
+
+`discovered_companies` is the candidate ledger (`name`, `name_key` unique, `domain`,
+`careers_url`, `ats`, `ats_token`, `discovery_source`, `status`, `last_error`, `attempts`,
+`checked_at`, `promoted_source_id`, `promoted_page_id`). Three candidate feeds, all from
+data Aavedak already reads:
+
+| Feed                           | Written by                                                                   | Gives                                                                                                                                                                           |
+| ------------------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `workable_index`               | `record_hints` from `FetchResult.company_hints`                              | company name + the website it publishes                                                                                                                                         |
+| `applications` / `shared_jobs` | `collect_from_database` (scan cron, capped by `company_candidates_per_scan`) | companies users applied to, or of live shared jobs, that have no board and no careers page; the domain comes from `people/domains.resolve_domain` (never guessed from the name) |
+| `careers_embed`                | `register_embed` from `careers_scan`                                         | a careers page running on a platform we read whose board is not registered (no extra request)                                                                                   |
+
+A candidate already covered by a `company_sources` or `career_pages` row (same
+punctuation-insensitive name key) is never added.
+
+**Resolving one candidate** = one leased run item (`company_discovery`), queued by the scan
+cron _after_ the pages and boards and capped at `company_discovery_per_scan` (15), so it can
+never delay job fetching. Within `RESOLVE_SECONDS` (25) and a request budget:
+
+1. with a known domain, the usual careers paths (`/careers`, `careers.{domain}`, `/jobs`,
+   `/about/careers`) are fetched through `PoliteFetcher` (robots.txt per origin, a pause
+   between hits to one host). A page counts only if it answered 200 HTML and
+   `looks_like_careers_page` (careers wording in the URL/title, not a soft 404) — so a
+   redirect to a home page is never stored as a careers page;
+2. `detect_embeds` on that page → a board is the better source (a complete posting list), so
+   it wins over the page itself;
+3. otherwise `board_probe.find_board` tries likely tokens on the public posting APIs
+   (`PROBE_ORDER`), 12 requests when nothing was found, one token across the platforms when
+   a careers page already was. Personio (XML) and Teamtailor (token = the company's own
+   careers host) cannot be probed from a name, so they are only reached through a page embed.
+
+The outcome is persisted and, when something was found, registered with
+`origin = 'discovered'`: a board in `company_sources` (with the page as its detected
+official careers URL) and the verified page in `career_pages`. `status` is `board`,
+`careers_page`, `none` or `error`; `none`/`error` are retried after `RECHECK_SECONDS`
+(30 days) up to `MAX_ATTEMPTS` (3). Nothing is invented: a URL is stored only after it
+answered, and a board only after its public API returned postings.
+
+Admin: `GET /admin/discovered-companies`, `POST /admin/runs/company-discovery` ("Discover
+companies" in the web Admin page's **Source health** section).
+
+## Outage guard and the health report
+
+`jobs/health.py`. A board or page that normally lists dozens of roles and suddenly lists
+almost none is far more likely broken (a changed board, a partial outage, a throttled API)
+than to have closed everything, and treating that fetch as the complete list would
+`closed_at` the whole company. `guard_complete` downgrades such a fetch to incomplete:
+`complete` **and** a previous count of at least `OUTAGE_MIN_BASELINE` (10) **and** fewer
+than `OUTAGE_MIN_RATIO` (40 %) of it → nothing is closed and the next scan decides. A
+guarded fetch does **not** become the new baseline (`last_posting_count` on
+`company_sources` / `career_pages` is left alone), so a second day of the same outage is
+still guarded; the jobs expire normally if the company really did empty its board.
+
+`source_health` is the read-only report behind `GET /admin/health`: boards configured /
+checked / succeeded this week / failing / parked, per-ATS counts with each platform's last
+success, careers pages by status and by strategy, jobs active and added/updated/closed/
+expired in the last 24 h, and the validation problems among open shared jobs — invalid
+links, blank titles, empty or very short descriptions, duplicate dedupe-key groups, and
+jobs no source has re-listed for `STALE_AFTER_DAYS` (10). Ingest itself already refuses a
+posting without a valid http(s) link (`missing_url`) or without a title (`invalid`).
 
 ## Expiry
 
