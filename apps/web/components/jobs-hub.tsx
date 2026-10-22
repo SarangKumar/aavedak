@@ -18,8 +18,8 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { JobFormFields } from "@/components/job-form-fields";
 import { ResumePreviewDialog } from "@/components/resume-preview";
-import { EngineKindBadge } from "@/components/ats-engine-badge";
 import { FeatureIcon } from "@/components/feature-heading";
+import { AtsEnginePicker } from "@/components/ats-engine-picker";
 import { AtsScoreMatrix } from "@/components/ats-score-matrix";
 import {
   companyInitials,
@@ -2202,31 +2202,12 @@ function JobAtsCheck({ job, resumes }: { job: JobDto; resumes: ResumeLite[] }) {
         </p>
       ) : (
         <>
+          {/* The same picker the ATS and Improve pages use: kind toggles (Native / Reference /
+              ATS platforms / Open Source) over one card per engine, so the three places that
+              choose engines stay identical. */}
           <div className="space-y-1.5">
             <p className="text-muted-foreground text-[11px] font-medium">Engines</p>
-            <ToggleGroup
-              aria-label="ATS engines"
-              multiple
-              variant="outline"
-              size="sm"
-              spacing={1}
-              disabled={running}
-              className="flex-wrap"
-              value={[...engineIds]}
-              onValueChange={(next) => setEngineIds(new Set(next as AtsEngineId[]))}
-            >
-              {ATS_ENGINES.map((eng) => (
-                <ToggleGroupItem
-                  key={eng.id}
-                  value={eng.id}
-                  title={eng.shortDescription}
-                  className="h-7 gap-1.5 px-2 text-xs"
-                >
-                  {eng.name}
-                  <EngineKindBadge engineId={eng.id} />
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+            <AtsEnginePicker selected={engineIds} onChange={setEngineIds} disabled={running} />
           </div>
 
           <AtsScoreMatrix
