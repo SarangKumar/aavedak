@@ -39,6 +39,7 @@ type Action =
   | { action: "rank" }
   | { action: "import_seed" }
   | { action: "people_discovery" }
+  | { action: "company_discovery" }
   | { action: "people_import"; csv: string };
 
 /**
@@ -83,6 +84,14 @@ export async function POST(request: Request) {
       case "people_discovery":
         return NextResponse.json(
           await discoveryAdmin("/runs/people-discovery", {
+            method: "POST",
+            body: { createdBy: auth.user.email },
+            timeoutMs: 58_000,
+          }),
+        );
+      case "company_discovery":
+        return NextResponse.json(
+          await discoveryAdmin("/runs/company-discovery", {
             method: "POST",
             body: { createdBy: auth.user.email },
             timeoutMs: 58_000,
