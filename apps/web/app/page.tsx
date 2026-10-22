@@ -190,7 +190,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {jobMap && jobMap.totalOpenings > 0 ? <HomeOpeningsSection summary={jobMap} /> : null}
+        {jobMap && jobMap.cities.length > 0 ? <HomeOpeningsSection summary={jobMap} /> : null}
 
         {careers && careers.companies.length > 0 ? <HomeCareerSources showcase={careers} /> : null}
 

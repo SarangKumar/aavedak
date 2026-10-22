@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 
 import {
+  GLOBE_CITY_MIN_COUNT,
   isRemoteLocation,
   jobsSearchHref,
   locationFilterKeys,
@@ -95,6 +96,36 @@ function testLabelThreshold() {
   assert.equal(summary.cities.length, 5);
 }
 
+function testGlobeCityThreshold() {
+  const rows = [
+    { location: "Bengaluru", count: 120, company: "Acme" },
+    { location: "Pune", count: 26, company: "Zeta" },
+    { location: "Hyderabad, Telangana, India", count: 25, company: "Orbit" },
+    { location: "Mysuru", count: 3, company: "Nine" },
+    { location: "Remote, APAC", count: 7, company: "Far" },
+    { location: "India", count: 4, company: "Vague" },
+  ];
+  // The homepage passes the threshold; "more than 25" means 25 exactly is dropped.
+  const globe = summarizeJobLocations(rows, { minCityCount: GLOBE_CITY_MIN_COUNT });
+  assert.deepEqual(
+    globe.cities.map((c) => c.id),
+    ["bengaluru", "pune"],
+  );
+  // Totals still cover every row, so the headline counts do not shrink with the dots.
+  assert.equal(globe.totalOpenings, 185);
+  assert.equal(globe.remoteCount, 7);
+  assert.equal(globe.elsewhereCount, 4);
+  assert.equal(globe.companyCount, 6);
+  // Labels are assigned on the cities that survive the threshold.
+  assert.equal(
+    globe.cities.every((c) => c.label !== null),
+    true,
+  );
+
+  // The default keeps every city: the Jobs page's location filter needs them all.
+  assert.equal(summarizeJobLocations(rows).cities.length, 4);
+}
+
 function testCompanyCounts() {
   const summary = summarizeJobLocations([
     { location: "Bangalore", count: 2, company: "Acme" },
@@ -129,5 +160,6 @@ testLocationFilter();
 testRemote();
 testSummary();
 testLabelThreshold();
+testGlobeCityThreshold();
 testCompanyCounts();
 console.log("job-map tests passed");

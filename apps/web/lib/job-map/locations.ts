@@ -85,6 +85,12 @@ function arcDegrees(a: { lat: number; lng: number }, b: { lat: number; lng: numb
 // (hovering the dot shows the same name + count pill).
 export const LABEL_MIN_COUNT = 1;
 
+// The homepage globe plots a city only when it has MORE than this many open roles, so the
+// globe shows places genuinely worth looking at rather than a dot for every one-off posting.
+// Passed in by `job-map/query.ts`; the summarizer itself keeps every city by default, since
+// the Jobs page's location filter needs them all.
+export const GLOBE_CITY_MIN_COUNT = 25;
+
 // Each label sits above or below its dot. Pick the side away from bigger nearby cities so
 // close pairs (Bengaluru / Coimbatore) can both be labelled. A busy city is always labelled:
 // with neither side free it takes the side with fewer clashes. The globe still hides a label
@@ -116,8 +122,21 @@ function assignLabels(cities: GlobeCity[]): void {
   }
 }
 
-/** Aggregate grouped location counts into globe cities plus remote / elsewhere totals. */
-export function summarizeJobLocations(rows: JobLocationCount[]): JobMapSummary {
+/** Options for `summarizeJobLocations`. */
+export type SummarizeOptions = {
+  /** Drop cities with this many open roles or fewer (0 = keep every city). */
+  minCityCount?: number;
+};
+
+/** Aggregate grouped location counts into globe cities plus remote / elsewhere totals.
+ *
+ * The remote / elsewhere / total / company counts always cover every row, so they stay true
+ * however `minCityCount` thins the plotted cities.
+ */
+export function summarizeJobLocations(
+  rows: JobLocationCount[],
+  { minCityCount = 0 }: SummarizeOptions = {},
+): JobMapSummary {
   type CityAgg = { count: number; companies: Set<string> };
   const byCity = new Map<string, CityAgg>();
   const allCompanies = new Set<string>();
@@ -146,6 +165,7 @@ export function summarizeJobLocations(rows: JobLocationCount[]): JobMapSummary {
   }
 
   const cities: GlobeCity[] = [...byCity.entries()]
+    .filter(([, agg]) => agg.count > minCityCount)
     .map(([id, agg]) => {
       const def = CITY_BY_ID.get(id)!;
       return {
