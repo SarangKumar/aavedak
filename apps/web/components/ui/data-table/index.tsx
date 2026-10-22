@@ -431,7 +431,7 @@ export function DataTable<TData>({
 
   const colSpan = visibleColumns.length + (selectable ? 1 : 0) + (renderRowActions ? 1 : 0);
 
-  const showToolbar = searchable || columnVisibility || selectable;
+  const showToolbar = searchable || columnVisibility || selectable || showSizeChoices;
 
   return (
     <div data-slot="data-table" className={cn("flex w-full flex-col gap-3", className)}>
@@ -451,6 +451,38 @@ export function DataTable<TData>({
             />
           ) : null}
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            {showSizeChoices ? (
+              <div className="flex items-center gap-2">
+                <span id={`${searchId}-page-size`} className="text-muted-foreground text-sm">
+                  {pageSizeLabel}
+                </span>
+                <ToggleGroup
+                  size="sm"
+                  spacing={0}
+                  variant="outline"
+                  disabled={loading}
+                  aria-labelledby={`${searchId}-page-size`}
+                  value={[String(pageSize)]}
+                  onValueChange={(next) => {
+                    const choice = Number(next[0]);
+
+                    if (!Number.isFinite(choice)) {
+                      return;
+                    }
+
+                    setChosenPageSize(choice);
+                    // Row n of the old paging is meaningless at the new size.
+                    setPage(1);
+                  }}
+                >
+                  {sizeChoices.map((size) => (
+                    <ToggleGroupItem key={size} value={String(size)}>
+                      {size}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+            ) : null}
             {selectable && selected.size > 0 ? (
               <p className="text-muted-foreground text-sm tabular-nums">{selected.size} selected</p>
             ) : null}
@@ -656,48 +688,14 @@ export function DataTable<TData>({
 
       {pagination ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <p className="text-muted-foreground text-sm tabular-nums">
-              {sorted.length === 0
-                ? "0 results"
-                : `Showing ${(currentPage - 1) * pageSize + 1}–${Math.min(
-                    currentPage * pageSize,
-                    sorted.length,
-                  )} of ${sorted.length}`}
-            </p>
-            {showSizeChoices ? (
-              <div className="flex items-center gap-2">
-                <span id={`${searchId}-page-size`} className="text-muted-foreground text-sm">
-                  {pageSizeLabel}
-                </span>
-                <ToggleGroup
-                  size="sm"
-                  spacing={0}
-                  variant="outline"
-                  disabled={loading}
-                  aria-labelledby={`${searchId}-page-size`}
-                  value={[String(pageSize)]}
-                  onValueChange={(next) => {
-                    const choice = Number(next[0]);
-
-                    if (!Number.isFinite(choice)) {
-                      return;
-                    }
-
-                    setChosenPageSize(choice);
-                    // Row n of the old paging is meaningless at the new size.
-                    setPage(1);
-                  }}
-                >
-                  {sizeChoices.map((size) => (
-                    <ToggleGroupItem key={size} value={String(size)}>
-                      {size}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </div>
-            ) : null}
-          </div>
+          <p className="text-muted-foreground min-w-0 text-sm tabular-nums">
+            {sorted.length === 0
+              ? "0 results"
+              : `Showing ${(currentPage - 1) * pageSize + 1}–${Math.min(
+                  currentPage * pageSize,
+                  sorted.length,
+                )} of ${sorted.length}`}
+          </p>
           <Pagination className="mx-0 w-auto justify-end">
             <PaginationContent>
               <PaginationItem>
