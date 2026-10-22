@@ -16,7 +16,7 @@ import httpx
 import psycopg
 
 from app.discovery.config import DiscoverySettings
-from app.discovery.jobs import ranking, registry, store
+from app.discovery.jobs import company_discovery, health, ranking, registry, store
 from app.discovery.jobs.models import FetchResult, SourceTarget
 from app.discovery.jobs.normalize import NormalizeResult, normalize_postings
 from app.discovery.jobs.providers import ProviderError, UnsupportedPage, get_provider
@@ -149,12 +149,24 @@ def scan_items(
                 outcomes[item_id] = ItemOutcome(False, {}, f"Unexpected error: {exc.__class__.__name__}")
                 continue
 
+            # A board that normally lists dozens of roles and suddenly lists almost none is
+            # far more likely broken than emptied: such a fetch may not close anything.
+            guard = health.guard_complete(
+                complete=fetched.complete,
+                fetched=len(fetched.postings),
+                previous=target.last_posting_count,
+            )
+            if guard.guarded:
+                logger.warning(
+                    "outage guard: %s/%s returned %s postings after %s — not closing jobs",
+                    target.provider, target.token, len(fetched.postings), guard.previous,
+                )
             try:
                 stats = store.ingest_company(
                     conn,
                     target,
                     normalized.jobs,
-                    complete=fetched.complete,
+                    complete=guard.complete,
                     scan_started_at=scan_started,
                     expiry_days=settings.job_expiry_days,
                 )
@@ -181,6 +193,13 @@ def scan_items(
                     conn, settings, job_ids=new_job_ids, contexts=user_contexts
                 )
                 people_links = people_store.link_jobs_to_company_people(conn, new_job_ids)
+                # A cross-company index also reports who is hiring: keep them as candidates
+                # for company discovery (no extra request).
+                candidates = (
+                    company_discovery.record_hints(conn, fetched.company_hints)
+                    if fetched.company_hints
+                    else 0
+                )
             except psycopg.Error as exc:
                 logger.exception("ingest failed for %s/%s", target.provider, target.token)
                 outcomes[item_id] = ItemOutcome(False, {}, f"Database error: {exc.__class__.__name__}")
@@ -195,6 +214,10 @@ def scan_items(
                 "recommended": sum(recommended.values()),
                 "peopleLinks": people_links,
             }
+            if guard.guarded:
+                counts["outageGuard"] = {"previous": guard.previous, "fetched": len(fetched.postings)}
+            if candidates:
+                counts["companyCandidates"] = candidates
             if official:
                 counts["officialPage"] = {
                     "status": official.status,
@@ -203,7 +226,12 @@ def scan_items(
                     **(official_stats.as_dict() if official_stats else {}),
                     **({"error": official.error} if official.error else {}),
                 }
-            registry.record_scan(conn, target.id, ok=True, error=None, counts=counts)
+            registry.record_scan(
+                conn, target.id, ok=True, error=None, counts=counts,
+                # A guarded fetch must not become the new baseline: otherwise a second day
+                # of the same outage would look normal and close the company's jobs.
+                posting_count=None if guard.guarded else len(fetched.postings),
+            )
             outcomes[item_id] = ItemOutcome(
                 True,
                 {
@@ -217,6 +245,8 @@ def scan_items(
                     "closed": stats.closed,
                     "recommended": counts["recommended"],
                     "peopleLinks": people_links,
+                    "companyCandidates": candidates,
+                    "outageGuard": guard.guarded,
                     "skipped": sum(skipped.values()),
                 },
             )

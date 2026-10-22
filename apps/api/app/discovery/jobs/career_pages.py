@@ -117,19 +117,28 @@ def load(conn: psycopg.Connection, page_id: str) -> tuple[CareerPage, str | None
     """The page plus the company name to store jobs under (its board source's name when
     linked, so the same role from both paths shares one dedupe key)."""
     row = conn.execute(
-        """SELECT p.id, p.company_name, p.careers_url, p.domain, s.company_name AS source_name
+        """SELECT p.id, p.company_name, p.careers_url, p.domain, p.last_posting_count,
+                  s.company_name AS source_name
            FROM career_pages p LEFT JOIN company_sources s ON s.id = p.company_source_id
            WHERE p.id = %s""",
         (page_id,),
     ).fetchone()
     if not row:
         return None
-    page = CareerPage(row["id"], row["company_name"], row["careers_url"], row["domain"])
+    page = CareerPage(
+        row["id"], row["company_name"], row["careers_url"], row["domain"], row["last_posting_count"]
+    )
     return page, row["source_name"]
 
 
 def record(
-    conn: psycopg.Connection, page_id: str, result: CrawlResult, *, kept: int, counts: dict[str, Any]
+    conn: psycopg.Connection,
+    page_id: str,
+    result: CrawlResult,
+    *,
+    kept: int,
+    counts: dict[str, Any],
+    guarded: bool = False,
 ) -> None:
     now = now_iso()
     ok = result.status == "ok"
@@ -142,6 +151,9 @@ def record(
              final_url = COALESCE(%(final)s, final_url),
              last_complete = %(complete)s,
              jobs_found = CASE WHEN %(ok)s THEN %(found)s ELSE 0 END,
+             -- A guarded read must not become the new baseline (see jobs/health.py).
+             last_posting_count = CASE WHEN %(ok)s AND NOT %(guarded)s THEN %(found)s
+                                       ELSE last_posting_count END,
              jobs_kept = CASE WHEN %(ok)s THEN %(kept)s ELSE 0 END,
              consecutive_failures = CASE WHEN %(status)s = 'error' THEN consecutive_failures + 1 ELSE 0 END,
              last_counts_json = %(counts)s, updated_at = %(now)s
@@ -157,6 +169,7 @@ def record(
             "complete": 1 if ok and result.complete else 0,
             "found": len(result.postings),
             "kept": kept,
+            "guarded": guarded,
             "counts": json.dumps(counts),
             "id": page_id,
         },
