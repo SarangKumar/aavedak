@@ -18,7 +18,17 @@ from pydantic import BaseModel, Field
 
 from app.discovery.config import get_settings
 from app.discovery.db import DatabaseNotConfigured, connect
-from app.discovery.jobs import career_pages, careers_scan, expiry, ranking, registry, scan, single
+from app.discovery.jobs import (
+    career_pages,
+    careers_scan,
+    company_discovery,
+    expiry,
+    health,
+    ranking,
+    registry,
+    scan,
+    single,
+)
 from app.discovery.jobs.providers.base import make_client
 from app.discovery.people import discover, importer
 from app.discovery.people import store as people_store
@@ -58,22 +68,34 @@ Conn = Depends(db)
 
 
 def _sync_seed(conn: psycopg.Connection) -> None:
-    """Insert seed companies and careers pages missing from the registries (idempotent; new
-    seed entries reach an existing database on the next scan)."""
+    """Insert seed companies, careers pages and cross-company index rows missing from the
+    registries (idempotent; new seed entries reach an existing database on the next scan)."""
     registry.import_seed(conn)
+    registry.import_index_sources(conn)
     career_pages.import_seed(conn)
 
 
-def _scan_items(conn: psycopg.Connection, shard: int | None) -> tuple[list[tuple[str, str, dict]], int, int]:
-    """Careers pages first (the primary source; their result decides which boards are only
-    a fallback next time), then the boards not covered by a careers page."""
+def _scan_items(conn: psycopg.Connection, shard: int | None) -> tuple[list[tuple[str, str, dict]], dict[str, int]]:
+    """Careers pages first (the primary source; their result decides which boards are only a
+    fallback next time), then the boards not covered by a careers page, and last a few
+    company-discovery candidates — background work that must never delay job fetching."""
     settings = get_settings()
     page_ids = career_pages.scheduled_ids(conn, shard=shard, shard_count=settings.discovery_shards)
     source_ids = registry.scheduled_source_ids(
         conn, shard=shard, shard_count=settings.discovery_shards, max_failures=settings.discovery_max_failures
     )
-    items = [(careers_scan.ITEM_KIND, i, {}) for i in page_ids] + [(scan.ITEM_KIND, i, {}) for i in source_ids]
-    return items, len(page_ids), len(source_ids)
+    company_discovery.collect_from_database(conn, limit=settings.company_candidates_per_scan)
+    candidate_ids = company_discovery.scheduled_ids(conn, limit=settings.company_discovery_per_scan)
+    items = (
+        [(careers_scan.ITEM_KIND, i, {}) for i in page_ids]
+        + [(scan.ITEM_KIND, i, {}) for i in source_ids]
+        + [(company_discovery.ITEM_KIND, i, {}) for i in candidate_ids]
+    )
+    return items, {
+        "careersPages": len(page_ids),
+        "sources": len(source_ids),
+        "companyCandidates": len(candidate_ids),
+    }
 
 
 # --- Cron -------------------------------------------------------------------------------
@@ -89,7 +111,7 @@ def cron_scan(shard: int, conn: psycopg.Connection = Conn) -> dict[str, Any]:
     if not 0 <= shard < settings.discovery_shards:
         raise HTTPException(status_code=400, detail=f"shard must be 0..{settings.discovery_shards - 1}")
     _sync_seed(conn)
-    items, pages, boards = _scan_items(conn, shard)
+    items, queued = _scan_items(conn, shard)
     run, created = runs.create_run(
         conn,
         kind="jobs_scan",
@@ -98,9 +120,7 @@ def cron_scan(shard: int, conn: psycopg.Connection = Conn) -> dict[str, Any]:
         created_by="cron",
     )
     tick = process_tick(conn, settings, budget_seconds=settings.discovery_cron_tick_budget_seconds)
-    return {
-        "runId": run["id"], "created": created, "careersPages": pages, "sources": boards, "tick": tick,
-    }
+    return {"runId": run["id"], "created": created, **queued, "tick": tick}
 
 
 @router.get("/cron/drain/{slot}", dependencies=[Auth])
@@ -270,6 +290,43 @@ def admin_import_careers_pages(conn: psycopg.Connection = Conn) -> dict[str, Any
     return career_pages.import_seed(conn)
 
 
+@router.get("/admin/health", dependencies=[Auth])
+def admin_health(conn: psycopg.Connection = Conn) -> dict[str, Any]:
+    """Source-health report: what is configured, checked and failing per ATS, what each
+    careers-page strategy produced, job counts, and the validation problems in stored jobs."""
+    return health.source_health(conn, expiry_days=get_settings().job_expiry_days)
+
+
+@router.get("/admin/discovered-companies", dependencies=[Auth])
+def admin_discovered_companies(
+    q: str = "",
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    conn: psycopg.Connection = Conn,
+) -> dict[str, Any]:
+    """The company-discovery ledger: candidates, where each came from, and what it resolved to."""
+    return company_discovery.list_candidates(conn, query=q, limit=limit, offset=offset)
+
+
+@router.post("/admin/runs/company-discovery", dependencies=[Auth])
+def admin_company_discovery(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[str, Any]:
+    """Run company discovery now: collect candidates from the product's own data, queue the
+    due ones, and work only those items for a short tick."""
+    settings = get_settings()
+    if not settings.discovery_enabled:
+        return {"skipped": "discovery disabled"}
+    collected = company_discovery.collect_from_database(conn, limit=settings.company_candidates_per_scan)
+    candidate_ids = company_discovery.scheduled_ids(conn, limit=settings.company_discovery_per_scan)
+    run, _ = runs.create_run(
+        conn,
+        kind="company_discovery",
+        items=[(company_discovery.ITEM_KIND, i, {}) for i in candidate_ids],
+        created_by=body.createdBy,
+    )
+    tick = process_tick(conn, settings, budget_seconds=40, kinds=[company_discovery.ITEM_KIND])
+    return {"runId": run["id"], "collected": collected, "queued": len(candidate_ids), "tick": tick}
+
+
 @router.post("/admin/runs/jobs-scan", dependencies=[Auth])
 def admin_scan_run(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[str, Any]:
     """Manual scan of all enabled sources (or the given ones). Returns immediately; the
@@ -288,12 +345,13 @@ def admin_scan_run(body: ScanRunBody, conn: psycopg.Connection = Conn) -> dict[s
         return {"runId": open_run["id"], "sources": open_run["total_items"], "resumed": True}
     _sync_seed(conn)
     if body.sourceIds:
-        items, pages, boards = [(scan.ITEM_KIND, i, {}) for i in body.sourceIds], 0, len(body.sourceIds)
+        items = [(scan.ITEM_KIND, i, {}) for i in body.sourceIds]
+        queued = {"careersPages": 0, "sources": len(body.sourceIds), "companyCandidates": 0}
     else:
-        items, pages, boards = _scan_items(conn, None)
+        items, queued = _scan_items(conn, None)
     run, _ = runs.create_run(conn, kind="jobs_scan", items=items, created_by=body.createdBy)
     # `sources` = everything queued (as a resumed run reports it); the split is informational.
-    return {"runId": run["id"], "sources": len(items), "careersPages": pages, "boards": boards, "resumed": False}
+    return {"runId": run["id"], "sources": len(items), **queued, "boards": queued["sources"], "resumed": False}
 
 
 @router.post("/admin/runs/people-discovery", dependencies=[Auth])

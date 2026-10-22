@@ -126,6 +126,35 @@ def import_seed(conn: psycopg.Connection) -> dict[str, int]:
     return {"added": added, "existing": len(seed) - added}
 
 
+# Cross-company index rows: not companies, so they are created from code rather than from
+# `career_sources.json` (which the web app renders as the list of seed companies).
+def import_index_sources(conn: psycopg.Connection) -> dict[str, int]:
+    """Idempotent sync of the cross-company ATS index specs into `company_sources`.
+
+    One row per Workable index query (`providers/workable_index.INDEX_TOKENS`), so each is
+    its own bounded run item and spreads across the scan shards like any other source.
+    """
+    from app.discovery.jobs.providers.workable_index import INDEX_TOKENS
+
+    now = now_iso()
+    added = 0
+    with conn.transaction():
+        for token in INDEX_TOKENS:
+            location, _, query = token.partition(":")
+            label = f"Workable index — {query or 'all roles'} ({location})"
+            cur = conn.execute(
+                """INSERT INTO company_sources
+                     (id, company_name, provider, token, careers_url, origin, enabled, shard_seed,
+                      created_at, updated_at)
+                   VALUES (%s, %s, 'workable_index', %s, %s, 'index', 1, %s, %s, %s)
+                   ON CONFLICT (provider, token) DO NOTHING""",
+                (new_id(), label[:200], token, "https://jobs.workable.com/",
+                 shard_seed("workable_index", token), now, now),
+            )
+            added += bool(cur.rowcount)
+    return {"added": added, "existing": len(INDEX_TOKENS) - added}
+
+
 @dataclass
 class ImportResult:
     added: int = 0
@@ -264,7 +293,7 @@ def scheduled_source_ids(
 def load_target(conn: psycopg.Connection, source_id: str) -> SourceTarget | None:
     row = conn.execute(
         """SELECT id, company_name, provider, token, careers_url, company_id,
-                  official_careers_url, official_status, official_checked_at
+                  official_careers_url, official_status, official_checked_at, last_posting_count
            FROM company_sources WHERE id = %s""",
         (source_id,),
     ).fetchone()
@@ -280,18 +309,29 @@ def load_target(conn: psycopg.Connection, source_id: str) -> SourceTarget | None
         official_careers_url=row["official_careers_url"],
         official_status=row["official_status"],
         official_checked_at=row["official_checked_at"],
+        last_posting_count=row["last_posting_count"],
     )
 
 
 def record_scan(
-    conn: psycopg.Connection, source_id: str, *, ok: bool, error: str | None, counts: dict[str, Any]
+    conn: psycopg.Connection,
+    source_id: str,
+    *,
+    ok: bool,
+    error: str | None,
+    counts: dict[str, Any],
+    posting_count: int | None = None,
 ) -> None:
+    """Store the outcome. `posting_count` (a successful scan's posting total) is the baseline
+    the outage guard compares the next scan against; a failed scan never overwrites it."""
     now = now_iso()
     if ok:
         conn.execute(
             """UPDATE company_sources SET last_run_at = %s, last_success_at = %s, last_error = NULL,
-                 consecutive_failures = 0, last_counts_json = %s, updated_at = %s WHERE id = %s""",
-            (now, now, json.dumps(counts), now, source_id),
+                 consecutive_failures = 0, last_counts_json = %s,
+                 last_posting_count = COALESCE(%s, last_posting_count), updated_at = %s
+               WHERE id = %s""",
+            (now, now, json.dumps(counts), posting_count, now, source_id),
         )
     else:
         conn.execute(
