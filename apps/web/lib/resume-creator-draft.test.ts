@@ -1,18 +1,23 @@
 import assert from "node:assert/strict";
 
 import {
+  applyPreset,
   createEmptyDraft,
   createSampleDraft,
   draftToPlainText,
+  markStyleEdited,
   normalizeDraft,
+  normalizeStyle,
   reorderSections,
   setSectionVisible,
   suggestedDisplayName,
 } from "./resume-creator-draft";
+import { STYLE_PRESETS } from "./resume-creator-types";
 
 const empty = createEmptyDraft();
-assert.equal(empty.version, 1);
-assert.equal(empty.templateId, "classic");
+assert.equal(empty.version, 2);
+assert.equal(empty.styleSource.kind, "preset");
+assert.equal(empty.style.bodyPt, STYLE_PRESETS.classic.style.bodyPt);
 assert.ok(empty.sections.some((s) => s.id === "contact" && s.visible));
 assert.ok(empty.sections.some((s) => s.id === "certifications" && !s.visible));
 
@@ -20,8 +25,20 @@ const sample = createSampleDraft();
 assert.ok(sample.content.contact.fullName.includes("Alex"));
 const text = draftToPlainText(sample);
 assert.ok(text.includes("Alex Rivera"));
-assert.ok(text.includes("EXPERIENCE") || text.includes("Experience".toUpperCase()));
+assert.ok(text.includes("EXPERIENCE"));
 assert.ok(text.includes("TypeScript"));
+
+const modern = applyPreset(sample, "modern");
+assert.equal(modern.styleSource.kind, "preset");
+assert.equal(modern.styleSource.kind === "preset" && modern.styleSource.id, "modern");
+assert.equal(modern.style.bodyPt, STYLE_PRESETS.modern.style.bodyPt);
+assert.equal(modern.style.marginXPt, STYLE_PRESETS.modern.style.marginXPt);
+assert.equal(modern.style.sectionGapPt, STYLE_PRESETS.modern.style.sectionGapPt);
+assert.equal(modern.style.lineHeight, STYLE_PRESETS.modern.style.lineHeight);
+
+const edited = markStyleEdited({ ...modern, style: { ...modern.style, bodyPt: 11 } });
+assert.equal(edited.styleSource.kind, "edited");
+assert.equal(edited.style.bodyPt, 11);
 
 const reordered = reorderSections(sample.sections, [
   "summary",
@@ -38,16 +55,14 @@ assert.equal(reordered.length, sample.sections.length);
 
 const hidden = setSectionVisible(sample.sections, "projects", false);
 assert.equal(hidden.find((s) => s.id === "projects")?.visible, false);
-const withoutProjects = draftToPlainText({
-  ...sample,
-  sections: hidden,
-});
+const withoutProjects = draftToPlainText({ ...sample, sections: hidden });
 assert.ok(!withoutProjects.toUpperCase().includes("PROJECTS"));
 
-const normalized = normalizeDraft({
+// v1 migration
+const fromV1 = normalizeDraft({
   version: 1,
-  templateId: "modern",
-  typography: { fontFamily: "georgia", headerPt: 20, bodyPt: 9 },
+  templateId: "executive",
+  typography: { fontFamily: "times", headerPt: 22, bodyPt: 9 },
   sections: [{ id: "experience", title: "Work", visible: true }],
   content: {
     contact: { fullName: "Sam Example", email: "sam@example.com" },
@@ -56,19 +71,24 @@ const normalized = normalizeDraft({
   },
   targetRole: "Backend Engineer",
 });
-assert.equal(normalized.templateId, "modern");
-assert.equal(normalized.typography.fontFamily, "georgia");
-assert.equal(normalized.typography.headerPt, 20);
-assert.equal(normalized.content.contact.fullName, "Sam Example");
-assert.equal(normalized.targetRole, "Backend Engineer");
-// Missing sections are filled back in.
-assert.ok(normalized.sections.some((s) => s.id === "contact"));
-assert.equal(normalized.sections.find((s) => s.id === "experience")?.title, "Work");
+assert.equal(fromV1.version, 2);
+assert.equal(fromV1.styleSource.kind, "preset");
+assert.ok(fromV1.styleSource.kind === "preset" && fromV1.styleSource.id === "executive");
+assert.equal(fromV1.style.fontFamily, "times");
+assert.equal(fromV1.style.headerPt, 22);
+assert.equal(fromV1.style.bodyPt, 9);
+// Preset margins carried over when v1 had none.
+assert.equal(fromV1.style.marginXPt, STYLE_PRESETS.executive.style.marginXPt);
+assert.equal(fromV1.content.contact.fullName, "Sam Example");
+assert.equal(fromV1.targetRole, "Backend Engineer");
+assert.ok(fromV1.sections.some((s) => s.id === "contact"));
+assert.equal(fromV1.sections.find((s) => s.id === "experience")?.title, "Work");
 
-assert.equal(suggestedDisplayName(normalized).startsWith("Sam Example"), true);
-assert.ok(suggestedDisplayName(normalized).includes("Backend Engineer"));
+assert.equal(suggestedDisplayName(fromV1).startsWith("Sam Example"), true);
+assert.ok(suggestedDisplayName(fromV1).includes("Backend Engineer"));
 
-assert.deepEqual(normalizeDraft(null).templateId, "classic");
-assert.deepEqual(normalizeDraft("nope").sections.length, createEmptyDraft().sections.length);
+assert.deepEqual(normalizeDraft(null).styleSource, { kind: "preset", id: "classic" });
+assert.equal(normalizeStyle({ bodyPt: 99 }).bodyPt, 14); // clamped
+assert.equal(normalizeStyle({ lineHeight: 0.5 }).lineHeight, 1.05);
 
 console.log("resume-creator-draft tests: ok");

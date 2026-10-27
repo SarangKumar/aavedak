@@ -2,13 +2,16 @@
 
 import {
   DEFAULT_SECTION_ORDER,
+  RESUME_CREATOR_DRAFT_KEY,
+  RESUME_CREATOR_DRAFT_KEY_V1,
+  RESUME_CREATOR_PANELS_KEY,
+  STYLE_PRESETS,
   type ResumeCreatorDraft,
+  type ResumeCreatorPresetId,
   type ResumeCreatorSectionId,
   type ResumeCreatorSectionMeta,
-  type ResumeCreatorTemplateId,
-  type ResumeCreatorTypography,
-  RESUME_CREATOR_DRAFT_KEY,
-  RESUME_CREATOR_PANELS_KEY,
+  type ResumeCreatorStyle,
+  type ResumeCreatorStyleSource,
 } from "@/lib/resume-creator-types";
 
 function uid(prefix: string): string {
@@ -61,21 +64,27 @@ export function newCertificationEntry() {
   };
 }
 
-export function defaultTypography(): ResumeCreatorTypography {
+export function defaultStyle(): ResumeCreatorStyle {
+  return { ...STYLE_PRESETS.classic.style };
+}
+
+export function applyPreset(
+  draft: ResumeCreatorDraft,
+  presetId: ResumeCreatorPresetId,
+): ResumeCreatorDraft {
   return {
-    fontFamily: "inter",
-    headerPt: 18,
-    sectionTitlePt: 11,
-    bodyPt: 10,
-    footerPt: 8.5,
+    ...draft,
+    styleSource: { kind: "preset", id: presetId },
+    style: { ...STYLE_PRESETS[presetId].style },
+    updatedAt: new Date().toISOString(),
   };
 }
 
 export function createEmptyDraft(): ResumeCreatorDraft {
   return {
-    version: 1,
-    templateId: "classic",
-    typography: defaultTypography(),
+    version: 2,
+    styleSource: { kind: "preset", id: "classic" },
+    style: defaultStyle(),
     sections: DEFAULT_SECTION_ORDER.map((s) => ({ ...s })),
     content: {
       contact: {
@@ -203,29 +212,76 @@ function normalizeSections(raw: unknown): ResumeCreatorSectionMeta[] {
   return DEFAULT_SECTION_ORDER.map((s) => ({ ...s }));
 }
 
-/** Coerce unknown JSON into a valid draft; never throws. */
+export function normalizeStyle(
+  raw: unknown,
+  fallback: ResumeCreatorStyle = defaultStyle(),
+): ResumeCreatorStyle {
+  if (!isObject(raw)) return { ...fallback };
+  const font = asString(raw.fontFamily, fallback.fontFamily);
+  const ruleRaw = asString(raw.rule, fallback.rule);
+  return {
+    fontFamily:
+      font === "georgia" || font === "times" || font === "system" || font === "inter"
+        ? font
+        : fallback.fontFamily,
+    headerPt: asNumber(raw.headerPt, fallback.headerPt, 12, 28),
+    sectionTitlePt: asNumber(raw.sectionTitlePt, fallback.sectionTitlePt, 8, 18),
+    bodyPt: asNumber(raw.bodyPt, fallback.bodyPt, 7, 14),
+    footerPt: asNumber(raw.footerPt, fallback.footerPt, 6, 12),
+    marginXPt: asNumber(raw.marginXPt, fallback.marginXPt, 24, 72),
+    marginYPt: asNumber(raw.marginYPt, fallback.marginYPt, 24, 72),
+    sectionGapPt: asNumber(raw.sectionGapPt, fallback.sectionGapPt, 0, 36),
+    lineHeight: asNumber(raw.lineHeight, fallback.lineHeight, 1.05, 1.8),
+    rule:
+      ruleRaw === "light" || ruleRaw === "none" || ruleRaw === "strong" ? ruleRaw : fallback.rule,
+  };
+}
+
+function normalizeStyleSource(raw: unknown): ResumeCreatorStyleSource {
+  if (!isObject(raw)) return { kind: "preset", id: "classic" };
+  const kind = asString(raw.kind);
+  if (kind === "preset") {
+    const id = asString(raw.id, "classic") as ResumeCreatorPresetId;
+    if (id === "classic" || id === "modern" || id === "executive") {
+      return { kind: "preset", id };
+    }
+  }
+  if (kind === "custom" && asString(raw.id)) {
+    return { kind: "custom", id: asString(raw.id), name: asString(raw.name, "Saved style") };
+  }
+  if (kind === "edited") return { kind: "edited" };
+  return { kind: "preset", id: "classic" };
+}
+
+/** Coerce unknown JSON into a valid v2 draft; migrates v1 (templateId + typography). */
 export function normalizeDraft(raw: unknown): ResumeCreatorDraft {
   const base = createEmptyDraft();
   if (!isObject(raw)) return base;
 
-  const templateId = asString(raw.templateId, "classic") as ResumeCreatorTemplateId;
-  if (templateId === "classic" || templateId === "modern" || templateId === "executive") {
-    base.templateId = templateId;
-  }
-
-  if (isObject(raw.typography)) {
-    const t = raw.typography;
-    const font = asString(t.fontFamily, "inter");
-    base.typography = {
-      fontFamily:
-        font === "georgia" || font === "times" || font === "system" || font === "inter"
-          ? font
-          : "inter",
-      headerPt: asNumber(t.headerPt, 18, 12, 28),
-      sectionTitlePt: asNumber(t.sectionTitlePt, 11, 8, 18),
-      bodyPt: asNumber(t.bodyPt, 10, 7, 14),
-      footerPt: asNumber(t.footerPt, 8.5, 6, 12),
-    };
+  // v1 → v2: templateId + typography → styleSource + style
+  if (raw.version === 1 || ("templateId" in raw && !("style" in raw))) {
+    const templateId = asString(raw.templateId, "classic") as ResumeCreatorPresetId;
+    const presetId =
+      templateId === "classic" || templateId === "modern" || templateId === "executive"
+        ? templateId
+        : "classic";
+    const preset = STYLE_PRESETS[presetId].style;
+    const typo = isObject(raw.typography) ? raw.typography : {};
+    base.styleSource = { kind: "preset", id: presetId };
+    base.style = normalizeStyle(
+      {
+        ...preset,
+        fontFamily: typo.fontFamily ?? preset.fontFamily,
+        headerPt: typo.headerPt ?? preset.headerPt,
+        sectionTitlePt: typo.sectionTitlePt ?? preset.sectionTitlePt,
+        bodyPt: typo.bodyPt ?? preset.bodyPt,
+        footerPt: typo.footerPt ?? preset.footerPt,
+      },
+      preset,
+    );
+  } else {
+    base.styleSource = normalizeStyleSource(raw.styleSource);
+    base.style = normalizeStyle(raw.style, defaultStyle());
   }
 
   base.sections = normalizeSections(raw.sections);
@@ -303,9 +359,14 @@ export function normalizeDraft(raw: unknown): ResumeCreatorDraft {
 export function loadDraftFromStorage(): ResumeCreatorDraft | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(RESUME_CREATOR_DRAFT_KEY);
+    const raw =
+      window.localStorage.getItem(RESUME_CREATOR_DRAFT_KEY) ??
+      window.localStorage.getItem(RESUME_CREATOR_DRAFT_KEY_V1);
     if (!raw) return null;
-    return normalizeDraft(JSON.parse(raw));
+    const draft = normalizeDraft(JSON.parse(raw));
+    // Persist under v2 key so the next load is clean; leave v1 until overwritten.
+    window.localStorage.setItem(RESUME_CREATOR_DRAFT_KEY, JSON.stringify(draft));
+    return draft;
   } catch {
     return null;
   }
@@ -314,7 +375,11 @@ export function loadDraftFromStorage(): ResumeCreatorDraft | null {
 export function saveDraftToStorage(draft: ResumeCreatorDraft): void {
   if (typeof window === "undefined") return;
   try {
-    const payload: ResumeCreatorDraft = { ...draft, updatedAt: new Date().toISOString() };
+    const payload: ResumeCreatorDraft = {
+      ...draft,
+      version: 2,
+      updatedAt: new Date().toISOString(),
+    };
     window.localStorage.setItem(RESUME_CREATOR_DRAFT_KEY, JSON.stringify(payload));
   } catch {
     // Quota / private mode — editing still works in memory.
@@ -325,6 +390,7 @@ export function clearDraftStorage(): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(RESUME_CREATOR_DRAFT_KEY);
+    window.localStorage.removeItem(RESUME_CREATOR_DRAFT_KEY_V1);
   } catch {
     // ignore
   }
@@ -382,11 +448,15 @@ export function setSectionVisible(
   return sections.map((s) => (s.id === id ? { ...s, visible } : s));
 }
 
+/** Mark style as manually edited (no longer a clean preset/custom). */
+export function markStyleEdited(draft: ResumeCreatorDraft): ResumeCreatorDraft {
+  return { ...draft, styleSource: { kind: "edited" }, updatedAt: new Date().toISOString() };
+}
+
 /** Plain text used for ATS scoring — mirrors visible PDF content order. */
 export function draftToPlainText(draft: ResumeCreatorDraft): string {
   const lines: string[] = [];
   const { content } = draft;
-  const visible = new Set(draft.sections.filter((s) => s.visible).map((s) => s.id));
 
   for (const section of draft.sections) {
     if (!section.visible) continue;
@@ -494,7 +564,6 @@ export function draftToPlainText(draft: ResumeCreatorDraft): string {
     }
   }
 
-  void visible;
   return lines.join("\n").trim();
 }
 
