@@ -170,25 +170,26 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
 
       <ScrollArea className="min-h-0 flex-1 pr-1">
         <div className="space-y-4 pb-4">
-          <section className="space-y-2">
+          {/* Container query: 2 cols when the left pane is wide enough after resize, else 1. */}
+          <section className="@container space-y-2">
             <p className="text-foreground text-[12px] font-semibold">Style presets</p>
             <ToggleGroup
               aria-label="Style preset"
               variant="outline"
               size="sm"
-              spacing={1}
+              spacing={0}
               value={activePreset ? [activePreset] : []}
               onValueChange={(vals) => {
                 const next = vals[0] as ResumeCreatorPresetId | undefined;
                 if (next) onChange(applyPreset(draft, next));
               }}
-              className="flex flex-wrap"
+              className="@[18rem]:grid-cols-2 grid w-full grid-cols-1 items-stretch gap-1.5"
             >
               {(Object.keys(STYLE_PRESETS) as ResumeCreatorPresetId[]).map((id) => (
                 <ToggleGroupItem
                   key={id}
                   value={id}
-                  className="h-auto flex-col items-start rounded-md px-2.5 py-1.5 text-left"
+                  className="h-auto w-full flex-col items-start justify-start rounded-md px-2.5 py-1.5 text-left"
                 >
                   <span className="text-[12px] font-medium">{STYLE_PRESETS[id].label}</span>
                   <span className="text-muted-foreground text-[10px] font-normal leading-snug">
