@@ -212,26 +212,46 @@ function normalizeSections(raw: unknown): ResumeCreatorSectionMeta[] {
   return DEFAULT_SECTION_ORDER.map((s) => ({ ...s }));
 }
 
+const FONT_IDS = ["inter", "arial", "verdana", "georgia", "times", "system"] as const;
+const WEIGHT_IDS = ["regular", "medium", "semibold", "bold"] as const;
+
+function asFont(value: unknown, fallback: ResumeCreatorStyle["primaryFont"]) {
+  const s = asString(value, fallback);
+  return (FONT_IDS as readonly string[]).includes(s)
+    ? (s as ResumeCreatorStyle["primaryFont"])
+    : fallback;
+}
+
+function asWeight(value: unknown, fallback: ResumeCreatorStyle["headerWeight"]) {
+  const s = asString(value, fallback);
+  return (WEIGHT_IDS as readonly string[]).includes(s)
+    ? (s as ResumeCreatorStyle["headerWeight"])
+    : fallback;
+}
+
 export function normalizeStyle(
   raw: unknown,
   fallback: ResumeCreatorStyle = defaultStyle(),
 ): ResumeCreatorStyle {
   if (!isObject(raw)) return { ...fallback };
-  const font = asString(raw.fontFamily, fallback.fontFamily);
+  // Legacy single fontFamily → both primary and secondary.
+  const legacyFont = raw.fontFamily;
   const ruleRaw = asString(raw.rule, fallback.rule);
   return {
-    fontFamily:
-      font === "georgia" || font === "times" || font === "system" || font === "inter"
-        ? font
-        : fallback.fontFamily,
+    primaryFont: asFont(raw.primaryFont ?? legacyFont, fallback.primaryFont),
+    secondaryFont: asFont(raw.secondaryFont ?? legacyFont, fallback.secondaryFont),
     headerPt: asNumber(raw.headerPt, fallback.headerPt, 12, 28),
     sectionTitlePt: asNumber(raw.sectionTitlePt, fallback.sectionTitlePt, 8, 18),
     bodyPt: asNumber(raw.bodyPt, fallback.bodyPt, 7, 14),
     footerPt: asNumber(raw.footerPt, fallback.footerPt, 6, 12),
+    headerWeight: asWeight(raw.headerWeight, fallback.headerWeight),
+    secondaryHeadingWeight: asWeight(raw.secondaryHeadingWeight, fallback.secondaryHeadingWeight),
+    bodyWeight: asWeight(raw.bodyWeight, fallback.bodyWeight),
+    sectionTitleWeight: asWeight(raw.sectionTitleWeight, fallback.sectionTitleWeight),
     marginXPt: asNumber(raw.marginXPt, fallback.marginXPt, 24, 72),
     marginYPt: asNumber(raw.marginYPt, fallback.marginYPt, 24, 72),
     sectionGapPt: asNumber(raw.sectionGapPt, fallback.sectionGapPt, 0, 36),
-    lineHeight: asNumber(raw.lineHeight, fallback.lineHeight, 1.05, 1.8),
+    lineHeight: asNumber(raw.lineHeight, fallback.lineHeight, 1.0, 2.0),
     rule:
       ruleRaw === "light" || ruleRaw === "none" || ruleRaw === "strong" ? ruleRaw : fallback.rule,
   };
@@ -268,10 +288,12 @@ export function normalizeDraft(raw: unknown): ResumeCreatorDraft {
     const preset = STYLE_PRESETS[presetId].style;
     const typo = isObject(raw.typography) ? raw.typography : {};
     base.styleSource = { kind: "preset", id: presetId };
+    const legacyFont = typo.fontFamily ?? preset.primaryFont;
     base.style = normalizeStyle(
       {
         ...preset,
-        fontFamily: typo.fontFamily ?? preset.fontFamily,
+        primaryFont: legacyFont,
+        secondaryFont: legacyFont,
         headerPt: typo.headerPt ?? preset.headerPt,
         sectionTitlePt: typo.sectionTitlePt ?? preset.sectionTitlePt,
         bodyPt: typo.bodyPt ?? preset.bodyPt,

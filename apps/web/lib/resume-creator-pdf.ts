@@ -5,9 +5,11 @@ import {
   A4_HEIGHT_PT,
   A4_WIDTH_PT,
   RESUME_CREATOR_FONTS,
+  RESUME_FONT_WEIGHTS,
   type ResumeCreatorDraft,
   type ResumeCreatorSectionMeta,
   type ResumeCreatorStyle,
+  type ResumeFontWeight,
 } from "@/lib/resume-creator-types";
 
 function safeFilename(name: string): string {
@@ -46,12 +48,17 @@ type Doc = {
 
 type WriteCtx = {
   doc: Doc;
-  font: "helvetica" | "times";
+  primaryFont: "helvetica" | "times";
+  secondaryFont: "helvetica" | "times";
   style: ResumeCreatorStyle;
   contentW: number;
   bottom: number;
   y: number;
 };
+
+function pdfWeight(w: ResumeFontWeight): "normal" | "bold" {
+  return RESUME_FONT_WEIGHTS[w].pdf;
+}
 
 function ensureSpace(ctx: WriteCtx, need: number) {
   if (ctx.y + need > ctx.bottom) {
@@ -63,13 +70,21 @@ function ensureSpace(ctx: WriteCtx, need: number) {
 function writeLines(
   ctx: WriteCtx,
   text: string,
-  opts: { pt: number; style?: string; indent?: number; gapAfter?: number; color?: number[] },
+  opts: {
+    pt: number;
+    font?: "primary" | "secondary";
+    weight?: ResumeFontWeight;
+    indent?: number;
+    gapAfter?: number;
+    color?: number[];
+  },
 ) {
   const pt = opts.pt;
-  const fontStyle = opts.style ?? "normal";
+  const face = opts.font === "primary" ? ctx.primaryFont : ctx.secondaryFont;
+  const fontStyle = opts.weight ? pdfWeight(opts.weight) : "normal";
   const indent = opts.indent ?? 0;
   const gapAfter = opts.gapAfter ?? 2;
-  ctx.doc.setFont(ctx.font, fontStyle);
+  ctx.doc.setFont(face, fontStyle);
   ctx.doc.setFontSize(pt);
   if (opts.color) ctx.doc.setTextColor(...opts.color);
   else ctx.doc.setTextColor(20, 20, 20);
@@ -89,7 +104,8 @@ function writeSectionTitle(ctx: WriteCtx, title: string) {
   ensureSpace(ctx, ctx.style.sectionTitlePt * ctx.style.lineHeight + 6);
   writeLines(ctx, title.toUpperCase(), {
     pt: ctx.style.sectionTitlePt,
-    style: "bold",
+    font: "primary",
+    weight: ctx.style.sectionTitleWeight,
     gapAfter: 1,
   });
   if (ctx.style.rule !== "none") {
@@ -105,13 +121,13 @@ function sectionTitleOf(sections: ResumeCreatorSectionMeta[], id: string): strin
 
 function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
   const style = draft.style;
-  const font = RESUME_CREATOR_FONTS[style.fontFamily].pdf;
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const contentW = pageW - style.marginXPt * 2;
   const ctx: WriteCtx = {
     doc,
-    font,
+    primaryFont: RESUME_CREATOR_FONTS[style.primaryFont].pdf,
+    secondaryFont: RESUME_CREATOR_FONTS[style.secondaryFont].pdf,
     style,
     contentW,
     bottom: pageH - style.marginYPt,
@@ -128,7 +144,8 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
         if (c.fullName.trim()) {
           writeLines(ctx, c.fullName.trim(), {
             pt: style.headerPt,
-            style: "bold",
+            font: "primary",
+            weight: style.headerWeight,
             gapAfter: 2,
           });
         }
@@ -138,6 +155,8 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
         if (bits.length) {
           writeLines(ctx, bits.join("  ·  "), {
             pt: style.footerPt,
+            font: "secondary",
+            weight: style.secondaryHeadingWeight,
             gapAfter: style.sectionGapPt * 0.4,
             color: [80, 80, 80],
           });
@@ -152,7 +171,12 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
       case "summary": {
         if (!content.summary.trim()) break;
         writeSectionTitle(ctx, sectionTitleOf(draft.sections, "summary"));
-        writeLines(ctx, content.summary.trim(), { pt: style.bodyPt, gapAfter: 2 });
+        writeLines(ctx, content.summary.trim(), {
+          pt: style.bodyPt,
+          font: "secondary",
+          weight: style.bodyWeight,
+          gapAfter: 2,
+        });
         break;
       }
       case "experience": {
@@ -167,20 +191,29 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
           if (left || right) {
             writeLines(ctx, [left, right].filter(Boolean).join("   ·   "), {
               pt: style.bodyPt,
-              style: "bold",
+              font: "secondary",
+              weight: "semibold",
               gapAfter: 1,
             });
           }
           if (e.location.trim()) {
             writeLines(ctx, e.location.trim(), {
               pt: style.footerPt,
+              font: "secondary",
+              weight: style.secondaryHeadingWeight,
               gapAfter: 1,
               color: [90, 90, 90],
             });
           }
           for (const b of e.bullets) {
             if (!b.trim()) continue;
-            writeLines(ctx, `•  ${b.trim()}`, { pt: style.bodyPt, indent: 8, gapAfter: 1 });
+            writeLines(ctx, `•  ${b.trim()}`, {
+              pt: style.bodyPt,
+              font: "secondary",
+              weight: style.bodyWeight,
+              indent: 8,
+              gapAfter: 1,
+            });
           }
           ctx.y += 3;
         }
@@ -195,11 +228,19 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
           const right = [e.start.trim(), e.end.trim()].filter(Boolean).join(" – ");
           writeLines(ctx, [left, right].filter(Boolean).join("   ·   "), {
             pt: style.bodyPt,
-            style: "bold",
+            font: "secondary",
+            weight: "semibold",
             gapAfter: 1,
           });
           const meta = [e.location.trim(), e.details.trim()].filter(Boolean).join(" · ");
-          if (meta) writeLines(ctx, meta, { pt: style.footerPt, gapAfter: 2, color: [90, 90, 90] });
+          if (meta)
+            writeLines(ctx, meta, {
+              pt: style.footerPt,
+              font: "secondary",
+              weight: style.secondaryHeadingWeight,
+              gapAfter: 2,
+              color: [90, 90, 90],
+            });
         }
         break;
       }
@@ -210,7 +251,12 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
           .filter(Boolean);
         if (!skills.length) break;
         writeSectionTitle(ctx, sectionTitleOf(draft.sections, "skills"));
-        writeLines(ctx, skills.join(" · "), { pt: style.bodyPt, gapAfter: 2 });
+        writeLines(ctx, skills.join(" · "), {
+          pt: style.bodyPt,
+          font: "secondary",
+          weight: style.bodyWeight,
+          gapAfter: 2,
+        });
         break;
       }
       case "projects": {
@@ -221,13 +267,30 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
         writeSectionTitle(ctx, sectionTitleOf(draft.sections, "projects"));
         for (const p of entries) {
           const head = [p.name.trim(), p.link.trim()].filter(Boolean).join(" — ");
-          if (head) writeLines(ctx, head, { pt: style.bodyPt, style: "bold", gapAfter: 1 });
+          if (head)
+            writeLines(ctx, head, {
+              pt: style.bodyPt,
+              font: "secondary",
+              weight: "semibold",
+              gapAfter: 1,
+            });
           if (p.description.trim()) {
-            writeLines(ctx, p.description.trim(), { pt: style.bodyPt, gapAfter: 1 });
+            writeLines(ctx, p.description.trim(), {
+              pt: style.bodyPt,
+              font: "secondary",
+              weight: style.bodyWeight,
+              gapAfter: 1,
+            });
           }
           for (const b of p.bullets) {
             if (!b.trim()) continue;
-            writeLines(ctx, `•  ${b.trim()}`, { pt: style.bodyPt, indent: 8, gapAfter: 1 });
+            writeLines(ctx, `•  ${b.trim()}`, {
+              pt: style.bodyPt,
+              font: "secondary",
+              weight: style.bodyWeight,
+              indent: 8,
+              gapAfter: 1,
+            });
           }
           ctx.y += 2;
         }
@@ -241,7 +304,12 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
           writeLines(
             ctx,
             [c.name.trim(), c.issuer.trim(), c.year.trim()].filter(Boolean).join(" — "),
-            { pt: style.bodyPt, gapAfter: 1 },
+            {
+              pt: style.bodyPt,
+              font: "secondary",
+              weight: style.bodyWeight,
+              gapAfter: 1,
+            },
           );
         }
         break;

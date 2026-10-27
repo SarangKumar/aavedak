@@ -7,7 +7,9 @@ import {
   A4_HEIGHT_PT,
   A4_WIDTH_PT,
   RESUME_CREATOR_FONTS,
+  RESUME_FONT_WEIGHTS,
   type ResumeCreatorDraft,
+  type ResumeFontWeight,
 } from "@/lib/resume-creator-types";
 import { cn } from "@/lib/utils";
 
@@ -33,13 +35,10 @@ function SectionRule({ rule }: { rule: ResumeCreatorDraft["style"]["rule"] }) {
   );
 }
 
-/**
- * Paper content at true A4 point sizes — identical numbers to the PDF exporter.
- * The outer preview scales this whole page; never change font units here to px.
- */
 function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
   const style = draft.style;
-  const font = RESUME_CREATOR_FONTS[style.fontFamily].css;
+  const primaryCss = RESUME_CREATOR_FONTS[style.primaryFont].css;
+  const secondaryCss = RESUME_CREATOR_FONTS[style.secondaryFont].css;
   const visible = (id: string) => draft.sections.some((s) => s.id === id && s.visible);
   const titleOf = (id: string) =>
     draft.sections.find((s) => s.id === id)?.title ?? id.toUpperCase();
@@ -49,18 +48,42 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const textStyle = (pt: number, extra?: CSSProperties): CSSProperties => ({
+  const textStyle = (
+    pt: number,
+    opts?: {
+      face?: "primary" | "secondary";
+      weight?: ResumeFontWeight;
+      extra?: CSSProperties;
+    },
+  ): CSSProperties => ({
     fontSize: `${pt}pt`,
     lineHeight: style.lineHeight,
     margin: 0,
-    ...extra,
+    fontFamily: opts?.face === "primary" ? primaryCss : secondaryCss,
+    fontWeight: RESUME_FONT_WEIGHTS[opts?.weight ?? "regular"].css,
+    ...opts?.extra,
   });
+
+  const sectionTitle = (id: string) => (
+    <>
+      <h2
+        className="uppercase tracking-wide text-neutral-900"
+        style={textStyle(style.sectionTitlePt, {
+          face: "primary",
+          weight: style.sectionTitleWeight,
+        })}
+      >
+        {titleOf(id)}
+      </h2>
+      <SectionRule rule={style.rule} />
+    </>
+  );
 
   return (
     <div
       className="box-border h-full w-full bg-white text-black"
       style={{
-        fontFamily: font,
+        fontFamily: secondaryCss,
         paddingLeft: `${style.marginXPt}pt`,
         paddingRight: `${style.marginXPt}pt`,
         paddingTop: `${style.marginYPt}pt`,
@@ -70,17 +93,34 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
       {visible("contact") ? (
         <header>
           <p
-            className="font-bold tracking-tight text-neutral-950"
-            style={textStyle(style.headerPt)}
+            className="tracking-tight text-neutral-950"
+            style={textStyle(style.headerPt, {
+              face: "primary",
+              weight: style.headerWeight,
+            })}
           >
             {draft.content.contact.fullName.trim() || "Your name"}
           </p>
           {contactLine(draft) ? (
-            <p className="text-neutral-600" style={textStyle(style.footerPt, { marginTop: "2pt" })}>
+            <p
+              className="text-neutral-600"
+              style={textStyle(style.footerPt, {
+                face: "secondary",
+                weight: style.secondaryHeadingWeight,
+                extra: { marginTop: "2pt" },
+              })}
+            >
               {contactLine(draft)}
             </p>
           ) : (
-            <p className="text-neutral-400" style={textStyle(style.footerPt, { marginTop: "2pt" })}>
+            <p
+              className="text-neutral-400"
+              style={textStyle(style.footerPt, {
+                face: "secondary",
+                weight: "regular",
+                extra: { marginTop: "2pt" },
+              })}
+            >
               Email · phone · location · links
             </p>
           )}
@@ -96,16 +136,14 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
 
       {visible("summary") && draft.content.summary.trim() ? (
         <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
-          <h2
-            className="font-bold uppercase tracking-wide text-neutral-900"
-            style={textStyle(style.sectionTitlePt)}
-          >
-            {titleOf("summary")}
-          </h2>
-          <SectionRule rule={style.rule} />
+          {sectionTitle("summary")}
           <p
             className="whitespace-pre-wrap text-neutral-800"
-            style={textStyle(style.bodyPt, { marginTop: "1pt" })}
+            style={textStyle(style.bodyPt, {
+              face: "secondary",
+              weight: style.bodyWeight,
+              extra: { marginTop: "1pt" },
+            })}
           >
             {draft.content.summary.trim()}
           </p>
@@ -120,20 +158,20 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
             if (!entries.length) return null;
             return (
               <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
-                <h2
-                  className="font-bold uppercase tracking-wide text-neutral-900"
-                  style={textStyle(style.sectionTitlePt)}
-                >
-                  {titleOf("experience")}
-                </h2>
-                <SectionRule rule={style.rule} />
+                {sectionTitle("experience")}
                 <div style={{ marginTop: "1pt" }}>
                   {entries.map((e, ei) => (
                     <div
                       key={e.id}
                       style={{ marginTop: ei === 0 ? 0 : "6pt", marginBottom: "3pt" }}
                     >
-                      <p className="font-semibold text-neutral-900" style={textStyle(style.bodyPt)}>
+                      <p
+                        className="text-neutral-900"
+                        style={textStyle(style.bodyPt, {
+                          face: "secondary",
+                          weight: "semibold",
+                        })}
+                      >
                         {[e.title.trim(), e.company.trim()].filter(Boolean).join(" — ")}
                         {[e.start, e.end].some((s) => s.trim()) ? (
                           <span className="float-right font-normal text-neutral-600">
@@ -142,7 +180,13 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                         ) : null}
                       </p>
                       {e.location.trim() ? (
-                        <p className="text-neutral-500" style={textStyle(style.footerPt)}>
+                        <p
+                          className="text-neutral-500"
+                          style={textStyle(style.footerPt, {
+                            face: "secondary",
+                            weight: style.secondaryHeadingWeight,
+                          })}
+                        >
                           {e.location.trim()}
                         </p>
                       ) : null}
@@ -154,7 +198,10 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                               key={`${e.id}-b-${i}`}
                               className="text-neutral-800"
                               style={{
-                                ...textStyle(style.bodyPt),
+                                ...textStyle(style.bodyPt, {
+                                  face: "secondary",
+                                  weight: style.bodyWeight,
+                                }),
                                 paddingLeft: "8pt",
                                 textIndent: "-8pt",
                               }}
@@ -179,17 +226,17 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
             if (!entries.length) return null;
             return (
               <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
-                <h2
-                  className="font-bold uppercase tracking-wide text-neutral-900"
-                  style={textStyle(style.sectionTitlePt)}
-                >
-                  {titleOf("education")}
-                </h2>
-                <SectionRule rule={style.rule} />
+                {sectionTitle("education")}
                 <div style={{ marginTop: "1pt" }}>
                   {entries.map((e, ei) => (
                     <div key={e.id} style={{ marginTop: ei === 0 ? 0 : "4pt" }}>
-                      <p className="font-semibold text-neutral-900" style={textStyle(style.bodyPt)}>
+                      <p
+                        className="text-neutral-900"
+                        style={textStyle(style.bodyPt, {
+                          face: "secondary",
+                          weight: "semibold",
+                        })}
+                      >
                         {[e.degree.trim(), e.school.trim()].filter(Boolean).join(" — ")}
                         {[e.start, e.end].some((s) => s.trim()) ? (
                           <span className="float-right font-normal text-neutral-600">
@@ -198,7 +245,13 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                         ) : null}
                       </p>
                       {[e.location, e.details].some((s) => s.trim()) ? (
-                        <p className="text-neutral-500" style={textStyle(style.footerPt)}>
+                        <p
+                          className="text-neutral-500"
+                          style={textStyle(style.footerPt, {
+                            face: "secondary",
+                            weight: style.secondaryHeadingWeight,
+                          })}
+                        >
                           {[e.location.trim(), e.details.trim()].filter(Boolean).join(" · ")}
                         </p>
                       ) : null}
@@ -212,14 +265,15 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
 
       {visible("skills") && skills.length ? (
         <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
-          <h2
-            className="font-bold uppercase tracking-wide text-neutral-900"
-            style={textStyle(style.sectionTitlePt)}
+          {sectionTitle("skills")}
+          <p
+            className="text-neutral-800"
+            style={textStyle(style.bodyPt, {
+              face: "secondary",
+              weight: style.bodyWeight,
+              extra: { marginTop: "1pt" },
+            })}
           >
-            {titleOf("skills")}
-          </h2>
-          <SectionRule rule={style.rule} />
-          <p className="text-neutral-800" style={textStyle(style.bodyPt, { marginTop: "1pt" })}>
             {skills.join(" · ")}
           </p>
         </section>
@@ -233,24 +287,30 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
             if (!entries.length) return null;
             return (
               <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
-                <h2
-                  className="font-bold uppercase tracking-wide text-neutral-900"
-                  style={textStyle(style.sectionTitlePt)}
-                >
-                  {titleOf("projects")}
-                </h2>
-                <SectionRule rule={style.rule} />
+                {sectionTitle("projects")}
                 <div style={{ marginTop: "1pt" }}>
                   {entries.map((p, pi) => (
                     <div
                       key={p.id}
                       style={{ marginTop: pi === 0 ? 0 : "4pt", marginBottom: "2pt" }}
                     >
-                      <p className="font-semibold text-neutral-900" style={textStyle(style.bodyPt)}>
+                      <p
+                        className="text-neutral-900"
+                        style={textStyle(style.bodyPt, {
+                          face: "secondary",
+                          weight: "semibold",
+                        })}
+                      >
                         {[p.name.trim(), p.link.trim()].filter(Boolean).join(" — ")}
                       </p>
                       {p.description.trim() ? (
-                        <p className="text-neutral-800" style={textStyle(style.bodyPt)}>
+                        <p
+                          className="text-neutral-800"
+                          style={textStyle(style.bodyPt, {
+                            face: "secondary",
+                            weight: style.bodyWeight,
+                          })}
+                        >
                           {p.description.trim()}
                         </p>
                       ) : null}
@@ -262,7 +322,10 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                               key={`${p.id}-b-${i}`}
                               className="text-neutral-800"
                               style={{
-                                ...textStyle(style.bodyPt),
+                                ...textStyle(style.bodyPt, {
+                                  face: "secondary",
+                                  weight: style.bodyWeight,
+                                }),
                                 paddingLeft: "8pt",
                                 textIndent: "-8pt",
                               }}
@@ -285,16 +348,17 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
             if (!entries.length) return null;
             return (
               <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
-                <h2
-                  className="font-bold uppercase tracking-wide text-neutral-900"
-                  style={textStyle(style.sectionTitlePt)}
-                >
-                  {titleOf("certifications")}
-                </h2>
-                <SectionRule rule={style.rule} />
+                {sectionTitle("certifications")}
                 <ul className="list-none" style={{ marginTop: "1pt", padding: 0 }}>
                   {entries.map((c) => (
-                    <li key={c.id} className="text-neutral-800" style={textStyle(style.bodyPt)}>
+                    <li
+                      key={c.id}
+                      className="text-neutral-800"
+                      style={textStyle(style.bodyPt, {
+                        face: "secondary",
+                        weight: style.bodyWeight,
+                      })}
+                    >
                       {[c.name.trim(), c.issuer.trim(), c.year.trim()].filter(Boolean).join(" — ")}
                     </li>
                   ))}
@@ -307,7 +371,6 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
   );
 }
 
-/** Live A4 preview: true-pt paper, CSS-scaled to the pane (same metrics as the PDF). */
 export function ResumeCreatorPreview({
   draft,
   className,
@@ -324,7 +387,6 @@ export function ResumeCreatorPreview({
     const measure = () => {
       const w = el.clientWidth;
       if (w <= 0) return;
-      // CSS `pt` is 1/72in; at the CSS reference 96dpi, 1pt = 96/72 px.
       const pxPerPt = 96 / 72;
       const paperCssPx = A4_WIDTH_PT * pxPerPt;
       setScale(Math.min(1, w / paperCssPx));
@@ -344,7 +406,9 @@ export function ResumeCreatorPreview({
       <div className="mb-2 shrink-0 px-1">
         <p className="aavedak-section-title text-foreground">Live A4 preview</p>
         <p className="aavedak-meta text-muted-foreground mt-0.5">
-          True A4 · {draft.style.bodyPt}pt body · margins {draft.style.marginXPt}/
+          True A4 · {draft.style.bodyPt}pt body ·{" "}
+          {RESUME_CREATOR_FONTS[draft.style.primaryFont].label}/
+          {RESUME_CREATOR_FONTS[draft.style.secondaryFont].label} · margins {draft.style.marginXPt}/
           {draft.style.marginYPt}pt · same numbers as the downloaded PDF
           {scale < 0.999 ? ` · scaled ${(scale * 100).toFixed(0)}%` : ""}
         </p>

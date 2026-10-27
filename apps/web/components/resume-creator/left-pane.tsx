@@ -19,16 +19,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ResumeCreatorStylePanel } from "@/components/resume-creator/style-panel";
 import {
   applyPreset,
   markStyleEdited,
@@ -40,10 +34,8 @@ import {
   setSectionVisible,
 } from "@/lib/resume-creator-draft";
 import {
-  RESUME_CREATOR_FONTS,
   STYLE_PRESETS,
   type ResumeCreatorDraft,
-  type ResumeCreatorFontId,
   type ResumeCreatorPresetId,
   type ResumeCreatorSectionId,
   type ResumeCreatorStyle,
@@ -290,87 +282,8 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
               <AccordionTrigger className="py-2 text-[12px] font-semibold">
                 Styling
               </AccordionTrigger>
-              <AccordionContent className="space-y-3 pb-3">
-                <Field label="Font family">
-                  <Select
-                    value={draft.style.fontFamily}
-                    onValueChange={(v) => patchStyle({ fontFamily: v as ResumeCreatorFontId })}
-                  >
-                    <SelectTrigger className="h-8 w-full text-[12px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(RESUME_CREATOR_FONTS) as ResumeCreatorFontId[]).map((id) => (
-                        <SelectItem key={id} value={id}>
-                          {RESUME_CREATOR_FONTS[id].label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <div className="grid grid-cols-2 gap-2">
-                  {(
-                    [
-                      ["headerPt", "Name / header", 12, 28],
-                      ["sectionTitlePt", "Section title", 8, 18],
-                      ["bodyPt", "Body", 7, 14],
-                      ["footerPt", "Footer / meta", 6, 12],
-                      ["marginXPt", "Horizontal margin", 24, 72],
-                      ["marginYPt", "Vertical margin", 24, 72],
-                      ["sectionGapPt", "Section gap", 0, 36],
-                    ] as const
-                  ).map(([key, label, min, max]) => (
-                    <Field key={key} label={`${label} (${draft.style[key]}pt)`}>
-                      <Input
-                        type="number"
-                        min={min}
-                        max={max}
-                        step={0.5}
-                        value={draft.style[key]}
-                        onChange={(e) => {
-                          const n = Number(e.target.value);
-                          if (!Number.isFinite(n)) return;
-                          patchStyle({ [key]: Math.min(max, Math.max(min, n)) });
-                        }}
-                        className="h-8 text-[12px]"
-                      />
-                    </Field>
-                  ))}
-                  <Field label={`Line height (${draft.style.lineHeight.toFixed(2)})`}>
-                    <Input
-                      type="number"
-                      min={1.05}
-                      max={1.8}
-                      step={0.02}
-                      value={draft.style.lineHeight}
-                      onChange={(e) => {
-                        const n = Number(e.target.value);
-                        if (!Number.isFinite(n)) return;
-                        patchStyle({ lineHeight: Math.min(1.8, Math.max(1.05, n)) });
-                      }}
-                      className="h-8 text-[12px]"
-                    />
-                  </Field>
-                  <Field label="Section rule">
-                    <Select
-                      value={draft.style.rule}
-                      onValueChange={(v) =>
-                        patchStyle({
-                          rule: v === "light" || v === "none" || v === "strong" ? v : "strong",
-                        })
-                      }
-                    >
-                      <SelectTrigger className="h-8 w-full text-[12px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="strong">Strong underline</SelectItem>
-                        <SelectItem value="light">Light underline</SelectItem>
-                        <SelectItem value="none">None</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </div>
+              <AccordionContent className="pb-3">
+                <ResumeCreatorStylePanel style={draft.style} onChange={patchStyle} />
               </AccordionContent>
             </AccordionItem>
           </Accordion>

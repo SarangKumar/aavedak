@@ -74,9 +74,11 @@ const fromV1 = normalizeDraft({
 assert.equal(fromV1.version, 2);
 assert.equal(fromV1.styleSource.kind, "preset");
 assert.ok(fromV1.styleSource.kind === "preset" && fromV1.styleSource.id === "executive");
-assert.equal(fromV1.style.fontFamily, "times");
+assert.equal(fromV1.style.primaryFont, "times");
+assert.equal(fromV1.style.secondaryFont, "times");
 assert.equal(fromV1.style.headerPt, 22);
 assert.equal(fromV1.style.bodyPt, 9);
+assert.equal(fromV1.style.headerWeight, STYLE_PRESETS.executive.style.headerWeight);
 // Preset margins carried over when v1 had none.
 assert.equal(fromV1.style.marginXPt, STYLE_PRESETS.executive.style.marginXPt);
 assert.equal(fromV1.content.contact.fullName, "Sam Example");
@@ -89,6 +91,8 @@ assert.ok(suggestedDisplayName(fromV1).includes("Backend Engineer"));
 
 assert.deepEqual(normalizeDraft(null).styleSource, { kind: "preset", id: "classic" });
 assert.equal(normalizeStyle({ bodyPt: 99 }).bodyPt, 14); // clamped
-assert.equal(normalizeStyle({ lineHeight: 0.5 }).lineHeight, 1.05);
+assert.equal(normalizeStyle({ lineHeight: 0.5 }).lineHeight, 1.0);
+assert.equal(normalizeStyle({ primaryFont: "verdana" }).primaryFont, "verdana");
+assert.equal(normalizeStyle({ headerWeight: "semibold" }).headerWeight, "semibold");
 
 console.log("resume-creator-draft tests: ok");

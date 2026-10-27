@@ -218,6 +218,10 @@
     "multi-input": {
       "files": ["components/ui/multi-input/index.tsx"],
       "installedAt": "2026-10-17"
+    },
+    "slider": {
+      "files": ["components/ui/slider/index.tsx"],
+      "installedAt": "2026-10-27"
     }
   }
 }

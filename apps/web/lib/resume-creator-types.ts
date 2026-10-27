@@ -8,7 +8,9 @@ export type ResumeCreatorStyleSource =
   | { kind: "custom"; id: string; name: string }
   | { kind: "edited" };
 
-export type ResumeCreatorFontId = "inter" | "georgia" | "times" | "system";
+export type ResumeCreatorFontId = "inter" | "arial" | "verdana" | "georgia" | "times" | "system";
+
+export type ResumeFontWeight = "regular" | "medium" | "semibold" | "bold";
 
 export type ResumeCreatorSectionId =
   "contact" | "summary" | "experience" | "education" | "skills" | "projects" | "certifications";
@@ -63,26 +65,35 @@ export type ResumeContact = {
  * with CSS `pt` units on a true-A4 paper, then scales the whole page to fit the pane.
  */
 export type ResumeCreatorStyle = {
-  fontFamily: ResumeCreatorFontId;
+  /** Name / primary headings. */
+  primaryFont: ResumeCreatorFontId;
+  /** Body, secondary headings, meta. */
+  secondaryFont: ResumeCreatorFontId;
+  /** Primary heading (name) size. */
   headerPt: number;
-  sectionTitlePt: number;
-  bodyPt: number;
+  /** Secondary heading / contact-meta size. */
   footerPt: number;
+  bodyPt: number;
+  sectionTitlePt: number;
+  headerWeight: ResumeFontWeight;
+  /** Contact line / meta weight. */
+  secondaryHeadingWeight: ResumeFontWeight;
+  bodyWeight: ResumeFontWeight;
+  sectionTitleWeight: ResumeFontWeight;
   /** Left/right page margin (pt). */
   marginXPt: number;
   /** Top/bottom page margin (pt). */
   marginYPt: number;
   /** Extra space before each section title (pt). */
   sectionGapPt: number;
-  /** Line-height multiplier applied to all text blocks. */
+  /** Line-height multiplier (UI shows as %). */
   lineHeight: number;
-  /** Visual rule under section titles: heavier (classic) or lighter (modern). */
+  /** Visual rule under section titles. */
   rule: "strong" | "light" | "none";
 };
 
 export type ResumeCreatorSectionMeta = {
   id: ResumeCreatorSectionId;
-  /** User-facing heading printed on the PDF (except contact). */
   title: string;
   visible: boolean;
 };
@@ -92,7 +103,6 @@ export type ResumeCreatorContent = {
   summary: string;
   experience: ResumeExperienceEntry[];
   education: ResumeEducationEntry[];
-  /** Comma- or newline-separated skills; stored as a single string for simple editing. */
   skills: string;
   projects: ResumeProjectEntry[];
   certifications: ResumeCertificationEntry[];
@@ -100,19 +110,15 @@ export type ResumeCreatorContent = {
 
 export type ResumeCreatorDraft = {
   version: 2;
-  /** Which preset/custom last applied; `edited` after manual style tweaks. */
   styleSource: ResumeCreatorStyleSource;
   style: ResumeCreatorStyle;
-  /** Ordered section list; drag-reorder updates this and the PDF order. */
   sections: ResumeCreatorSectionMeta[];
   content: ResumeCreatorContent;
-  /** Target role + JD help the ATS pane produce a job-oriented score (signed-in only). */
   targetRole: string;
   targetJd: string;
   updatedAt: string;
 };
 
-/** A named style config the user saved (DB) or a built-in preset. */
 export type ResumeCreatorStyleConfig = {
   id: string;
   name: string;
@@ -121,11 +127,9 @@ export type ResumeCreatorStyleConfig = {
 };
 
 export const RESUME_CREATOR_DRAFT_KEY = "aavedak.resume-creator.draft.v2";
-/** Migrate once from the phase-1 key. */
 export const RESUME_CREATOR_DRAFT_KEY_V1 = "aavedak.resume-creator.draft.v1";
 export const RESUME_CREATOR_PANELS_KEY = "aavedak.resume-creator.panels.v1";
 
-/** A4 in PDF points (jsPDF default). */
 export const A4_WIDTH_PT = 595.28;
 export const A4_HEIGHT_PT = 841.89;
 
@@ -134,13 +138,23 @@ export const RESUME_CREATOR_FONTS: Record<
   { label: string; css: string; pdf: "helvetica" | "times" }
 > = {
   inter: {
-    label: "Inter / Helvetica",
-    css: 'Helvetica, Arial, "Helvetica Neue", Inter, ui-sans-serif, system-ui, sans-serif',
+    label: "Inter",
+    css: 'Inter, Helvetica, Arial, "Helvetica Neue", ui-sans-serif, system-ui, sans-serif',
+    pdf: "helvetica",
+  },
+  arial: {
+    label: "Arial",
+    css: 'Arial, Helvetica, "Helvetica Neue", ui-sans-serif, sans-serif',
+    pdf: "helvetica",
+  },
+  verdana: {
+    label: "Verdana",
+    css: "Verdana, Geneva, Tahoma, sans-serif",
     pdf: "helvetica",
   },
   system: {
     label: "System sans",
-    css: 'Helvetica, Arial, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
+    css: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
     pdf: "helvetica",
   },
   georgia: {
@@ -153,6 +167,16 @@ export const RESUME_CREATOR_FONTS: Record<
     css: 'Times, "Times New Roman", Georgia, serif',
     pdf: "times",
   },
+};
+
+export const RESUME_FONT_WEIGHTS: Record<
+  ResumeFontWeight,
+  { label: string; css: number; pdf: "normal" | "bold" }
+> = {
+  regular: { label: "Regular", css: 400, pdf: "normal" },
+  medium: { label: "Medium", css: 500, pdf: "normal" },
+  semibold: { label: "Semibold", css: 600, pdf: "bold" },
+  bold: { label: "Bold", css: 700, pdf: "bold" },
 };
 
 export const DEFAULT_SECTION_ORDER: ResumeCreatorSectionMeta[] = [
@@ -173,11 +197,16 @@ export const STYLE_PRESETS: Record<
     label: "Classic",
     description: "Formal single-column · underlined titles · standard margins.",
     style: {
-      fontFamily: "inter",
-      headerPt: 18,
-      sectionTitlePt: 11,
+      primaryFont: "arial",
+      secondaryFont: "arial",
+      headerPt: 16,
+      footerPt: 9,
       bodyPt: 10,
-      footerPt: 8.5,
+      sectionTitlePt: 11,
+      headerWeight: "bold",
+      secondaryHeadingWeight: "regular",
+      bodyWeight: "regular",
+      sectionTitleWeight: "semibold",
       marginXPt: 40,
       marginYPt: 40,
       sectionGapPt: 10,
@@ -189,11 +218,16 @@ export const STYLE_PRESETS: Record<
     label: "Modern clean",
     description: "Tighter gaps · lighter rules · slightly smaller type.",
     style: {
-      fontFamily: "inter",
+      primaryFont: "inter",
+      secondaryFont: "inter",
       headerPt: 16,
-      sectionTitlePt: 10,
-      bodyPt: 9.5,
       footerPt: 8,
+      bodyPt: 9.5,
+      sectionTitlePt: 10,
+      headerWeight: "semibold",
+      secondaryHeadingWeight: "regular",
+      bodyWeight: "regular",
+      sectionTitleWeight: "medium",
       marginXPt: 36,
       marginYPt: 36,
       sectionGapPt: 8,
@@ -205,11 +239,16 @@ export const STYLE_PRESETS: Record<
     label: "Executive",
     description: "Serif type · wider margins · calm section spacing.",
     style: {
-      fontFamily: "georgia",
+      primaryFont: "georgia",
+      secondaryFont: "georgia",
       headerPt: 20,
-      sectionTitlePt: 11,
-      bodyPt: 10,
       footerPt: 8.5,
+      bodyPt: 10,
+      sectionTitlePt: 11,
+      headerWeight: "bold",
+      secondaryHeadingWeight: "regular",
+      bodyWeight: "regular",
+      sectionTitleWeight: "semibold",
       marginXPt: 48,
       marginYPt: 44,
       sectionGapPt: 12,
