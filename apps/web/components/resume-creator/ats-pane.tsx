@@ -183,7 +183,8 @@ export function ResumeCreatorAtsPane({
       </div>
 
       <ScrollArea className="min-h-0 flex-1 pr-1">
-        <div className="space-y-3 pb-4">
+        {/* Horizontal/vertical padding so Input/Textarea focus rings are not clipped by overflow. */}
+        <div className="space-y-3 px-1.5 py-1.5 pb-4">
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5">
               <span className="text-muted-foreground text-[11px] font-medium">Job title</span>

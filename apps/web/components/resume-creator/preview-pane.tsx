@@ -7,6 +7,8 @@ import {
   RESUME_CREATOR_FONTS,
   RESUME_FONT_WEIGHTS,
   pageSizePt,
+  resumeContentHeightPt,
+  resumePageInsetsPt,
   type ResumeCreatorDraft,
   type ResumeCreatorStyle,
   type ResumeFontWeight,
@@ -264,8 +266,6 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
     </>
   );
 
-  const padTop = style.marginYPt + style.headerFooterPt;
-  const padBottom = style.marginYPt + style.headerFooterPt;
   const links = contactLinks(draft);
 
   const projectHref = (raw: string) => {
@@ -275,16 +275,18 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
     return `https://${v.replace(/^\/+/, "")}`;
   };
 
+  // Horizontal margins only. Top/bottom Layout insets are applied by each page frame so
+  // multi-page preview clips at the bottom margin and resumes at the top margin (like PDF).
   return (
     <div
-      className="box-border h-full w-full bg-white text-black"
+      className="box-border w-full bg-white text-black"
       style={{
         fontFamily: secondaryCss,
         color: "#000000",
         paddingLeft: `${style.marginXPt}pt`,
         paddingRight: `${style.marginXPt}pt`,
-        paddingTop: `${padTop}pt`,
-        paddingBottom: `${padBottom}pt`,
+        paddingTop: 0,
+        paddingBottom: 0,
       }}
     >
       {draft.sections.map((section) => {
@@ -736,10 +738,15 @@ export function ResumeCreatorPreview({
   const [scale, setScale] = useState(1);
   const [pageCount, setPageCount] = useState(1);
   const { width: pageW, height: pageH } = pageSizePt(draft.style.pageFormat);
+  const insets = resumePageInsetsPt(draft.style);
+  const contentHpt = resumeContentHeightPt(draft.style, pageH);
 
   const pxPerPt = 96 / 72;
   const paperWpx = pageW * pxPerPt;
   const paperHpx = pageH * pxPerPt;
+  const insetTopPx = insets.top * pxPerPt;
+  const insetBottomPx = insets.bottom * pxPerPt;
+  const contentHpx = contentHpt * pxPerPt;
   const pageGapPx = 16;
 
   useLayoutEffect(() => {
@@ -756,20 +763,20 @@ export function ResumeCreatorPreview({
     return () => ro.disconnect();
   }, [paperWpx]);
 
-  // Measure full content height at paper width; paginate like the PDF (ceil content / page).
+  // Paginate by content-box height (page minus top/bottom Layout insets), matching the PDF.
   useLayoutEffect(() => {
     const el = measureRef.current;
     if (!el) return;
     const update = () => {
       const h = el.scrollHeight;
       if (h <= 0) return;
-      setPageCount(Math.max(1, Math.ceil(h / paperHpx)));
+      setPageCount(Math.max(1, Math.ceil(h / contentHpx)));
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [draft, paperHpx]);
+  }, [draft, contentHpx]);
 
   const formatLabel = draft.style.pageFormat === "letter" ? "US Letter" : "A4";
   const pages = Array.from({ length: pageCount }, (_, i) => i);
@@ -787,7 +794,7 @@ export function ResumeCreatorPreview({
         </p>
       </div>
       <ScrollArea className="relative min-h-0 flex-1 rounded-md bg-[#e8e8e8] p-3 sm:p-4 dark:bg-[#2a2a2a]">
-        {/* Off-screen measurer at full paper width (unscaled) so page breaks match PDF height. */}
+        {/* Off-screen body measurer (no vertical insets) — page frames add top/bottom margins. */}
         <div
           aria-hidden
           className="pointer-events-none absolute left-0 top-0 -z-10 overflow-hidden opacity-0"
@@ -822,13 +829,24 @@ export function ResumeCreatorPreview({
                     transform: `scale(${scale})`,
                   }}
                 >
+                  {/* Content box: clip at bottom inset; page N starts at top inset. */}
                   <div
+                    className="box-border overflow-hidden"
                     style={{
                       width: paperWpx,
-                      transform: `translateY(${-i * paperHpx}px)`,
+                      height: paperHpx,
+                      paddingTop: insetTopPx,
+                      paddingBottom: insetBottomPx,
                     }}
                   >
-                    <PaperContent draft={draft} />
+                    <div
+                      style={{
+                        width: paperWpx,
+                        transform: `translateY(${-i * contentHpx}px)`,
+                      }}
+                    >
+                      <PaperContent draft={draft} />
+                    </div>
                   </div>
                 </div>
                 {pageCount > 1 ? (

@@ -5,6 +5,7 @@ import {
   RESUME_CREATOR_FONTS,
   RESUME_FONT_WEIGHTS,
   pageSizePt,
+  resumePageInsetsPt,
   type ResumeCreatorDraft,
   type ResumeCreatorSectionMeta,
   type ResumeCreatorStyle,
@@ -52,6 +53,9 @@ type WriteCtx = {
   style: ResumeCreatorStyle;
   contentW: number;
   left: number;
+  /** Content starts here (top margin + header/footer inset). */
+  top: number;
+  /** Last y content may occupy; bottom margin starts below this. */
   bottom: number;
   y: number;
 };
@@ -61,9 +65,10 @@ function pdfWeight(w: ResumeFontWeight): "normal" | "bold" {
 }
 
 function ensureSpace(ctx: WriteCtx, need: number) {
-  if (ctx.y + need > ctx.bottom) {
+  // Keep drawing inside the content box: never into the Layout bottom margin.
+  if (ctx.y + need > ctx.bottom + 1e-6) {
     ctx.doc.addPage();
-    ctx.y = ctx.style.marginYPt + ctx.style.headerFooterPt;
+    ctx.y = ctx.top;
   }
 }
 
@@ -189,8 +194,12 @@ function writeLines(
 }
 
 function writeSectionTitle(ctx: WriteCtx, title: string) {
-  ctx.y += ctx.style.sectionGapPt;
-  ensureSpace(ctx, ctx.style.sectionTitlePt * ctx.style.lineHeight + 6);
+  const titleNeed = ctx.style.sectionTitlePt * ctx.style.lineHeight + 6;
+  const gap = ctx.style.sectionGapPt;
+  const atTop = ctx.y <= ctx.top + 0.5;
+  ensureSpace(ctx, (atTop ? 0 : gap) + titleNeed);
+  // After a page break, start at the top margin — skip the section gap.
+  if (ctx.y > ctx.top + 0.5) ctx.y += gap;
   writeLines(ctx, title.toUpperCase(), {
     pt: ctx.style.sectionTitlePt,
     font: "primary",
@@ -198,6 +207,7 @@ function writeSectionTitle(ctx: WriteCtx, title: string) {
     gapAfter: 1,
   });
   if (ctx.style.rule !== "none") {
+    ensureSpace(ctx, ctx.style.titleContentGapPt + 2);
     ctx.doc.setDrawColor(ctx.style.rule === "light" ? 200 : 160);
     ctx.doc.line(ctx.left, ctx.y, ctx.left + ctx.contentW, ctx.y);
     ctx.y += ctx.style.titleContentGapPt;
@@ -312,10 +322,11 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
   const style = draft.style;
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const left = style.marginXPt;
-  const contentW = pageW - style.marginXPt * 2;
-  const top = style.marginYPt + style.headerFooterPt;
-  const bottom = pageH - style.marginYPt - style.headerFooterPt;
+  const insets = resumePageInsetsPt(style);
+  const left = insets.left;
+  const contentW = pageW - insets.left - insets.right;
+  const top = insets.top;
+  const bottom = pageH - insets.bottom;
   const ctx: WriteCtx = {
     doc,
     primaryFont: RESUME_CREATOR_FONTS[style.primaryFont].pdf,
@@ -323,6 +334,7 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
     style,
     contentW,
     left,
+    top,
     bottom,
     y: top,
   };
@@ -367,6 +379,7 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
           });
         }
         if (style.rule !== "none") {
+          ensureSpace(ctx, 8);
           doc.setDrawColor(style.rule === "light" ? 200 : 180);
           doc.line(left, ctx.y, left + contentW, ctx.y);
           ctx.y += 6;
@@ -492,15 +505,33 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
           let rowY = ctx.y;
           let maxY = ctx.y;
           for (const item of items) {
-            ensureSpace(ctx, lh);
+            ctx.doc.setFont(ctx.secondaryFont, pdfWeight(style.bodyWeight));
+            ctx.doc.setFontSize(style.bodyPt);
+            const lines = ctx.doc.splitTextToSize(item, colW);
+            const blockH = Math.max(lh, lines.length * lh);
+            const yBefore = ctx.y;
+            ensureSpace(ctx, blockH);
+            // Page break: restart the row at the top margin.
+            if (ctx.y < yBefore - 0.5) {
+              col = 0;
+              rowY = ctx.y;
+              maxY = ctx.y;
+            }
             if (col === 0) rowY = ctx.y;
             const x = left + col * (colW + 8);
             ctx.doc.setFont(ctx.secondaryFont, pdfWeight(style.bodyWeight));
             ctx.doc.setFontSize(style.bodyPt);
             ctx.doc.setTextColor(20, 20, 20);
-            const lines = ctx.doc.splitTextToSize(item, colW);
             let y = rowY;
             for (const line of lines) {
+              if (y + lh > ctx.bottom + 1e-6) {
+                ctx.doc.addPage();
+                ctx.y = ctx.top;
+                col = 0;
+                rowY = ctx.y;
+                maxY = ctx.y;
+                y = rowY;
+              }
               ctx.doc.text(line, x, y + style.bodyPt * 0.8);
               y += lh;
             }

@@ -186,6 +186,28 @@ export const A4_WIDTH_PT = 595.28;
 export const A4_HEIGHT_PT = 841.89;
 
 /** Page size in PDF points for the active format. */
+/** Top/bottom include Layout "Top & bottom" + "Header & Footer"; left/right are marginX. */
+export function resumePageInsetsPt(
+  style: Pick<ResumeCreatorStyle, "marginXPt" | "marginYPt" | "headerFooterPt">,
+): {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+} {
+  const y = style.marginYPt + style.headerFooterPt;
+  return { top: y, bottom: y, left: style.marginXPt, right: style.marginXPt };
+}
+
+/** Usable content height inside one page (excludes top/bottom insets). */
+export function resumeContentHeightPt(
+  style: Pick<ResumeCreatorStyle, "marginXPt" | "marginYPt" | "headerFooterPt">,
+  pageHeightPt: number,
+): number {
+  const { top, bottom } = resumePageInsetsPt(style);
+  return Math.max(1, pageHeightPt - top - bottom);
+}
+
 export function pageSizePt(format: ResumePageFormat): { width: number; height: number } {
   if (format === "letter") return { width: 612, height: 792 };
   return { width: A4_WIDTH_PT, height: A4_HEIGHT_PT };
