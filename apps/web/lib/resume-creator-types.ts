@@ -297,8 +297,8 @@ export const STYLE_PRESETS: Record<
     label: "Classic",
     description: "Formal single-column · underlined titles · standard margins.",
     style: {
-      primaryFont: "arial",
-      secondaryFont: "arial",
+      primaryFont: "times",
+      secondaryFont: "times",
       headerPt: 16,
       footerPt: 9,
       bodyPt: 10,

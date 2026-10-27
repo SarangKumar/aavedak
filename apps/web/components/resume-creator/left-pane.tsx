@@ -29,7 +29,6 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   applyPreset,
@@ -180,8 +179,6 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
   }
 
   const sectionIds = draft.sections.map((s) => s.id);
-  const activePreset = draft.styleSource.kind === "preset" ? draft.styleSource.id : null;
-
   return (
     <div className={cn("flex h-full min-h-0 flex-1 flex-col", className)}>
       <div className="mb-2 shrink-0 px-1">
@@ -193,23 +190,13 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
 
       <ScrollArea className="min-h-0 flex-1 pr-1">
         <div className="space-y-4 pb-4">
-          {/* Container query: 2 cols when the left pane is wide enough after resize, else 1. */}
+          {/* Built-in + user style configs as one compact card grid. */}
           <section className="@container space-y-2">
             <p className="text-foreground text-[12px] font-semibold">Style presets</p>
-            <ToggleGroup
-              aria-label="Style preset"
-              variant="outline"
-              size="sm"
-              spacing={0}
-              value={activePreset ? [activePreset] : []}
-              onValueChange={(vals) => {
-                const next = vals[0] as ResumeCreatorPresetId | undefined;
-                if (next) onChange(applyPreset(draft, next));
-              }}
-              className="@[18rem]:grid-cols-2 grid w-full grid-cols-1 items-stretch gap-2"
-            >
+            <div className="@[18rem]:grid-cols-2 grid w-full grid-cols-1 gap-2">
               {(Object.keys(STYLE_PRESETS) as ResumeCreatorPresetId[]).map((id) => {
                 const preset = STYLE_PRESETS[id];
+                const selected = draft.styleSource.kind === "preset" && draft.styleSource.id === id;
                 const tip = (
                   <div className="max-w-56 space-y-0.5">
                     <p className="text-[12px] font-medium">{preset.label}</p>
@@ -219,25 +206,96 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                   </div>
                 );
                 return (
-                  <ToggleGroupItem
-                    key={id}
-                    value={id}
-                    className="border-border data-[state=on]:border-primary h-auto w-full flex-col items-start justify-start overflow-hidden rounded-md border px-2 py-1.5 text-left"
-                  >
-                    <Tooltip content={tip} side="top" delayDuration={250}>
-                      <span className="flex w-full min-w-0 flex-col items-start gap-0.5">
-                        <span className="w-full truncate text-[12px] font-medium">
+                  <Tooltip key={id} content={tip} side="top" delayDuration={250}>
+                    <button
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => onChange(applyPreset(draft, id))}
+                      className={cn(
+                        "border-border hover:bg-muted/40 flex w-full flex-col items-stretch gap-0.5 overflow-hidden rounded-md border px-2 py-1.5 text-left transition-colors",
+                        selected && "border-primary bg-primary/5",
+                      )}
+                    >
+                      <span className="flex w-full min-w-0 items-center gap-1.5">
+                        <span className="text-foreground min-w-0 flex-1 truncate text-[12px] font-medium">
                           {preset.label}
                         </span>
-                        <span className="text-muted-foreground w-full truncate text-[10px] font-normal leading-snug">
-                          {preset.description}
-                        </span>
+                        <Badge
+                          variant="secondary"
+                          className="shrink-0 px-1.5 py-0 text-[9px] font-medium"
+                        >
+                          default
+                        </Badge>
                       </span>
-                    </Tooltip>
-                  </ToggleGroupItem>
+                      <span className="text-muted-foreground line-clamp-2 w-full text-[10px] font-normal leading-snug">
+                        {preset.description}
+                      </span>
+                    </button>
+                  </Tooltip>
                 );
               })}
-            </ToggleGroup>
+              {savedStyles.map((s) => {
+                const selected =
+                  draft.styleSource.kind === "custom" && draft.styleSource.id === s.id;
+                const tip = (
+                  <div className="max-w-56 space-y-0.5">
+                    <p className="text-[12px] font-medium">{s.name}</p>
+                    {s.description ? (
+                      <p className="text-[11px] font-normal leading-snug opacity-90">
+                        {s.description}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+                return (
+                  <div key={s.id} className="relative">
+                    <Tooltip content={tip} side="top" delayDuration={250}>
+                      <button
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() =>
+                          onChange({
+                            ...draft,
+                            styleSource: { kind: "custom", id: s.id, name: s.name },
+                            style: { ...s.style },
+                            updatedAt: new Date().toISOString(),
+                          })
+                        }
+                        className={cn(
+                          "border-border hover:bg-muted/40 flex w-full flex-col items-stretch gap-0.5 overflow-hidden rounded-md border px-2 py-1.5 pr-8 text-left transition-colors",
+                          selected && "border-primary bg-primary/5",
+                        )}
+                      >
+                        <span className="flex w-full min-w-0 items-center gap-1.5">
+                          <span className="text-foreground min-w-0 flex-1 truncate text-[12px] font-medium">
+                            {s.name}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className="shrink-0 px-1.5 py-0 text-[9px] font-medium"
+                          >
+                            user defined
+                          </Badge>
+                        </span>
+                        <span className="text-muted-foreground line-clamp-2 w-full text-[10px] font-normal leading-snug">
+                          {s.description?.trim() || "User defined configuration"}
+                        </span>
+                      </button>
+                    </Tooltip>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="absolute right-1 top-1"
+                      aria-label={`Delete ${s.name}`}
+                      onClick={() => void removeSavedStyle(s.id)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
             {draft.styleSource.kind === "edited" ? (
               <p className="text-muted-foreground text-[11px]">
                 Style fields were edited — no longer matching a preset.
@@ -247,68 +305,7 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                 Using saved style “{draft.styleSource.name}”.
               </p>
             ) : null}
-
-            {signedIn ? (
-              <div className="border-border space-y-2 rounded-md border p-2.5">
-                <p className="text-foreground text-[11px] font-medium">Your configurations</p>
-                {savedStyles.length === 0 ? (
-                  <p className="text-muted-foreground text-[11px]">No saved styles yet.</p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {savedStyles.map((s) => {
-                      const tip = (
-                        <div className="max-w-56 space-y-0.5">
-                          <p className="text-[12px] font-medium">{s.name}</p>
-                          {s.description ? (
-                            <p className="text-[11px] font-normal leading-snug opacity-90">
-                              {s.description}
-                            </p>
-                          ) : null}
-                        </div>
-                      );
-                      return (
-                        <li key={s.id} className="flex items-center gap-1.5">
-                          <Tooltip content={tip} side="top" delayDuration={250}>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="xs"
-                              className="min-w-0 flex-1 justify-start gap-1.5 overflow-hidden"
-                              onClick={() =>
-                                onChange({
-                                  ...draft,
-                                  styleSource: { kind: "custom", id: s.id, name: s.name },
-                                  style: { ...s.style },
-                                  updatedAt: new Date().toISOString(),
-                                })
-                              }
-                            >
-                              <span className="min-w-0 flex-1 truncate text-left">{s.name}</span>
-                              <Badge
-                                variant="secondary"
-                                className="shrink-0 px-1.5 py-0 text-[9px]"
-                              >
-                                user defined
-                              </Badge>
-                            </Button>
-                          </Tooltip>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-xs"
-                            aria-label={`Delete ${s.name}`}
-                            onClick={() => void removeSavedStyle(s.id)}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                {styleMsg ? <p className="text-muted-foreground text-[11px]">{styleMsg}</p> : null}
-              </div>
-            ) : (
+            {!signedIn ? (
               <p className="text-muted-foreground text-[11px]">
                 <Link
                   href="/sign-in?next=/resume-creator"
@@ -318,7 +315,9 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                 </Link>{" "}
                 to save your own style configurations. Your draft is kept on this device either way.
               </p>
-            )}
+            ) : styleMsg ? (
+              <p className="text-muted-foreground text-[11px]">{styleMsg}</p>
+            ) : null}
           </section>
 
           <section className="border-border bg-card overflow-hidden rounded-md border">
@@ -385,6 +384,7 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                         Description
                       </span>
                       <Textarea
+                        maxRows={5}
                         value={styleDescription}
                         onChange={(e) => setStyleDescription(e.target.value.slice(0, 100))}
                         placeholder="Tight margins, 3-column skills…"
@@ -592,6 +592,7 @@ function SectionEditor({
     case "summary":
       return (
         <Textarea
+          maxRows={5}
           value={draft.content.summary}
           onChange={(e) => patchContent({ summary: e.target.value })}
           className="min-h-24 text-[12px] leading-relaxed"
@@ -602,6 +603,7 @@ function SectionEditor({
       return (
         <div className="space-y-3">
           <Textarea
+            maxRows={5}
             value={draft.content.skills}
             onChange={(e) => patchContent({ skills: e.target.value })}
             className="min-h-20 text-[12px] leading-relaxed"
@@ -675,6 +677,7 @@ function SectionEditor({
                 {entry.bullets.map((bullet, bi) => (
                   <div key={bi} className="flex gap-1.5">
                     <Textarea
+                      maxRows={5}
                       value={bullet}
                       onChange={(e) => {
                         const bullets = entry.bullets.map((b, i) =>
@@ -863,6 +866,7 @@ function SectionEditor({
               </Field>
               <Field label="Description">
                 <Textarea
+                  maxRows={5}
                   value={entry.description}
                   onChange={(e) => {
                     const projects = draft.content.projects.map((row) =>
@@ -873,34 +877,60 @@ function SectionEditor({
                   className="min-h-14 text-[12px]"
                 />
               </Field>
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={() => {
-                  const projects = draft.content.projects.map((row) =>
-                    row.id === entry.id ? { ...row, bullets: [...row.bullets, ""] } : row,
-                  );
-                  patchContent({ projects });
-                }}
-              >
-                <Plus className="size-3.5" />
-                Bullet
-              </Button>
-              {entry.bullets.map((bullet, bi) => (
-                <Textarea
-                  key={bi}
-                  value={bullet}
-                  onChange={(e) => {
-                    const bullets = entry.bullets.map((b, i) => (i === bi ? e.target.value : b));
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground text-[11px]">Bullets</Label>
+                {entry.bullets.map((bullet, bi) => (
+                  <div key={bi} className="flex gap-1.5">
+                    <Textarea
+                      maxRows={5}
+                      value={bullet}
+                      onChange={(e) => {
+                        const bullets = entry.bullets.map((b, i) =>
+                          i === bi ? e.target.value : b,
+                        );
+                        const projects = draft.content.projects.map((row) =>
+                          row.id === entry.id ? { ...row, bullets } : row,
+                        );
+                        patchContent({ projects });
+                      }}
+                      className="min-h-12 flex-1 text-[12px]"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="mt-1 shrink-0"
+                      disabled={entry.bullets.length <= 1}
+                      aria-label="Remove bullet"
+                      onClick={() => {
+                        const bullets = entry.bullets.filter((_, i) => i !== bi);
+                        const projects = draft.content.projects.map((row) =>
+                          row.id === entry.id
+                            ? { ...row, bullets: bullets.length ? bullets : [""] }
+                            : row,
+                        );
+                        patchContent({ projects });
+                      }}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => {
                     const projects = draft.content.projects.map((row) =>
-                      row.id === entry.id ? { ...row, bullets } : row,
+                      row.id === entry.id ? { ...row, bullets: [...row.bullets, ""] } : row,
                     );
                     patchContent({ projects });
                   }}
-                  className="min-h-12 text-[12px]"
-                />
-              ))}
+                >
+                  <Plus className="size-3.5" />
+                  Bullet
+                </Button>
+              </div>
             </div>
           ))}
           <Button

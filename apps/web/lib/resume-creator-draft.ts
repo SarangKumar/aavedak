@@ -581,7 +581,7 @@ export function draftToPlainText(draft: ResumeCreatorDraft): string {
         ]
           .map((s) => s.trim())
           .filter(Boolean);
-        if (bits.length) lines.push(bits.join(" · "));
+        if (bits.length) lines.push(bits.join(" | "));
         lines.push("");
         break;
       }

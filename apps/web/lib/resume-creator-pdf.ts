@@ -156,6 +156,7 @@ function writeLines(
     pt: number;
     font?: "primary" | "secondary";
     weight?: ResumeFontWeight;
+    italic?: boolean;
     indent?: number;
     gapAfter?: number;
     color?: number[];
@@ -165,14 +166,15 @@ function writeLines(
 ) {
   const pt = opts.pt;
   const face = opts.font === "primary" ? ctx.primaryFont : ctx.secondaryFont;
-  const fontStyle = opts.weight ? pdfWeight(opts.weight) : "normal";
+  const bold = opts.weight ? pdfWeight(opts.weight) === "bold" : false;
+  const fontStyle = opts.italic ? (bold ? "bolditalic" : "italic") : bold ? "bold" : "normal";
   const indent = opts.indent ?? 0;
   const gapAfter = opts.gapAfter ?? 2;
   const maxW = opts.maxWidth ?? ctx.contentW - indent;
   ctx.doc.setFont(face, fontStyle);
   ctx.doc.setFontSize(pt);
   if (opts.color) ctx.doc.setTextColor(...opts.color);
-  else ctx.doc.setTextColor(20, 20, 20);
+  else ctx.doc.setTextColor(0, 0, 0);
   const lh = pt * ctx.style.lineHeight;
   const align = opts.align ?? "left";
   for (const line of ctx.doc.splitTextToSize(text, maxW)) {
@@ -204,60 +206,65 @@ function writeSectionTitle(ctx: WriteCtx, title: string) {
   }
 }
 
-function writeTitleDateRow(
+function pdfFontStyle(weight: ResumeFontWeight | undefined, italic?: boolean): string {
+  const bold = weight ? pdfWeight(weight) === "bold" : false;
+  if (italic) return bold ? "bolditalic" : "italic";
+  return bold ? "bold" : "normal";
+}
+
+function writeSplitRow(
   ctx: WriteCtx,
-  title: string,
-  dateText: string,
-  titleWeight: ResumeFontWeight = "semibold",
+  left: string,
+  right: string,
+  opts?: {
+    leftWeight?: ResumeFontWeight;
+    rightWeight?: ResumeFontWeight;
+    leftItalic?: boolean;
+    rightItalic?: boolean;
+    gapAfter?: number;
+  },
 ) {
   const pt = ctx.style.bodyPt;
   const lh = pt * ctx.style.lineHeight;
   ensureSpace(ctx, lh + 2);
-  ctx.doc.setFont(ctx.secondaryFont, pdfWeight(titleWeight));
-  ctx.doc.setFontSize(pt);
-  ctx.doc.setTextColor(20, 20, 20);
+  const leftWeight = opts?.leftWeight ?? "semibold";
+  const rightWeight = opts?.rightWeight ?? "regular";
+  const gapAfter = opts?.gapAfter ?? 1;
+  const leftStyle = pdfFontStyle(leftWeight, opts?.leftItalic);
+  const rightStyle = pdfFontStyle(rightWeight, opts?.rightItalic);
 
-  if (!dateText) {
-    writeLines(ctx, title, {
+  if (!right.trim()) {
+    writeLines(ctx, left, {
       pt,
       font: "secondary",
-      weight: titleWeight,
-      gapAfter: 1,
+      weight: leftWeight,
+      italic: opts?.leftItalic,
+      gapAfter,
+      color: [0, 0, 0],
     });
     return;
   }
 
-  ctx.doc.setFont(ctx.secondaryFont, "normal");
-  const dateLines = ctx.doc.splitTextToSize(dateText, ctx.contentW * 0.45);
-  const dateShown = dateLines[0] ?? dateText;
-  const approxDateW = Math.min(ctx.contentW * 0.4, dateShown.length * pt * 0.45);
-  const titleMax = Math.max(40, ctx.contentW - approxDateW - 8);
-  ctx.doc.setFont(ctx.secondaryFont, pdfWeight(titleWeight));
-  const titleLines = ctx.doc.splitTextToSize(title, titleMax);
-  const first = titleLines[0] ?? title;
-
-  if (ctx.style.dateAlign === "left") {
-    ctx.doc.setFont(ctx.secondaryFont, "normal");
-    ctx.doc.setTextColor(90, 90, 90);
-    ctx.doc.text(dateShown, ctx.left, ctx.y + pt * 0.8);
-    ctx.doc.setFont(ctx.secondaryFont, pdfWeight(titleWeight));
-    ctx.doc.setTextColor(20, 20, 20);
-    ctx.doc.text(first, ctx.left + approxDateW + 8, ctx.y + pt * 0.8);
-  } else {
-    ctx.doc.text(first, ctx.left, ctx.y + pt * 0.8);
-    ctx.doc.setFont(ctx.secondaryFont, "normal");
-    ctx.doc.setTextColor(90, 90, 90);
-    ctx.doc.text(dateShown, ctx.left + ctx.contentW, ctx.y + pt * 0.8, { align: "right" });
-    ctx.doc.setTextColor(20, 20, 20);
-  }
+  ctx.doc.setFontSize(pt);
+  const approxRightW = Math.min(ctx.contentW * 0.42, Math.max(24, right.trim().length * pt * 0.45));
+  const titleMax = Math.max(40, ctx.contentW - approxRightW - 8);
+  ctx.doc.setFont(ctx.secondaryFont, leftStyle);
+  ctx.doc.setTextColor(0, 0, 0);
+  const titleLines = ctx.doc.splitTextToSize(left || " ", titleMax);
+  const first = titleLines[0] ?? left;
+  ctx.doc.text(first, ctx.left, ctx.y + pt * 0.8);
+  ctx.doc.setFont(ctx.secondaryFont, rightStyle);
+  ctx.doc.setTextColor(0, 0, 0);
+  ctx.doc.text(right.trim(), ctx.left + ctx.contentW, ctx.y + pt * 0.8, { align: "right" });
   ctx.y += lh;
   for (const extra of titleLines.slice(1)) {
     ensureSpace(ctx, lh);
-    ctx.doc.setFont(ctx.secondaryFont, pdfWeight(titleWeight));
+    ctx.doc.setFont(ctx.secondaryFont, leftStyle);
+    ctx.doc.setTextColor(0, 0, 0);
     ctx.doc.text(extra, ctx.left, ctx.y + pt * 0.8);
     ctx.y += lh;
   }
-  ctx.y += 1;
+  ctx.y += gapAfter;
 }
 
 function sectionTitleOf(sections: ResumeCreatorSectionMeta[], id: string): string {
@@ -350,12 +357,12 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
         push(c.github);
         push(c.portfolio);
         if (bits.length) {
-          writeLines(ctx, bits.join("  ·  "), {
+          writeLines(ctx, bits.join(" | "), {
             pt: style.footerPt,
             font: "secondary",
             weight: style.secondaryHeadingWeight,
             gapAfter: style.sectionGapPt * 0.4,
-            color: [80, 80, 80],
+            color: [0, 0, 0],
             align: headerAlign,
           });
         }
@@ -374,6 +381,7 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
           font: "secondary",
           weight: style.bodyWeight,
           gapAfter: 2,
+          color: [0, 0, 0],
         });
         break;
       }
@@ -384,25 +392,18 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
         if (!entries.length) break;
         writeSectionTitle(ctx, sectionTitleOf(draft.sections, "experience"));
         for (const e of entries) {
-          const company = e.company.trim() || "Company";
+          writeSplitRow(ctx, e.company.trim() || "Company", e.location.trim(), {
+            leftWeight: "bold",
+            rightItalic: true,
+            gapAfter: style.insideBlockGapPt,
+          });
           const dateText = formatRange(e.start, e.end, style.dateFormat);
-          writeTitleDateRow(ctx, company, dateText);
-          if (e.title.trim()) {
-            writeLines(ctx, e.title.trim(), {
-              pt: style.bodyPt,
-              font: "secondary",
-              weight: style.bodyWeight,
+          if (e.title.trim() || dateText) {
+            writeSplitRow(ctx, e.title.trim(), dateText, {
+              leftItalic: true,
+              leftWeight: "regular",
+              rightWeight: "regular",
               gapAfter: style.insideBlockGapPt,
-            });
-          }
-          if (e.location.trim()) {
-            writeLines(ctx, e.location.trim(), {
-              pt: style.footerPt,
-              font: "secondary",
-              weight: style.secondaryHeadingWeight,
-              gapAfter: 1,
-              color: [90, 90, 90],
-              align: style.locationAlign === "right" ? "right" : "left",
             });
           }
           for (const b of e.bullets) {
@@ -413,6 +414,7 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
               weight: style.bodyWeight,
               indent: 8,
               gapAfter: style.insideBlockGapPt,
+              color: [0, 0, 0],
             });
           }
           ctx.y += style.contentBlockGapPt;
@@ -430,24 +432,26 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
               : e.school.trim() || e.degree.trim();
           const secondary = style.educationShowBy === "degree" ? e.school.trim() : e.degree.trim();
           const dateText = formatRange(e.start, e.end, style.dateFormat);
-          writeTitleDateRow(ctx, primary || " ", dateText);
-          if (secondary) {
-            writeLines(ctx, secondary, {
-              pt: style.bodyPt,
-              font: "secondary",
-              weight: style.bodyWeight,
+          writeSplitRow(ctx, primary || "School", e.location.trim(), {
+            leftWeight: "bold",
+            rightItalic: true,
+            gapAfter: style.insideBlockGapPt,
+          });
+          if (secondary || dateText) {
+            writeSplitRow(ctx, secondary, dateText, {
+              leftItalic: true,
+              leftWeight: "regular",
+              rightWeight: "regular",
               gapAfter: style.insideBlockGapPt,
             });
           }
-          const meta = [e.location.trim(), e.details.trim()].filter(Boolean).join(" · ");
-          if (meta) {
-            writeLines(ctx, meta, {
-              pt: style.footerPt,
+          if (e.details.trim()) {
+            writeLines(ctx, e.details.trim(), {
+              pt: style.bodyPt,
               font: "secondary",
-              weight: style.secondaryHeadingWeight,
+              weight: style.bodyWeight,
               gapAfter: style.contentBlockGapPt,
-              color: [90, 90, 90],
-              align: style.locationAlign === "right" ? "right" : "left",
+              color: [0, 0, 0],
             });
           } else {
             ctx.y += style.contentBlockGapPt;
@@ -531,13 +535,14 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
         if (!entries.length) break;
         writeSectionTitle(ctx, sectionTitleOf(draft.sections, "projects"));
         for (const p of entries) {
-          const head = [p.name.trim(), p.link.trim()].filter(Boolean).join(" — ");
-          if (head) {
-            writeLines(ctx, head, {
+          const title = p.name.trim() || p.link.trim();
+          if (title) {
+            writeLines(ctx, title, {
               pt: style.bodyPt,
               font: "secondary",
               weight: "semibold",
               gapAfter: style.insideBlockGapPt,
+              color: [0, 0, 0],
             });
           }
           if (p.description.trim()) {
@@ -546,6 +551,7 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
               font: "secondary",
               weight: style.bodyWeight,
               gapAfter: style.insideBlockGapPt,
+              color: [0, 0, 0],
             });
           }
           for (const b of p.bullets) {
