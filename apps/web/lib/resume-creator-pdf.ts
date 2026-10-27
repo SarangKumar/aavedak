@@ -183,10 +183,17 @@ function writeLines(
   const lh = pt * ctx.style.lineHeight;
   const align = opts.align ?? "left";
   for (const line of ctx.doc.splitTextToSize(text, maxW)) {
+    // Line box must fit above the bottom Layout inset (marginY + header/footer).
     ensureSpace(ctx, lh);
     let x = ctx.left + indent;
     if (align === "center") x = ctx.left + ctx.contentW / 2;
     else if (align === "right") x = ctx.left + ctx.contentW;
+    // jsPDF y is baseline; keep baseline at or above content bottom.
+    const baseline = ctx.y + pt * 0.8;
+    if (baseline > ctx.bottom + 1e-6) {
+      ctx.doc.addPage();
+      ctx.y = ctx.top;
+    }
     ctx.doc.text(line, x, ctx.y + pt * 0.8, { align });
     ctx.y += lh;
   }
@@ -262,6 +269,10 @@ function writeSplitRow(
   ctx.doc.setTextColor(0, 0, 0);
   const titleLines = ctx.doc.splitTextToSize(left || " ", titleMax);
   const first = titleLines[0] ?? left;
+  if (ctx.y + pt * 0.8 > ctx.bottom + 1e-6) {
+    ctx.doc.addPage();
+    ctx.y = ctx.top;
+  }
   ctx.doc.text(first, ctx.left, ctx.y + pt * 0.8);
   ctx.doc.setFont(ctx.secondaryFont, rightStyle);
   ctx.doc.setTextColor(0, 0, 0);
@@ -269,6 +280,10 @@ function writeSplitRow(
   ctx.y += lh;
   for (const extra of titleLines.slice(1)) {
     ensureSpace(ctx, lh);
+    if (ctx.y + pt * 0.8 > ctx.bottom + 1e-6) {
+      ctx.doc.addPage();
+      ctx.y = ctx.top;
+    }
     ctx.doc.setFont(ctx.secondaryFont, leftStyle);
     ctx.doc.setTextColor(0, 0, 0);
     ctx.doc.text(extra, ctx.left, ctx.y + pt * 0.8);
@@ -621,6 +636,89 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
         break;
     }
   }
+}
+
+/** Probe text baselines for tests — same pagination as download. */
+export type ResumePdfTextProbe = {
+  page: number;
+  /** Cursor y (top of line box) before drawing. */
+  y: number;
+  /** jsPDF baseline y used for text(). */
+  baseline: number;
+  text: string;
+};
+
+export type ResumePdfLayoutProbe = {
+  pageCount: number;
+  pageHeight: number;
+  top: number;
+  bottom: number;
+  texts: ResumePdfTextProbe[];
+};
+
+/**
+ * Render with a recording doc to assert Layout top/bottom insets are honored
+ * on every page (no baseline past `bottom`, new pages start at `top`).
+ */
+export function probeResumeCreatorPdfLayout(draft: ResumeCreatorDraft): ResumePdfLayoutProbe {
+  const { width, height } = pageSizePt(draft.style.pageFormat);
+  const insets = resumePageInsetsPt(draft.style);
+  const top = insets.top;
+  const bottom = height - insets.bottom;
+  let page = 1;
+  const texts: ResumePdfTextProbe[] = [];
+
+  const doc: Doc = {
+    internal: {
+      pageSize: {
+        getWidth: () => width,
+        getHeight: () => height,
+      },
+    },
+    setFont: () => {},
+    setFontSize: () => {},
+    setDrawColor: () => {},
+    setTextColor: () => {},
+    splitTextToSize: (text: string, maxWidth: number) => {
+      // Rough wrap so multi-line blocks exercise pagination (avg ~0.5em per char).
+      const avg = Math.max(4, (draft.style.bodyPt || 10) * 0.5);
+      const cols = Math.max(8, Math.floor(maxWidth / avg));
+      const words = text.split(/(\s+)/);
+      const lines: string[] = [];
+      let cur = "";
+      for (const w of words) {
+        if ((cur + w).length > cols && cur.trim()) {
+          lines.push(cur);
+          cur = w.trimStart();
+        } else {
+          cur += w;
+        }
+      }
+      if (cur) lines.push(cur);
+      return lines.length ? lines : [text];
+    },
+    text: (text: string | string[], _x: number, y: number) => {
+      const lines = Array.isArray(text) ? text : [text];
+      for (const line of lines) {
+        // jsPDF `text` y is the baseline.
+        texts.push({ page, y, baseline: y, text: line });
+      }
+    },
+    line: () => {},
+    addPage: () => {
+      page += 1;
+    },
+    output: () => new Blob(),
+  };
+
+  renderDraft(doc, draft);
+  return {
+    pageCount: page,
+    pageHeight: height,
+    top,
+    bottom,
+    texts,
+  };
 }
 
 export async function resumeCreatorPdfBlob(draft: ResumeCreatorDraft): Promise<Blob> {

@@ -745,7 +745,6 @@ export function ResumeCreatorPreview({
   const paperWpx = pageW * pxPerPt;
   const paperHpx = pageH * pxPerPt;
   const insetTopPx = insets.top * pxPerPt;
-  const insetBottomPx = insets.bottom * pxPerPt;
   const contentHpx = contentHpt * pxPerPt;
   const pageGapPx = 16;
 
@@ -829,14 +828,17 @@ export function ResumeCreatorPreview({
                     transform: `scale(${scale})`,
                   }}
                 >
-                  {/* Content box: clip at bottom inset; page N starts at top inset. */}
+                  {/*
+                    Clip with an absolutely positioned content rect — NOT padding.
+                    CSS overflow clips to the padding box, so paddingTop/Bottom alone
+                    still let transformed content paint into the margin bands.
+                  */}
                   <div
-                    className="box-border overflow-hidden"
+                    className="absolute left-0 overflow-hidden"
                     style={{
+                      top: insetTopPx,
                       width: paperWpx,
-                      height: paperHpx,
-                      paddingTop: insetTopPx,
-                      paddingBottom: insetBottomPx,
+                      height: contentHpx,
                     }}
                   >
                     <div
