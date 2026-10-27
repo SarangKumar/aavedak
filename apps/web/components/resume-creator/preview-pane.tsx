@@ -192,7 +192,6 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
   const style = draft.style;
   const primaryCss = RESUME_CREATOR_FONTS[style.primaryFont].css;
   const secondaryCss = RESUME_CREATOR_FONTS[style.secondaryFont].css;
-  const visible = (id: string) => draft.sections.some((s) => s.id === id && s.visible);
   const titleOf = (id: string) =>
     draft.sections.find((s) => s.id === id)?.title ?? id.toUpperCase();
   const skillRows = parseSkills(draft.content.skills);
@@ -288,89 +287,105 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
         paddingBottom: `${padBottom}pt`,
       }}
     >
-      {visible("contact") ? (
-        <header style={{ textAlign: headerAlign }}>
-          <p
-            className="tracking-tight text-black"
-            style={textStyle(style.headerPt, {
-              face: "primary",
-              weight: style.headerWeight,
-            })}
-          >
-            {draft.content.contact.fullName.trim() || "Your name"}
-          </p>
-          {links.length ? (
-            <p
-              className="text-black"
-              style={textStyle(style.footerPt, {
-                face: "secondary",
-                weight: style.secondaryHeadingWeight,
-                extra: { marginTop: "2pt" },
-              })}
-            >
-              {links.map((item, i) => (
-                <span key={`${item.label}-${i}`}>
-                  {i > 0 ? <span aria-hidden>{" | "}</span> : null}
-                  {item.href ? (
-                    <a
-                      href={item.href}
-                      className="text-black underline-offset-2 hover:underline"
-                      style={{ color: "inherit" }}
-                    >
-                      {item.label}
-                    </a>
-                  ) : (
-                    item.label
-                  )}
-                </span>
-              ))}
-            </p>
-          ) : (
-            <p
-              className="text-neutral-400"
-              style={textStyle(style.footerPt, {
-                face: "secondary",
-                weight: "regular",
-                color: "#a3a3a3",
-                extra: { marginTop: "2pt" },
-              })}
-            >
-              Email | phone | location | links
-            </p>
-          )}
-          {style.rule !== "none" ? (
-            <div style={{ marginTop: `${style.sectionGapPt * 0.4}pt` }}>
-              <SectionRule rule={style.rule} titleContentGapPt={0} />
-            </div>
-          ) : (
-            <div style={{ height: `${style.sectionGapPt * 0.4}pt` }} />
-          )}
-        </header>
-      ) : null}
-
-      {visible("summary") && draft.content.summary.trim() ? (
-        <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
-          {sectionTitle("summary")}
-          <p
-            className="whitespace-pre-wrap text-black"
-            style={textStyle(style.bodyPt, {
-              face: "secondary",
-              weight: style.bodyWeight,
-            })}
-          >
-            {draft.content.summary.trim()}
-          </p>
-        </section>
-      ) : null}
-
-      {visible("experience")
-        ? (() => {
+      {draft.sections.map((section) => {
+        if (!section.visible) return null;
+        const key = section.id;
+        switch (section.id) {
+          case "contact": {
+            const firstVisibleId = draft.sections.find((s) => s.visible)?.id;
+            return (
+              <header
+                key={key}
+                style={{
+                  textAlign: headerAlign,
+                  marginTop:
+                    firstVisibleId && firstVisibleId !== "contact"
+                      ? `${style.sectionGapPt}pt`
+                      : undefined,
+                }}
+              >
+                <p
+                  className="tracking-tight text-black"
+                  style={textStyle(style.headerPt, {
+                    face: "primary",
+                    weight: style.headerWeight,
+                  })}
+                >
+                  {draft.content.contact.fullName.trim() || "Your name"}
+                </p>
+                {links.length ? (
+                  <p
+                    className="text-black"
+                    style={textStyle(style.footerPt, {
+                      face: "secondary",
+                      weight: style.secondaryHeadingWeight,
+                      extra: { marginTop: "2pt" },
+                    })}
+                  >
+                    {links.map((item, i) => (
+                      <span key={`${item.label}-${i}`}>
+                        {i > 0 ? <span aria-hidden>{" | "}</span> : null}
+                        {item.href ? (
+                          <a
+                            href={item.href}
+                            className="text-black underline-offset-2 hover:underline"
+                            style={{ color: "inherit" }}
+                          >
+                            {item.label}
+                          </a>
+                        ) : (
+                          item.label
+                        )}
+                      </span>
+                    ))}
+                  </p>
+                ) : (
+                  <p
+                    className="text-neutral-400"
+                    style={textStyle(style.footerPt, {
+                      face: "secondary",
+                      weight: "regular",
+                      color: "#a3a3a3",
+                      extra: { marginTop: "2pt" },
+                    })}
+                  >
+                    Email | phone | location | links
+                  </p>
+                )}
+                {style.rule !== "none" ? (
+                  <div style={{ marginTop: `${style.sectionGapPt * 0.4}pt` }}>
+                    <SectionRule rule={style.rule} titleContentGapPt={0} />
+                  </div>
+                ) : (
+                  <div style={{ height: `${style.sectionGapPt * 0.4}pt` }} />
+                )}
+              </header>
+            );
+          }
+          case "summary": {
+            if (!draft.content.summary.trim()) return null;
+            return (
+              <section key={key} style={{ marginTop: `${style.sectionGapPt}pt` }}>
+                {sectionTitle("summary")}
+                <p
+                  className="whitespace-pre-wrap text-black"
+                  style={textStyle(style.bodyPt, {
+                    face: "secondary",
+                    weight: style.bodyWeight,
+                  })}
+                >
+                  {draft.content.summary.trim()}
+                </p>
+              </section>
+            );
+          }
+          case "experience": {
             const entries = draft.content.experience.filter(
               (e) => e.company.trim() || e.title.trim() || e.bullets.some((b) => b.trim()),
             );
             if (!entries.length) return null;
             return (
-              <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
+              <section key={key} style={{ marginTop: `${style.sectionGapPt}pt` }}>
                 {sectionTitle("experience")}
                 <div>
                   {entries.map((e, ei) => (
@@ -439,11 +454,8 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                 </div>
               </section>
             );
-          })()
-        : null}
-
-      {visible("education")
-        ? (() => {
+          }
+          case "education": {
             const entries = draft.content.education.filter(
               (e) => e.school.trim() || e.degree.trim(),
             );
@@ -457,7 +469,7 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                   } as CSSProperties)
                 : undefined;
             return (
-              <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
+              <section key={key} style={{ marginTop: `${style.sectionGapPt}pt` }}>
                 {sectionTitle("education")}
                 <div style={grid}>
                   {entries.map((e, ei) => {
@@ -521,94 +533,94 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                 </div>
               </section>
             );
-          })()
-        : null}
-
-      {visible("skills") && skillRows.length ? (
-        <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
-          {sectionTitle("skills")}
-          {style.skillsCategoryMode === "categories" &&
-          skillRows.some((r) => r.kind === "category") ? (
-            <div>
-              {skillRows.map((row, i) => (
-                <p
-                  key={`skill-row-${i}`}
-                  className="text-black"
-                  style={{
-                    ...textStyle(style.bodyPt, {
-                      face: "secondary",
-                      weight: style.bodyWeight,
-                    }),
-                    marginTop: i === 0 ? 0 : `${style.insideBlockGapPt}pt`,
-                  }}
-                >
-                  {row.kind === "category" ? (
-                    <>
-                      <span style={{ fontWeight: RESUME_FONT_WEIGHTS.semibold.css }}>
-                        {row.category}:
-                      </span>{" "}
-                      {row.items.join(", ")}
-                    </>
-                  ) : (
-                    row.items.join(", ")
-                  )}
-                </p>
-              ))}
-            </div>
-          ) : style.skillsLayout === "columns" ? (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: `repeat(${Math.max(2, style.skillsColumns)}, minmax(0, 1fr))`,
-                columnGap: "8pt",
-                rowGap: `${style.insideBlockGapPt}pt`,
-              }}
-            >
-              {skillRows
-                .flatMap((r) =>
-                  r.kind === "category" ? [`${r.category}: ${r.items.join(", ")}`] : r.items,
-                )
-                .map((item, i) => (
+          }
+          case "skills": {
+            if (!skillRows.length) return null;
+            return (
+              <section key={key} style={{ marginTop: `${style.sectionGapPt}pt` }}>
+                {sectionTitle("skills")}
+                {style.skillsCategoryMode === "categories" &&
+                skillRows.some((r) => r.kind === "category") ? (
+                  <div>
+                    {skillRows.map((row, i) => (
+                      <p
+                        key={`skill-row-${i}`}
+                        className="text-black"
+                        style={{
+                          ...textStyle(style.bodyPt, {
+                            face: "secondary",
+                            weight: style.bodyWeight,
+                          }),
+                          marginTop: i === 0 ? 0 : `${style.insideBlockGapPt}pt`,
+                        }}
+                      >
+                        {row.kind === "category" ? (
+                          <>
+                            <span style={{ fontWeight: RESUME_FONT_WEIGHTS.semibold.css }}>
+                              {row.category}:
+                            </span>{" "}
+                            {row.items.join(", ")}
+                          </>
+                        ) : (
+                          row.items.join(", ")
+                        )}
+                      </p>
+                    ))}
+                  </div>
+                ) : style.skillsLayout === "columns" ? (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${Math.max(2, style.skillsColumns)}, minmax(0, 1fr))`,
+                      columnGap: "8pt",
+                      rowGap: `${style.insideBlockGapPt}pt`,
+                    }}
+                  >
+                    {skillRows
+                      .flatMap((r) =>
+                        r.kind === "category" ? [`${r.category}: ${r.items.join(", ")}`] : r.items,
+                      )
+                      .map((item, i) => (
+                        <p
+                          key={i}
+                          className="text-black"
+                          style={textStyle(style.bodyPt, {
+                            face: "secondary",
+                            weight: style.bodyWeight,
+                          })}
+                        >
+                          {item}
+                        </p>
+                      ))}
+                  </div>
+                ) : (
                   <p
-                    key={i}
                     className="text-black"
                     style={textStyle(style.bodyPt, {
                       face: "secondary",
                       weight: style.bodyWeight,
                     })}
                   >
-                    {item}
+                    {skillRows
+                      .map((r) =>
+                        r.kind === "category"
+                          ? `${r.category}: ${r.items.join(", ")}`
+                          : r.items.join(", "),
+                      )
+                      .join(" | ")}
                   </p>
-                ))}
-            </div>
-          ) : (
-            <p
-              className="text-black"
-              style={textStyle(style.bodyPt, {
-                face: "secondary",
-                weight: style.bodyWeight,
-              })}
-            >
-              {skillRows
-                .map((r) =>
-                  r.kind === "category"
-                    ? `${r.category}: ${r.items.join(", ")}`
-                    : r.items.join(", "),
-                )
-                .join(" | ")}
-            </p>
-          )}
-        </section>
-      ) : null}
-
-      {visible("projects")
-        ? (() => {
+                )}
+              </section>
+            );
+          }
+          case "projects": {
             const entries = draft.content.projects.filter(
-              (p) => p.name.trim() || p.description.trim() || p.bullets.some((b) => b.trim()),
+              (proj) =>
+                proj.name.trim() || proj.description.trim() || proj.bullets.some((b) => b.trim()),
             );
             if (!entries.length) return null;
             return (
-              <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
+              <section key={key} style={{ marginTop: `${style.sectionGapPt}pt` }}>
                 {sectionTitle("projects")}
                 <div>
                   {entries.map((proj, pi) => (
@@ -677,15 +689,12 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                 </div>
               </section>
             );
-          })()
-        : null}
-
-      {visible("certifications")
-        ? (() => {
+          }
+          case "certifications": {
             const entries = draft.content.certifications.filter((c) => c.name.trim());
             if (!entries.length) return null;
             return (
-              <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
+              <section key={key} style={{ marginTop: `${style.sectionGapPt}pt` }}>
                 {sectionTitle("certifications")}
                 <ul className="list-none" style={{ margin: 0, padding: 0 }}>
                   {entries.map((c, i) => (
@@ -706,8 +715,11 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                 </ul>
               </section>
             );
-          })()
-        : null}
+          }
+          default:
+            return null;
+        }
+      })}
     </div>
   );
 }

@@ -101,4 +101,23 @@ assert.equal(normalizeStyle({ educationShowBy: "institution" }).educationShowBy,
 assert.equal(normalizeStyle({ dateFormat: "numeric" }).dateFormat, "numeric");
 assert.equal(normalizeStyle({ headerAlign: "center" }).headerAlign, "center");
 
+// Section reorder must drive ATS/plain-text (and preview/PDF) order.
+const reorderedSample = {
+  ...sample,
+  sections: reorderSections(sample.sections, [
+    "skills",
+    "experience",
+    "education",
+    "summary",
+    "contact",
+    "projects",
+    "certifications",
+  ]),
+};
+const reorderedText = draftToPlainText(reorderedSample);
+const skillsAt = reorderedText.indexOf("SKILLS");
+const experienceAt = reorderedText.indexOf("EXPERIENCE");
+assert.ok(skillsAt >= 0 && experienceAt >= 0);
+assert.ok(skillsAt < experienceAt, "reordered sections should appear in new order in plain text");
+
 console.log("resume-creator-draft tests: ok");
