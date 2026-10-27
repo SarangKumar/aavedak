@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Download, Save, RotateCcw } from "lucide-react";
 
+import { BoardToggleButton, FullscreenBoard } from "@/components/fullscreen-board";
 import { ResumeCreatorAtsPane } from "@/components/resume-creator/ats-pane";
 import { ResumeCreatorLeftPane } from "@/components/resume-creator/left-pane";
 import { ResumeCreatorPreview } from "@/components/resume-creator/preview-pane";
@@ -47,6 +48,7 @@ export function ResumeCreator({ yearsExperience }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [narrow, setNarrow] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
     const stored = loadDraftFromStorage();
@@ -62,6 +64,15 @@ export function ResumeCreator({ yearsExperience }: Props) {
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullscreen]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -172,8 +183,113 @@ export function ResumeCreator({ yearsExperience }: Props) {
         <RotateCcw className="size-3.5" />
         Reset draft
       </Button>
+      <BoardToggleButton
+        expanded={fullscreen}
+        onClick={() => setFullscreen((v) => !v)}
+        label="create resume"
+        showOnMobile
+      />
     </div>
   );
+
+  const board: ReactNode =
+    sessionPending || !hydrated ? (
+      <div className="border-border bg-card text-muted-foreground flex min-h-0 flex-1 items-center justify-center rounded-lg border text-[13px]">
+        Loading editor…
+      </div>
+    ) : narrow ? (
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-2">
+        <div className="border-border bg-card h-[min(70vh,36rem)] shrink-0 overflow-hidden rounded-lg border p-3">
+          <ResumeCreatorLeftPane draft={draft} onChange={onDraftChange} signedIn={signedIn} />
+        </div>
+        <div className="border-border bg-card h-[min(80vh,40rem)] shrink-0 overflow-hidden rounded-lg border p-3">
+          <ResumeCreatorPreview draft={draft} />
+        </div>
+        <div className="border-border bg-card h-[min(70vh,36rem)] shrink-0 overflow-hidden rounded-lg border p-3">
+          <ResumeCreatorAtsPane
+            draft={draft}
+            onDraftChange={onDraftChange}
+            signedIn={signedIn}
+            yearsExperience={yearsExperience}
+          />
+        </div>
+      </div>
+    ) : (
+      // Same idea as Jobs: fixed height under the page chrome; panes scroll inside.
+      <div className="min-h-0 flex-1">
+        <ResizablePanelGroup
+          orientation="horizontal"
+          variant="blocks"
+          className="h-full w-full"
+          onLayoutChanged={(layout) => {
+            const next = {
+              left: Number(layout.left ?? panels.left),
+              center: Number(layout.center ?? panels.center),
+              right: Number(layout.right ?? panels.right),
+            };
+            setPanels(next);
+            savePanelLayout(next);
+          }}
+        >
+          <ResizablePanel
+            id="left"
+            defaultSize={`${panels.left}`}
+            minSize="18"
+            className="flex min-h-0 flex-col overflow-hidden p-3"
+          >
+            <ResumeCreatorLeftPane draft={draft} onChange={onDraftChange} signedIn={signedIn} />
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel
+            id="center"
+            defaultSize={`${panels.center}`}
+            minSize="30"
+            className="flex min-h-0 flex-col overflow-hidden p-3"
+          >
+            <ResumeCreatorPreview draft={draft} />
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel
+            id="right"
+            defaultSize={`${panels.right}`}
+            minSize="18"
+            className="flex min-h-0 flex-col overflow-hidden p-3"
+          >
+            <ResumeCreatorAtsPane
+              draft={draft}
+              onDraftChange={onDraftChange}
+              signedIn={signedIn}
+              yearsExperience={yearsExperience}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
+    );
+
+  if (fullscreen) {
+    return (
+      <FullscreenBoard className="gap-2">
+        <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-muted-foreground mb-0.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide">
+              <Icon className="size-3.5" aria-hidden />
+              Resume
+            </p>
+            <h1 className="text-foreground text-lg font-semibold tracking-tight sm:text-xl">
+              {FEATURES.createResume.label}
+            </h1>
+          </div>
+          {toolbar}
+        </header>
+        {message ? (
+          <Alert variant={message.kind === "err" ? "destructive" : "default"} className="shrink-0">
+            <AlertDescription>{message.text}</AlertDescription>
+          </Alert>
+        ) : null}
+        {board}
+      </FullscreenBoard>
+    );
+  }
 
   return (
     <ShellWidth className="flex h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] flex-col gap-3 overflow-hidden py-4 sm:py-5">
@@ -200,78 +316,7 @@ export function ResumeCreator({ yearsExperience }: Props) {
         </Alert>
       ) : null}
 
-      {sessionPending || !hydrated ? (
-        <div className="border-border bg-card text-muted-foreground flex min-h-0 flex-1 items-center justify-center rounded-lg border text-[13px]">
-          Loading editor…
-        </div>
-      ) : narrow ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-2">
-          <div className="border-border bg-card h-[min(70vh,36rem)] shrink-0 overflow-hidden rounded-lg border p-3">
-            <ResumeCreatorLeftPane draft={draft} onChange={onDraftChange} signedIn={signedIn} />
-          </div>
-          <div className="border-border bg-card h-[min(80vh,40rem)] shrink-0 overflow-hidden rounded-lg border p-3">
-            <ResumeCreatorPreview draft={draft} />
-          </div>
-          <div className="border-border bg-card h-[min(70vh,36rem)] shrink-0 overflow-hidden rounded-lg border p-3">
-            <ResumeCreatorAtsPane
-              draft={draft}
-              onDraftChange={onDraftChange}
-              signedIn={signedIn}
-              yearsExperience={yearsExperience}
-            />
-          </div>
-        </div>
-      ) : (
-        // Same idea as Jobs: fixed height under the page chrome; panes scroll inside.
-        <div className="min-h-0 flex-1">
-          <ResizablePanelGroup
-            orientation="horizontal"
-            variant="blocks"
-            className="h-full w-full"
-            onLayoutChanged={(layout) => {
-              const next = {
-                left: Number(layout.left ?? panels.left),
-                center: Number(layout.center ?? panels.center),
-                right: Number(layout.right ?? panels.right),
-              };
-              setPanels(next);
-              savePanelLayout(next);
-            }}
-          >
-            <ResizablePanel
-              id="left"
-              defaultSize={`${panels.left}`}
-              minSize="18"
-              className="flex min-h-0 flex-col overflow-hidden p-3"
-            >
-              <ResumeCreatorLeftPane draft={draft} onChange={onDraftChange} signedIn={signedIn} />
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel
-              id="center"
-              defaultSize={`${panels.center}`}
-              minSize="30"
-              className="flex min-h-0 flex-col overflow-hidden p-3"
-            >
-              <ResumeCreatorPreview draft={draft} />
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel
-              id="right"
-              defaultSize={`${panels.right}`}
-              minSize="18"
-              className="flex min-h-0 flex-col overflow-hidden p-3"
-            >
-              <ResumeCreatorAtsPane
-                draft={draft}
-                onDraftChange={onDraftChange}
-                signedIn={signedIn}
-                yearsExperience={yearsExperience}
-              />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </div>
-      )}
+      {board}
     </ShellWidth>
   );
 }

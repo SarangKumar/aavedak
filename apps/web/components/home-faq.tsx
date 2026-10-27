@@ -29,6 +29,12 @@ const FAQS = [
       "No. Aavedak recommends and prepares: matched roles, cover letters, and referral and follow-up emails. You review everything, apply on the company's own posting, and emails go out from your Gmail only when you send them.",
   },
   {
+    id: "create",
+    question: "Can I build a resume in Aavedak?",
+    answer:
+      "Yes. Create resume is a three-pane builder with a live page preview, style presets, and an ATS check on the draft. You can download a PDF without signing in; saving to Documents and live scoring need an account.",
+  },
+  {
     id: "ats",
     question: "What does the ATS check do?",
     answer:

@@ -732,8 +732,15 @@ export function ResumeCreatorPreview({
   className?: string;
 }) {
   const frameRef = useRef<HTMLDivElement | null>(null);
+  const measureRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
+  const [pageCount, setPageCount] = useState(1);
   const { width: pageW, height: pageH } = pageSizePt(draft.style.pageFormat);
+
+  const pxPerPt = 96 / 72;
+  const paperWpx = pageW * pxPerPt;
+  const paperHpx = pageH * pxPerPt;
+  const pageGapPx = 16;
 
   useLayoutEffect(() => {
     const el = frameRef.current;
@@ -741,52 +748,96 @@ export function ResumeCreatorPreview({
     const measure = () => {
       const w = el.clientWidth;
       if (w <= 0) return;
-      const pxPerPt = 96 / 72;
-      const paperCssPx = pageW * pxPerPt;
-      setScale(Math.min(1, w / paperCssPx));
+      setScale(Math.min(1, w / paperWpx));
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [pageW]);
+  }, [paperWpx]);
 
-  const pxPerPt = 96 / 72;
-  const paperWpx = pageW * pxPerPt;
-  const paperHpx = pageH * pxPerPt;
+  // Measure full content height at paper width; paginate like the PDF (ceil content / page).
+  useLayoutEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    const update = () => {
+      const h = el.scrollHeight;
+      if (h <= 0) return;
+      setPageCount(Math.max(1, Math.ceil(h / paperHpx)));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [draft, paperHpx]);
+
   const formatLabel = draft.style.pageFormat === "letter" ? "US Letter" : "A4";
+  const pages = Array.from({ length: pageCount }, (_, i) => i);
 
   return (
     <div className={cn("flex h-full min-h-0 flex-1 flex-col", className)}>
       <div className="mb-2 shrink-0 px-1">
         <p className="aavedak-section-title text-foreground">Live preview</p>
         <p className="aavedak-meta text-muted-foreground mt-0.5">
-          {formatLabel} · {draft.style.bodyPt}pt body ·{" "}
-          {RESUME_CREATOR_FONTS[draft.style.primaryFont].label}/
+          {formatLabel} · {pageCount} page{pageCount === 1 ? "" : "s"} · {draft.style.bodyPt}pt body
+          · {RESUME_CREATOR_FONTS[draft.style.primaryFont].label}/
           {RESUME_CREATOR_FONTS[draft.style.secondaryFont].label} · margins {draft.style.marginXPt}/
           {draft.style.marginYPt}pt · same numbers as the downloaded PDF
           {scale < 0.999 ? ` · scaled ${(scale * 100).toFixed(0)}%` : ""}
         </p>
       </div>
       <ScrollArea className="relative min-h-0 flex-1 rounded-md bg-[#e8e8e8] p-3 sm:p-4 dark:bg-[#2a2a2a]">
+        {/* Off-screen measurer at full paper width (unscaled) so page breaks match PDF height. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-0 top-0 -z-10 overflow-hidden opacity-0"
+          style={{ width: paperWpx, height: 0 }}
+        >
+          <div ref={measureRef} style={{ width: paperWpx }}>
+            <PaperContent draft={draft} />
+          </div>
+        </div>
         <div ref={frameRef} className="mx-auto w-full">
           <div
-            className="relative mx-auto"
+            className="mx-auto flex flex-col"
             style={{
               width: paperWpx * scale,
-              height: paperHpx * scale,
+              gap: pageGapPx * scale,
             }}
           >
-            <div
-              className="absolute left-0 top-0 origin-top-left overflow-hidden rounded-[2px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.18)] ring-1 ring-black/5"
-              style={{
-                width: paperWpx,
-                height: paperHpx,
-                transform: `scale(${scale})`,
-              }}
-            >
-              <PaperContent draft={draft} />
-            </div>
+            {pages.map((i) => (
+              <div
+                key={i}
+                className="relative shrink-0"
+                style={{
+                  width: paperWpx * scale,
+                  height: paperHpx * scale,
+                }}
+              >
+                <div
+                  className="absolute left-0 top-0 origin-top-left overflow-hidden rounded-[2px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.18)] ring-1 ring-black/5"
+                  style={{
+                    width: paperWpx,
+                    height: paperHpx,
+                    transform: `scale(${scale})`,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: paperWpx,
+                      transform: `translateY(${-i * paperHpx}px)`,
+                    }}
+                  >
+                    <PaperContent draft={draft} />
+                  </div>
+                </div>
+                {pageCount > 1 ? (
+                  <span className="pointer-events-none absolute bottom-1.5 right-2 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                    {i + 1}/{pageCount}
+                  </span>
+                ) : null}
+              </div>
+            ))}
           </div>
         </div>
       </ScrollArea>

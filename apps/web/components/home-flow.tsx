@@ -9,6 +9,7 @@ import { FEATURES, type FeatureKey } from "@/lib/features";
 type StepId =
   | "onboarding"
   | "resume"
+  | "create"
   | "dashboard"
   | "openings"
   | "cover"
@@ -48,6 +49,13 @@ const STEPS: Step[] = [
     title: FEATURES.uploadResume.label,
     href: FEATURES.uploadResume.href,
     place: "col-start-3 row-start-1 lg:col-start-1 lg:row-start-4",
+  },
+  {
+    id: "create",
+    feature: "createResume",
+    title: FEATURES.createResume.label,
+    href: FEATURES.createResume.href,
+    place: "col-start-3 row-start-2 lg:col-start-1 lg:row-start-3",
   },
   {
     id: "dashboard",
@@ -127,6 +135,8 @@ const EDGES: Array<{
   { from: "onboarding", to: "dashboard", delay: 0 },
   { from: "dashboard", to: "openings", delay: 0.5 },
   { from: "resume", to: "openings", delay: 0.2 },
+  { from: "create", to: "openings", delay: 0.3 },
+  { from: "create", to: "ats", delay: 1.05 },
   { from: "openings", to: "cover", delay: 0.9 },
   { from: "openings", to: "ats", delay: 1 },
   { from: "openings", to: "referrals", delay: 1.1 },

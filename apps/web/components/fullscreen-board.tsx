@@ -74,6 +74,39 @@ export function BoardToggleLink({
   );
 }
 
+/** In-page expand / collapse (client state) — same chrome as BoardToggleLink. */
+export function BoardToggleButton({
+  expanded,
+  onClick,
+  label = "board",
+  showOnMobile = false,
+}: {
+  expanded: boolean;
+  onClick: () => void;
+  label?: string;
+  showOnMobile?: boolean;
+}) {
+  const text = expanded ? `Collapse ${label}` : `Expand ${label} to full screen`;
+  return (
+    <span className={showOnMobile ? "inline-flex" : "hidden md:inline-flex"}>
+      <Tooltip
+        content={expanded ? "Collapse" : "Expand to full screen"}
+        className="z-70 text-[12px]"
+      >
+        <button
+          type="button"
+          onClick={onClick}
+          className={buttonVariants({ variant: "outline", size: "icon-sm" })}
+          aria-label={text}
+          aria-pressed={expanded}
+        >
+          {expanded ? <CollapseIcon /> : <ExpandIcon />}
+        </button>
+      </Tooltip>
+    </span>
+  );
+}
+
 function ExpandIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="size-4" aria-hidden>

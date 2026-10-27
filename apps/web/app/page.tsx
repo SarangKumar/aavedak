@@ -33,6 +33,7 @@ const features = (
     ["jobs", "Discover"],
     ["tracker", "Pipeline"],
     ["documents", "Prepare"],
+    ["createResume", "Create"],
     ["referrals", "Warm paths"],
     ["resumeScore", "Score"],
     ["improveResume", "Refine"],
@@ -125,12 +126,20 @@ export default async function HomePage() {
               {primaryLabel}
             </Link>
             {primaryHref === "/dashboard" ? (
-              <Link
-                href="/ats"
-                className="aavedak-btn border-border bg-card text-foreground ring-ring/10 hover:text-primary inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border px-6 text-[14px] font-medium shadow-sm ring-1 backdrop-blur-sm"
-              >
-                Check ATS Score
-              </Link>
+              <>
+                <Link
+                  href="/resume-creator"
+                  className="aavedak-btn border-border bg-card text-foreground ring-ring/10 hover:text-primary inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border px-6 text-[14px] font-medium shadow-sm ring-1 backdrop-blur-sm"
+                >
+                  Create resume
+                </Link>
+                <Link
+                  href="/ats"
+                  className="aavedak-btn border-border bg-card text-foreground ring-ring/10 hover:text-primary inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border px-6 text-[14px] font-medium shadow-sm ring-1 backdrop-blur-sm"
+                >
+                  Check ATS Score
+                </Link>
+              </>
             ) : null}
           </div>
         </section>
