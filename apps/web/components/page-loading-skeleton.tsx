@@ -17,6 +17,7 @@ type Variant =
   | "profile"
   | "admin"
   | "ats"
+  | "resume-creator"
   | "fallback"
   /** @deprecated use a specific variant */
   | "default"
@@ -974,6 +975,101 @@ function AtsSkeleton() {
   );
 }
 
+/** Matches components/resume-creator: fixed viewport shell, toolbar, 1:2:1 panes (edit / preview / ATS). */
+function ResumeCreatorSkeleton() {
+  return (
+    <SkeletonPage className="flex h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] flex-col gap-3 space-y-0 overflow-hidden py-4 sm:py-5">
+      <header className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <Skeleton className="h-3 w-14" />
+          <Skeleton className="h-8 w-44 sm:h-9" />
+          <Skeleton className="h-3.5 w-full max-w-2xl" />
+          <Skeleton className="h-3.5 w-72 max-w-full" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="h-8 w-28 rounded-md" />
+          <Skeleton className="h-8 w-36 rounded-md" />
+          <Skeleton className="h-8 w-24 rounded-md" />
+          <Skeleton className="size-8 rounded-md" />
+        </div>
+      </header>
+
+      {/* Desktop 1:2:1; phones stack three cards like the narrow creator layout. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden lg:flex-row lg:gap-0">
+        {/* Left · content / style */}
+        <div
+          className="border-border bg-card flex h-[min(70vh,36rem)] min-w-0 flex-col gap-2 overflow-hidden rounded-lg border p-3 lg:h-auto lg:min-h-0"
+          style={{ flex: "1 1 0%" }}
+        >
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-8 w-full rounded-md" />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="border-border/60 space-y-2 rounded-md border p-2.5">
+              <Skeleton className="h-3.5 w-28" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-4/5" />
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden w-2 shrink-0 lg:block" aria-hidden />
+
+        {/* Center · live preview (double weight) */}
+        <div
+          className="border-border bg-card flex h-[min(80vh,40rem)] min-w-0 flex-col gap-2 overflow-hidden rounded-lg border p-3 lg:h-auto lg:min-h-0"
+          style={{ flex: "2 1 0%" }}
+        >
+          <div className="space-y-1 px-1">
+            <Skeleton className="h-3.5 w-24" />
+            <Skeleton className="h-3 w-56 max-w-full" />
+          </div>
+          <div className="bg-muted/60 flex min-h-0 flex-1 items-start justify-center overflow-hidden rounded-md p-3 sm:p-4">
+            <div className="bg-card border-border/60 aspect-[210/297] w-full max-w-[min(100%,28rem)] space-y-3 rounded-[2px] border p-5 shadow-sm sm:p-6">
+              <Skeleton className="mx-auto h-5 w-40" />
+              <Skeleton className="mx-auto h-3 w-56 max-w-full" />
+              <Skeleton className="mt-4 h-3 w-24" />
+              <Skeleton className="h-2.5 w-full" />
+              <Skeleton className="h-2.5 w-full" />
+              <Skeleton className="h-2.5 w-4/5" />
+              <Skeleton className="mt-4 h-3 w-28" />
+              <Skeleton className="h-2.5 w-full" />
+              <Skeleton className="h-2.5 w-full" />
+              <Skeleton className="h-2.5 w-3/4" />
+              <Skeleton className="mt-4 h-3 w-20" />
+              <Skeleton className="h-2.5 w-full" />
+              <Skeleton className="h-2.5 w-5/6" />
+            </div>
+          </div>
+        </div>
+
+        <div className="hidden w-2 shrink-0 lg:block" aria-hidden />
+
+        {/* Right · ATS */}
+        <div
+          className="border-border bg-card flex h-[min(70vh,36rem)] min-w-0 flex-col gap-2 overflow-hidden rounded-lg border p-3 lg:h-auto lg:min-h-0"
+          style={{ flex: "1 1 0%" }}
+        >
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-9 w-full rounded-md" />
+          <Skeleton className="min-h-24 w-full flex-1 rounded-md" />
+          <Skeleton className="h-9 w-full rounded-md" />
+          <div className="mt-1 flex items-center gap-3">
+            <Skeleton className="size-14 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+          </div>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full shrink-0 rounded-md" />
+          ))}
+        </div>
+      </div>
+    </SkeletonPage>
+  );
+}
+
 function FallbackSkeleton() {
   return (
     <SkeletonPage className="space-y-5 py-8 sm:py-10">
@@ -1068,6 +1164,8 @@ export function PageLoadingSkeleton({ variant = "fallback" }: { variant?: Varian
       return <ProfileSkeleton />;
     case "ats":
       return <AtsSkeleton />;
+    case "resume-creator":
+      return <ResumeCreatorSkeleton />;
     case "admin":
       return <AdminSkeleton />;
     case "fallback":
