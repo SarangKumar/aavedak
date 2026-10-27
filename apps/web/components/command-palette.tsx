@@ -32,7 +32,6 @@ const PALETTE_FEATURES: FeatureKey[] = [
   "createResume",
   "resumeScore",
   "improveResume",
-  "uploadResume",
   "referrals",
   "inbox",
   "people",

@@ -21,7 +21,7 @@ const mobileNav: readonly NavGroup[] = [
   { label: "Workspace", items: [item("dashboard"), item("jobs"), item("tracker")] },
   {
     label: "Resume",
-    items: [item("createResume"), item("resumeScore"), item("improveResume"), item("uploadResume")],
+    items: [item("createResume"), item("resumeScore"), item("improveResume")],
   },
   {
     label: "Apply & reach out",

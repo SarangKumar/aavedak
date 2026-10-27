@@ -33,6 +33,10 @@ type Props = {
   yearsExperience: number | null;
 };
 
+/**
+ * Fixed viewport-height shell (Jobs-style): panes share one height; each scrolls inside.
+ * Draft lives in localStorage so signing in does not wipe it.
+ */
 export function ResumeCreator({ yearsExperience }: Props) {
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const signedIn = Boolean(session?.user);
@@ -172,8 +176,8 @@ export function ResumeCreator({ yearsExperience }: Props) {
   );
 
   return (
-    <ShellWidth className="flex min-h-[calc(100dvh-3.5rem)] flex-col gap-3 py-4 sm:py-5">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <ShellWidth className="flex h-[calc(100dvh-3.5rem)] max-h-[calc(100dvh-3.5rem)] flex-col gap-3 overflow-hidden py-4 sm:py-5">
+      <header className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-muted-foreground mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide">
             <Icon className="size-3.5" aria-hidden />
@@ -183,32 +187,32 @@ export function ResumeCreator({ yearsExperience }: Props) {
             {FEATURES.createResume.label}
           </h1>
           <p className="text-muted-foreground mt-1 max-w-2xl text-[13px] leading-snug">
-            {FEATURES.createResume.description} Drafts stay on this device until you save. Download
-            works signed out; save and ATS scoring need an account.
+            {FEATURES.createResume.description} Drafts stay on this device (including across
+            sign-in). Download works signed out; save and ATS scoring need an account.
           </p>
         </div>
         {toolbar}
       </header>
 
       {message ? (
-        <Alert variant={message.kind === "err" ? "destructive" : "default"}>
+        <Alert variant={message.kind === "err" ? "destructive" : "default"} className="shrink-0">
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       ) : null}
 
       {sessionPending || !hydrated ? (
-        <div className="border-border bg-card text-muted-foreground flex min-h-[28rem] items-center justify-center rounded-lg border text-[13px]">
+        <div className="border-border bg-card text-muted-foreground flex min-h-0 flex-1 items-center justify-center rounded-lg border text-[13px]">
           Loading editor…
         </div>
       ) : narrow ? (
-        <div className="flex flex-col gap-3">
-          <div className="border-border bg-card min-h-[28rem] overflow-hidden rounded-lg border p-3">
-            <ResumeCreatorLeftPane draft={draft} onChange={onDraftChange} />
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-2">
+          <div className="border-border bg-card h-[min(70vh,36rem)] shrink-0 overflow-hidden rounded-lg border p-3">
+            <ResumeCreatorLeftPane draft={draft} onChange={onDraftChange} signedIn={signedIn} />
           </div>
-          <div className="border-border bg-card min-h-[32rem] overflow-hidden rounded-lg border p-3">
+          <div className="border-border bg-card h-[min(80vh,40rem)] shrink-0 overflow-hidden rounded-lg border p-3">
             <ResumeCreatorPreview draft={draft} />
           </div>
-          <div className="border-border bg-card min-h-[28rem] overflow-hidden rounded-lg border p-3">
+          <div className="border-border bg-card h-[min(70vh,36rem)] shrink-0 overflow-hidden rounded-lg border p-3">
             <ResumeCreatorAtsPane
               draft={draft}
               onDraftChange={onDraftChange}
@@ -218,11 +222,12 @@ export function ResumeCreator({ yearsExperience }: Props) {
           </div>
         </div>
       ) : (
-        <div className="min-h-0 flex-1" style={{ minHeight: "36rem" }}>
+        // Same idea as Jobs: fixed height under the page chrome; panes scroll inside.
+        <div className="min-h-0 flex-1">
           <ResizablePanelGroup
             orientation="horizontal"
             variant="blocks"
-            className="h-full min-h-[36rem]"
+            className="h-full w-full"
             onLayoutChanged={(layout) => {
               const next = {
                 left: Number(layout.left ?? panels.left),
@@ -237,16 +242,16 @@ export function ResumeCreator({ yearsExperience }: Props) {
               id="left"
               defaultSize={`${panels.left}`}
               minSize="18"
-              className="flex flex-col p-3"
+              className="flex min-h-0 flex-col overflow-hidden p-3"
             >
-              <ResumeCreatorLeftPane draft={draft} onChange={onDraftChange} />
+              <ResumeCreatorLeftPane draft={draft} onChange={onDraftChange} signedIn={signedIn} />
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel
               id="center"
               defaultSize={`${panels.center}`}
               minSize="30"
-              className="flex flex-col p-3"
+              className="flex min-h-0 flex-col overflow-hidden p-3"
             >
               <ResumeCreatorPreview draft={draft} />
             </ResizablePanel>
@@ -255,7 +260,7 @@ export function ResumeCreator({ yearsExperience }: Props) {
               id="right"
               defaultSize={`${panels.right}`}
               minSize="18"
-              className="flex flex-col p-3"
+              className="flex min-h-0 flex-col overflow-hidden p-3"
             >
               <ResumeCreatorAtsPane
                 draft={draft}

@@ -340,6 +340,18 @@ async function runSchema() {
   // Resume Improver: a saved revision points at the resume it came from (original untouched).
   await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS source_resume_id TEXT`;
   await db`ALTER TABLE resumes ADD COLUMN IF NOT EXISTS origin TEXT NOT NULL DEFAULT 'upload'`;
+  // Named style presets for the resume creator (signed-in users only).
+  await db`
+    CREATE TABLE IF NOT EXISTS resume_creator_styles (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      style_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`;
+  await db`CREATE INDEX IF NOT EXISTS resume_creator_styles_user_idx
+    ON resume_creator_styles (user_id, updated_at DESC)`;
   await db`
     CREATE TABLE IF NOT EXISTS resume_improvements (
       id TEXT PRIMARY KEY NOT NULL,

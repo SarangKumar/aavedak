@@ -1,7 +1,7 @@
 "use client";
 
-import { GripVertical, Plus, Trash2 } from "lucide-react";
-import { type ReactNode } from "react";
+import { ChevronDown, GripVertical, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import {
   Accordion,
@@ -9,7 +9,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DragDrop,
   DragDropHandle,
@@ -30,6 +30,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
+  applyPreset,
+  markStyleEdited,
   newCertificationEntry,
   newEducationEntry,
   newExperienceEntry,
@@ -39,17 +41,22 @@ import {
 } from "@/lib/resume-creator-draft";
 import {
   RESUME_CREATOR_FONTS,
-  RESUME_CREATOR_TEMPLATES,
+  STYLE_PRESETS,
   type ResumeCreatorDraft,
   type ResumeCreatorFontId,
+  type ResumeCreatorPresetId,
   type ResumeCreatorSectionId,
-  type ResumeCreatorTemplateId,
+  type ResumeCreatorStyle,
 } from "@/lib/resume-creator-types";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+
+type SavedStyle = { id: string; name: string; style: ResumeCreatorStyle };
 
 type Props = {
   draft: ResumeCreatorDraft;
   onChange: (next: ResumeCreatorDraft) => void;
+  signedIn: boolean;
   className?: string;
 };
 
@@ -70,56 +77,212 @@ function Field({
   );
 }
 
-export function ResumeCreatorLeftPane({ draft, onChange, className }: Props) {
-  const patch = (partial: Partial<ResumeCreatorDraft>) =>
-    onChange({ ...draft, ...partial, updatedAt: new Date().toISOString() });
+export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: Props) {
+  const [openIds, setOpenIds] = useState<Set<ResumeCreatorSectionId>>(
+    () => new Set(["contact", "summary", "experience"]),
+  );
+  const [savedStyles, setSavedStyles] = useState<SavedStyle[]>([]);
+  const [savingStyle, setSavingStyle] = useState(false);
+  const [styleName, setStyleName] = useState("");
+  const [styleMsg, setStyleMsg] = useState<string | null>(null);
+
+  const patch = useCallback(
+    (partial: Partial<ResumeCreatorDraft>) =>
+      onChange({ ...draft, ...partial, updatedAt: new Date().toISOString() }),
+    [draft, onChange],
+  );
   const patchContent = (partial: Partial<ResumeCreatorDraft["content"]>) =>
     patch({ content: { ...draft.content, ...partial } });
-  const patchTypography = (partial: Partial<ResumeCreatorDraft["typography"]>) =>
-    patch({ typography: { ...draft.typography, ...partial } });
+
+  const patchStyle = (partial: Partial<ResumeCreatorStyle>) => {
+    const next = markStyleEdited({
+      ...draft,
+      style: { ...draft.style, ...partial },
+    });
+    onChange(next);
+  };
+
+  useEffect(() => {
+    if (!signedIn) {
+      setSavedStyles([]);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/resume-creator/styles")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { styles?: SavedStyle[] } | null) => {
+        if (!cancelled && data?.styles) setSavedStyles(data.styles);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn]);
+
+  function toggleOpen(id: ResumeCreatorSectionId) {
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function saveCurrentStyle() {
+    if (!signedIn) return;
+    const name = styleName.trim() || "My style";
+    setSavingStyle(true);
+    setStyleMsg(null);
+    try {
+      const res = await fetch("/api/resume-creator/styles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, style: draft.style }),
+      });
+      const data = (await res.json()) as { style?: SavedStyle; error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not save style.");
+      if (data.style) {
+        setSavedStyles((prev) => [data.style!, ...prev.filter((s) => s.id !== data.style!.id)]);
+        onChange({
+          ...draft,
+          styleSource: { kind: "custom", id: data.style.id, name: data.style.name },
+          updatedAt: new Date().toISOString(),
+        });
+        setStyleName("");
+        setStyleMsg(`Saved “${data.style.name}”.`);
+      }
+    } catch (err) {
+      setStyleMsg(err instanceof Error ? err.message : "Could not save style.");
+    } finally {
+      setSavingStyle(false);
+    }
+  }
+
+  async function removeSavedStyle(id: string) {
+    if (!signedIn) return;
+    await fetch(`/api/resume-creator/styles/${id}`, { method: "DELETE" });
+    setSavedStyles((prev) => prev.filter((s) => s.id !== id));
+  }
 
   const sectionIds = draft.sections.map((s) => s.id);
+  const activePreset = draft.styleSource.kind === "preset" ? draft.styleSource.id : null;
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
+    <div className={cn("flex h-full min-h-0 flex-1 flex-col", className)}>
       <div className="mb-2 shrink-0 px-1">
         <p className="aavedak-section-title text-foreground">Build</p>
         <p className="aavedak-meta text-muted-foreground mt-0.5">
-          Templates, type, and section content. Draft autosaves on this device.
+          Presets fill the style fields. Draft stays on this device until you save the resume.
         </p>
       </div>
 
       <ScrollArea className="min-h-0 flex-1 pr-1">
         <div className="space-y-4 pb-4">
           <section className="space-y-2">
-            <p className="text-foreground text-[12px] font-semibold">Template</p>
+            <p className="text-foreground text-[12px] font-semibold">Style presets</p>
             <ToggleGroup
-              aria-label="Resume template"
+              aria-label="Style preset"
               variant="outline"
               size="sm"
               spacing={1}
-              value={[draft.templateId]}
+              value={activePreset ? [activePreset] : []}
               onValueChange={(vals) => {
-                const next = vals[0] as ResumeCreatorTemplateId | undefined;
-                if (next) patch({ templateId: next });
+                const next = vals[0] as ResumeCreatorPresetId | undefined;
+                if (next) onChange(applyPreset(draft, next));
               }}
               className="flex flex-wrap"
             >
-              {(Object.keys(RESUME_CREATOR_TEMPLATES) as ResumeCreatorTemplateId[]).map((id) => (
+              {(Object.keys(STYLE_PRESETS) as ResumeCreatorPresetId[]).map((id) => (
                 <ToggleGroupItem
                   key={id}
                   value={id}
                   className="h-auto flex-col items-start rounded-md px-2.5 py-1.5 text-left"
                 >
-                  <span className="text-[12px] font-medium">
-                    {RESUME_CREATOR_TEMPLATES[id].label}
-                  </span>
+                  <span className="text-[12px] font-medium">{STYLE_PRESETS[id].label}</span>
                   <span className="text-muted-foreground text-[10px] font-normal leading-snug">
-                    {RESUME_CREATOR_TEMPLATES[id].description}
+                    {STYLE_PRESETS[id].description}
                   </span>
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
+            {draft.styleSource.kind === "edited" ? (
+              <p className="text-muted-foreground text-[11px]">
+                Style fields were edited — no longer matching a preset.
+              </p>
+            ) : draft.styleSource.kind === "custom" ? (
+              <p className="text-muted-foreground text-[11px]">
+                Using saved style “{draft.styleSource.name}”.
+              </p>
+            ) : null}
+
+            {signedIn ? (
+              <div className="border-border space-y-2 rounded-md border p-2.5">
+                <p className="text-foreground text-[11px] font-medium">Your configurations</p>
+                {savedStyles.length === 0 ? (
+                  <p className="text-muted-foreground text-[11px]">No saved styles yet.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {savedStyles.map((s) => (
+                      <li key={s.id} className="flex items-center gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          className="min-w-0 flex-1 justify-start"
+                          onClick={() =>
+                            onChange({
+                              ...draft,
+                              styleSource: { kind: "custom", id: s.id, name: s.name },
+                              style: { ...s.style },
+                              updatedAt: new Date().toISOString(),
+                            })
+                          }
+                        >
+                          <span className="truncate">{s.name}</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label={`Delete ${s.name}`}
+                          onClick={() => void removeSavedStyle(s.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex gap-1.5">
+                  <Input
+                    value={styleName}
+                    onChange={(e) => setStyleName(e.target.value)}
+                    placeholder="Name this style"
+                    className="h-8 flex-1 text-[12px]"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    loading={savingStyle}
+                    loadingText="Saving…"
+                    onClick={() => void saveCurrentStyle()}
+                  >
+                    Save
+                  </Button>
+                </div>
+                {styleMsg ? <p className="text-muted-foreground text-[11px]">{styleMsg}</p> : null}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-[11px]">
+                <Link
+                  href="/sign-in?next=/resume-creator"
+                  className={cn(buttonVariants({ variant: "link", size: "xs" }), "h-auto px-0")}
+                >
+                  Sign in
+                </Link>{" "}
+                to save your own style configurations. Your draft is kept on this device either way.
+              </p>
+            )}
           </section>
 
           <Accordion type="single" collapsible defaultValue="styling" className="border-y-0">
@@ -130,8 +293,8 @@ export function ResumeCreatorLeftPane({ draft, onChange, className }: Props) {
               <AccordionContent className="space-y-3 pb-3">
                 <Field label="Font family">
                   <Select
-                    value={draft.typography.fontFamily}
-                    onValueChange={(v) => patchTypography({ fontFamily: v as ResumeCreatorFontId })}
+                    value={draft.style.fontFamily}
+                    onValueChange={(v) => patchStyle({ fontFamily: v as ResumeCreatorFontId })}
                   >
                     <SelectTrigger className="h-8 w-full text-[12px]">
                       <SelectValue />
@@ -152,24 +315,61 @@ export function ResumeCreatorLeftPane({ draft, onChange, className }: Props) {
                       ["sectionTitlePt", "Section title", 8, 18],
                       ["bodyPt", "Body", 7, 14],
                       ["footerPt", "Footer / meta", 6, 12],
+                      ["marginXPt", "Horizontal margin", 24, 72],
+                      ["marginYPt", "Vertical margin", 24, 72],
+                      ["sectionGapPt", "Section gap", 0, 36],
                     ] as const
                   ).map(([key, label, min, max]) => (
-                    <Field key={key} label={`${label} (${draft.typography[key]}pt)`}>
+                    <Field key={key} label={`${label} (${draft.style[key]}pt)`}>
                       <Input
                         type="number"
                         min={min}
                         max={max}
                         step={0.5}
-                        value={draft.typography[key]}
+                        value={draft.style[key]}
                         onChange={(e) => {
                           const n = Number(e.target.value);
                           if (!Number.isFinite(n)) return;
-                          patchTypography({ [key]: Math.min(max, Math.max(min, n)) });
+                          patchStyle({ [key]: Math.min(max, Math.max(min, n)) });
                         }}
                         className="h-8 text-[12px]"
                       />
                     </Field>
                   ))}
+                  <Field label={`Line height (${draft.style.lineHeight.toFixed(2)})`}>
+                    <Input
+                      type="number"
+                      min={1.05}
+                      max={1.8}
+                      step={0.02}
+                      value={draft.style.lineHeight}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        if (!Number.isFinite(n)) return;
+                        patchStyle({ lineHeight: Math.min(1.8, Math.max(1.05, n)) });
+                      }}
+                      className="h-8 text-[12px]"
+                    />
+                  </Field>
+                  <Field label="Section rule">
+                    <Select
+                      value={draft.style.rule}
+                      onValueChange={(v) =>
+                        patchStyle({
+                          rule: v === "light" || v === "none" || v === "strong" ? v : "strong",
+                        })
+                      }
+                    >
+                      <SelectTrigger className="h-8 w-full text-[12px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="strong">Strong underline</SelectItem>
+                        <SelectItem value="light">Light underline</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -178,7 +378,7 @@ export function ResumeCreatorLeftPane({ draft, onChange, className }: Props) {
           <section className="space-y-2">
             <p className="text-foreground text-[12px] font-semibold">Sections</p>
             <p className="text-muted-foreground text-[11px]">
-              Drag to reorder. Toggle to show or hide on the PDF.
+              Drag to reorder. Toggle visibility. Expand a row to edit its content.
             </p>
             <DragDrop
               id="resume-creator-sections"
@@ -189,555 +389,227 @@ export function ResumeCreatorLeftPane({ draft, onChange, className }: Props) {
               }}
             >
               <DragDropList className="space-y-1.5">
-                {draft.sections.map((section) => (
-                  <DragDropItem
-                    key={section.id}
-                    id={section.id}
-                    className="border-border bg-card flex items-center gap-1.5 rounded-md border px-1.5 py-1.5"
-                  >
-                    <DragDropHandle
-                      className="text-muted-foreground hover:text-foreground size-7 shrink-0"
-                      aria-label={`Drag ${section.title}`}
+                {draft.sections.map((section) => {
+                  const open = openIds.has(section.id);
+                  return (
+                    <DragDropItem
+                      key={section.id}
+                      id={section.id}
+                      className="border-border bg-card overflow-hidden rounded-md border"
                     >
-                      <GripVertical className="size-3.5" />
-                    </DragDropHandle>
-                    <span className="text-foreground min-w-0 flex-1 truncate text-[12px] font-medium">
-                      {section.title}
-                    </span>
-                    <Switch
-                      checked={section.visible}
-                      onCheckedChange={(checked) =>
-                        patch({
-                          sections: setSectionVisible(draft.sections, section.id, checked),
-                        })
-                      }
-                      aria-label={`${section.visible ? "Hide" : "Show"} ${section.title}`}
-                    />
-                  </DragDropItem>
-                ))}
+                      <div className="flex items-center gap-1 px-1.5 py-1.5">
+                        <DragDropHandle
+                          className="text-muted-foreground hover:text-foreground size-7 shrink-0"
+                          aria-label={`Drag ${section.title}`}
+                        >
+                          <GripVertical className="size-3.5" />
+                        </DragDropHandle>
+                        <span className="text-foreground min-w-0 flex-1 truncate text-[12px] font-medium">
+                          {section.title}
+                        </span>
+                        <Switch
+                          checked={section.visible}
+                          onCheckedChange={(checked) =>
+                            patch({
+                              sections: setSectionVisible(draft.sections, section.id, checked),
+                            })
+                          }
+                          aria-label={`${section.visible ? "Hide" : "Show"} ${section.title}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-expanded={open}
+                          aria-label={`${open ? "Collapse" : "Expand"} ${section.title}`}
+                          onClick={() => toggleOpen(section.id)}
+                        >
+                          <ChevronDown
+                            className={cn("size-3.5 transition-transform", open && "rotate-180")}
+                          />
+                        </Button>
+                      </div>
+                      {open ? (
+                        <div className="border-border space-y-2 border-t px-2.5 py-2.5">
+                          <SectionEditor
+                            sectionId={section.id}
+                            draft={draft}
+                            patchContent={patchContent}
+                          />
+                        </div>
+                      ) : null}
+                    </DragDropItem>
+                  );
+                })}
               </DragDropList>
             </DragDrop>
           </section>
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
 
-          <Accordion
-            type="multiple"
-            defaultValue={["contact", "summary", "experience"]}
-            className="border-y-0"
-          >
-            <AccordionItem value="contact">
-              <AccordionTrigger className="py-2 text-[12px] font-semibold">
-                Contact
-              </AccordionTrigger>
-              <AccordionContent className="space-y-2 pb-3">
-                <Field label="Full name">
-                  <Input
-                    value={draft.content.contact.fullName}
-                    onChange={(e) =>
-                      patchContent({
-                        contact: { ...draft.content.contact, fullName: e.target.value },
-                      })
-                    }
-                    className="h-8 text-[12px]"
-                    placeholder="Alex Rivera"
-                  />
-                </Field>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {(
-                    [
-                      ["email", "Email", "alex@example.com"],
-                      ["phone", "Phone", "+91 …"],
-                      ["location", "Location", "Bengaluru, India"],
-                      ["linkedin", "LinkedIn", "linkedin.com/in/…"],
-                      ["github", "GitHub", "github.com/…"],
-                      ["portfolio", "Portfolio", "yoursite.dev"],
-                    ] as const
-                  ).map(([key, label, placeholder]) => (
-                    <Field key={key} label={label}>
-                      <Input
-                        value={draft.content.contact[key]}
-                        onChange={(e) =>
-                          patchContent({
-                            contact: { ...draft.content.contact, [key]: e.target.value },
-                          })
-                        }
-                        className="h-8 text-[12px]"
-                        placeholder={placeholder}
-                      />
-                    </Field>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="summary">
-              <AccordionTrigger className="py-2 text-[12px] font-semibold">
-                Summary
-              </AccordionTrigger>
-              <AccordionContent className="pb-3">
-                <Textarea
-                  value={draft.content.summary}
-                  onChange={(e) => patchContent({ summary: e.target.value })}
-                  className="min-h-24 text-[12px] leading-relaxed"
-                  placeholder="2–3 lines on what you do and the roles you want."
+function SectionEditor({
+  sectionId,
+  draft,
+  patchContent,
+}: {
+  sectionId: ResumeCreatorSectionId;
+  draft: ResumeCreatorDraft;
+  patchContent: (partial: Partial<ResumeCreatorDraft["content"]>) => void;
+}) {
+  switch (sectionId) {
+    case "contact":
+      return (
+        <div className="space-y-2">
+          <Field label="Full name">
+            <Input
+              value={draft.content.contact.fullName}
+              onChange={(e) =>
+                patchContent({
+                  contact: { ...draft.content.contact, fullName: e.target.value },
+                })
+              }
+              className="h-8 text-[12px]"
+              placeholder="Alex Rivera"
+            />
+          </Field>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {(
+              [
+                ["email", "Email", "alex@example.com"],
+                ["phone", "Phone", "+91 …"],
+                ["location", "Location", "Bengaluru, India"],
+                ["linkedin", "LinkedIn", "linkedin.com/in/…"],
+                ["github", "GitHub", "github.com/…"],
+                ["portfolio", "Portfolio", "yoursite.dev"],
+              ] as const
+            ).map(([key, label, placeholder]) => (
+              <Field key={key} label={label}>
+                <Input
+                  value={draft.content.contact[key]}
+                  onChange={(e) =>
+                    patchContent({
+                      contact: { ...draft.content.contact, [key]: e.target.value },
+                    })
+                  }
+                  className="h-8 text-[12px]"
+                  placeholder={placeholder}
                 />
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="experience">
-              <AccordionTrigger className="py-2 text-[12px] font-semibold">
-                Experience
-              </AccordionTrigger>
-              <AccordionContent className="space-y-3 pb-3">
-                {draft.content.experience.map((entry, idx) => (
-                  <div key={entry.id} className="border-border space-y-2 rounded-md border p-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-muted-foreground text-[11px]">Role {idx + 1}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Remove role"
-                        disabled={draft.content.experience.length <= 1}
-                        onClick={() =>
-                          patchContent({
-                            experience: draft.content.experience.filter((e) => e.id !== entry.id),
-                          })
-                        }
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <Field label="Title">
-                        <Input
-                          value={entry.title}
-                          onChange={(e) => {
-                            const experience = draft.content.experience.map((row) =>
-                              row.id === entry.id ? { ...row, title: e.target.value } : row,
-                            );
-                            patchContent({ experience });
-                          }}
-                          className="h-8 text-[12px]"
-                        />
-                      </Field>
-                      <Field label="Company">
-                        <Input
-                          value={entry.company}
-                          onChange={(e) => {
-                            const experience = draft.content.experience.map((row) =>
-                              row.id === entry.id ? { ...row, company: e.target.value } : row,
-                            );
-                            patchContent({ experience });
-                          }}
-                          className="h-8 text-[12px]"
-                        />
-                      </Field>
-                      <Field label="Start">
-                        <Input
-                          value={entry.start}
-                          onChange={(e) => {
-                            const experience = draft.content.experience.map((row) =>
-                              row.id === entry.id ? { ...row, start: e.target.value } : row,
-                            );
-                            patchContent({ experience });
-                          }}
-                          className="h-8 text-[12px]"
-                          placeholder="2024-01"
-                        />
-                      </Field>
-                      <Field label="End">
-                        <Input
-                          value={entry.end}
-                          onChange={(e) => {
-                            const experience = draft.content.experience.map((row) =>
-                              row.id === entry.id ? { ...row, end: e.target.value } : row,
-                            );
-                            patchContent({ experience });
-                          }}
-                          className="h-8 text-[12px]"
-                          placeholder="Present"
-                        />
-                      </Field>
-                    </div>
-                    <Field label="Location">
-                      <Input
-                        value={entry.location}
-                        onChange={(e) => {
-                          const experience = draft.content.experience.map((row) =>
-                            row.id === entry.id ? { ...row, location: e.target.value } : row,
-                          );
-                          patchContent({ experience });
-                        }}
-                        className="h-8 text-[12px]"
-                      />
-                    </Field>
-                    <div className="space-y-1.5">
-                      <Label className="text-muted-foreground text-[11px]">Bullets</Label>
-                      {entry.bullets.map((bullet, bi) => (
-                        <div key={bi} className="flex gap-1.5">
-                          <Textarea
-                            value={bullet}
-                            onChange={(e) => {
-                              const bullets = entry.bullets.map((b, i) =>
-                                i === bi ? e.target.value : b,
-                              );
-                              const experience = draft.content.experience.map((row) =>
-                                row.id === entry.id ? { ...row, bullets } : row,
-                              );
-                              patchContent({ experience });
-                            }}
-                            className="min-h-14 flex-1 text-[12px]"
-                            placeholder="What you shipped, with a metric when you can."
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-xs"
-                            className="mt-1 shrink-0"
-                            aria-label="Remove bullet"
-                            disabled={entry.bullets.length <= 1}
-                            onClick={() => {
-                              const bullets = entry.bullets.filter((_, i) => i !== bi);
-                              const experience = draft.content.experience.map((row) =>
-                                row.id === entry.id
-                                  ? { ...row, bullets: bullets.length ? bullets : [""] }
-                                  : row,
-                              );
-                              patchContent({ experience });
-                            }}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="xs"
-                        onClick={() => {
-                          const experience = draft.content.experience.map((row) =>
-                            row.id === entry.id ? { ...row, bullets: [...row.bullets, ""] } : row,
-                          );
-                          patchContent({ experience });
-                        }}
-                      >
-                        <Plus className="size-3.5" />
-                        Bullet
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              </Field>
+            ))}
+          </div>
+        </div>
+      );
+    case "summary":
+      return (
+        <Textarea
+          value={draft.content.summary}
+          onChange={(e) => patchContent({ summary: e.target.value })}
+          className="min-h-24 text-[12px] leading-relaxed"
+          placeholder="2–3 lines on what you do and the roles you want."
+        />
+      );
+    case "skills":
+      return (
+        <Textarea
+          value={draft.content.skills}
+          onChange={(e) => patchContent({ skills: e.target.value })}
+          className="min-h-20 text-[12px] leading-relaxed"
+          placeholder="Comma- or newline-separated: TypeScript, Python, …"
+        />
+      );
+    case "experience":
+      return (
+        <div className="space-y-3">
+          {draft.content.experience.map((entry, idx) => (
+            <div key={entry.id} className="border-border space-y-2 rounded-md border p-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground text-[11px]">Role {idx + 1}</span>
                 <Button
                   type="button"
-                  variant="secondary"
-                  size="xs"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Remove role"
+                  disabled={draft.content.experience.length <= 1}
                   onClick={() =>
                     patchContent({
-                      experience: [...draft.content.experience, newExperienceEntry()],
+                      experience: draft.content.experience.filter((e) => e.id !== entry.id),
                     })
                   }
                 >
-                  <Plus className="size-3.5" />
-                  Add role
+                  <Trash2 className="size-3.5" />
                 </Button>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="education">
-              <AccordionTrigger className="py-2 text-[12px] font-semibold">
-                Education
-              </AccordionTrigger>
-              <AccordionContent className="space-y-3 pb-3">
-                {draft.content.education.map((entry, idx) => (
-                  <div key={entry.id} className="border-border space-y-2 rounded-md border p-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground text-[11px]">School {idx + 1}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        disabled={draft.content.education.length <= 1}
-                        aria-label="Remove school"
-                        onClick={() =>
-                          patchContent({
-                            education: draft.content.education.filter((e) => e.id !== entry.id),
-                          })
-                        }
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                    <Field label="Degree">
-                      <Input
-                        value={entry.degree}
-                        onChange={(e) => {
-                          const education = draft.content.education.map((row) =>
-                            row.id === entry.id ? { ...row, degree: e.target.value } : row,
-                          );
-                          patchContent({ education });
-                        }}
-                        className="h-8 text-[12px]"
-                      />
-                    </Field>
-                    <Field label="School">
-                      <Input
-                        value={entry.school}
-                        onChange={(e) => {
-                          const education = draft.content.education.map((row) =>
-                            row.id === entry.id ? { ...row, school: e.target.value } : row,
-                          );
-                          patchContent({ education });
-                        }}
-                        className="h-8 text-[12px]"
-                      />
-                    </Field>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Field label="Start">
-                        <Input
-                          value={entry.start}
-                          onChange={(e) => {
-                            const education = draft.content.education.map((row) =>
-                              row.id === entry.id ? { ...row, start: e.target.value } : row,
-                            );
-                            patchContent({ education });
-                          }}
-                          className="h-8 text-[12px]"
-                        />
-                      </Field>
-                      <Field label="End">
-                        <Input
-                          value={entry.end}
-                          onChange={(e) => {
-                            const education = draft.content.education.map((row) =>
-                              row.id === entry.id ? { ...row, end: e.target.value } : row,
-                            );
-                            patchContent({ education });
-                          }}
-                          className="h-8 text-[12px]"
-                        />
-                      </Field>
-                    </div>
-                    <Field label="Location">
-                      <Input
-                        value={entry.location}
-                        onChange={(e) => {
-                          const education = draft.content.education.map((row) =>
-                            row.id === entry.id ? { ...row, location: e.target.value } : row,
-                          );
-                          patchContent({ education });
-                        }}
-                        className="h-8 text-[12px]"
-                      />
-                    </Field>
-                    <Field label="Details">
-                      <Input
-                        value={entry.details}
-                        onChange={(e) => {
-                          const education = draft.content.education.map((row) =>
-                            row.id === entry.id ? { ...row, details: e.target.value } : row,
-                          );
-                          patchContent({ education });
-                        }}
-                        className="h-8 text-[12px]"
-                        placeholder="GPA, coursework, honours"
-                      />
-                    </Field>
-                  </div>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    ["title", "Title"],
+                    ["company", "Company"],
+                    ["start", "Start"],
+                    ["end", "End"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <Field key={key} label={label}>
+                    <Input
+                      value={entry[key]}
+                      onChange={(e) => {
+                        const experience = draft.content.experience.map((row) =>
+                          row.id === entry.id ? { ...row, [key]: e.target.value } : row,
+                        );
+                        patchContent({ experience });
+                      }}
+                      className="h-8 text-[12px]"
+                    />
+                  </Field>
                 ))}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="xs"
-                  onClick={() =>
-                    patchContent({ education: [...draft.content.education, newEducationEntry()] })
-                  }
-                >
-                  <Plus className="size-3.5" />
-                  Add school
-                </Button>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="skills">
-              <AccordionTrigger className="py-2 text-[12px] font-semibold">Skills</AccordionTrigger>
-              <AccordionContent className="pb-3">
-                <Textarea
-                  value={draft.content.skills}
-                  onChange={(e) => patchContent({ skills: e.target.value })}
-                  className="min-h-20 text-[12px] leading-relaxed"
-                  placeholder="Comma- or newline-separated: TypeScript, Python, …"
+              </div>
+              <Field label="Location">
+                <Input
+                  value={entry.location}
+                  onChange={(e) => {
+                    const experience = draft.content.experience.map((row) =>
+                      row.id === entry.id ? { ...row, location: e.target.value } : row,
+                    );
+                    patchContent({ experience });
+                  }}
+                  className="h-8 text-[12px]"
                 />
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="projects">
-              <AccordionTrigger className="py-2 text-[12px] font-semibold">
-                Projects
-              </AccordionTrigger>
-              <AccordionContent className="space-y-3 pb-3">
-                {draft.content.projects.map((entry, idx) => (
-                  <div key={entry.id} className="border-border space-y-2 rounded-md border p-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground text-[11px]">Project {idx + 1}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Remove project"
-                        onClick={() =>
-                          patchContent({
-                            projects: draft.content.projects.filter((p) => p.id !== entry.id),
-                          })
-                        }
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                    <Field label="Name">
-                      <Input
-                        value={entry.name}
-                        onChange={(e) => {
-                          const projects = draft.content.projects.map((row) =>
-                            row.id === entry.id ? { ...row, name: e.target.value } : row,
-                          );
-                          patchContent({ projects });
-                        }}
-                        className="h-8 text-[12px]"
-                      />
-                    </Field>
-                    <Field label="Link">
-                      <Input
-                        value={entry.link}
-                        onChange={(e) => {
-                          const projects = draft.content.projects.map((row) =>
-                            row.id === entry.id ? { ...row, link: e.target.value } : row,
-                          );
-                          patchContent({ projects });
-                        }}
-                        className="h-8 text-[12px]"
-                      />
-                    </Field>
-                    <Field label="Description">
-                      <Textarea
-                        value={entry.description}
-                        onChange={(e) => {
-                          const projects = draft.content.projects.map((row) =>
-                            row.id === entry.id ? { ...row, description: e.target.value } : row,
-                          );
-                          patchContent({ projects });
-                        }}
-                        className="min-h-14 text-[12px]"
-                      />
-                    </Field>
-                    <div className="space-y-1.5">
-                      <Label className="text-muted-foreground text-[11px]">Bullets</Label>
-                      {entry.bullets.map((bullet, bi) => (
-                        <Textarea
-                          key={bi}
-                          value={bullet}
-                          onChange={(e) => {
-                            const bullets = entry.bullets.map((b, i) =>
-                              i === bi ? e.target.value : b,
-                            );
-                            const projects = draft.content.projects.map((row) =>
-                              row.id === entry.id ? { ...row, bullets } : row,
-                            );
-                            patchContent({ projects });
-                          }}
-                          className="min-h-12 text-[12px]"
-                        />
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="xs"
-                        onClick={() => {
-                          const projects = draft.content.projects.map((row) =>
-                            row.id === entry.id ? { ...row, bullets: [...row.bullets, ""] } : row,
-                          );
-                          patchContent({ projects });
-                        }}
-                      >
-                        <Plus className="size-3.5" />
-                        Bullet
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="xs"
-                  onClick={() =>
-                    patchContent({ projects: [...draft.content.projects, newProjectEntry()] })
-                  }
-                >
-                  <Plus className="size-3.5" />
-                  Add project
-                </Button>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="certifications">
-              <AccordionTrigger className="py-2 text-[12px] font-semibold">
-                Certifications
-              </AccordionTrigger>
-              <AccordionContent className="space-y-3 pb-3">
-                {draft.content.certifications.length === 0 ? (
-                  <p className="text-muted-foreground text-[11px]">
-                    Optional. Turn the section on above, then add entries.
-                  </p>
-                ) : null}
-                {draft.content.certifications.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="border-border grid grid-cols-1 gap-2 rounded-md border p-2.5 sm:grid-cols-[1fr_1fr_5rem_auto]"
-                  >
-                    <Input
-                      value={entry.name}
+              </Field>
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground text-[11px]">Bullets</Label>
+                {entry.bullets.map((bullet, bi) => (
+                  <div key={bi} className="flex gap-1.5">
+                    <Textarea
+                      value={bullet}
                       onChange={(e) => {
-                        const certifications = draft.content.certifications.map((row) =>
-                          row.id === entry.id ? { ...row, name: e.target.value } : row,
+                        const bullets = entry.bullets.map((b, i) =>
+                          i === bi ? e.target.value : b,
                         );
-                        patchContent({ certifications });
-                      }}
-                      className="h-8 text-[12px]"
-                      placeholder="Name"
-                    />
-                    <Input
-                      value={entry.issuer}
-                      onChange={(e) => {
-                        const certifications = draft.content.certifications.map((row) =>
-                          row.id === entry.id ? { ...row, issuer: e.target.value } : row,
+                        const experience = draft.content.experience.map((row) =>
+                          row.id === entry.id ? { ...row, bullets } : row,
                         );
-                        patchContent({ certifications });
+                        patchContent({ experience });
                       }}
-                      className="h-8 text-[12px]"
-                      placeholder="Issuer"
-                    />
-                    <Input
-                      value={entry.year}
-                      onChange={(e) => {
-                        const certifications = draft.content.certifications.map((row) =>
-                          row.id === entry.id ? { ...row, year: e.target.value } : row,
-                        );
-                        patchContent({ certifications });
-                      }}
-                      className="h-8 text-[12px]"
-                      placeholder="Year"
+                      className="min-h-14 flex-1 text-[12px]"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon-xs"
-                      aria-label="Remove certification"
-                      onClick={() =>
-                        patchContent({
-                          certifications: draft.content.certifications.filter(
-                            (c) => c.id !== entry.id,
-                          ),
-                        })
-                      }
+                      className="mt-1 shrink-0"
+                      disabled={entry.bullets.length <= 1}
+                      aria-label="Remove bullet"
+                      onClick={() => {
+                        const bullets = entry.bullets.filter((_, i) => i !== bi);
+                        const experience = draft.content.experience.map((row) =>
+                          row.id === entry.id
+                            ? { ...row, bullets: bullets.length ? bullets : [""] }
+                            : row,
+                        );
+                        patchContent({ experience });
+                      }}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -745,22 +617,280 @@ export function ResumeCreatorLeftPane({ draft, onChange, className }: Props) {
                 ))}
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="outline"
                   size="xs"
+                  onClick={() => {
+                    const experience = draft.content.experience.map((row) =>
+                      row.id === entry.id ? { ...row, bullets: [...row.bullets, ""] } : row,
+                    );
+                    patchContent({ experience });
+                  }}
+                >
+                  <Plus className="size-3.5" />
+                  Bullet
+                </Button>
+              </div>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="secondary"
+            size="xs"
+            onClick={() =>
+              patchContent({ experience: [...draft.content.experience, newExperienceEntry()] })
+            }
+          >
+            <Plus className="size-3.5" />
+            Add role
+          </Button>
+        </div>
+      );
+    case "education":
+      return (
+        <div className="space-y-3">
+          {draft.content.education.map((entry, idx) => (
+            <div key={entry.id} className="border-border space-y-2 rounded-md border p-2">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-[11px]">School {idx + 1}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  disabled={draft.content.education.length <= 1}
+                  aria-label="Remove school"
                   onClick={() =>
                     patchContent({
-                      certifications: [...draft.content.certifications, newCertificationEntry()],
+                      education: draft.content.education.filter((e) => e.id !== entry.id),
                     })
                   }
                 >
-                  <Plus className="size-3.5" />
-                  Add certification
+                  <Trash2 className="size-3.5" />
                 </Button>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+              </div>
+              {(
+                [
+                  ["degree", "Degree"],
+                  ["school", "School"],
+                  ["location", "Location"],
+                  ["details", "Details"],
+                ] as const
+              ).map(([key, label]) => (
+                <Field key={key} label={label}>
+                  <Input
+                    value={entry[key]}
+                    onChange={(e) => {
+                      const education = draft.content.education.map((row) =>
+                        row.id === entry.id ? { ...row, [key]: e.target.value } : row,
+                      );
+                      patchContent({ education });
+                    }}
+                    className="h-8 text-[12px]"
+                  />
+                </Field>
+              ))}
+              <div className="grid grid-cols-2 gap-2">
+                {(["start", "end"] as const).map((key) => (
+                  <Field key={key} label={key === "start" ? "Start" : "End"}>
+                    <Input
+                      value={entry[key]}
+                      onChange={(e) => {
+                        const education = draft.content.education.map((row) =>
+                          row.id === entry.id ? { ...row, [key]: e.target.value } : row,
+                        );
+                        patchContent({ education });
+                      }}
+                      className="h-8 text-[12px]"
+                    />
+                  </Field>
+                ))}
+              </div>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="secondary"
+            size="xs"
+            onClick={() =>
+              patchContent({ education: [...draft.content.education, newEducationEntry()] })
+            }
+          >
+            <Plus className="size-3.5" />
+            Add school
+          </Button>
         </div>
-      </ScrollArea>
-    </div>
-  );
+      );
+    case "projects":
+      return (
+        <div className="space-y-3">
+          {draft.content.projects.map((entry, idx) => (
+            <div key={entry.id} className="border-border space-y-2 rounded-md border p-2">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-[11px]">Project {idx + 1}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Remove project"
+                  onClick={() =>
+                    patchContent({
+                      projects: draft.content.projects.filter((p) => p.id !== entry.id),
+                    })
+                  }
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+              <Field label="Name">
+                <Input
+                  value={entry.name}
+                  onChange={(e) => {
+                    const projects = draft.content.projects.map((row) =>
+                      row.id === entry.id ? { ...row, name: e.target.value } : row,
+                    );
+                    patchContent({ projects });
+                  }}
+                  className="h-8 text-[12px]"
+                />
+              </Field>
+              <Field label="Link">
+                <Input
+                  value={entry.link}
+                  onChange={(e) => {
+                    const projects = draft.content.projects.map((row) =>
+                      row.id === entry.id ? { ...row, link: e.target.value } : row,
+                    );
+                    patchContent({ projects });
+                  }}
+                  className="h-8 text-[12px]"
+                />
+              </Field>
+              <Field label="Description">
+                <Textarea
+                  value={entry.description}
+                  onChange={(e) => {
+                    const projects = draft.content.projects.map((row) =>
+                      row.id === entry.id ? { ...row, description: e.target.value } : row,
+                    );
+                    patchContent({ projects });
+                  }}
+                  className="min-h-14 text-[12px]"
+                />
+              </Field>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => {
+                  const projects = draft.content.projects.map((row) =>
+                    row.id === entry.id ? { ...row, bullets: [...row.bullets, ""] } : row,
+                  );
+                  patchContent({ projects });
+                }}
+              >
+                <Plus className="size-3.5" />
+                Bullet
+              </Button>
+              {entry.bullets.map((bullet, bi) => (
+                <Textarea
+                  key={bi}
+                  value={bullet}
+                  onChange={(e) => {
+                    const bullets = entry.bullets.map((b, i) => (i === bi ? e.target.value : b));
+                    const projects = draft.content.projects.map((row) =>
+                      row.id === entry.id ? { ...row, bullets } : row,
+                    );
+                    patchContent({ projects });
+                  }}
+                  className="min-h-12 text-[12px]"
+                />
+              ))}
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="secondary"
+            size="xs"
+            onClick={() =>
+              patchContent({ projects: [...draft.content.projects, newProjectEntry()] })
+            }
+          >
+            <Plus className="size-3.5" />
+            Add project
+          </Button>
+        </div>
+      );
+    case "certifications":
+      return (
+        <div className="space-y-2">
+          {draft.content.certifications.map((entry) => (
+            <div
+              key={entry.id}
+              className="border-border grid grid-cols-1 gap-2 rounded-md border p-2 sm:grid-cols-[1fr_1fr_5rem_auto]"
+            >
+              <Input
+                value={entry.name}
+                onChange={(e) => {
+                  const certifications = draft.content.certifications.map((row) =>
+                    row.id === entry.id ? { ...row, name: e.target.value } : row,
+                  );
+                  patchContent({ certifications });
+                }}
+                className="h-8 text-[12px]"
+                placeholder="Name"
+              />
+              <Input
+                value={entry.issuer}
+                onChange={(e) => {
+                  const certifications = draft.content.certifications.map((row) =>
+                    row.id === entry.id ? { ...row, issuer: e.target.value } : row,
+                  );
+                  patchContent({ certifications });
+                }}
+                className="h-8 text-[12px]"
+                placeholder="Issuer"
+              />
+              <Input
+                value={entry.year}
+                onChange={(e) => {
+                  const certifications = draft.content.certifications.map((row) =>
+                    row.id === entry.id ? { ...row, year: e.target.value } : row,
+                  );
+                  patchContent({ certifications });
+                }}
+                className="h-8 text-[12px]"
+                placeholder="Year"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Remove certification"
+                onClick={() =>
+                  patchContent({
+                    certifications: draft.content.certifications.filter((c) => c.id !== entry.id),
+                  })
+                }
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="secondary"
+            size="xs"
+            onClick={() =>
+              patchContent({
+                certifications: [...draft.content.certifications, newCertificationEntry()],
+              })
+            }
+          >
+            <Plus className="size-3.5" />
+            Add certification
+          </Button>
+        </div>
+      );
+    default:
+      return null;
+  }
 }

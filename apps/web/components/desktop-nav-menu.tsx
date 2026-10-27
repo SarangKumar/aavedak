@@ -32,7 +32,6 @@ const RESUME_LINKS: MenuLink[] = [
   FEATURES.createResume,
   FEATURES.resumeScore,
   FEATURES.improveResume,
-  FEATURES.uploadResume,
 ];
 
 /** Name of the active resume, fetched once the Resume panel is first opened. */

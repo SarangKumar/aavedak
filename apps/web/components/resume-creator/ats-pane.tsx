@@ -147,7 +147,7 @@ export function ResumeCreatorAtsPane({
 
   if (!signedIn) {
     return (
-      <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
+      <div className={cn("flex h-full min-h-0 flex-1 flex-col", className)}>
         <div className="mb-2 shrink-0 px-1">
           <p className="aavedak-section-title text-foreground">ATS check</p>
           <p className="aavedak-meta text-muted-foreground mt-0.5">
@@ -172,7 +172,7 @@ export function ResumeCreatorAtsPane({
   }
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
+    <div className={cn("flex h-full min-h-0 flex-1 flex-col", className)}>
       <div className="mb-2 flex shrink-0 items-start justify-between gap-2 px-1">
         <div>
           <p className="aavedak-section-title text-foreground">ATS check</p>
