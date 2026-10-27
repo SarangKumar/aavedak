@@ -4,24 +4,150 @@ import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  A4_HEIGHT_PT,
-  A4_WIDTH_PT,
   RESUME_CREATOR_FONTS,
   RESUME_FONT_WEIGHTS,
+  pageSizePt,
   type ResumeCreatorDraft,
+  type ResumeCreatorStyle,
+  type ResumeEducationEntry,
   type ResumeFontWeight,
 } from "@/lib/resume-creator-types";
 import { cn } from "@/lib/utils";
 
-function contactLine(draft: ResumeCreatorDraft): string {
+function contactBits(draft: ResumeCreatorDraft): string[] {
   const c = draft.content.contact;
   return [c.email, c.phone, c.location, c.linkedin, c.github, c.portfolio]
     .map((s) => s.trim())
-    .filter(Boolean)
-    .join("  ·  ");
+    .filter(Boolean);
 }
 
-function SectionRule({ rule }: { rule: ResumeCreatorDraft["style"]["rule"] }) {
+/** Best-effort format for free-text dates already on the draft. */
+function formatDateToken(raw: string, format: ResumeCreatorStyle["dateFormat"]): string {
+  const s = raw.trim();
+  if (!s) return "";
+  if (/present|current|now/i.test(s)) return s;
+  const m = s.match(/^(\d{4})[-/.](\d{1,2})$/) || s.match(/^(\d{1,2})[-/.](\d{4})$/);
+  let year = "";
+  let month = 0;
+  if (m) {
+    if (m[1].length === 4) {
+      year = m[1];
+      month = Number(m[2]);
+    } else {
+      month = Number(m[1]);
+      year = m[2];
+    }
+  } else {
+    const yOnly = s.match(/^(19|20)\d{2}$/);
+    if (yOnly) return s;
+    const named = s.match(
+      /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[.\s-]+(\d{4})$/i,
+    );
+    if (named) {
+      const map: Record<string, number> = {
+        jan: 1,
+        feb: 2,
+        mar: 3,
+        apr: 4,
+        may: 5,
+        jun: 6,
+        jul: 7,
+        aug: 8,
+        sep: 9,
+        oct: 10,
+        nov: 11,
+        dec: 12,
+      };
+      month = map[named[1].slice(0, 3).toLowerCase()] ?? 0;
+      year = named[2];
+    } else {
+      return s;
+    }
+  }
+  if (!year || month < 1 || month > 12) return s;
+  const short = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const long = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  if (format === "numeric") return `${String(month).padStart(2, "0")}.${year}`;
+  if (format === "long") return `${long[month - 1]} ${year}`;
+  return `${short[month - 1]} ${year}`;
+}
+
+function formatRange(start: string, end: string, format: ResumeCreatorStyle["dateFormat"]): string {
+  const a = formatDateToken(start, format);
+  const b = formatDateToken(end, format);
+  return [a, b].filter(Boolean).join(" – ");
+}
+
+type SkillRow =
+  { kind: "plain"; items: string[] } | { kind: "category"; category: string; items: string[] };
+
+function parseSkills(raw: string): SkillRow[] {
+  const lines = raw
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (!lines.length) return [];
+  const categorized = lines.some((l) => /^[^:]{1,40}:\s*.+/.test(l));
+  if (!categorized) {
+    const items = raw
+      .split(/[\n,•]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return items.length ? [{ kind: "plain", items }] : [];
+  }
+  const rows: SkillRow[] = [];
+  for (const line of lines) {
+    const m = line.match(/^([^:]{1,40}):\s*(.+)$/);
+    if (m) {
+      const items = m[2]
+        .split(/[,•]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      rows.push({ kind: "category", category: m[1].trim(), items });
+    } else {
+      const items = line
+        .split(/[,•]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (items.length) rows.push({ kind: "plain", items });
+    }
+  }
+  return rows;
+}
+
+function SectionRule({
+  rule,
+  titleContentGapPt,
+}: {
+  rule: ResumeCreatorDraft["style"]["rule"];
+  titleContentGapPt: number;
+}) {
   if (rule === "none") return null;
   return (
     <div
@@ -29,10 +155,17 @@ function SectionRule({ rule }: { rule: ResumeCreatorDraft["style"]["rule"] }) {
         "w-full border-t",
         rule === "light" ? "border-neutral-200" : "border-neutral-400",
       )}
-      style={{ marginTop: "1pt", marginBottom: "4pt" }}
+      style={{ marginTop: "1pt", marginBottom: `${titleContentGapPt}pt` }}
       aria-hidden
     />
   );
+}
+
+function educationPrimary(e: ResumeEducationEntry, showBy: ResumeCreatorStyle["educationShowBy"]) {
+  if (showBy === "institution") {
+    return [e.school.trim(), e.degree.trim()].filter(Boolean).join(" — ");
+  }
+  return [e.degree.trim(), e.school.trim()].filter(Boolean).join(" — ");
 }
 
 function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
@@ -43,10 +176,7 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
   const titleOf = (id: string) =>
     draft.sections.find((s) => s.id === id)?.title ?? id.toUpperCase();
 
-  const skills = draft.content.skills
-    .split(/[\n,•]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const skillRows = parseSkills(draft.content.skills);
 
   const textStyle = (
     pt: number,
@@ -64,6 +194,9 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
     ...opts?.extra,
   });
 
+  const headerAlign =
+    style.headerAlign === "center" ? "center" : style.headerAlign === "right" ? "right" : "left";
+
   const sectionTitle = (id: string) => (
     <>
       <h2
@@ -75,9 +208,45 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
       >
         {titleOf(id)}
       </h2>
-      <SectionRule rule={style.rule} />
+      <SectionRule rule={style.rule} titleContentGapPt={style.titleContentGapPt} />
     </>
   );
+
+  const dateSpan = (start: string, end: string) => {
+    const text = formatRange(start, end, style.dateFormat);
+    if (!text) return null;
+    return (
+      <span
+        className={cn(
+          "font-normal text-neutral-600",
+          style.dateAlign === "right" ? "float-right" : "float-left mr-2",
+        )}
+      >
+        {text}
+      </span>
+    );
+  };
+
+  const locationLine = (text: string) => {
+    if (!text.trim()) return null;
+    return (
+      <p
+        className={cn(
+          "text-neutral-500",
+          style.locationAlign === "right" ? "text-right" : "text-left",
+        )}
+        style={textStyle(style.footerPt, {
+          face: "secondary",
+          weight: style.secondaryHeadingWeight,
+        })}
+      >
+        {text.trim()}
+      </p>
+    );
+  };
+
+  const padTop = style.marginYPt + style.headerFooterPt;
+  const padBottom = style.marginYPt + style.headerFooterPt;
 
   return (
     <div
@@ -86,12 +255,12 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
         fontFamily: secondaryCss,
         paddingLeft: `${style.marginXPt}pt`,
         paddingRight: `${style.marginXPt}pt`,
-        paddingTop: `${style.marginYPt}pt`,
-        paddingBottom: `${style.marginYPt}pt`,
+        paddingTop: `${padTop}pt`,
+        paddingBottom: `${padBottom}pt`,
       }}
     >
       {visible("contact") ? (
-        <header>
+        <header style={{ textAlign: headerAlign }}>
           <p
             className="tracking-tight text-neutral-950"
             style={textStyle(style.headerPt, {
@@ -101,7 +270,7 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
           >
             {draft.content.contact.fullName.trim() || "Your name"}
           </p>
-          {contactLine(draft) ? (
+          {contactBits(draft).length ? (
             <p
               className="text-neutral-600"
               style={textStyle(style.footerPt, {
@@ -110,7 +279,7 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                 extra: { marginTop: "2pt" },
               })}
             >
-              {contactLine(draft)}
+              {contactBits(draft).join("  ·  ")}
             </p>
           ) : (
             <p
@@ -126,7 +295,7 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
           )}
           {style.rule !== "none" ? (
             <div style={{ marginTop: `${style.sectionGapPt * 0.4}pt` }}>
-              <SectionRule rule={style.rule} />
+              <SectionRule rule={style.rule} titleContentGapPt={0} />
             </div>
           ) : (
             <div style={{ height: `${style.sectionGapPt * 0.4}pt` }} />
@@ -142,7 +311,6 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
             style={textStyle(style.bodyPt, {
               face: "secondary",
               weight: style.bodyWeight,
-              extra: { marginTop: "1pt" },
             })}
           >
             {draft.content.summary.trim()}
@@ -159,11 +327,13 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
             return (
               <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
                 {sectionTitle("experience")}
-                <div style={{ marginTop: "1pt" }}>
+                <div>
                   {entries.map((e, ei) => (
                     <div
                       key={e.id}
-                      style={{ marginTop: ei === 0 ? 0 : "6pt", marginBottom: "3pt" }}
+                      style={{
+                        marginTop: ei === 0 ? 0 : `${style.contentBlockGapPt}pt`,
+                      }}
                     >
                       <p
                         className="text-neutral-900"
@@ -172,25 +342,19 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                           weight: "semibold",
                         })}
                       >
+                        {style.dateAlign === "left" ? dateSpan(e.start, e.end) : null}
                         {[e.title.trim(), e.company.trim()].filter(Boolean).join(" — ")}
-                        {[e.start, e.end].some((s) => s.trim()) ? (
-                          <span className="float-right font-normal text-neutral-600">
-                            {[e.start.trim(), e.end.trim()].filter(Boolean).join(" – ")}
-                          </span>
-                        ) : null}
+                        {style.dateAlign === "right" ? dateSpan(e.start, e.end) : null}
                       </p>
-                      {e.location.trim() ? (
-                        <p
-                          className="text-neutral-500"
-                          style={textStyle(style.footerPt, {
-                            face: "secondary",
-                            weight: style.secondaryHeadingWeight,
-                          })}
-                        >
-                          {e.location.trim()}
-                        </p>
-                      ) : null}
-                      <ul className="list-none" style={{ margin: 0, padding: 0 }}>
+                      {locationLine(e.location)}
+                      <ul
+                        className="list-none"
+                        style={{
+                          margin: 0,
+                          padding: 0,
+                          marginTop: `${style.insideBlockGapPt}pt`,
+                        }}
+                      >
                         {e.bullets
                           .filter((b) => b.trim())
                           .map((b, i) => (
@@ -204,6 +368,7 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                                 }),
                                 paddingLeft: "8pt",
                                 textIndent: "-8pt",
+                                marginTop: i === 0 ? 0 : `${style.insideBlockGapPt}pt`,
                               }}
                             >
                               • {b.trim()}
@@ -224,12 +389,27 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
               (e) => e.school.trim() || e.degree.trim(),
             );
             if (!entries.length) return null;
+            const grid =
+              style.educationLayout === "inline"
+                ? ({
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: `${style.contentBlockGapPt}pt`,
+                  } as CSSProperties)
+                : undefined;
             return (
               <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
                 {sectionTitle("education")}
-                <div style={{ marginTop: "1pt" }}>
+                <div style={grid}>
                   {entries.map((e, ei) => (
-                    <div key={e.id} style={{ marginTop: ei === 0 ? 0 : "4pt" }}>
+                    <div
+                      key={e.id}
+                      style={
+                        style.educationLayout === "stacked"
+                          ? { marginTop: ei === 0 ? 0 : `${style.contentBlockGapPt}pt` }
+                          : undefined
+                      }
+                    >
                       <p
                         className="text-neutral-900"
                         style={textStyle(style.bodyPt, {
@@ -237,24 +417,13 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                           weight: "semibold",
                         })}
                       >
-                        {[e.degree.trim(), e.school.trim()].filter(Boolean).join(" — ")}
-                        {[e.start, e.end].some((s) => s.trim()) ? (
-                          <span className="float-right font-normal text-neutral-600">
-                            {[e.start.trim(), e.end.trim()].filter(Boolean).join(" – ")}
-                          </span>
-                        ) : null}
+                        {style.dateAlign === "left" ? dateSpan(e.start, e.end) : null}
+                        {educationPrimary(e, style.educationShowBy)}
+                        {style.dateAlign === "right" ? dateSpan(e.start, e.end) : null}
                       </p>
-                      {[e.location, e.details].some((s) => s.trim()) ? (
-                        <p
-                          className="text-neutral-500"
-                          style={textStyle(style.footerPt, {
-                            face: "secondary",
-                            weight: style.secondaryHeadingWeight,
-                          })}
-                        >
-                          {[e.location.trim(), e.details.trim()].filter(Boolean).join(" · ")}
-                        </p>
-                      ) : null}
+                      {locationLine(
+                        [e.location.trim(), e.details.trim()].filter(Boolean).join(" · "),
+                      )}
                     </div>
                   ))}
                 </div>
@@ -263,19 +432,98 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
           })()
         : null}
 
-      {visible("skills") && skills.length ? (
+      {visible("skills") && skillRows.length ? (
         <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
           {sectionTitle("skills")}
-          <p
-            className="text-neutral-800"
-            style={textStyle(style.bodyPt, {
-              face: "secondary",
-              weight: style.bodyWeight,
-              extra: { marginTop: "1pt" },
-            })}
-          >
-            {skills.join(" · ")}
-          </p>
+          {style.skillsCategoryMode === "categories" &&
+          skillRows.some((r) => r.kind === "category") ? (
+            <div className="space-y-1">
+              {skillRows.map((row, i) =>
+                row.kind === "category" ? (
+                  <div
+                    key={`cat-${i}`}
+                    className="flex gap-2"
+                    style={{ marginTop: i === 0 ? 0 : `${style.insideBlockGapPt}pt` }}
+                  >
+                    <p
+                      className="shrink-0 text-neutral-900"
+                      style={{
+                        ...textStyle(style.bodyPt, {
+                          face: "secondary",
+                          weight: "semibold",
+                        }),
+                        width: `${style.skillsCategoryWidthPt}pt`,
+                      }}
+                    >
+                      {row.category}
+                    </p>
+                    <p
+                      className="min-w-0 flex-1 text-neutral-800"
+                      style={textStyle(style.bodyPt, {
+                        face: "secondary",
+                        weight: style.bodyWeight,
+                      })}
+                    >
+                      {row.items.join(" · ")}
+                    </p>
+                  </div>
+                ) : (
+                  <p
+                    key={`plain-${i}`}
+                    className="text-neutral-800"
+                    style={textStyle(style.bodyPt, {
+                      face: "secondary",
+                      weight: style.bodyWeight,
+                    })}
+                  >
+                    {row.items.join(" · ")}
+                  </p>
+                ),
+              )}
+            </div>
+          ) : style.skillsLayout === "columns" ? (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${Math.max(2, style.skillsColumns)}, minmax(0, 1fr))`,
+                columnGap: "8pt",
+                rowGap: `${style.insideBlockGapPt}pt`,
+              }}
+            >
+              {skillRows
+                .flatMap((r) =>
+                  r.kind === "category" ? [`${r.category}: ${r.items.join(", ")}`] : r.items,
+                )
+                .map((item, i) => (
+                  <p
+                    key={i}
+                    className="text-neutral-800"
+                    style={textStyle(style.bodyPt, {
+                      face: "secondary",
+                      weight: style.bodyWeight,
+                    })}
+                  >
+                    {item}
+                  </p>
+                ))}
+            </div>
+          ) : (
+            <p
+              className="text-neutral-800"
+              style={textStyle(style.bodyPt, {
+                face: "secondary",
+                weight: style.bodyWeight,
+              })}
+            >
+              {skillRows
+                .map((r) =>
+                  r.kind === "category"
+                    ? `${r.category}: ${r.items.join(", ")}`
+                    : r.items.join(" · "),
+                )
+                .join(" · ")}
+            </p>
+          )}
         </section>
       ) : null}
 
@@ -288,11 +536,13 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
             return (
               <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
                 {sectionTitle("projects")}
-                <div style={{ marginTop: "1pt" }}>
+                <div>
                   {entries.map((p, pi) => (
                     <div
                       key={p.id}
-                      style={{ marginTop: pi === 0 ? 0 : "4pt", marginBottom: "2pt" }}
+                      style={{
+                        marginTop: pi === 0 ? 0 : `${style.contentBlockGapPt}pt`,
+                      }}
                     >
                       <p
                         className="text-neutral-900"
@@ -306,10 +556,13 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                       {p.description.trim() ? (
                         <p
                           className="text-neutral-800"
-                          style={textStyle(style.bodyPt, {
-                            face: "secondary",
-                            weight: style.bodyWeight,
-                          })}
+                          style={{
+                            ...textStyle(style.bodyPt, {
+                              face: "secondary",
+                              weight: style.bodyWeight,
+                            }),
+                            marginTop: `${style.insideBlockGapPt}pt`,
+                          }}
                         >
                           {p.description.trim()}
                         </p>
@@ -328,6 +581,7 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                                 }),
                                 paddingLeft: "8pt",
                                 textIndent: "-8pt",
+                                marginTop: `${style.insideBlockGapPt}pt`,
                               }}
                             >
                               • {b.trim()}
@@ -349,15 +603,18 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
             return (
               <section style={{ marginTop: `${style.sectionGapPt}pt` }}>
                 {sectionTitle("certifications")}
-                <ul className="list-none" style={{ marginTop: "1pt", padding: 0 }}>
-                  {entries.map((c) => (
+                <ul className="list-none" style={{ margin: 0, padding: 0 }}>
+                  {entries.map((c, i) => (
                     <li
                       key={c.id}
                       className="text-neutral-800"
-                      style={textStyle(style.bodyPt, {
-                        face: "secondary",
-                        weight: style.bodyWeight,
-                      })}
+                      style={{
+                        ...textStyle(style.bodyPt, {
+                          face: "secondary",
+                          weight: style.bodyWeight,
+                        }),
+                        marginTop: i === 0 ? 0 : `${style.insideBlockGapPt}pt`,
+                      }}
                     >
                       {[c.name.trim(), c.issuer.trim(), c.year.trim()].filter(Boolean).join(" — ")}
                     </li>
@@ -380,6 +637,7 @@ export function ResumeCreatorPreview({
 }) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
+  const { width: pageW, height: pageH } = pageSizePt(draft.style.pageFormat);
 
   useLayoutEffect(() => {
     const el = frameRef.current;
@@ -388,25 +646,26 @@ export function ResumeCreatorPreview({
       const w = el.clientWidth;
       if (w <= 0) return;
       const pxPerPt = 96 / 72;
-      const paperCssPx = A4_WIDTH_PT * pxPerPt;
+      const paperCssPx = pageW * pxPerPt;
       setScale(Math.min(1, w / paperCssPx));
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [pageW]);
 
   const pxPerPt = 96 / 72;
-  const paperWpx = A4_WIDTH_PT * pxPerPt;
-  const paperHpx = A4_HEIGHT_PT * pxPerPt;
+  const paperWpx = pageW * pxPerPt;
+  const paperHpx = pageH * pxPerPt;
+  const formatLabel = draft.style.pageFormat === "letter" ? "US Letter" : "A4";
 
   return (
     <div className={cn("flex h-full min-h-0 flex-1 flex-col", className)}>
       <div className="mb-2 shrink-0 px-1">
-        <p className="aavedak-section-title text-foreground">Live A4 preview</p>
+        <p className="aavedak-section-title text-foreground">Live preview</p>
         <p className="aavedak-meta text-muted-foreground mt-0.5">
-          True A4 · {draft.style.bodyPt}pt body ·{" "}
+          {formatLabel} · {draft.style.bodyPt}pt body ·{" "}
           {RESUME_CREATOR_FONTS[draft.style.primaryFont].label}/
           {RESUME_CREATOR_FONTS[draft.style.secondaryFont].label} · margins {draft.style.marginXPt}/
           {draft.style.marginYPt}pt · same numbers as the downloaded PDF

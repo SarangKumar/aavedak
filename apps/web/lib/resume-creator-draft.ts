@@ -229,12 +229,16 @@ function asWeight(value: unknown, fallback: ResumeCreatorStyle["headerWeight"]) 
     : fallback;
 }
 
+function asOneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  const s = asString(value, fallback);
+  return (allowed as readonly string[]).includes(s) ? (s as T) : fallback;
+}
+
 export function normalizeStyle(
   raw: unknown,
   fallback: ResumeCreatorStyle = defaultStyle(),
 ): ResumeCreatorStyle {
   if (!isObject(raw)) return { ...fallback };
-  // Legacy single fontFamily → both primary and secondary.
   const legacyFont = raw.fontFamily;
   const ruleRaw = asString(raw.rule, fallback.rule);
   return {
@@ -243,17 +247,59 @@ export function normalizeStyle(
     headerPt: asNumber(raw.headerPt, fallback.headerPt, 12, 28),
     sectionTitlePt: asNumber(raw.sectionTitlePt, fallback.sectionTitlePt, 8, 18),
     bodyPt: asNumber(raw.bodyPt, fallback.bodyPt, 7, 14),
-    footerPt: asNumber(raw.footerPt, fallback.footerPt, 6, 12),
+    footerPt: asNumber(raw.footerPt, fallback.footerPt, 6, 14),
     headerWeight: asWeight(raw.headerWeight, fallback.headerWeight),
     secondaryHeadingWeight: asWeight(raw.secondaryHeadingWeight, fallback.secondaryHeadingWeight),
     bodyWeight: asWeight(raw.bodyWeight, fallback.bodyWeight),
     sectionTitleWeight: asWeight(raw.sectionTitleWeight, fallback.sectionTitleWeight),
-    marginXPt: asNumber(raw.marginXPt, fallback.marginXPt, 24, 72),
-    marginYPt: asNumber(raw.marginYPt, fallback.marginYPt, 24, 72),
-    sectionGapPt: asNumber(raw.sectionGapPt, fallback.sectionGapPt, 0, 36),
     lineHeight: asNumber(raw.lineHeight, fallback.lineHeight, 1.0, 2.0),
     rule:
       ruleRaw === "light" || ruleRaw === "none" || ruleRaw === "strong" ? ruleRaw : fallback.rule,
+
+    pageFormat: asOneOf(raw.pageFormat, ["a4", "letter"] as const, fallback.pageFormat),
+    headerFooterPt: asNumber(raw.headerFooterPt, fallback.headerFooterPt, 0, 72),
+    marginYPt: asNumber(raw.marginYPt, fallback.marginYPt, 0, 96),
+    marginXPt: asNumber(raw.marginXPt, fallback.marginXPt, 0, 96),
+    sectionGapPt: asNumber(raw.sectionGapPt, fallback.sectionGapPt, 0, 48),
+    titleContentGapPt: asNumber(raw.titleContentGapPt, fallback.titleContentGapPt, 0, 24),
+    contentBlockGapPt: asNumber(raw.contentBlockGapPt, fallback.contentBlockGapPt, 0, 24),
+    insideBlockGapPt: asNumber(raw.insideBlockGapPt, fallback.insideBlockGapPt, 0, 16),
+    dateFormat: asOneOf(
+      raw.dateFormat,
+      ["shortName", "numeric", "long"] as const,
+      fallback.dateFormat,
+    ),
+    headerAlign: asOneOf(
+      raw.headerAlign,
+      ["left", "center", "right"] as const,
+      fallback.headerAlign,
+    ),
+    dateAlign: asOneOf(raw.dateAlign, ["left", "right"] as const, fallback.dateAlign),
+    locationAlign: asOneOf(raw.locationAlign, ["left", "right"] as const, fallback.locationAlign),
+
+    skillsLayout: asOneOf(raw.skillsLayout, ["inline", "columns"] as const, fallback.skillsLayout),
+    skillsColumns: asNumber(raw.skillsColumns, fallback.skillsColumns, 2, 6),
+    skillsCategoryMode: asOneOf(
+      raw.skillsCategoryMode,
+      ["inline", "categories"] as const,
+      fallback.skillsCategoryMode,
+    ),
+    skillsCategoryWidthPt: asNumber(
+      raw.skillsCategoryWidthPt,
+      fallback.skillsCategoryWidthPt,
+      40,
+      200,
+    ),
+    educationShowBy: asOneOf(
+      raw.educationShowBy,
+      ["institution", "degree"] as const,
+      fallback.educationShowBy,
+    ),
+    educationLayout: asOneOf(
+      raw.educationLayout,
+      ["stacked", "inline"] as const,
+      fallback.educationLayout,
+    ),
   };
 }
 

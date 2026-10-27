@@ -21,10 +21,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
   const name = typeof body.name === "string" ? body.name : "";
+  const description = typeof body.description === "string" ? body.description : "";
   try {
     const style = await createResumeCreatorStyle({
       userId: auth.user.id,
       name,
+      description,
       style: normalizeStyle(body.style),
     });
     return NextResponse.json({ style }, { status: 201 });

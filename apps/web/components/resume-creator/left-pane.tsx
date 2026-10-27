@@ -4,12 +4,26 @@ import { ChevronDown, GripVertical, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import {
+  EducationLayoutControls,
+  ResumeCreatorStylePanel,
+  SkillsLayoutControls,
+} from "@/components/resume-creator/style-panel";
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DragDrop,
   DragDropHandle,
@@ -22,7 +36,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ResumeCreatorStylePanel } from "@/components/resume-creator/style-panel";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   applyPreset,
   markStyleEdited,
@@ -43,7 +57,12 @@ import {
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
-type SavedStyle = { id: string; name: string; style: ResumeCreatorStyle };
+type SavedStyle = {
+  id: string;
+  name: string;
+  description?: string;
+  style: ResumeCreatorStyle;
+};
 
 type Props = {
   draft: ResumeCreatorDraft;
@@ -75,7 +94,9 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
   );
   const [savedStyles, setSavedStyles] = useState<SavedStyle[]>([]);
   const [savingStyle, setSavingStyle] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   const [styleName, setStyleName] = useState("");
+  const [styleDescription, setStyleDescription] = useState("");
   const [styleMsg, setStyleMsg] = useState<string | null>(null);
 
   const patch = useCallback(
@@ -122,14 +143,19 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
 
   async function saveCurrentStyle() {
     if (!signedIn) return;
-    const name = styleName.trim() || "My style";
+    const name = styleName.trim();
+    if (!name) {
+      setStyleMsg("Name is required.");
+      return;
+    }
+    const description = styleDescription.trim().slice(0, 100);
     setSavingStyle(true);
     setStyleMsg(null);
     try {
       const res = await fetch("/api/resume-creator/styles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, style: draft.style }),
+        body: JSON.stringify({ name, description, style: draft.style }),
       });
       const data = (await res.json()) as { style?: SavedStyle; error?: string };
       if (!res.ok) throw new Error(data.error || "Could not save style.");
@@ -141,6 +167,8 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
           updatedAt: new Date().toISOString(),
         });
         setStyleName("");
+        setStyleDescription("");
+        setSaveOpen(false);
         setStyleMsg(`Saved “${data.style.name}”.`);
       }
     } catch (err) {
@@ -185,18 +213,35 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
               }}
               className="@[18rem]:grid-cols-2 grid w-full grid-cols-1 items-stretch gap-1.5"
             >
-              {(Object.keys(STYLE_PRESETS) as ResumeCreatorPresetId[]).map((id) => (
-                <ToggleGroupItem
-                  key={id}
-                  value={id}
-                  className="h-auto w-full flex-col items-start justify-start rounded-md px-2.5 py-1.5 text-left"
-                >
-                  <span className="text-[12px] font-medium">{STYLE_PRESETS[id].label}</span>
-                  <span className="text-muted-foreground text-[10px] font-normal leading-snug">
-                    {STYLE_PRESETS[id].description}
-                  </span>
-                </ToggleGroupItem>
-              ))}
+              {(Object.keys(STYLE_PRESETS) as ResumeCreatorPresetId[]).map((id) => {
+                const preset = STYLE_PRESETS[id];
+                const tip = (
+                  <div className="max-w-56 space-y-0.5">
+                    <p className="text-[12px] font-medium">{preset.label}</p>
+                    <p className="text-[11px] font-normal leading-snug opacity-90">
+                      {preset.description}
+                    </p>
+                  </div>
+                );
+                return (
+                  <ToggleGroupItem
+                    key={id}
+                    value={id}
+                    className="h-auto w-full flex-col items-start justify-start overflow-hidden rounded-md px-2.5 py-1.5 text-left"
+                  >
+                    <Tooltip content={tip} side="top" delayDuration={250}>
+                      <span className="flex w-full min-w-0 flex-col items-start gap-0.5">
+                        <span className="w-full truncate text-[12px] font-medium">
+                          {preset.label}
+                        </span>
+                        <span className="text-muted-foreground w-full truncate text-[10px] font-normal leading-snug">
+                          {preset.description}
+                        </span>
+                      </span>
+                    </Tooltip>
+                  </ToggleGroupItem>
+                );
+              })}
             </ToggleGroup>
             {draft.styleSource.kind === "edited" ? (
               <p className="text-muted-foreground text-[11px]">
@@ -214,55 +259,58 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                 {savedStyles.length === 0 ? (
                   <p className="text-muted-foreground text-[11px]">No saved styles yet.</p>
                 ) : (
-                  <ul className="space-y-1">
-                    {savedStyles.map((s) => (
-                      <li key={s.id} className="flex items-center gap-1.5">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="xs"
-                          className="min-w-0 flex-1 justify-start"
-                          onClick={() =>
-                            onChange({
-                              ...draft,
-                              styleSource: { kind: "custom", id: s.id, name: s.name },
-                              style: { ...s.style },
-                              updatedAt: new Date().toISOString(),
-                            })
-                          }
-                        >
-                          <span className="truncate">{s.name}</span>
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          aria-label={`Delete ${s.name}`}
-                          onClick={() => void removeSavedStyle(s.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </li>
-                    ))}
+                  <ul className="space-y-1.5">
+                    {savedStyles.map((s) => {
+                      const tip = (
+                        <div className="max-w-56 space-y-0.5">
+                          <p className="text-[12px] font-medium">{s.name}</p>
+                          {s.description ? (
+                            <p className="text-[11px] font-normal leading-snug opacity-90">
+                              {s.description}
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                      return (
+                        <li key={s.id} className="flex items-center gap-1.5">
+                          <Tooltip content={tip} side="top" delayDuration={250}>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="xs"
+                              className="min-w-0 flex-1 justify-start gap-1.5 overflow-hidden"
+                              onClick={() =>
+                                onChange({
+                                  ...draft,
+                                  styleSource: { kind: "custom", id: s.id, name: s.name },
+                                  style: { ...s.style },
+                                  updatedAt: new Date().toISOString(),
+                                })
+                              }
+                            >
+                              <span className="min-w-0 flex-1 truncate text-left">{s.name}</span>
+                              <Badge
+                                variant="secondary"
+                                className="shrink-0 px-1.5 py-0 text-[9px]"
+                              >
+                                user defined
+                              </Badge>
+                            </Button>
+                          </Tooltip>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={`Delete ${s.name}`}
+                            onClick={() => void removeSavedStyle(s.id)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
-                <div className="flex gap-1.5">
-                  <Input
-                    value={styleName}
-                    onChange={(e) => setStyleName(e.target.value)}
-                    placeholder="Name this style"
-                    className="h-8 flex-1 text-[12px]"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    loading={savingStyle}
-                    loadingText="Saving…"
-                    onClick={() => void saveCurrentStyle()}
-                  >
-                    Save
-                  </Button>
-                </div>
                 {styleMsg ? <p className="text-muted-foreground text-[11px]">{styleMsg}</p> : null}
               </div>
             ) : (
@@ -288,6 +336,81 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+
+          {signedIn ? (
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  setStyleMsg(null);
+                  setSaveOpen(true);
+                }}
+              >
+                Save configuration
+              </Button>
+              <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
+                <DialogContent size="sm">
+                  <DialogHeader>
+                    <DialogTitle>Save configuration</DialogTitle>
+                    <DialogDescription>
+                      Name this style setup. Description is optional (max 100 characters). Saved
+                      configs show a user defined badge.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3 py-1">
+                    <label className="block space-y-1">
+                      <span className="text-muted-foreground text-[11px] font-medium">Name</span>
+                      <Input
+                        value={styleName}
+                        onChange={(e) => setStyleName(e.target.value.slice(0, 80))}
+                        placeholder="My interview style"
+                        className="h-9 text-[13px]"
+                        autoFocus
+                      />
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-muted-foreground text-[11px] font-medium">
+                        Description
+                      </span>
+                      <Textarea
+                        value={styleDescription}
+                        onChange={(e) => setStyleDescription(e.target.value.slice(0, 100))}
+                        placeholder="Tight margins, 3-column skills…"
+                        className="min-h-20 text-[13px]"
+                        maxLength={100}
+                      />
+                      <span className="text-muted-foreground block text-right text-[10px] tabular-nums">
+                        {styleDescription.length}/100
+                      </span>
+                    </label>
+                    {styleMsg ? <p className="text-destructive text-[11px]">{styleMsg}</p> : null}
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSaveOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      loading={savingStyle}
+                      loadingText="Saving…"
+                      onClick={() => void saveCurrentStyle()}
+                    >
+                      Save
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          ) : null}
 
           <section className="space-y-2">
             <p className="text-foreground text-[12px] font-semibold">Sections</p>
@@ -349,6 +472,7 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                             sectionId={section.id}
                             draft={draft}
                             patchContent={patchContent}
+                            patchStyle={patchStyle}
                           />
                         </div>
                       ) : null}
@@ -368,10 +492,12 @@ function SectionEditor({
   sectionId,
   draft,
   patchContent,
+  patchStyle,
 }: {
   sectionId: ResumeCreatorSectionId;
   draft: ResumeCreatorDraft;
   patchContent: (partial: Partial<ResumeCreatorDraft["content"]>) => void;
+  patchStyle: (partial: Partial<ResumeCreatorStyle>) => void;
 }) {
   switch (sectionId) {
     case "contact":
@@ -427,12 +553,18 @@ function SectionEditor({
       );
     case "skills":
       return (
-        <Textarea
-          value={draft.content.skills}
-          onChange={(e) => patchContent({ skills: e.target.value })}
-          className="min-h-20 text-[12px] leading-relaxed"
-          placeholder="Comma- or newline-separated: TypeScript, Python, …"
-        />
+        <div className="space-y-3">
+          <Textarea
+            value={draft.content.skills}
+            onChange={(e) => patchContent({ skills: e.target.value })}
+            className="min-h-20 text-[12px] leading-relaxed"
+            placeholder="Comma- or newline-separated: TypeScript, Python, …"
+          />
+          <div className="border-border space-y-2 rounded-md border p-2">
+            <p className="text-foreground text-[11px] font-medium">Skills layout</p>
+            <SkillsLayoutControls style={draft.style} onChange={patchStyle} />
+          </div>
+        </div>
       );
     case "experience":
       return (
@@ -562,6 +694,10 @@ function SectionEditor({
     case "education":
       return (
         <div className="space-y-3">
+          <div className="border-border space-y-2 rounded-md border p-2">
+            <p className="text-foreground text-[11px] font-medium">Education layout</p>
+            <EducationLayoutControls style={draft.style} onChange={patchStyle} />
+          </div>
           {draft.content.education.map((entry, idx) => (
             <div key={entry.id} className="border-border space-y-2 rounded-md border p-2">
               <div className="flex items-center justify-between">

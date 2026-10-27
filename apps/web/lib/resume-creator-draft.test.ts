@@ -94,5 +94,11 @@ assert.equal(normalizeStyle({ bodyPt: 99 }).bodyPt, 14); // clamped
 assert.equal(normalizeStyle({ lineHeight: 0.5 }).lineHeight, 1.0);
 assert.equal(normalizeStyle({ primaryFont: "verdana" }).primaryFont, "verdana");
 assert.equal(normalizeStyle({ headerWeight: "semibold" }).headerWeight, "semibold");
+assert.equal(normalizeStyle({ marginYPt: -5 }).marginYPt, 0);
+assert.equal(normalizeStyle({ pageFormat: "letter" }).pageFormat, "letter");
+assert.equal(normalizeStyle({ skillsLayout: "columns", skillsColumns: 5 }).skillsColumns, 5);
+assert.equal(normalizeStyle({ educationShowBy: "institution" }).educationShowBy, "institution");
+assert.equal(normalizeStyle({ dateFormat: "numeric" }).dateFormat, "numeric");
+assert.equal(normalizeStyle({ headerAlign: "center" }).headerAlign, "center");
 
 console.log("resume-creator-draft tests: ok");

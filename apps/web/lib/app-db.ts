@@ -352,6 +352,7 @@ async function runSchema() {
     )`;
   await db`CREATE INDEX IF NOT EXISTS resume_creator_styles_user_idx
     ON resume_creator_styles (user_id, updated_at DESC)`;
+  await db`ALTER TABLE resume_creator_styles ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''`;
   await db`
     CREATE TABLE IF NOT EXISTS resume_improvements (
       id TEXT PRIMARY KEY NOT NULL,
