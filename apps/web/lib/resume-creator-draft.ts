@@ -200,7 +200,7 @@ const SECTION_IDS: ResumeCreatorSectionId[] = [
   "certifications",
 ];
 
-function normalizeSections(raw: unknown): ResumeCreatorSectionMeta[] {
+export function normalizeSections(raw: unknown): ResumeCreatorSectionMeta[] {
   const byId = new Map(DEFAULT_SECTION_ORDER.map((s) => [s.id, { ...s }]));
   if (Array.isArray(raw)) {
     const ordered: ResumeCreatorSectionMeta[] = [];

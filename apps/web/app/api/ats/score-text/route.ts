@@ -8,7 +8,6 @@ import { buildCombinations, getEngine, scoreTypeLabel } from "@/lib/ats-engines/
 import type { AtsBatchResultCell, AtsEngineId, EngineRunRequest } from "@/lib/ats-engines/types";
 import { normalizeAtsIssues } from "@/lib/ats-types";
 
-const MAX_ENGINES = 12;
 const MAX_RESUME_CHARS = 80_000;
 const MAX_JD_CHARS = 40_000;
 /** Synthetic id so engine logs still have a resumeId without writing a DB row. */
@@ -70,10 +69,6 @@ export async function POST(request: Request) {
   if (!engines?.length) {
     return NextResponse.json({ error: "Select at least one scoring engine." }, { status: 400 });
   }
-  if (engines.length > MAX_ENGINES) {
-    return NextResponse.json({ error: `At most ${MAX_ENGINES} engines per run.` }, { status: 400 });
-  }
-
   const sharedRole = typeof body.role === "string" ? body.role.trim() : "";
   const sharedJd = typeof body.jdText === "string" ? body.jdText : "";
   if (sharedJd.length > MAX_JD_CHARS) {

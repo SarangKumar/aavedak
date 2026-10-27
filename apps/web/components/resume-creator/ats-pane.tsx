@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
-import { ScoreRing } from "@/components/ui/score-ring";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
@@ -138,7 +137,7 @@ export function ResumeCreatorAtsPane({
         <div className="mb-2 shrink-0 px-1">
           <p className="aavedak-section-title text-foreground">ATS check</p>
           <p className="aavedak-meta text-muted-foreground mt-0.5">
-            Run scores against a job title and description when you are ready.
+            Sign in to check this draft against ATS engines.
           </p>
         </div>
         <div className="border-border bg-card flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center">
@@ -160,20 +159,20 @@ export function ResumeCreatorAtsPane({
 
   return (
     <div className={cn("flex h-full min-h-0 flex-1 flex-col", className)}>
-      <div className="mb-2 flex shrink-0 items-start justify-between gap-2 px-1">
-        <div className="min-w-0">
+      <div className="mb-3 shrink-0 space-y-2.5 px-1">
+        <div className="min-w-0 space-y-0.5">
           <p className="aavedak-section-title text-foreground">ATS check</p>
-          <p className="aavedak-meta text-muted-foreground mt-0.5">
-            Scores only when you hit Check ATS · click an engine for feedback
+          <p className="aavedak-meta text-muted-foreground">
+            Pick engines, then run a check on this draft. Click a result for feedback.
           </p>
         </div>
         <Button
           type="button"
-          variant="secondary"
+          variant="default"
           size="sm"
-          className="shrink-0"
+          className="w-full sm:w-auto"
           onClick={() => void runScore()}
-          disabled={running}
+          disabled={running || selected.size === 0}
           loading={running}
           loadingText="Checking…"
         >
@@ -238,17 +237,15 @@ export function ResumeCreatorAtsPane({
           <div className="border-border bg-card rounded-lg border p-3">
             <div className="flex items-center gap-3">
               {final ? (
-                <>
-                  <ScoreRing value={final.score} size="sm" />
-                  <div className="min-w-0">
-                    <p className="text-foreground text-[13px] font-semibold">
-                      Final score {Math.round(final.score)}
-                    </p>
-                    <p className="text-muted-foreground text-[11px]">
-                      {scoreVerdict(final.score)} · weighted across engines that ran
-                    </p>
-                  </div>
-                </>
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-muted-foreground text-[11px] font-medium">Overall rating</p>
+                  <p className="text-foreground text-[15px] font-semibold tracking-tight">
+                    {scoreVerdict(final.score)}
+                  </p>
+                  <p className="text-muted-foreground text-[11px]">
+                    Weighted across engines that returned a score
+                  </p>
+                </div>
               ) : (
                 <div className="flex items-center gap-2">
                   {running ? <Spinner className="size-4" /> : null}
@@ -257,7 +254,7 @@ export function ResumeCreatorAtsPane({
                       ? "Add more resume content to score."
                       : running
                         ? "Scoring…"
-                        : "No scores yet."}
+                        : "No scores yet — hit Check ATS when ready."}
                   </p>
                 </div>
               )}
@@ -285,21 +282,18 @@ export function ResumeCreatorAtsPane({
                   >
                     <div className="min-w-0 flex-1">
                       <EngineLabel engineId={cell.engineId} className="text-[12px]" wrap />
-                      {!done ? (
-                        <p className="text-muted-foreground mt-0.5 text-[10px]">
-                          {cell.error || cell.status}
-                        </p>
-                      ) : null}
                     </div>
                     {done ? (
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        <ScoreRing value={cell.overallScore!} size="xs" />
-                        <span className="text-foreground w-7 text-right text-[12px] tabular-nums">
-                          {Math.round(cell.overallScore!)}
-                        </span>
+                      <span
+                        className="text-foreground shrink-0 text-[12px] font-semibold"
+                        title={`Score ${Math.round(cell.overallScore!)}`}
+                      >
+                        {scoreVerdict(cell.overallScore!)}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground text-[11px]">—</span>
+                      <span className="text-muted-foreground text-[11px]">
+                        {cell.error || cell.status || "—"}
+                      </span>
                     )}
                   </button>
                 </li>

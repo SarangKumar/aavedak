@@ -55,6 +55,7 @@ type SavedStyle = {
   name: string;
   description?: string;
   style: ResumeCreatorStyle;
+  sections?: ResumeCreatorDraft["sections"];
 };
 
 type Props = {
@@ -149,7 +150,12 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
       const res = await fetch("/api/resume-creator/styles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, style: draft.style }),
+        body: JSON.stringify({
+          name,
+          description,
+          style: draft.style,
+          sections: draft.sections,
+        }),
       });
       const data = (await res.json()) as { style?: SavedStyle; error?: string };
       if (!res.ok) throw new Error(data.error || "Could not save style.");
@@ -193,7 +199,7 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
           {/* Built-in + user style configs as one compact card grid. */}
           <section className="@container space-y-2">
             <p className="text-foreground text-[12px] font-semibold">Style presets</p>
-            <div className="@[18rem]:grid-cols-2 grid w-full grid-cols-1 gap-2">
+            <div className="@[18rem]:grid-cols-2 grid w-full auto-rows-fr grid-cols-1 gap-2">
               {(Object.keys(STYLE_PRESETS) as ResumeCreatorPresetId[]).map((id) => {
                 const preset = STYLE_PRESETS[id];
                 const selected = draft.styleSource.kind === "preset" && draft.styleSource.id === id;
@@ -212,7 +218,7 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                       aria-pressed={selected}
                       onClick={() => onChange(applyPreset(draft, id))}
                       className={cn(
-                        "border-border hover:bg-muted/40 flex w-full flex-col items-stretch gap-0.5 overflow-hidden rounded-md border px-2 py-1.5 text-left transition-colors",
+                        "border-border hover:bg-muted/40 flex h-full min-h-[4.25rem] w-full flex-col items-stretch gap-0.5 overflow-hidden rounded-md border px-2 py-1.5 text-left transition-colors",
                         selected && "border-primary bg-primary/5",
                       )}
                     >
@@ -227,7 +233,7 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                           default
                         </Badge>
                       </span>
-                      <span className="text-muted-foreground line-clamp-2 w-full text-[10px] font-normal leading-snug">
+                      <span className="text-muted-foreground line-clamp-2 min-h-[2rem] w-full flex-1 text-[10px] font-normal leading-snug">
                         {preset.description}
                       </span>
                     </button>
@@ -248,7 +254,7 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                   </div>
                 );
                 return (
-                  <div key={s.id} className="relative">
+                  <div key={s.id} className="relative h-full min-h-[4.25rem]">
                     <Tooltip content={tip} side="top" delayDuration={250}>
                       <button
                         type="button"
@@ -258,11 +264,14 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                             ...draft,
                             styleSource: { kind: "custom", id: s.id, name: s.name },
                             style: { ...s.style },
+                            ...(s.sections?.length
+                              ? { sections: s.sections.map((sec) => ({ ...sec })) }
+                              : {}),
                             updatedAt: new Date().toISOString(),
                           })
                         }
                         className={cn(
-                          "border-border hover:bg-muted/40 flex w-full flex-col items-stretch gap-0.5 overflow-hidden rounded-md border px-2 py-1.5 pr-8 text-left transition-colors",
+                          "border-border hover:bg-muted/40 flex h-full min-h-[4.25rem] w-full flex-col items-stretch gap-0.5 overflow-hidden rounded-md border px-2 py-1.5 pr-8 text-left transition-colors",
                           selected && "border-primary bg-primary/5",
                         )}
                       >
@@ -271,13 +280,13 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                             {s.name}
                           </span>
                           <Badge
-                            variant="secondary"
+                            variant="default"
                             className="shrink-0 px-1.5 py-0 text-[9px] font-medium"
                           >
                             user defined
                           </Badge>
                         </span>
-                        <span className="text-muted-foreground line-clamp-2 w-full text-[10px] font-normal leading-snug">
+                        <span className="text-muted-foreground line-clamp-2 min-h-[2rem] w-full flex-1 text-[10px] font-normal leading-snug">
                           {s.description?.trim() || "User defined configuration"}
                         </span>
                       </button>

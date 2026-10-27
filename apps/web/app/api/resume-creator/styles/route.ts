@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { requireApiUser } from "@/lib/api-session";
+import { normalizeSections, normalizeStyle } from "@/lib/resume-creator-draft";
 import { createResumeCreatorStyle, listResumeCreatorStyles } from "@/lib/resume-creator-styles";
-import { normalizeStyle } from "@/lib/resume-creator-draft";
 
 export async function GET() {
   const auth = await requireApiUser();
@@ -28,6 +28,7 @@ export async function POST(request: Request) {
       name,
       description,
       style: normalizeStyle(body.style),
+      sections: body.sections !== undefined ? normalizeSections(body.sections) : undefined,
     });
     return NextResponse.json({ style }, { status: 201 });
   } catch (err) {
