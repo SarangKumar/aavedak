@@ -1,13 +1,8 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { ChevronDown, Info } from "lucide-react";
+import { useState } from "react";
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import {
@@ -177,13 +172,24 @@ function TextAccordion({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(RESUME_CREATOR_FONTS) as ResumeCreatorFontId[]).map((id) => (
-                  <SelectItem key={id} value={id}>
-                    <span style={{ fontFamily: RESUME_CREATOR_FONTS[id].css }}>
-                      {RESUME_CREATOR_FONTS[id].label}
-                    </span>
-                  </SelectItem>
-                ))}
+                {(Object.keys(RESUME_CREATOR_FONTS) as ResumeCreatorFontId[])
+                  .filter((id) => RESUME_CREATOR_FONTS[id].group === "sans")
+                  .map((id) => (
+                    <SelectItem key={id} value={id}>
+                      <span style={{ fontFamily: RESUME_CREATOR_FONTS[id].css }}>
+                        {RESUME_CREATOR_FONTS[id].label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                {(Object.keys(RESUME_CREATOR_FONTS) as ResumeCreatorFontId[])
+                  .filter((id) => RESUME_CREATOR_FONTS[id].group === "serif")
+                  .map((id) => (
+                    <SelectItem key={id} value={id}>
+                      <span style={{ fontFamily: RESUME_CREATOR_FONTS[id].css }}>
+                        {RESUME_CREATOR_FONTS[id].label}
+                      </span>
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </label>
@@ -627,21 +633,11 @@ export function SkillsLayoutControls({
             }
           />
         </ToggleGroup>
-        {style.skillsCategoryMode === "categories" ? (
-          <SizeRow
-            label="Category column width"
-            value={style.skillsCategoryWidthPt}
-            min={40}
-            max={200}
-            step={1}
-            unit="pt"
-            onChange={(n) => onChange({ skillsCategoryWidthPt: n })}
-          />
-        ) : null}
       </div>
       <p className="text-muted-foreground text-[10px] leading-snug">
-        Tip: for categories, write skills as{" "}
-        <span className="text-foreground">Languages: TypeScript, Go</span> on separate lines.
+        Tip: one category per line —{" "}
+        <span className="text-foreground">Languages: TypeScript, Go</span>. Preview shows category
+        labels with a colon and comma-separated skills.
       </p>
     </div>
   );
@@ -737,6 +733,11 @@ export function EducationLayoutControls({
  * Skills/education options live in section editors via the scoped exports.
  */
 export function ResumeCreatorStylePanel({ style, onChange, scope = "all", className }: Props) {
+  const [open, setOpen] = useState<{ text: boolean; layout: boolean }>({
+    text: true,
+    layout: true,
+  });
+
   if (scope === "skills") {
     return (
       <div className={className}>
@@ -753,23 +754,36 @@ export function ResumeCreatorStylePanel({ style, onChange, scope = "all", classN
   }
 
   return (
-    <Accordion
-      type="multiple"
-      defaultValue={["text", "layout"]}
-      className={cn("border-y-0", className)}
-    >
-      <AccordionItem value="text">
-        <AccordionTrigger className="py-2 text-[12px] font-semibold">Text</AccordionTrigger>
-        <AccordionContent className="pb-3">
-          <TextAccordion style={style} onChange={onChange} />
-        </AccordionContent>
-      </AccordionItem>
-      <AccordionItem value="layout">
-        <AccordionTrigger className="py-2 text-[12px] font-semibold">Layout</AccordionTrigger>
-        <AccordionContent className="pb-3">
-          <LayoutGlobal style={style} onChange={onChange} />
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
+    <div className={cn("space-y-2", className)}>
+      {(
+        [
+          ["text", "Text", <TextAccordion key="t" style={style} onChange={onChange} />],
+          ["layout", "Layout", <LayoutGlobal key="l" style={style} onChange={onChange} />],
+        ] as const
+      ).map(([key, label, body]) => {
+        const isOpen = open[key];
+        return (
+          <div key={key} className="border-border bg-background overflow-hidden rounded-md border">
+            <button
+              type="button"
+              className="hover:bg-muted/40 flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left"
+              aria-expanded={isOpen}
+              onClick={() => setOpen((prev) => ({ ...prev, [key]: !prev[key] }))}
+            >
+              <span className="text-foreground text-[12px] font-semibold">{label}</span>
+              <ChevronDown
+                className={cn(
+                  "text-muted-foreground size-3.5 shrink-0 transition-transform",
+                  isOpen && "rotate-180",
+                )}
+              />
+            </button>
+            {isOpen ? (
+              <div className="border-border space-y-2 border-t px-2.5 py-2.5">{body}</div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
   );
 }

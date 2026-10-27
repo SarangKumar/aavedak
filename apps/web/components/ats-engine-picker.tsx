@@ -106,7 +106,7 @@ export function AtsEnginePicker({
                         disabled={disabled}
                         aria-label={`Select ${eng.name}`}
                       />
-                      <EngineLabel engineId={eng.id} />
+                      <EngineLabel engineId={eng.id} wrap />
                     </span>
                     <span className="text-muted-foreground block pl-6 text-[10px] leading-snug">
                       {eng.shortDescription}

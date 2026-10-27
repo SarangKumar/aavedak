@@ -8,7 +8,6 @@ import {
   type ResumeCreatorDraft,
   type ResumeCreatorSectionMeta,
   type ResumeCreatorStyle,
-  type ResumeEducationEntry,
   type ResumeFontWeight,
 } from "@/lib/resume-creator-types";
 
@@ -265,16 +264,6 @@ function sectionTitleOf(sections: ResumeCreatorSectionMeta[], id: string): strin
   return sections.find((s) => s.id === id)?.title ?? id;
 }
 
-function educationPrimary(
-  e: ResumeEducationEntry,
-  showBy: ResumeCreatorStyle["educationShowBy"],
-): string {
-  if (showBy === "institution") {
-    return [e.school.trim(), e.degree.trim()].filter(Boolean).join(" — ");
-  }
-  return [e.degree.trim(), e.school.trim()].filter(Boolean).join(" — ");
-}
-
 type SkillRow =
   { kind: "plain"; items: string[] } | { kind: "category"; category: string; items: string[] };
 
@@ -348,9 +337,18 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
             align: headerAlign,
           });
         }
-        const bits = [c.email, c.phone, c.location, c.linkedin, c.github, c.portfolio]
-          .map((s) => s.trim())
-          .filter(Boolean);
+        const bits: string[] = [];
+        const push = (link: { label: string; value: string }) => {
+          const value = link.value.trim();
+          if (!value) return;
+          bits.push(link.label.trim() || value);
+        };
+        push(c.email);
+        push(c.phone);
+        if (c.location.trim()) bits.push(c.location.trim());
+        push(c.linkedin);
+        push(c.github);
+        push(c.portfolio);
         if (bits.length) {
           writeLines(ctx, bits.join("  ·  "), {
             pt: style.footerPt,
@@ -386,10 +384,16 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
         if (!entries.length) break;
         writeSectionTitle(ctx, sectionTitleOf(draft.sections, "experience"));
         for (const e of entries) {
-          const leftTitle = [e.title.trim(), e.company.trim()].filter(Boolean).join(" — ");
+          const company = e.company.trim() || "Company";
           const dateText = formatRange(e.start, e.end, style.dateFormat);
-          if (leftTitle || dateText) {
-            writeTitleDateRow(ctx, leftTitle || " ", dateText);
+          writeTitleDateRow(ctx, company, dateText);
+          if (e.title.trim()) {
+            writeLines(ctx, e.title.trim(), {
+              pt: style.bodyPt,
+              font: "secondary",
+              weight: style.bodyWeight,
+              gapAfter: style.insideBlockGapPt,
+            });
           }
           if (e.location.trim()) {
             writeLines(ctx, e.location.trim(), {
@@ -420,9 +424,21 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
         if (!entries.length) break;
         writeSectionTitle(ctx, sectionTitleOf(draft.sections, "education"));
         for (const e of entries) {
-          const title = educationPrimary(e, style.educationShowBy);
+          const primary =
+            style.educationShowBy === "degree"
+              ? e.degree.trim() || e.school.trim()
+              : e.school.trim() || e.degree.trim();
+          const secondary = style.educationShowBy === "degree" ? e.school.trim() : e.degree.trim();
           const dateText = formatRange(e.start, e.end, style.dateFormat);
-          writeTitleDateRow(ctx, title || " ", dateText);
+          writeTitleDateRow(ctx, primary || " ", dateText);
+          if (secondary) {
+            writeLines(ctx, secondary, {
+              pt: style.bodyPt,
+              font: "secondary",
+              weight: style.bodyWeight,
+              gapAfter: style.insideBlockGapPt,
+            });
+          }
           const meta = [e.location.trim(), e.details.trim()].filter(Boolean).join(" · ");
           if (meta) {
             writeLines(ctx, meta, {
@@ -446,34 +462,14 @@ function renderDraft(doc: Doc, draft: ResumeCreatorDraft) {
         if (style.skillsCategoryMode === "categories" && rows.some((r) => r.kind === "category")) {
           for (const row of rows) {
             if (row.kind === "category") {
-              const catW = Math.min(style.skillsCategoryWidthPt, contentW * 0.45);
-              ensureSpace(ctx, style.bodyPt * style.lineHeight + 2);
-              ctx.doc.setFont(ctx.secondaryFont, "bold");
-              ctx.doc.setFontSize(style.bodyPt);
-              ctx.doc.setTextColor(20, 20, 20);
-              const catLines = ctx.doc.splitTextToSize(row.category, catW);
-              ctx.doc.text(catLines[0] ?? row.category, left, ctx.y + style.bodyPt * 0.8);
-              ctx.doc.setFont(ctx.secondaryFont, pdfWeight(style.bodyWeight));
-              const items = row.items.join(" · ");
-              const itemLines = ctx.doc.splitTextToSize(items, contentW - catW - 6);
-              ctx.doc.text(itemLines[0] ?? items, left + catW + 6, ctx.y + style.bodyPt * 0.8);
-              ctx.y += style.bodyPt * style.lineHeight;
-              const more = Math.max(catLines.length, itemLines.length) - 1;
-              for (let i = 1; i <= more; i++) {
-                ensureSpace(ctx, style.bodyPt * style.lineHeight);
-                if (catLines[i]) {
-                  ctx.doc.setFont(ctx.secondaryFont, "bold");
-                  ctx.doc.text(catLines[i], left, ctx.y + style.bodyPt * 0.8);
-                }
-                if (itemLines[i]) {
-                  ctx.doc.setFont(ctx.secondaryFont, pdfWeight(style.bodyWeight));
-                  ctx.doc.text(itemLines[i], left + catW + 6, ctx.y + style.bodyPt * 0.8);
-                }
-                ctx.y += style.bodyPt * style.lineHeight;
-              }
-              ctx.y += style.insideBlockGapPt;
+              writeLines(ctx, `${row.category}: ${row.items.join(", ")}`, {
+                pt: style.bodyPt,
+                font: "secondary",
+                weight: style.bodyWeight,
+                gapAfter: style.insideBlockGapPt,
+              });
             } else {
-              writeLines(ctx, row.items.join(" · "), {
+              writeLines(ctx, row.items.join(", "), {
                 pt: style.bodyPt,
                 font: "secondary",
                 weight: style.bodyWeight,

@@ -9,16 +9,43 @@ import {
   pageSizePt,
   type ResumeCreatorDraft,
   type ResumeCreatorStyle,
-  type ResumeEducationEntry,
   type ResumeFontWeight,
 } from "@/lib/resume-creator-types";
 import { cn } from "@/lib/utils";
 
-function contactBits(draft: ResumeCreatorDraft): string[] {
+type ContactDisplay = { label: string; href: string | null };
+
+function ensureUrl(raw: string): string {
+  const v = raw.trim();
+  if (!v) return "";
+  if (/^https?:\/\//i.test(v) || /^mailto:/i.test(v) || /^tel:/i.test(v)) return v;
+  if (v.includes("@") && !v.includes(" ")) return `mailto:${v}`;
+  if (/^[+\d][\d\s().-]{6,}$/.test(v)) return `tel:${v.replace(/[\s().-]/g, "")}`;
+  return `https://${v.replace(/^\/+/, "")}`;
+}
+
+function contactLinks(draft: ResumeCreatorDraft): ContactDisplay[] {
   const c = draft.content.contact;
-  return [c.email, c.phone, c.location, c.linkedin, c.github, c.portfolio]
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const out: ContactDisplay[] = [];
+  const pushLink = (link: { label: string; value: string }, kind: "email" | "phone" | "url") => {
+    const value = link.value.trim();
+    if (!value) return;
+    const label = link.label.trim() || value;
+    let href = value;
+    if (kind === "email") href = value.startsWith("mailto:") ? value : `mailto:${value}`;
+    else if (kind === "phone") {
+      const digits = value.replace(/[^\d+]/g, "");
+      href = value.startsWith("tel:") ? value : `tel:${digits}`;
+    } else href = ensureUrl(value);
+    out.push({ label, href });
+  };
+  pushLink(c.email, "email");
+  pushLink(c.phone, "phone");
+  if (c.location.trim()) out.push({ label: c.location.trim(), href: null });
+  pushLink(c.linkedin, "url");
+  pushLink(c.github, "url");
+  pushLink(c.portfolio, "url");
+  return out;
 }
 
 /** Best-effort format for free-text dates already on the draft. */
@@ -161,13 +188,6 @@ function SectionRule({
   );
 }
 
-function educationPrimary(e: ResumeEducationEntry, showBy: ResumeCreatorStyle["educationShowBy"]) {
-  if (showBy === "institution") {
-    return [e.school.trim(), e.degree.trim()].filter(Boolean).join(" — ");
-  }
-  return [e.degree.trim(), e.school.trim()].filter(Boolean).join(" — ");
-}
-
 function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
   const style = draft.style;
   const primaryCss = RESUME_CREATOR_FONTS[style.primaryFont].css;
@@ -270,7 +290,7 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
           >
             {draft.content.contact.fullName.trim() || "Your name"}
           </p>
-          {contactBits(draft).length ? (
+          {contactLinks(draft).length ? (
             <p
               className="text-neutral-600"
               style={textStyle(style.footerPt, {
@@ -279,7 +299,22 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                 extra: { marginTop: "2pt" },
               })}
             >
-              {contactBits(draft).join("  ·  ")}
+              {contactLinks(draft).map((item, i) => (
+                <span key={`${item.label}-${i}`}>
+                  {i > 0 ? <span aria-hidden>{"  ·  "}</span> : null}
+                  {item.href ? (
+                    <a
+                      href={item.href}
+                      className="text-neutral-600 underline-offset-2 hover:underline"
+                      style={{ color: "inherit" }}
+                    >
+                      {item.label}
+                    </a>
+                  ) : (
+                    item.label
+                  )}
+                </span>
+              ))}
             </p>
           ) : (
             <p
@@ -343,9 +378,20 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                         })}
                       >
                         {style.dateAlign === "left" ? dateSpan(e.start, e.end) : null}
-                        {[e.title.trim(), e.company.trim()].filter(Boolean).join(" — ")}
+                        {e.company.trim() || "Company"}
                         {style.dateAlign === "right" ? dateSpan(e.start, e.end) : null}
                       </p>
+                      {e.title.trim() ? (
+                        <p
+                          className="text-neutral-800"
+                          style={textStyle(style.bodyPt, {
+                            face: "secondary",
+                            weight: style.bodyWeight,
+                          })}
+                        >
+                          {e.title.trim()}
+                        </p>
+                      ) : null}
                       {locationLine(e.location)}
                       <ul
                         className="list-none"
@@ -418,9 +464,22 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
                         })}
                       >
                         {style.dateAlign === "left" ? dateSpan(e.start, e.end) : null}
-                        {educationPrimary(e, style.educationShowBy)}
+                        {style.educationShowBy === "degree"
+                          ? e.degree.trim() || e.school.trim()
+                          : e.school.trim() || e.degree.trim()}
                         {style.dateAlign === "right" ? dateSpan(e.start, e.end) : null}
                       </p>
+                      {(style.educationShowBy === "degree" ? e.school.trim() : e.degree.trim()) ? (
+                        <p
+                          className="text-neutral-800"
+                          style={textStyle(style.bodyPt, {
+                            face: "secondary",
+                            weight: style.bodyWeight,
+                          })}
+                        >
+                          {style.educationShowBy === "degree" ? e.school.trim() : e.degree.trim()}
+                        </p>
+                      ) : null}
                       {locationLine(
                         [e.location.trim(), e.details.trim()].filter(Boolean).join(" · "),
                       )}
@@ -437,49 +496,35 @@ function PaperContent({ draft }: { draft: ResumeCreatorDraft }) {
           {sectionTitle("skills")}
           {style.skillsCategoryMode === "categories" &&
           skillRows.some((r) => r.kind === "category") ? (
-            <div className="space-y-1">
-              {skillRows.map((row, i) =>
-                row.kind === "category" ? (
-                  <div
-                    key={`cat-${i}`}
-                    className="flex gap-2"
-                    style={{ marginTop: i === 0 ? 0 : `${style.insideBlockGapPt}pt` }}
-                  >
-                    <p
-                      className="shrink-0 text-neutral-900"
-                      style={{
-                        ...textStyle(style.bodyPt, {
-                          face: "secondary",
-                          weight: "semibold",
-                        }),
-                        width: `${style.skillsCategoryWidthPt}pt`,
-                      }}
-                    >
-                      {row.category}
-                    </p>
-                    <p
-                      className="min-w-0 flex-1 text-neutral-800"
-                      style={textStyle(style.bodyPt, {
-                        face: "secondary",
-                        weight: style.bodyWeight,
-                      })}
-                    >
-                      {row.items.join(" · ")}
-                    </p>
-                  </div>
-                ) : (
-                  <p
-                    key={`plain-${i}`}
-                    className="text-neutral-800"
-                    style={textStyle(style.bodyPt, {
+            <div>
+              {skillRows.map((row, i) => (
+                <p
+                  key={`skill-row-${i}`}
+                  className="text-neutral-800"
+                  style={{
+                    ...textStyle(style.bodyPt, {
                       face: "secondary",
                       weight: style.bodyWeight,
-                    })}
-                  >
-                    {row.items.join(" · ")}
-                  </p>
-                ),
-              )}
+                    }),
+                    marginTop: i === 0 ? 0 : `${style.insideBlockGapPt}pt`,
+                  }}
+                >
+                  {row.kind === "category" ? (
+                    <>
+                      <span
+                        style={{
+                          fontWeight: RESUME_FONT_WEIGHTS.semibold.css,
+                        }}
+                      >
+                        {row.category}:
+                      </span>{" "}
+                      {row.items.join(", ")}
+                    </>
+                  ) : (
+                    row.items.join(", ")
+                  )}
+                </p>
+              ))}
             </div>
           ) : style.skillsLayout === "columns" ? (
             <div

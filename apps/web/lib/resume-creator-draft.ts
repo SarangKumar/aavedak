@@ -6,6 +6,7 @@ import {
   RESUME_CREATOR_DRAFT_KEY_V1,
   RESUME_CREATOR_PANELS_KEY,
   STYLE_PRESETS,
+  type ResumeContactLink,
   type ResumeCreatorDraft,
   type ResumeCreatorPresetId,
   type ResumeCreatorSectionId,
@@ -89,12 +90,12 @@ export function createEmptyDraft(): ResumeCreatorDraft {
     content: {
       contact: {
         fullName: "",
-        email: "",
-        phone: "",
+        email: { label: "Email", value: "" },
+        phone: { label: "Phone", value: "" },
         location: "",
-        linkedin: "",
-        github: "",
-        portfolio: "",
+        linkedin: { label: "LinkedIn", value: "" },
+        github: { label: "GitHub", value: "" },
+        portfolio: { label: "Portfolio", value: "" },
       },
       summary: "",
       experience: [newExperienceEntry()],
@@ -114,12 +115,12 @@ export function createSampleDraft(): ResumeCreatorDraft {
   const draft = createEmptyDraft();
   draft.content.contact = {
     fullName: "Alex Rivera",
-    email: "alex.rivera@example.com",
-    phone: "+91 98765 43210",
+    email: { label: "Email", value: "alex.rivera@example.com" },
+    phone: { label: "Phone", value: "+91 98765 43210" },
     location: "Bengaluru, India",
-    linkedin: "linkedin.com/in/alexrivera",
-    github: "github.com/alexrivera",
-    portfolio: "",
+    linkedin: { label: "LinkedIn", value: "linkedin.com/in/alexrivera" },
+    github: { label: "GitHub", value: "github.com/alexrivera" },
+    portfolio: { label: "Portfolio", value: "alexrivera.dev" },
   };
   draft.content.summary =
     "Software engineer with 2 years building reliable web APIs and data pipelines. Comfortable owning features end to end and writing clear docs.";
@@ -149,8 +150,12 @@ export function createSampleDraft(): ResumeCreatorDraft {
       details: "GPA 8.4 / 10",
     },
   ];
-  draft.content.skills =
-    "TypeScript, Python, React, Next.js, Node.js, PostgreSQL, Redis, Docker, Git";
+  draft.content.skills = [
+    "Languages: TypeScript, Python, SQL",
+    "Frontend: React, Next.js, Tailwind CSS",
+    "Backend & Databases: Node.js, PostgreSQL, Redis",
+    "Cloud & Tools: Docker, Git, CI/CD",
+  ].join("\n");
   draft.content.projects = [
     {
       id: uid("proj"),
@@ -160,6 +165,14 @@ export function createSampleDraft(): ResumeCreatorDraft {
       bullets: ["Parsed public ATS boards and scored fits with a weighted rubric."],
     },
   ];
+  draft.sections = draft.sections.map((s) =>
+    s.id === "skills" ? { ...s, title: "Technical Skills" } : s,
+  );
+  draft.style = {
+    ...draft.style,
+    skillsCategoryMode: "categories",
+    skillsLayout: "inline",
+  };
   draft.updatedAt = new Date().toISOString();
   return draft;
 }
@@ -212,7 +225,33 @@ function normalizeSections(raw: unknown): ResumeCreatorSectionMeta[] {
   return DEFAULT_SECTION_ORDER.map((s) => ({ ...s }));
 }
 
-const FONT_IDS = ["inter", "arial", "verdana", "georgia", "times", "system"] as const;
+function normalizeContactLink(raw: unknown, fallbackLabel = ""): ResumeContactLink {
+  if (typeof raw === "string") {
+    return { label: fallbackLabel, value: raw };
+  }
+  if (isObject(raw)) {
+    return {
+      label: asString(raw.label, fallbackLabel),
+      value: asString(raw.value ?? raw.href ?? raw.url),
+    };
+  }
+  return { label: fallbackLabel, value: "" };
+}
+
+const FONT_IDS = [
+  "inter",
+  "arial",
+  "helvetica",
+  "verdana",
+  "roboto",
+  "openSans",
+  "lato",
+  "calibri",
+  "segoe",
+  "system",
+  "georgia",
+  "times",
+] as const;
 const WEIGHT_IDS = ["regular", "medium", "semibold", "bold"] as const;
 
 function asFont(value: unknown, fallback: ResumeCreatorStyle["primaryFont"]) {
@@ -362,12 +401,12 @@ export function normalizeDraft(raw: unknown): ResumeCreatorDraft {
     if (isObject(c.contact)) {
       base.content.contact = {
         fullName: asString(c.contact.fullName),
-        email: asString(c.contact.email),
-        phone: asString(c.contact.phone),
+        email: normalizeContactLink(c.contact.email, "Email"),
+        phone: normalizeContactLink(c.contact.phone, "Phone"),
         location: asString(c.contact.location),
-        linkedin: asString(c.contact.linkedin),
-        github: asString(c.contact.github),
-        portfolio: asString(c.contact.portfolio),
+        linkedin: normalizeContactLink(c.contact.linkedin, "LinkedIn"),
+        github: normalizeContactLink(c.contact.github, "GitHub"),
+        portfolio: normalizeContactLink(c.contact.portfolio, "Portfolio"),
       };
     }
     base.content.summary = asString(c.summary);
@@ -532,7 +571,14 @@ export function draftToPlainText(draft: ResumeCreatorDraft): string {
       case "contact": {
         const c = content.contact;
         if (c.fullName.trim()) lines.push(c.fullName.trim());
-        const bits = [c.email, c.phone, c.location, c.linkedin, c.github, c.portfolio]
+        const bits = [
+          c.email.value,
+          c.phone.value,
+          c.location,
+          c.linkedin.value,
+          c.github.value,
+          c.portfolio.value,
+        ]
           .map((s) => s.trim())
           .filter(Boolean);
         if (bits.length) lines.push(bits.join(" · "));
@@ -553,7 +599,7 @@ export function draftToPlainText(draft: ResumeCreatorDraft): string {
         if (!entries.length) break;
         lines.push(section.title.toUpperCase());
         for (const e of entries) {
-          const head = [e.title, e.company]
+          const head = [e.company, e.title]
             .map((s) => s.trim())
             .filter(Boolean)
             .join(" — ");
@@ -575,7 +621,7 @@ export function draftToPlainText(draft: ResumeCreatorDraft): string {
         if (!entries.length) break;
         lines.push(section.title.toUpperCase());
         for (const e of entries) {
-          const head = [e.degree, e.school]
+          const head = [e.school, e.degree]
             .map((s) => s.trim())
             .filter(Boolean)
             .join(" — ");

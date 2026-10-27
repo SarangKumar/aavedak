@@ -8,12 +8,6 @@ import {
   ResumeCreatorStylePanel,
   SkillsLayoutControls,
 } from "@/components/resume-creator/style-panel";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -98,6 +92,7 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
   const [styleName, setStyleName] = useState("");
   const [styleDescription, setStyleDescription] = useState("");
   const [styleMsg, setStyleMsg] = useState<string | null>(null);
+  const [stylingOpen, setStylingOpen] = useState(true);
 
   const patch = useCallback(
     (partial: Partial<ResumeCreatorDraft>) =>
@@ -211,7 +206,7 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                 const next = vals[0] as ResumeCreatorPresetId | undefined;
                 if (next) onChange(applyPreset(draft, next));
               }}
-              className="@[18rem]:grid-cols-2 grid w-full grid-cols-1 items-stretch gap-1.5"
+              className="@[18rem]:grid-cols-2 grid w-full grid-cols-1 items-stretch gap-2"
             >
               {(Object.keys(STYLE_PRESETS) as ResumeCreatorPresetId[]).map((id) => {
                 const preset = STYLE_PRESETS[id];
@@ -227,7 +222,7 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                   <ToggleGroupItem
                     key={id}
                     value={id}
-                    className="h-auto w-full flex-col items-start justify-start overflow-hidden rounded-md px-2.5 py-1.5 text-left"
+                    className="border-border data-[state=on]:border-primary h-auto w-full flex-col items-start justify-start overflow-hidden rounded-md border px-2 py-1.5 text-left"
                   >
                     <Tooltip content={tip} side="top" delayDuration={250}>
                       <span className="flex w-full min-w-0 flex-col items-start gap-0.5">
@@ -326,16 +321,30 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
             )}
           </section>
 
-          <Accordion type="single" collapsible defaultValue="styling" className="border-y-0">
-            <AccordionItem value="styling">
-              <AccordionTrigger className="py-2 text-[12px] font-semibold">
+          <section className="border-border bg-card overflow-hidden rounded-md border">
+            <div className="flex items-center gap-1 px-1.5 py-1.5">
+              <span className="text-foreground min-w-0 flex-1 truncate px-1 text-[12px] font-medium">
                 Styling
-              </AccordionTrigger>
-              <AccordionContent className="pb-3">
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-expanded={stylingOpen}
+                aria-label={stylingOpen ? "Collapse Styling" : "Expand Styling"}
+                onClick={() => setStylingOpen((v) => !v)}
+              >
+                <ChevronDown
+                  className={cn("size-3.5 transition-transform", stylingOpen && "rotate-180")}
+                />
+              </Button>
+            </div>
+            {stylingOpen ? (
+              <div className="border-border space-y-2 border-t px-2.5 py-2.5">
                 <ResumeCreatorStylePanel style={draft.style} onChange={patchStyle} />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+              </div>
+            ) : null}
+          </section>
 
           {signedIn ? (
             <div className="space-y-2">
@@ -515,31 +524,69 @@ function SectionEditor({
               placeholder="Alex Rivera"
             />
           </Field>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {(
-              [
-                ["email", "Email", "alex@example.com"],
-                ["phone", "Phone", "+91 …"],
-                ["location", "Location", "Bengaluru, India"],
-                ["linkedin", "LinkedIn", "linkedin.com/in/…"],
-                ["github", "GitHub", "github.com/…"],
-                ["portfolio", "Portfolio", "yoursite.dev"],
-              ] as const
-            ).map(([key, label, placeholder]) => (
-              <Field key={key} label={label}>
-                <Input
-                  value={draft.content.contact[key]}
-                  onChange={(e) =>
-                    patchContent({
-                      contact: { ...draft.content.contact, [key]: e.target.value },
-                    })
-                  }
-                  className="h-8 text-[12px]"
-                  placeholder={placeholder}
-                />
-              </Field>
-            ))}
-          </div>
+          <Field label="Location">
+            <Input
+              value={draft.content.contact.location}
+              onChange={(e) =>
+                patchContent({
+                  contact: { ...draft.content.contact, location: e.target.value },
+                })
+              }
+              className="h-8 text-[12px]"
+              placeholder="Bengaluru, India"
+            />
+          </Field>
+          <p className="text-muted-foreground text-[10px] leading-snug">
+            Links use a display title on the resume and the value for mailto / tel / URL.
+          </p>
+          {(
+            [
+              ["email", "Email", "Email", "alex@example.com"],
+              ["phone", "Phone", "Phone", "+91 …"],
+              ["linkedin", "LinkedIn", "LinkedIn", "linkedin.com/in/…"],
+              ["github", "GitHub", "GitHub", "github.com/…"],
+              ["portfolio", "Portfolio", "Portfolio", "yoursite.dev"],
+            ] as const
+          ).map(([key, fieldLabel, defaultTitle, placeholder]) => {
+            const link = draft.content.contact[key];
+            return (
+              <div key={key} className="border-border space-y-1.5 rounded-md border p-2">
+                <p className="text-foreground text-[11px] font-medium">{fieldLabel}</p>
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                  <Field label="Title">
+                    <Input
+                      value={link.label}
+                      onChange={(e) =>
+                        patchContent({
+                          contact: {
+                            ...draft.content.contact,
+                            [key]: { ...link, label: e.target.value },
+                          },
+                        })
+                      }
+                      className="h-8 text-[12px]"
+                      placeholder={defaultTitle}
+                    />
+                  </Field>
+                  <Field label="Value">
+                    <Input
+                      value={link.value}
+                      onChange={(e) =>
+                        patchContent({
+                          contact: {
+                            ...draft.content.contact,
+                            [key]: { ...link, value: e.target.value },
+                          },
+                        })
+                      }
+                      className="h-8 text-[12px]"
+                      placeholder={placeholder}
+                    />
+                  </Field>
+                </div>
+              </div>
+            );
+          })}
         </div>
       );
     case "summary":
@@ -558,7 +605,7 @@ function SectionEditor({
             value={draft.content.skills}
             onChange={(e) => patchContent({ skills: e.target.value })}
             className="min-h-20 text-[12px] leading-relaxed"
-            placeholder="Comma- or newline-separated: TypeScript, Python, …"
+            placeholder={"Languages: TypeScript, Python\nFrontend: React, Next.js"}
           />
           <div className="border-border space-y-2 rounded-md border p-2">
             <p className="text-foreground text-[11px] font-medium">Skills layout</p>

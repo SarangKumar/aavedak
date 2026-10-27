@@ -36,11 +36,14 @@ export function EngineLabel({
   engineId,
   className,
   stacked = false,
+  wrap = false,
 }: {
   engineId: AtsEngineId;
   className?: string;
   /** Name above, tag below (for narrow table columns). */
   stacked?: boolean;
+  /** Allow the name to wrap onto the next line when the pane is narrow. */
+  wrap?: boolean;
 }) {
   const name = getEngine(engineId)?.name ?? engineId;
   return (
@@ -56,7 +59,7 @@ export function EngineLabel({
       <span
         className={cn(
           "text-foreground text-[11px] font-medium",
-          stacked ? "max-w-full break-words leading-tight" : "truncate",
+          stacked || wrap ? "max-w-full whitespace-normal break-words leading-tight" : "truncate",
         )}
       >
         {name}

@@ -73,7 +73,6 @@ export function ResumeCreatorAtsPane({
   const [error, setError] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<AtsEngineId | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const plainText = useMemo(() => draftToPlainText(draft), [draft]);
 
   const runScore = useCallback(async () => {
@@ -122,18 +121,6 @@ export function ResumeCreatorAtsPane({
     }
   }, [signedIn, selected, plainText, draft.targetRole, draft.targetJd, yearsExperience]);
 
-  // Live score: debounce draft + engine changes when signed in.
-  useEffect(() => {
-    if (!signedIn) return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      void runScore();
-    }, 900);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [signedIn, runScore]);
-
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const final = useMemo(() => {
@@ -151,7 +138,7 @@ export function ResumeCreatorAtsPane({
         <div className="mb-2 shrink-0 px-1">
           <p className="aavedak-section-title text-foreground">ATS check</p>
           <p className="aavedak-meta text-muted-foreground mt-0.5">
-            Live scores against a job title and description.
+            Run scores against a job title and description when you are ready.
           </p>
         </div>
         <div className="border-border bg-card flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center">
@@ -174,22 +161,24 @@ export function ResumeCreatorAtsPane({
   return (
     <div className={cn("flex h-full min-h-0 flex-1 flex-col", className)}>
       <div className="mb-2 flex shrink-0 items-start justify-between gap-2 px-1">
-        <div>
+        <div className="min-w-0">
           <p className="aavedak-section-title text-foreground">ATS check</p>
           <p className="aavedak-meta text-muted-foreground mt-0.5">
-            Live score as you edit · click an engine for feedback
+            Scores only when you hit Check ATS · click an engine for feedback
           </p>
         </div>
         <Button
           type="button"
-          variant="outline"
-          size="icon-xs"
+          variant="secondary"
+          size="sm"
+          className="shrink-0"
           onClick={() => void runScore()}
           disabled={running}
-          aria-label="Re-run ATS score"
-          title="Re-run"
+          loading={running}
+          loadingText="Checking…"
         >
-          {running ? <Spinner className="size-3.5" /> : <RefreshCw className="size-3.5" />}
+          <RefreshCw className="size-3.5" />
+          Check ATS
         </Button>
       </div>
 
@@ -295,7 +284,7 @@ export function ResumeCreatorAtsPane({
                     )}
                   >
                     <div className="min-w-0 flex-1">
-                      <EngineLabel engineId={cell.engineId} className="text-[12px]" />
+                      <EngineLabel engineId={cell.engineId} className="text-[12px]" wrap />
                       {!done ? (
                         <p className="text-muted-foreground mt-0.5 text-[10px]">
                           {cell.error || cell.status}

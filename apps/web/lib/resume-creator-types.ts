@@ -8,7 +8,19 @@ export type ResumeCreatorStyleSource =
   | { kind: "custom"; id: string; name: string }
   | { kind: "edited" };
 
-export type ResumeCreatorFontId = "inter" | "arial" | "verdana" | "georgia" | "times" | "system";
+export type ResumeCreatorFontId =
+  | "inter"
+  | "arial"
+  | "helvetica"
+  | "verdana"
+  | "roboto"
+  | "openSans"
+  | "lato"
+  | "calibri"
+  | "segoe"
+  | "system"
+  | "georgia"
+  | "times";
 
 export type ResumeFontWeight = "regular" | "medium" | "semibold" | "bold";
 
@@ -50,14 +62,22 @@ export type ResumeCertificationEntry = {
   year: string;
 };
 
+/** A contact field shown as a titled link (mailto / tel / https). */
+export type ResumeContactLink = {
+  /** Visible text on the resume. Falls back to `value` when empty. */
+  label: string;
+  /** Raw value: email address, phone number, or URL/handle. */
+  value: string;
+};
+
 export type ResumeContact = {
   fullName: string;
-  email: string;
-  phone: string;
+  email: ResumeContactLink;
+  phone: ResumeContactLink;
   location: string;
-  linkedin: string;
-  github: string;
-  portfolio: string;
+  linkedin: ResumeContactLink;
+  github: ResumeContactLink;
+  portfolio: ResumeContactLink;
 };
 
 /**
@@ -173,37 +193,79 @@ export function pageSizePt(format: ResumePageFormat): { width: number; height: n
 
 export const RESUME_CREATOR_FONTS: Record<
   ResumeCreatorFontId,
-  { label: string; css: string; pdf: "helvetica" | "times" }
+  { label: string; css: string; pdf: "helvetica" | "times"; group: "sans" | "serif" }
 > = {
   inter: {
     label: "Inter",
     css: 'Inter, Helvetica, Arial, "Helvetica Neue", ui-sans-serif, system-ui, sans-serif',
     pdf: "helvetica",
+    group: "sans",
   },
   arial: {
     label: "Arial",
     css: 'Arial, Helvetica, "Helvetica Neue", ui-sans-serif, sans-serif',
     pdf: "helvetica",
+    group: "sans",
+  },
+  helvetica: {
+    label: "Helvetica",
+    css: 'Helvetica, Arial, "Helvetica Neue", ui-sans-serif, sans-serif',
+    pdf: "helvetica",
+    group: "sans",
   },
   verdana: {
     label: "Verdana",
     css: "Verdana, Geneva, Tahoma, sans-serif",
     pdf: "helvetica",
+    group: "sans",
+  },
+  roboto: {
+    label: "Roboto",
+    css: 'Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif',
+    pdf: "helvetica",
+    group: "sans",
+  },
+  openSans: {
+    label: "Open Sans",
+    css: '"Open Sans", "Segoe UI", Helvetica, Arial, sans-serif',
+    pdf: "helvetica",
+    group: "sans",
+  },
+  lato: {
+    label: "Lato",
+    css: 'Lato, "Helvetica Neue", Helvetica, Arial, sans-serif',
+    pdf: "helvetica",
+    group: "sans",
+  },
+  calibri: {
+    label: "Calibri",
+    css: 'Calibri, Carlito, "Segoe UI", Candara, Arial, sans-serif',
+    pdf: "helvetica",
+    group: "sans",
+  },
+  segoe: {
+    label: "Segoe UI",
+    css: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+    pdf: "helvetica",
+    group: "sans",
   },
   system: {
     label: "System sans",
     css: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
     pdf: "helvetica",
+    group: "sans",
   },
   georgia: {
     label: "Georgia",
     css: 'Georgia, "Times New Roman", Times, serif',
     pdf: "times",
+    group: "serif",
   },
   times: {
     label: "Times",
     css: 'Times, "Times New Roman", Georgia, serif',
     pdf: "times",
+    group: "serif",
   },
 };
 
