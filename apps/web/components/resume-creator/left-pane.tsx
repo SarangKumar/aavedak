@@ -254,53 +254,69 @@ export function ResumeCreatorLeftPane({ draft, onChange, signedIn, className }: 
                   </div>
                 );
                 return (
-                  <div key={s.id} className="relative h-full min-h-[4.25rem]">
-                    <Tooltip content={tip} side="top" delayDuration={250}>
-                      <button
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() =>
-                          onChange({
-                            ...draft,
-                            styleSource: { kind: "custom", id: s.id, name: s.name },
-                            style: { ...s.style },
-                            ...(s.sections?.length
-                              ? { sections: s.sections.map((sec) => ({ ...sec })) }
-                              : {}),
-                            updatedAt: new Date().toISOString(),
-                          })
-                        }
-                        className={cn(
-                          "border-border hover:bg-muted/40 flex h-full min-h-[4.25rem] w-full flex-col items-stretch gap-0.5 overflow-hidden rounded-md border px-2 py-1.5 pr-8 text-left transition-colors",
-                          selected && "border-primary bg-primary/5",
-                        )}
+                  <div
+                    key={s.id}
+                    className={cn(
+                      "border-border hover:bg-muted/40 flex h-full min-h-[4.25rem] w-full flex-col items-stretch gap-0.5 overflow-hidden rounded-md border px-2 py-1.5 text-left transition-colors",
+                      selected && "border-primary bg-primary/5",
+                    )}
+                  >
+                    <div className="flex w-full min-w-0 items-center gap-1">
+                      <Tooltip content={tip} side="top" delayDuration={250}>
+                        <button
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            onChange({
+                              ...draft,
+                              styleSource: { kind: "custom", id: s.id, name: s.name },
+                              style: { ...s.style },
+                              ...(s.sections?.length
+                                ? { sections: s.sections.map((sec) => ({ ...sec })) }
+                                : {}),
+                              updatedAt: new Date().toISOString(),
+                            })
+                          }
+                          className="text-foreground min-w-0 flex-1 truncate text-left text-[12px] font-medium"
+                        >
+                          {s.name}
+                        </button>
+                      </Tooltip>
+                      <Badge
+                        variant="default"
+                        className="shrink-0 px-1.5 py-0 text-[9px] font-medium"
                       >
-                        <span className="flex w-full min-w-0 items-center gap-1.5">
-                          <span className="text-foreground min-w-0 flex-1 truncate text-[12px] font-medium">
-                            {s.name}
-                          </span>
-                          <Badge
-                            variant="default"
-                            className="shrink-0 px-1.5 py-0 text-[9px] font-medium"
-                          >
-                            user defined
-                          </Badge>
-                        </span>
-                        <span className="text-muted-foreground line-clamp-2 min-h-[2rem] w-full flex-1 text-[10px] font-normal leading-snug">
-                          {s.description?.trim() || "User defined configuration"}
-                        </span>
-                      </button>
-                    </Tooltip>
-                    <Button
+                        user defined
+                      </Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        className="shrink-0"
+                        aria-label={`Delete ${s.name}`}
+                        onClick={() => void removeSavedStyle(s.id)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      className="absolute right-1 top-1"
-                      aria-label={`Delete ${s.name}`}
-                      onClick={() => void removeSavedStyle(s.id)}
+                      aria-pressed={selected}
+                      onClick={() =>
+                        onChange({
+                          ...draft,
+                          styleSource: { kind: "custom", id: s.id, name: s.name },
+                          style: { ...s.style },
+                          ...(s.sections?.length
+                            ? { sections: s.sections.map((sec) => ({ ...sec })) }
+                            : {}),
+                          updatedAt: new Date().toISOString(),
+                        })
+                      }
+                      className="text-muted-foreground line-clamp-2 min-h-[2rem] w-full flex-1 text-left text-[10px] font-normal leading-snug"
                     >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                      {s.description?.trim() || "User defined configuration"}
+                    </button>
                   </div>
                 );
               })}

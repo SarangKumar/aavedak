@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
+import { ScoreRing } from "@/components/ui/score-ring";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
@@ -237,15 +238,17 @@ export function ResumeCreatorAtsPane({
           <div className="border-border bg-card rounded-lg border p-3">
             <div className="flex items-center gap-3">
               {final ? (
-                <div className="min-w-0 space-y-0.5">
-                  <p className="text-muted-foreground text-[11px] font-medium">Overall rating</p>
-                  <p className="text-foreground text-[15px] font-semibold tracking-tight">
-                    {scoreVerdict(final.score)}
-                  </p>
-                  <p className="text-muted-foreground text-[11px]">
-                    Weighted across engines that returned a score
-                  </p>
-                </div>
+                <>
+                  <ScoreRing value={final.score} size="sm" />
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-foreground text-[15px] font-semibold tracking-tight">
+                      {scoreVerdict(final.score)}
+                    </p>
+                    <p className="text-muted-foreground text-[11px]">
+                      Weighted across engines that returned a score
+                    </p>
+                  </div>
+                </>
               ) : (
                 <div className="flex items-center gap-2">
                   {running ? <Spinner className="size-4" /> : null}
@@ -285,10 +288,13 @@ export function ResumeCreatorAtsPane({
                     </div>
                     {done ? (
                       <span
-                        className="text-foreground shrink-0 text-[12px] font-semibold"
+                        className="flex shrink-0 items-center gap-1.5"
                         title={`Score ${Math.round(cell.overallScore!)}`}
                       >
-                        {scoreVerdict(cell.overallScore!)}
+                        <ScoreRing value={cell.overallScore!} size="xs" />
+                        <span className="text-foreground w-16 text-[12px] font-semibold">
+                          {scoreVerdict(cell.overallScore!)}
+                        </span>
                       </span>
                     ) : (
                       <span className="text-muted-foreground text-[11px]">
