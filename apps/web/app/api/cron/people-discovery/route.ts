@@ -7,12 +7,12 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * People discovery schedule: six once-daily Vercel crons (00:17, 04:17 … 20:17 UTC, see
- * vercel.json; `?slot=` only keeps each path unique), so it fits the Hobby plan. Hobby may
- * fire each within its hour. Safe to overlap or repeat: the API keeps one run per IST 4-hour
- * slot (`run_key`), claims companies on the cursor when queuing, and items are leased.
- * Authorization: Bearer $CRON_SECRET. The daily API cron
- * `/svc/v1/discovery/cron/people-discovery` remains as an extra fallback.
+ * People discovery schedule: two once-daily Vercel crons (00:17 and 12:17 UTC, see
+ * vercel.json; `?slot=` only keeps each path unique) — morning/evening for Hobby Fluid CPU.
+ * Hobby may fire each within its hour. Safe to overlap or repeat: the API keeps one run per
+ * IST 4-hour slot (`run_key`), claims companies on the cursor when queuing, and items are
+ * leased. Authorization: Bearer $CRON_SECRET. Admin "Discover people now" and
+ * `POST /svc/.../admin/people/scheduled` cover on-demand runs (no separate API cron).
  */
 function authorize(request: Request): boolean {
   const secret = process.env.CRON_SECRET?.trim();

@@ -4,13 +4,13 @@ Checked against the providers' docs on 2026-10-13. Limits change: re-check befor
 
 ## Vercel (Hobby)
 
-| Limit                           | Hobby                                                                                    | This app                                                                                                                                                                            |
-| ------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Function max duration           | 300 s (default and max, Fluid compute)                                                   | Web routes set `maxDuration = 60`; proxied discovery ticks use `discovery_tick_budget_seconds` (45 s); the direct scan/drain crons use `discovery_cron_tick_budget_seconds` (240 s) |
-| Cron jobs                       | 100 per project, **each at most once per day**; fires anywhere within the scheduled hour | 25 daily crons in `vercel.json` (people discovery = six separate daily entries `?slot=0..5`)                                                                                        |
-| Function invocations            | 1M / month                                                                               | ~25 cron calls/day plus traffic                                                                                                                                                     |
-| Active CPU / provisioned memory | 4 CPU-h, 360 GB-h / month                                                                | Ticks are I/O-bound (network waits are not active CPU)                                                                                                                              |
-| Env vars                        | 64 KB total per deployment                                                               | See docs/env.md                                                                                                                                                                     |
+| Limit                           | Hobby                                                                                    | This app                                                                                                                                                                    |
+| ------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Function max duration           | 300 s (default and max, Fluid compute)                                                   | Web routes set `maxDuration = 60`; proxied discovery ticks use `discovery_tick_budget_seconds` (45 s); scan/drain crons use `discovery_cron_tick_budget_seconds` (**90 s**) |
+| Cron jobs                       | 100 per project, **each at most once per day**; fires anywhere within the scheduled hour | **12** daily crons in `vercel.json` (2 scan, 3 drain, 2 people-discovery web slots, expire/prune/rank, 2 mail)                                                              |
+| Function invocations            | 1M / month                                                                               | ~12 cron calls/day plus traffic                                                                                                                                             |
+| Active CPU / provisioned memory | 4 CPU-h, 360 GB-h / month                                                                | Network waits are not Active CPU, but HTML parse / ranking / JSON still are — keep tick budget and concurrency modest (see below)                                           |
+| Env vars                        | 64 KB total per deployment                                                               | See docs/env.md                                                                                                                                                             |
 
 Hobby cannot buy extra usage: going over pauses the project until the next cycle; **no charges**.
 
@@ -19,7 +19,7 @@ Hobby cannot buy extra usage: going over pauses the project until the next cycle
 100 CU-hours compute per project per month (scale to zero after 5 min idle), 1 GB storage per
 project (20 GB account), 5 GB egress per project per month, 10 branches. Over the compute or
 egress limit the compute is suspended until the next cycle; over storage, writes that grow it
-fail. **No charges** on Free. Each cron wakes the compute, so ~25 short wake-ups a day.
+fail. **No charges** on Free. Each cron wakes the compute, so ~12 short wake-ups a day.
 
 ## Google Cloud Storage (resume PDFs)
 
@@ -37,7 +37,7 @@ Pacific. The project has billing enabled, so overruns would be charged.
 
 - Hard cap in code: `google_cse_daily_query_cap = 90` (`DiscoveryTuning`). Before every query
   the API atomically reserves a slot in `external_api_usage` (provider `google_cse`, period =
-  Pacific date), so all six cron slots and manual runs together never send more than 90.
+  Pacific date), so both people-discovery cron slots and manual runs together never send more than 90.
   Once reached, search is skipped until the Pacific day rolls over (`cseCapReached` in run
   counts; usage shown in Admin → People discovery stats).
 - One query per company per refresh (`people_refresh_days`), so typically ≤ 12 per run.
@@ -67,3 +67,19 @@ Hunter, Apollo, Brave Search and SerpAPI are used only when their keys are set, 
 request per company per refresh. Their free plans have monthly caps and return errors (no
 charge) when exhausted unless a paid plan is attached to the key. Keep them on free plans or
 add a cap like CSE's before attaching billing.
+
+## Hobby Fluid Active CPU (keep under 4 CPU-h/month)
+
+Discovery is the main consumer. Defaults are tuned for Hobby:
+
+- `discovery_cron_tick_budget_seconds = 90` (scan/drain wall-clock per invoke)
+- `discovery_fetch_concurrency = 4`
+- Crons: 2 scans + 3 drains + 2 people-discovery web slots (no separate API people cron)
+
+**Kill switch:** set `DISCOVERY_ENABLED=false` in the Vercel project env to skip scans, people
+discovery scheduling, prune-filled, and ranking writes that check the flag. Redeploy or
+restart so the API picks it up.
+
+**Admin page:** Discovery drives budgeted ticks **while the panel is open**. Close Admin (or
+stop the tick loop) when you are not watching a run — otherwise you add extra ticks on top of
+the daily crons and burn Active CPU faster.

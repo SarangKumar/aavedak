@@ -54,7 +54,8 @@ import { SearchInput } from "@/components/search-input";
 
 /**
  * Admin control surface for job + people discovery. All work runs in FastAPI; this panel
- * queues runs and, while open, drives budgeted ticks so progress is visible. Closing the
+ * queues runs and, while open, drives budgeted ticks so progress is visible (each tick uses
+ * Active CPU on Hobby — close the panel when idle). Closing the
  * page is safe — drain crons finish whatever is left.
  */
 

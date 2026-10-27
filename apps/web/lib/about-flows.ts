@@ -104,7 +104,7 @@ const SCAN: Flow = {
   shape:
     "A loop that runs every day: crons queue the pages that are due, each page is read, jobs are cleaned and merged, statuses go back on the list, and the next run picks up from there. Timed-out pages loop back for a retry.",
   trigger:
-    "Two Vercel crons a day (/svc/v1/discovery/cron/scan/0 and /scan/1, 05:45 and 17:45 IST), each for one half of the list, plus seven drain crons through the day that only finish leftover work.",
+    "Two Vercel crons a day (/svc/v1/discovery/cron/scan/0 and /scan/1, 05:45 and 17:45 IST), each for one half of the list, plus three drain crons through the day that only finish leftover work.",
   grid: "grid-cols-3 lg:grid-cols-6",
   nodes: [
     {
@@ -196,7 +196,7 @@ const SCAN: Flow = {
     },
     {
       title: "3. Work in time-boxed batches",
-      body: "The run is worked in batches of 10 inside a 240-second budget (Vercel allows 300). Each item is leased so two runs never take the same page. A careers page gets up to 45 seconds and 16 requests, and a batch is cut off at the deadline.",
+      body: "The run is worked in batches of 4 inside a 90-second budget (Hobby Active CPU). Each item is leased so two runs never take the same page. A careers page gets up to 45 seconds and 16 requests, and a batch is cut off at the deadline.",
       data: "Writes leases and attempts on discovery_run_items.",
     },
     {
@@ -233,7 +233,7 @@ const PEOPLE: Flow = {
   shape:
     "A loop over companies that are due: each company fans out to several public sources, the results come back together into one list of people with emails, and the company is scheduled again 14 days later.",
   trigger:
-    "Six Vercel crons a day (/api/cron/people-discovery, every 4 hours from 05:47 IST) plus one daily fallback on the API (07:45 IST). Each 4-hour slot has one run, so overlaps and retries continue the same run.",
+    "Two Vercel crons a day (/api/cron/people-discovery, 05:47 and 17:47 IST). Each IST 4-hour slot has one run, so overlaps and retries continue the same run.",
   grid: "grid-cols-3 lg:grid-cols-7",
   nodes: [
     {

@@ -19,14 +19,14 @@ export const RUN_KIND_META: Record<string, RunKindMeta> = {
   jobs_scan: {
     label: "Job scan",
     color: "var(--primary)",
-    // Spread evenly every 4h: 00:15 / 04:15 / 08:15 / 12:15 / 16:15 / 20:15 UTC.
-    scheduleUtcMinutes: [0, 4, 8, 12, 16, 20].map((h) => h * 60 + 15),
+    // Twice daily: 00:15 / 12:15 UTC (05:45 / 17:45 IST) — match vercel.json scan/0..1.
+    scheduleUtcMinutes: [0, 12].map((h) => h * 60 + 15),
   },
   people_discovery: {
     label: "People discovery",
     color: "oklch(0.58 0.14 210)",
-    // Six daily Vercel crons at 00:17, 04:17 … 20:17 UTC (00:17, 04:17 … UTC) + the daily Vercel fallback 02:15 UTC.
-    scheduleUtcMinutes: [...[0, 4, 8, 12, 16, 20].map((h) => h * 60 + 17), 2 * 60 + 15],
+    // Two web crons: 00:17 / 12:17 UTC (05:47 / 17:47 IST). No API people cron.
+    scheduleUtcMinutes: [0, 12].map((h) => h * 60 + 17),
   },
   people_import: {
     label: "People import",

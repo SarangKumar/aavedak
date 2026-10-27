@@ -36,15 +36,15 @@ class DiscoveryTuning(BaseModel):
     # not fit in its budget, so the shard count sets how often a company is revisited, not how
     # much work gets done in a day.
     discovery_shards: int = Field(2, ge=1, le=24)
-    # Company sources fetched in parallel inside one tick.
-    discovery_fetch_concurrency: int = Field(10, ge=1, le=16)
+    # Company sources fetched in parallel inside one tick (kept modest for Hobby Active CPU).
+    discovery_fetch_concurrency: int = Field(4, ge=1, le=16)
     # Wall-clock budget for one tick; leftover items wait for the next tick/drain cron. Kept
     # under the 60 s maxDuration of the web routes that proxy a tick (admin, people cron).
     discovery_tick_budget_seconds: float = Field(45.0, ge=5, le=280)
-    # Budget for the scan/drain crons Vercel calls on the API service directly (300 s max
-    # function duration on Hobby): 6 scan + 7 drain ticks/day x ~215 s of claiming at
-    # concurrency 10 covers a ~1,500-company registry with room for retries.
-    discovery_cron_tick_budget_seconds: float = Field(240.0, ge=5, le=280)
+    # Budget for the scan/drain crons Vercel calls on the API service directly (Hobby Fluid
+    # Active CPU is ~4 CPU-h/month). 2 scan + 3 drain ticks/day × ~90 s at concurrency 4
+    # still clears backlog across the day without saturating Active CPU.
+    discovery_cron_tick_budget_seconds: float = Field(90.0, ge=5, le=280)
     discovery_lease_seconds: int = Field(180, ge=30, le=900)
     discovery_max_attempts: int = Field(3, ge=1, le=10)
     # Minimum match score for a recommendation when the user has skills/resume text.

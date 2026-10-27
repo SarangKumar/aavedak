@@ -57,27 +57,7 @@
     },
     {
       "path": "/api/cron/people-discovery?slot=1",
-      "schedule": "17 4 * * *"
-    },
-    {
-      "path": "/api/cron/people-discovery?slot=2",
-      "schedule": "17 8 * * *"
-    },
-    {
-      "path": "/api/cron/people-discovery?slot=3",
       "schedule": "17 12 * * *"
-    },
-    {
-      "path": "/api/cron/people-discovery?slot=4",
-      "schedule": "17 16 * * *"
-    },
-    {
-      "path": "/api/cron/people-discovery?slot=5",
-      "schedule": "17 20 * * *"
-    },
-    {
-      "path": "/svc/v1/discovery/cron/people-discovery",
-      "schedule": "15 2 * * *"
     },
     {
       "path": "/svc/v1/discovery/cron/expire",
@@ -93,30 +73,14 @@
     },
     {
       "path": "/svc/v1/discovery/cron/drain/0",
-      "schedule": "15 3 * * *"
-    },
-    {
-      "path": "/svc/v1/discovery/cron/drain/1",
       "schedule": "15 5 * * *"
     },
     {
-      "path": "/svc/v1/discovery/cron/drain/2",
-      "schedule": "15 9 * * *"
-    },
-    {
-      "path": "/svc/v1/discovery/cron/drain/3",
+      "path": "/svc/v1/discovery/cron/drain/1",
       "schedule": "15 11 * * *"
     },
     {
-      "path": "/svc/v1/discovery/cron/drain/4",
-      "schedule": "15 13 * * *"
-    },
-    {
-      "path": "/svc/v1/discovery/cron/drain/5",
-      "schedule": "15 15 * * *"
-    },
-    {
-      "path": "/svc/v1/discovery/cron/drain/6",
+      "path": "/svc/v1/discovery/cron/drain/2",
       "schedule": "15 17 * * *"
     }
   ]

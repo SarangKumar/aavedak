@@ -25,17 +25,22 @@ for internals). This page covers how it runs, how to configure it, and how to op
 
 ## Schedule (vercel.json, UTC; Hobby = once/day per cron, ±59 min)
 
-| Cron                                 | When (UTC)                        | Purpose                                                                                                                                                                                                          |
-| ------------------------------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/svc/v1/discovery/cron/scan/0..1`   | 00:15, 12:15 (≈ 05:45, 17:45 IST) | Scan one registry shard each — twice a day (careers pages, then boards and the cross-company index, then a few company-discovery candidates). The drains below finish whatever a run could not fit in its budget |
-| `/svc/v1/discovery/cron/expire`      | 00:15                             | Expire old jobs, auto-reject early applications                                                                                                                                                                  |
-| `/svc/v1/discovery/cron/rank`        | 01:15 (≈ 06:45 IST)               | Top up recommendations from the whole pool                                                                                                                                                                       |
-| `/svc/v1/discovery/cron/drain/0..6`  | 03:15, 05:15, 09:15 … 17:15       | Finish leftover / retrying items                                                                                                                                                                                 |
-| `/api/cron/process-follow-ups` (web) | 07:00                             | Unchanged                                                                                                                                                                                                        |
+| Cron                                   | When (UTC)                        | Purpose                                                                                              |
+| -------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `/svc/v1/discovery/cron/scan/0..1`     | 00:15, 12:15 (≈ 05:45, 17:45 IST) | Scan one registry shard each — twice a day. Drains finish whatever a run could not fit in its budget |
+| `/svc/v1/discovery/cron/expire`        | 00:15                             | Expire old jobs, auto-reject early applications                                                      |
+| `/svc/v1/discovery/cron/prune-filled`  | 00:45                             | Drop filled / removed-from-portal jobs from Discover                                                 |
+| `/svc/v1/discovery/cron/rank`          | 01:15 (≈ 06:45 IST)               | Top up recommendations from the whole pool                                                           |
+| `/api/cron/people-discovery?slot=0..1` | 00:17, 12:17                      | People discovery (morning/evening); web → API                                                        |
+| `/svc/v1/discovery/cron/drain/0..2`    | 05:15, 11:15, 17:15               | Finish leftover / retrying items (3×/day; Hobby Active CPU)                                          |
+| `/api/cron/process-follow-ups` (web)   | 07:00                             | Due follow-up queue                                                                                  |
+| `/api/cron/sync-replies` (web)         | 07:30                             | Gmail reply sync                                                                                     |
 
-Each cron call does at most `discovery_tick_budget_seconds` of work; whatever is left is
-picked up by the next drain cron (or the Admin page while open). Writes happen per company
-right after it is scanned, with bulk statements, so no single cron holds the database.
+Scan/drain crons use `discovery_cron_tick_budget_seconds` (90 s); web-proxied ticks
+(admin, people) use `discovery_tick_budget_seconds` (45 s). Whatever is left is picked up by
+the next drain cron (or the Admin page while open — close Admin when idle so ticks stop).
+Writes happen per company right after it is scanned, with bulk statements, so no single cron
+holds the database. Set `DISCOVERY_ENABLED=false` to pause ingest without removing crons.
 
 ## Admin page
 
@@ -82,26 +87,27 @@ Env (repo-root `.env`, shared with the web app) carries only deployment values a
 Tuning is typed and lives in code: `DiscoveryTuning` in `apps/api/app/discovery/config.py`.
 Change a value there (and commit); it is no longer read from env.
 
-| Setting                          | Default | Purpose                                                           |
-| -------------------------------- | ------- | ----------------------------------------------------------------- |
-| `discovery_daily_limit`          | `50`    | New recommendations per user per IST day                          |
-| `job_expiry_days`                | `30`    | Expiry by posting date (web display mirrors it)                   |
-| `ingest_max_min_years`           | `10`    | Skip roles whose min years (stated or title-inferred) exceed this |
-| `experience_window_years`        | `2`     | Match jobs with min years in [0, user YOE + this]                 |
-| `default_years_experience`       | `0`     | YOE assumed when the profile has none                             |
-| `include_internships`            | `false` | Also keep internships                                             |
-| `discovery_shards`               | `2`     | Must match the number of scan crons in `vercel.json`              |
-| `discovery_fetch_concurrency`    | `10`    | Sources fetched in parallel per tick                              |
-| `discovery_tick_budget_seconds`  | `45`    | Work per request before handing off                               |
-| `discovery_lease_seconds`        | `180`   | Lease on a claimed run item                                       |
-| `discovery_min_match_score`      | `30`    | Minimum match (users with skills/resume text)                     |
-| `discovery_max_attempts`         | `3`     | Retries per run item                                              |
-| `discovery_max_failures`         | `5`     | Then a source is only retried weekly                              |
-| `discovery_http_timeout_seconds` | `20`    | Per-request timeout for job sources                               |
-| `discovery_user_agent`           | bot UA  | User-Agent for every discovery request                            |
-| `smartrecruiters_detail_limit`   | `40`    | Per-company detail fetches                                        |
-| `people_batch_size`              | `100`   | Rows per people-import item                                       |
-| `people_*`                       | —       | People discovery limits, see DISCOVERY.md                         |
+| Setting                              | Default | Purpose                                                           |
+| ------------------------------------ | ------- | ----------------------------------------------------------------- |
+| `discovery_daily_limit`              | `50`    | New recommendations per user per IST day                          |
+| `job_expiry_days`                    | `30`    | Expiry by posting date (web display mirrors it)                   |
+| `ingest_max_min_years`               | `10`    | Skip roles whose min years (stated or title-inferred) exceed this |
+| `experience_window_years`            | `2`     | Match jobs with min years in [0, user YOE + this]                 |
+| `default_years_experience`           | `0`     | YOE assumed when the profile has none                             |
+| `include_internships`                | `false` | Also keep internships                                             |
+| `discovery_shards`                   | `2`     | Must match the number of scan crons in `vercel.json`              |
+| `discovery_fetch_concurrency`        | `4`     | Sources fetched in parallel per tick (Hobby Active CPU)           |
+| `discovery_tick_budget_seconds`      | `45`    | Work per web-proxied tick (admin / people cron)                   |
+| `discovery_cron_tick_budget_seconds` | `90`    | Work per scan/drain cron invoke (API, Hobby Active CPU)           |
+| `discovery_lease_seconds`            | `180`   | Lease on a claimed run item                                       |
+| `discovery_min_match_score`          | `30`    | Minimum match (users with skills/resume text)                     |
+| `discovery_max_attempts`             | `3`     | Retries per run item                                              |
+| `discovery_max_failures`             | `5`     | Then a source is only retried weekly                              |
+| `discovery_http_timeout_seconds`     | `20`    | Per-request timeout for job sources                               |
+| `discovery_user_agent`               | bot UA  | User-Agent for every discovery request                            |
+| `smartrecruiters_detail_limit`       | `40`    | Per-company detail fetches                                        |
+| `people_batch_size`                  | `100`   | Rows per people-import item                                       |
+| `people_*`                           | —       | People discovery limits, see DISCOVERY.md                         |
 
 The web app reads the same file/project env (`CRON_SECRET`, `NEXT_PUBLIC_API_URL`).
 

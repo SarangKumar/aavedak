@@ -133,7 +133,8 @@ def cron_drain(slot: int, conn: psycopg.Connection = Conn) -> dict[str, Any]:
 
 @router.get("/cron/people-discovery", dependencies=[Auth])
 def cron_people_discovery(conn: psycopg.Connection = Conn) -> dict[str, Any]:
-    """Daily fallback for the six `/api/cron/people-discovery` Vercel crons (same code)."""
+    """Same handler as the web `/api/cron/people-discovery` crons (kept for manual/curl; not
+    scheduled in vercel.json — two web slots cover the day)."""
     return _scheduled_people_run(conn, created_by="cron")
 
 

@@ -149,23 +149,24 @@ Per company source (one run item):
 
 - A run = items with leases. A tick claims up to `discovery_fetch_concurrency` items,
   processes them, and repeats until its budget is used: `discovery_cron_tick_budget_seconds`
-  (240 s) for the scan/drain crons Vercel calls on the API directly (300 s Hobby limit), and
-  `discovery_tick_budget_seconds` (45 s) for ticks proxied by web routes (`maxDuration = 60`).
-  A tick stops claiming once less than `http_timeout + 5` s remain. With concurrency 10 the
-  6 scan + 7 drain ticks/day cover a ~1,500-company registry with room for retries.
-  Failed items retry up to `discovery_max_attempts`; 404 boards / unsupported pages fail
-  immediately. A crashed tick's items become claimable when their lease expires.
+  (**90 s**) for the scan/drain crons Vercel calls on the API directly (Hobby Fluid Active CPU
+  budget), and `discovery_tick_budget_seconds` (45 s) for ticks proxied by web routes
+  (`maxDuration = 60`). A tick stops claiming once less than `http_timeout + 5` s remain.
+  With concurrency **4**, 2 scan + 3 drain ticks/day clear backlog across the day without
+  saturating Hobby's ~4 Active CPU-h/month. Failed items retry up to `discovery_max_attempts`;
+  404 boards / unsupported pages fail immediately. A crashed tick's items become claimable
+  when their lease expires.
 - `vercel.json` crons (each once/day, ±59 min on Hobby), all UTC. The job scan runs **twice a
   day**: shards `/cron/scan/0` at 00:15 and `/cron/scan/1` at 12:15 UTC (05:45 and 17:45 IST).
-  Each run queues its half of the registry; the seven drain crons through the day finish what a
-  run could not fit in its budget, so the shard count sets how often a company is revisited,
-  not how much work a day gets through. `/cron/expire` 00:15, `/cron/prune-filled` 00:45, `/cron/rank` 01:15,
-  `/cron/people-discovery` 02:15, `/cron/drain/0..6` spread through the day. Scan and
-  people-discovery runs are idempotent
-  per IST day (`run_key`), so a retried cron resumes instead of duplicating.
+  Each run queues its half of the registry; **three** drain crons (05:15, 11:15, 17:15 UTC)
+  finish what a run could not fit. `/cron/expire` 00:15, `/cron/prune-filled` 00:45,
+  `/cron/rank` 01:15. People discovery: two web crons `/api/cron/people-discovery?slot=0..1`
+  at 00:17 and 12:17 UTC (no separate API people cron). Scan and people-discovery runs are
+  idempotent per IST day (`run_key`), so a retried cron resumes instead of duplicating.
 - Sources split into shards by `shard_seed % discovery_shards`. Sources with
   `discovery_max_failures` consecutive failures are retried weekly only.
-- The admin page drives ticks while open (`POST /admin/tick`); closing it is safe.
+- The admin page drives ticks while open (`POST /admin/tick`); **close Admin when idle** so
+  those extra ticks stop (Hobby Active CPU). `DISCOVERY_ENABLED=false` pauses ingest.
 
 ## Official careers pages
 
@@ -417,20 +418,19 @@ confidence, first/last seen). People columns added: `seniority`, `department` (f
 `website_url`, `twitter_url`, `phone`, `confidence`, `last_seen_at`, `discovery_source`. The
 careers inbox is still kept as `"<Company> — Careers"`. People stays one global table.
 
-**Scheduling**: six once-daily Vercel crons (Hobby-compatible) call the web route
-`/api/cron/people-discovery?slot=0..5` at 00:17, 04:17, 08:17, 12:17, 16:17 and 20:17 UTC
-(Hobby may fire each anywhere within its hour) with `Authorization: Bearer $CRON_SECRET`; the
-route calls `POST /admin/people/scheduled`. The daily API cron `/cron/people-discovery`
-(02:15 UTC) is an extra fallback. Overlap/retries are safe: each call creates or resumes the
-one run for its IST 4-hour slot (`run_key`; the six UTC times land in six different IST
-slots even with Hobby drift, and the fallback just resumes slot 1), companies are claimed on
-the cursor when queued, and items are leased (`FOR UPDATE SKIP LOCKED`). Ticks use
-`kinds=["people_discover_target"]`, so the scan backlog can't starve people work. Creating a
-run also closes leftover v1 `people_discover_company` items. Admin: "Discover people now"
-(queues due companies + a 40 s people-only tick), the runs chart (people per IST day),
-`GET /admin/people/stats` (coverage, sources configured as booleans, targets, limits).
-Item counts: `created`, `enriched`, `unchanged`, `ambiguous`, per-source counts,
-`emailsPublished`, `emailsInferred`, `pages`, `requests`.
+**Scheduling**: two once-daily Vercel crons call the web route
+`/api/cron/people-discovery?slot=0..1` at 00:17 and 12:17 UTC (morning/evening; Hobby may fire
+each anywhere within its hour) with `Authorization: Bearer $CRON_SECRET`; the route calls
+`POST /admin/people/scheduled`. There is no scheduled API `/cron/people-discovery` (endpoint
+remains for manual/curl). Overlap/retries are safe: each call creates or resumes the one run
+for its IST 4-hour slot (`run_key`), companies are claimed on the cursor when queued, and
+items are leased (`FOR UPDATE SKIP LOCKED`). Ticks use `kinds=["people_discover_target"]`, so
+the scan backlog can't starve people work. Creating a run also closes leftover v1
+`people_discover_company` items. Admin: "Discover people now" (queues due companies + a 40 s
+people-only tick), the runs chart (people per IST day), `GET /admin/people/stats` (coverage,
+sources configured as booleans, targets, limits). Item counts: `created`, `enriched`,
+`unchanged`, `ambiguous`, per-source counts, `emailsPublished`, `emailsInferred`, `pages`,
+`requests`.
 
 ## People location
 

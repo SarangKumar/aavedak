@@ -106,12 +106,12 @@ const schedule = [
     body: "Runs the matching engine over the whole active pool for every user who has room left in today's 50, so a quiet scan day still fills Discover.",
   },
   {
-    when: "Every 4 hours · 05:47 IST onwards",
-    title: "People discovery (6 slots)",
+    when: "Twice a day · 05:47 and 17:47 IST",
+    title: "People discovery (2 slots)",
     body: "Looks for published contacts at the companies you have applied to — team pages, a company's public GitHub organisation, search snippets. Published addresses only; nothing is guessed and LinkedIn is never scraped.",
   },
   {
-    when: "7 runs through the day",
+    when: "3 runs · 10:45, 16:45 and 22:45 IST",
     title: "Drain",
     body: "Picks up work the scan runs could not finish inside their time budget — a slow board, a retried page — so nothing waits a whole day for its next turn.",
   },
