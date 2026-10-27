@@ -8,6 +8,7 @@ import {
   FileText,
   FileUser,
   FileUp,
+  FilePlus2,
   Gauge,
   Inbox,
   Kanban,
@@ -33,6 +34,7 @@ export type FeatureKey =
   | "coverLetters"
   | "resumeScore"
   | "improveResume"
+  | "createResume"
   | "uploadResume"
   | "referrals"
   | "referralEmail"
@@ -94,6 +96,12 @@ export const FEATURES: Record<FeatureKey, Feature> = {
     label: "Improve resume",
     description: "Better wording and order for a role, nothing invented.",
     icon: PenLine,
+  },
+  createResume: {
+    href: "/resume-creator",
+    label: "Create resume",
+    description: "Build a formal resume with a live A4 preview and ATS check.",
+    icon: FilePlus2,
   },
   uploadResume: {
     href: "/documents?tab=resumes&upload=1",

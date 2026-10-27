@@ -29,6 +29,7 @@ const DOCUMENT_LINKS: MenuLink[] = [
 const REFERRAL_LINKS: MenuLink[] = [FEATURES.referrals, FEATURES.inbox];
 
 const RESUME_LINKS: MenuLink[] = [
+  FEATURES.createResume,
   FEATURES.resumeScore,
   FEATURES.improveResume,
   FEATURES.uploadResume,
@@ -107,7 +108,10 @@ export function DesktopNavMenu() {
 
   const documentsActive = isActive(pathname, "/documents");
   const activeResume = useActiveResumeName(open === "resume");
-  const resumeActive = isActive(pathname, "/ats") || isActive(pathname, "/resume-improver");
+  const resumeActive =
+    isActive(pathname, "/ats") ||
+    isActive(pathname, "/resume-improver") ||
+    isActive(pathname, "/resume-creator");
   const referralsActive = isActive(pathname, "/referrals") || isActive(pathname, "/outreach");
 
   return (
@@ -205,7 +209,7 @@ export function DesktopNavMenu() {
                 <FEATURES.documents.icon className="text-primary size-4" aria-hidden />
                 <p className="text-foreground mt-2 text-[13px] font-semibold">Resumes</p>
                 <p className="text-muted-foreground mt-1 text-[12px] leading-snug">
-                  Score, improve and manage your resumes.
+                  Create, score, improve and manage your resumes.
                 </p>
                 <p className="text-muted-foreground mt-auto pt-3 text-[11px]">
                   Active:{" "}

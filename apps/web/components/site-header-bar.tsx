@@ -19,7 +19,10 @@ const item = (feature: FeatureKey) => ({
 
 const mobileNav: readonly NavGroup[] = [
   { label: "Workspace", items: [item("dashboard"), item("jobs"), item("tracker")] },
-  { label: "Resume", items: [item("resumeScore"), item("improveResume"), item("uploadResume")] },
+  {
+    label: "Resume",
+    items: [item("createResume"), item("resumeScore"), item("improveResume"), item("uploadResume")],
+  },
   {
     label: "Apply & reach out",
     items: [item("documents"), item("referrals"), item("inbox"), item("people")],
