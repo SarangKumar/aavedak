@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { FEATURES } from "@/lib/features";
 import { BrandMark } from "@/components/brand-mark";
+import { BuyMeCoffeeButton } from "@/components/buy-me-coffee-button";
 import { HomeCareerSources } from "@/components/home-career-sources";
 import { HomeFaq } from "@/components/home-faq";
 import { HomeFlow } from "@/components/home-flow";
@@ -126,21 +127,19 @@ export default async function HomePage() {
               {primaryLabel}
             </Link>
             {primaryHref === "/dashboard" ? (
-              <>
-                <Link
-                  href="/resume-creator"
-                  className="aavedak-btn border-border bg-card text-foreground ring-ring/10 hover:text-primary inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border px-6 text-[14px] font-medium shadow-sm ring-1 backdrop-blur-sm"
-                >
-                  Create resume
-                </Link>
-                <Link
-                  href="/ats"
-                  className="aavedak-btn border-border bg-card text-foreground ring-ring/10 hover:text-primary inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border px-6 text-[14px] font-medium shadow-sm ring-1 backdrop-blur-sm"
-                >
-                  Check ATS Score
-                </Link>
-              </>
+              <Link
+                href="/resume-creator"
+                className="aavedak-btn border-border bg-card text-foreground ring-ring/10 hover:text-primary inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border px-6 text-[14px] font-medium shadow-sm ring-1 backdrop-blur-sm"
+              >
+                Create resume
+              </Link>
             ) : null}
+            {/* Secondary fills contrast against the page; outline stays in the footer. */}
+            <BuyMeCoffeeButton
+              size="lg"
+              variant="secondary"
+              className="aavedak-btn ring-ring/10 h-10 max-h-10 min-h-10 rounded-lg px-6 text-[14px] font-medium shadow-sm ring-1"
+            />
           </div>
         </section>
 

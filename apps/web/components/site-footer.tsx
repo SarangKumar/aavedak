@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BuyMeCoffeeButton } from "@/components/buy-me-coffee-button";
 import { ShellWidth } from "@/components/shell-width";
 import { APP_VERSION } from "@/lib/version";
 import { cn } from "@/lib/utils";
@@ -88,6 +89,10 @@ export function SiteFooter({ className }: { className?: string }) {
           >
             Design system: Vinyaas
           </Link>
+          <span className="text-border hidden sm:inline" aria-hidden>
+            ·
+          </span>
+          <BuyMeCoffeeButton size="xs" variant="outline" className="text-[12px]" />
         </div>
       </ShellWidth>
     </footer>
